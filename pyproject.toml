@@ -1,0 +1,79 @@
+# Root tooling configuration for the BBZ platform Python workspace.
+# Each Python component (server/, packages/*) has its own pyproject.toml for
+# packaging. This file only centralizes lint/type/test configuration so every
+# component is checked with identical rules.
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+extend-exclude = [".venv", "alembic/versions", "node_modules"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "C4", "SIM", "TID", "RUF"]
+ignore = ["B008"]  # FastAPI Depends() in defaults is idiomatic
+
+[tool.ruff.lint.isort]
+known-first-party = ["bbz_core", "bbz_integration_sdk", "bbz_rule_dsl", "bbz_event_schemas"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+warn_unreachable = true
+plugins = ["pydantic.mypy"]
+exclude = ["(^|/)(\\.venv|alembic|node_modules|tests)/"]
+
+[[tool.mypy.overrides]]
+module = ["asyncpg.*"]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+pythonpath = ["."]
+testpaths = ["server/tests", "packages/integration-sdk/tests", "packages/rule-dsl/tests", "packages/event-schemas/tests", "integrations"]
+addopts = "-q --strict-markers --import-mode=importlib"
+filterwarnings = [
+  "error",
+  # Starlette 1.6 nudges towards httpx2; we use httpx via ASGITransport deliberately.
+  "ignore:Using `httpx` with `starlette.testclient`:DeprecationWarning",
+]
+
+[tool.coverage.run]
+branch = true
+source = ["bbz_core", "bbz_integration_sdk", "bbz_rule_dsl", "bbz_event_schemas"]
+omit = ["*/tests/*", "*/alembic/*"]
+
+[tool.coverage.report]
+show_missing = true
+# Foundation phase: skeleton code only. Domain-level gates (>=90%) are introduced
+# with Phase 1 in ADR-0008. Keep a low floor here so CI is meaningful but not noisy.
+fail_under = 70
+
+[tool.importlinter]
+root_packages = ["bbz_core"]
+include_external_packages = true
+
+[[tool.importlinter.contracts]]
+name = "Core domain is integration-agnostic"
+type = "forbidden"
+source_modules = ["bbz_core.domain"]
+forbidden_modules = [
+  "bbz_core.api",
+  "bbz_core.infra",
+  "bbz_core.integrations_host",
+  "bbz_integration_sdk",
+]
+
+[[tool.importlinter.contracts]]
+name = "Core never imports concrete integrations"
+type = "forbidden"
+source_modules = ["bbz_core"]
+forbidden_modules = ["integrations"]
+
+[[tool.importlinter.contracts]]
+name = "No direct integration-SDK import in api or domain"
+type = "forbidden"
+source_modules = ["bbz_core.api", "bbz_core.domain"]
+forbidden_modules = ["bbz_integration_sdk"]
+# api/v1 may call into bbz_core.integrations_host (which legitimately uses the
+# SDK); what is forbidden is api/domain reaching for the SDK themselves.
+allow_indirect_imports = "true"

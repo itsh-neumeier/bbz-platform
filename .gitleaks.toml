@@ -1,0 +1,15 @@
+# gitleaks configuration. Extends the default ruleset.
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Non-secret example/config values"
+paths = [
+  '''\.env\.example$''',
+  '''(^|/)tests?/''',
+  '''(^|/)README\.md$''',
+]
+regexes = [
+  # docker-compose dev-only default credentials (bbz/bbz) are intentional
+  '''postgresql\+asyncpg://bbz:bbz@''',
+]

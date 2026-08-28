@@ -1,0 +1,11 @@
+# Default owner for everything.
+*                       @itsh-neumeier
+
+# Architecture source of truth — changes need explicit review.
+/.ai/                   @itsh-neumeier
+/AGENTS.md              @itsh-neumeier
+/CLAUDE.md              @itsh-neumeier
+/MASTER_PROMPT_CLAUDE_CODE.md @itsh-neumeier
+
+# CI / supply chain
+/.github/               @itsh-neumeier
