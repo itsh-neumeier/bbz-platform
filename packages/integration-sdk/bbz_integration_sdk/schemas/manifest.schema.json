@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://bbz-platform/schemas/manifest.schema.json",
+  "title": "BBZ Integration Manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "name", "version", "domain", "adapter"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*$",
+      "description": "Stable integration id, e.g. telephony_cucm, coda_video."
+    },
+    "name": { "type": "string", "minLength": 1 },
+    "version": { "type": "string", "minLength": 1 },
+    "domain": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*$",
+      "description": "Functional domain: telephony, monitor, video, weather, alarm_ingress, ..."
+    },
+    "adapter": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Import path or logical adapter id resolved by the integration host."
+    },
+    "minimum_core_version": { "type": "string", "default": "0.0.0" },
+    "config_schema_version": { "type": "integer", "minimum": 1, "default": 1 },
+    "dependencies": {
+      "type": "array",
+      "items": { "type": "string" },
+      "default": []
+    },
+    "capabilities": {
+      "type": "array",
+      "items": { "type": "string" },
+      "uniqueItems": true,
+      "default": []
+    },
+    "mock": {
+      "type": "boolean",
+      "default": false,
+      "description": "True for mock/simulation adapters that carry no vendor API."
+    },
+    "description": { "type": "string", "default": "" }
+  }
+}

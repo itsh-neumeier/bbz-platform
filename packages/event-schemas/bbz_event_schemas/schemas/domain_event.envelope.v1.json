@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://bbz-platform/schemas/domain_event.envelope.v1.json",
+  "title": "BBZ Domain/Audit Event Envelope",
+  "description": "MASTER_PROMPT §3. Every fachliche state change produces one or more events with this envelope. Catch-up/replication use event_seq (or DB/WAL position), NEVER timestamps alone.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "event_seq",
+    "event_uuid",
+    "aggregate_type",
+    "aggregate_id",
+    "event_type",
+    "occurred_at_utc",
+    "node_id",
+    "schema_version",
+    "payload"
+  ],
+  "properties": {
+    "event_seq": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Globally monotonic sequence, assigned by the PostgreSQL primary only."
+    },
+    "event_uuid": { "type": "string", "format": "uuid" },
+    "aggregate_type": { "type": "string", "minLength": 1 },
+    "aggregate_id": { "type": "string", "minLength": 1 },
+    "event_type": { "type": "string", "minLength": 1 },
+    "occurred_at_utc": { "type": "string", "format": "date-time" },
+    "occurred_at_local": { "type": ["string", "null"] },
+    "node_id": { "type": "string", "minLength": 1 },
+    "user_id": { "type": ["string", "null"] },
+    "client_id": { "type": ["string", "null"] },
+    "command_id": { "type": ["string", "null"], "format": "uuid" },
+    "correlation_id": { "type": ["string", "null"] },
+    "schema_version": { "type": "integer", "minimum": 1 },
+    "payload": { "type": "object" }
+  }
+}

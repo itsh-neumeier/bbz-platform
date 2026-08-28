@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "bbz-integration-sdk"
+version = "0.0.0"
+description = "Vendor-neutral integration SDK for the BBZ platform: manifest schema, provider protocols, capability model."
+requires-python = ">=3.12"
+dependencies = [
+  "pydantic>=2.7,<3.0",
+  "jsonschema>=4.22",
+]
+
+[tool.setuptools.packages.find]
+include = ["bbz_integration_sdk*"]
+
+[tool.setuptools.package-data]
+bbz_integration_sdk = ["py.typed", "schemas/*.json"]

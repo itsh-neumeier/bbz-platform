@@ -1,0 +1,61 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://bbz-platform/schemas/telephony_event.v1.json",
+  "title": "BBZ Normalized Telephony Event",
+  "description": "MASTER_PROMPT §8.4. Vendor-neutral. The cucm-cti-gateway (or any provider) translates vendor events INTO this shape; the BBZ core never sees Cisco/JTAPI types.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "telephony_event_id",
+    "provider",
+    "raw_event_type",
+    "event_type",
+    "occurred_at",
+    "received_at",
+    "gateway_node"
+  ],
+  "properties": {
+    "telephony_event_id": { "type": "string", "minLength": 1 },
+    "provider": { "type": "string", "minLength": 1 },
+    "provider_cluster_id": { "type": ["string", "null"] },
+    "event_type": {
+      "type": "string",
+      "enum": [
+        "CALL_OFFERED",
+        "CALL_RINGING",
+        "CALL_ANSWERED",
+        "CALL_CONNECTED",
+        "CALL_HELD",
+        "CALL_RESUMED",
+        "CALL_TRANSFER_INITIATED",
+        "CALL_TRANSFERRED",
+        "CALL_CONFERENCED",
+        "CALL_DISCONNECTED",
+        "CALL_FAILED",
+        "LINE_IN_SERVICE",
+        "LINE_OUT_OF_SERVICE",
+        "DEVICE_REGISTERED",
+        "DEVICE_UNREGISTERED",
+        "CTI_PROVIDER_IN_SERVICE",
+        "CTI_PROVIDER_OUT_OF_SERVICE"
+      ]
+    },
+    "raw_event_type": {
+      "type": "string",
+      "description": "Original provider event name, for diagnostics only."
+    },
+    "source_call_id": { "type": ["string", "null"] },
+    "source_leg_id": { "type": ["string", "null"] },
+    "line_id": { "type": ["string", "null"] },
+    "device_id": { "type": ["string", "null"] },
+    "calling_number": { "type": ["string", "null"] },
+    "called_number": { "type": ["string", "null"] },
+    "redirecting_number": { "type": ["string", "null"] },
+    "display_name": { "type": ["string", "null"] },
+    "occurred_at": { "type": "string", "format": "date-time" },
+    "received_at": { "type": "string", "format": "date-time" },
+    "gateway_node": { "type": "string", "minLength": 1 },
+    "correlation_id": { "type": ["string", "null"] },
+    "metadata": { "type": "object", "default": {} }
+  }
+}
