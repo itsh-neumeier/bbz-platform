@@ -1,8 +1,12 @@
 # .ai/CURRENT_STATE.md
 
 ## Current phase
-Phase 0 – Repository Foundation (implementation in review on
-`feature/1-repository-foundation`, issue #1). Not merged to `main`.
+Phase 0 – Repository Foundation **complete**: merged to `main` via PR #2
+(2026-08-28), issue #1. CI and Security workflows green on `main`.
+
+Transitioning to Phase 1 – Core Domain (see "Next target" below). Prerequisite
+ADRs 0007–0018 still move from Proposed to Accepted on review before Phase 1
+implementation starts.
 
 ## Existing reference
 A functional HTML mockup defines important UX/feature behavior. **It is not yet in
@@ -40,7 +44,7 @@ Foundation skeleton only — **no domain logic, no productive vendor integration
 - Architecture boundaries enforced by `import-linter` (core ↛ integrations;
   api/domain ↛ SDK).
 
-## Test status (foundation branch, after CI hardening)
+## Test status (`main`, after Phase 0 merge)
 - Python: **50 passed** (pytest 9.x), `ruff` + `ruff format` clean, `mypy
   --strict` clean, `import-linter` 3/3 contracts kept.
 - CI workflow **green**: backend (lint/type/import-linter/pytest+coverage,
