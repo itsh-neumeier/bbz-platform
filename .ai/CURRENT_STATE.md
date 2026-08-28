@@ -40,14 +40,17 @@ Foundation skeleton only — **no domain logic, no productive vendor integration
 - Architecture boundaries enforced by `import-linter` (core ↛ integrations;
   api/domain ↛ SDK).
 
-## Test status (foundation commit)
-- Python: **49 passed** (pytest), `ruff` clean, `ruff format` clean, `mypy
-  --strict` clean, `import-linter` 3/3 contracts kept, `docker compose config`
-  valid.
-- Frontend (`apps/web`): lint/type/test **not executed** in the scaffolding
-  environment (no Node); wired in CI.
-- No live-PostgreSQL integration run locally; the Alembic up/down/up gate runs in
-  CI against a real PostgreSQL service.
+## Test status (foundation branch, after CI hardening)
+- Python: **50 passed** (pytest 9.x), `ruff` + `ruff format` clean, `mypy
+  --strict` clean, `import-linter` 3/3 contracts kept.
+- CI workflow **green**: backend (lint/type/import-linter/pytest+coverage,
+  Alembic upgrade/downgrade/upgrade against real PostgreSQL), commitlint,
+  `docker compose config`.
+- Security workflow **green**: gitleaks, pip-audit (strict, third-party deps),
+  Trivy FS.
+- Frontend job runs `npm lint` (passes, 0 errors) but is **continue-on-error**
+  until the first `apps/web` feature PR hardens `typecheck`/`test` (no Node in
+  the scaffolding environment).
 
 ## Next target
 Phase 1 – Core Domain: identity, roles, permissions, workplaces, events, event
