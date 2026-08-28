@@ -48,8 +48,13 @@ class Settings(BaseSettings):
 
     @property
     def database_url_sync(self) -> str:
-        """Sync DSN for Alembic (psycopg-style driver stripped to plain)."""
-        return self.database_url.replace("+asyncpg", "")
+        """Sync DSN for Alembic (psycopg v3 driver)."""
+        url = self.database_url
+        if "+asyncpg" in url:
+            return url.replace("+asyncpg", "+psycopg")
+        if url.startswith("postgresql://"):
+            return url.replace("postgresql://", "postgresql+psycopg://", 1)
+        return url
 
 
 @lru_cache

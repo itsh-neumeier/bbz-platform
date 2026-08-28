@@ -3,9 +3,11 @@ from __future__ import annotations
 from bbz_core.settings import Settings
 
 
-def test_database_url_sync_strips_async_driver() -> None:
+def test_database_url_sync_uses_sync_driver() -> None:
     s = Settings(database_url="postgresql+asyncpg://u:p@h:5432/db")
-    assert s.database_url_sync == "postgresql://u:p@h:5432/db"
+    assert s.database_url_sync == "postgresql+psycopg://u:p@h:5432/db"
+    plain = Settings(database_url="postgresql://u:p@h:5432/db")
+    assert plain.database_url_sync == "postgresql+psycopg://u:p@h:5432/db"
 
 
 def test_env_prefix(monkeypatch) -> None:  # type: ignore[no-untyped-def]
