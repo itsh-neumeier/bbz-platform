@@ -1,7 +1,7 @@
 # ADR-0008: Backend Stack and Module Boundaries
 
 ## Status
-Proposed
+Accepted (2026-08-29, review E01-01 / #20)
 
 ## Context
 MASTER_PROMPT §6 recommends Python/FastAPI for a Home-Assistant-like integration

@@ -1,7 +1,7 @@
 # ADR-0017: Time Handling
 
 ## Status
-Proposed
+Accepted (2026-08-29, review E01-01 / #20)
 
 ## Context
 MASTER_PROMPT §3: timestamps are for display/audit, never the replication cursor

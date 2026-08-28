@@ -1,7 +1,7 @@
 # ADR-0010: Safe Restricted Rule DSL
 
 ## Status
-Proposed
+Accepted (2026-08-29, review E01-01 / #20)
 
 ## Context
 EPK OR/XOR branch conditions (ADR-0005) and technical trigger-rule conditions
