@@ -32,7 +32,7 @@ jobs:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          python-version: "3.13"
       - run: pip install -r requirements-dev.txt
       # Audit third-party dependencies strictly. The repo's own packages are
       # installed editable and are not on PyPI, so exclude them from the set.
