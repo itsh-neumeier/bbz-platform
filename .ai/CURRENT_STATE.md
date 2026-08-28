@@ -69,10 +69,23 @@ v7, `setup-node` v7), Python dev-tooling group (pytest 9, mypy 2, ruff 0.16,
 …). Deferred as dedicated tasks: coordinated `apps/web` major upgrades (PrimeVue
 5 / Pinia 4 / vue-router 5 / vue-i18n 11 / Vite 8 — issue #14).
 
+## Delivery roadmap (2026-08-28)
+`.ai/ROADMAP.md` is the full delivery plan: **24 Epics, 279 single-branch
+issues**, each with the mandatory template (goal / background / scope /
+out-of-scope / dependencies / acceptance criteria / tests / security / HA /
+permissions / audit events). All 279 issues exist on GitHub with one milestone
+per epic (`01 …` – `24 …`) and `epic:*` / `phase:*` / `area:*` labels;
+cross-issue dependencies are annotated as `E##-## (#nnn)` in the bodies.
+Tracking issue: #18. The roadmap also schedules six new/confirmed ADRs
+(ADR-0009 accept, ADR-0019 secret store, 0020 audit immutability, 0021 PG
+replication mode, 0022 Electron load strategy, 0023 SIP gateway) and one
+permission-catalog addition (`agents.manage`).
+
 ## Next target
-Phase 1 – Core Domain: identity, roles, permissions, workplaces, events, event
-ownership, audit, event stream, EPK workflow engine. Prerequisite ADRs 0007–0018
-move from Proposed to Accepted on review.
+Phase 1 – Core Domain (Epics 02–05). **Gate:** Epic 01 issue **E01-01** (#20) —
+ADRs 0007–0018 move from Proposed to Accepted — before Phase 1 implementation.
+Then Epic 02 Identity / RBAC (#27 ff.). HA Cluster (Epic 06) runs in parallel
+from Phase 2.
 
 ## New ADRs (this phase)
 0007 monorepo layout · 0008 backend stack & boundaries · 0009 agent language (Go,
