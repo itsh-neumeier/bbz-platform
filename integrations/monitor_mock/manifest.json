@@ -1,0 +1,11 @@
+{
+  "id": "monitor_mock",
+  "name": "Monitor Routing Mock",
+  "version": "0.0.0",
+  "domain": "monitor",
+  "adapter": "integrations.monitor_mock.adapter:MockMonitorProvider",
+  "config_schema_version": 1,
+  "capabilities": ["monitor.route", "monitor.layout_profiles"],
+  "mock": true,
+  "description": "In-memory monitor/KVM routing model for development and tests."
+}

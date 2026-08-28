@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "monitor_mock configuration",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "inputs": {
+      "type": "array",
+      "items": { "type": "string" },
+      "default": ["BBZ-OS", "BKU1", "BKU2", "BKU3", "BKU4", "CODA1", "CODA2"]
+    },
+    "outputs": {
+      "type": "array",
+      "items": { "type": "string" },
+      "default": ["AP1", "AP2", "AP3", "AP4", "AP5", "AP6", "GROSSBILD"]
+    }
+  }
+}
