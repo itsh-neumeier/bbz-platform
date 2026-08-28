@@ -34,9 +34,11 @@ jobs:
         with:
           python-version: "3.12"
       - run: pip install -r requirements-dev.txt
-      # Skip the repo's own editable packages — they are not on PyPI and are
-      # covered by the rest of the toolchain.
-      - run: pip-audit --strict --skip-editable --progress-spinner off
+      # Audit third-party dependencies strictly. The repo's own packages are
+      # installed editable and are not on PyPI, so exclude them from the set.
+      - run: |
+          pip freeze --exclude-editable > audit-requirements.txt
+          pip-audit --strict -r audit-requirements.txt --progress-spinner off
 
   filesystem-scan:
     name: trivy fs
