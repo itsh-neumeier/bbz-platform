@@ -10,12 +10,16 @@ export default defineConfig({
   },
   server: {
     port: 5173,
-    // Dev proxy so the SPA talks to a locally running bbz-api.
-    proxy: {
-      '/api': { target: 'http://localhost:8000', changeOrigin: true },
-      '/health': { target: 'http://localhost:8000', changeOrigin: true },
-      '/cluster': { target: 'http://localhost:8000', changeOrigin: true },
-    },
+    // Dev proxy so the SPA talks to a running bbz-api. Host dev uses the
+    // default; inside docker-compose set VITE_API_PROXY_TARGET=http://api:8000.
+    proxy: (() => {
+      const target = process.env.VITE_API_PROXY_TARGET ?? 'http://localhost:8000';
+      return {
+        '/api': { target, changeOrigin: true },
+        '/health': { target, changeOrigin: true },
+        '/cluster': { target, changeOrigin: true },
+      };
+    })(),
   },
   test: {
     environment: 'jsdom',
