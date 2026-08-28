@@ -1,7 +1,7 @@
 # ADR-0007: Monorepo Layout and Tooling
 
 ## Status
-Proposed
+Accepted (2026-08-29, review E01-01 / #20)
 
 ## Context
 The platform spans a Python backend, shared Python packages, pluggable

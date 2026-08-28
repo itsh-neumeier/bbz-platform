@@ -1,7 +1,7 @@
 # ADR-0011: Event Log + State Tables, with Outbox/Inbox
 
 ## Status
-Proposed
+Accepted (2026-08-29, review E01-01 / #20)
 
 ## Context
 MASTER_PROMPT §3/§16 require a global monotonic `event_seq`, catch-up by sequence
@@ -9,7 +9,7 @@ MASTER_PROMPT §3/§16 require a global monotonic `event_seq`, catch-up by seque
 (ADR-0004/0006). We must decide whether to use full event sourcing or a
 transactional state model plus an append-only event log.
 
-## Decision (proposed)
+## Decision
 - **Not** full event sourcing. Use authoritative relational state tables **plus**
   an append-only `domain_events` / `audit_events` log written in the *same*
   transaction as the state change.

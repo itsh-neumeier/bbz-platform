@@ -1,7 +1,7 @@
 # ADR-0012: API and Idempotency Conventions
 
 ## Status
-Proposed
+Accepted (2026-08-29, review E01-01 / #20)
 
 ## Context
 MASTER_PROMPT §15/§16 fix the broad shape (REST + WebSocket/SSE, command_id,

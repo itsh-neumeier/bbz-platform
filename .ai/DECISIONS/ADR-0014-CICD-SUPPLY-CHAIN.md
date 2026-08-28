@@ -1,7 +1,7 @@
 # ADR-0014: CI/CD and Supply Chain
 
 ## Status
-Proposed
+Accepted (2026-08-29, review E01-01 / #20)
 
 ## Context
 MASTER_PROMPT §19 requires lint/type/test, security scan, container build, SBOM,

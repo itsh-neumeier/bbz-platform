@@ -1,7 +1,7 @@
 # ADR-0013: Frontend Stack and Accessibility Baseline
 
 ## Status
-Proposed
+Accepted (2026-08-29, review E01-01 / #20)
 
 ## Context
 MASTER_PROMPT §6/§13 fix Vue 3 + PrimeVue + Pinia + Vue Router + i18n and treat
@@ -28,3 +28,10 @@ functional requirement (`.ai/RULES.md`).
 ## Alternatives considered
 React/other component kits (rejected: MASTER_PROMPT fixes Vue/PrimeVue);
 Vuetify/Quasar (rejected: PrimeVue is specified).
+
+## Open points
+- The coordinated major upgrade of the `apps/web` toolchain (PrimeVue 5, Pinia 4,
+  vue-router 5, vue-i18n 11, Vite 8, ESLint 10, TS 7) is evaluated in issue #14
+  (roadmap E14 / `chore(web)` task). The accepted baseline stays **PrimeVue 4 /
+  Pinia 2 / vue-router 4** until that migration lands; accepting this ADR does not
+  pre-commit to the upgrade.

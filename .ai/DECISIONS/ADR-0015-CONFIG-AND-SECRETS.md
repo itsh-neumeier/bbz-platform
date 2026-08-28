@@ -1,7 +1,7 @@
 # ADR-0015: Configuration and Secrets Management
 
 ## Status
-Proposed
+Accepted (2026-08-29, review E01-01 / #20)
 
 ## Context
 `.ai/SECURITY.md`: no credentials in the repo; use Docker secrets / a secret
@@ -21,8 +21,13 @@ serviceability, DB, agents), plus door DTMF profiles that must never be logged.
 
 ## Consequences
 - Clean 12-factor config; rotation is an ops action, not a code change.
-- A concrete secret-store choice is still pending (tracked in CURRENT_STATE).
 
 ## Alternatives considered
 Committed encrypted secrets only (SOPS) — kept as an option for GitOps config,
 but runtime secrets go through the orchestrator/secret store.
+
+## Open points
+- **The concrete runtime secret-store product** (e.g. HashiCorp Vault vs.
+  SOPS-age) is deliberately out of scope here and is decided in a dedicated
+  **ADR-0019** — roadmap issue E01-03 (#22), required before staging. Until then,
+  runtime secrets are injected via Docker/Compose secrets as described above.

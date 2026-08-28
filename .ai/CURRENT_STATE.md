@@ -82,17 +82,31 @@ replication mode, 0022 Electron load strategy, 0023 SIP gateway) and one
 permission-catalog addition (`agents.manage`).
 
 ## Next target
-Phase 1 – Core Domain (Epics 02–05). **Gate:** Epic 01 issue **E01-01** (#20) —
-ADRs 0007–0018 move from Proposed to Accepted — before Phase 1 implementation.
-Then Epic 02 Identity / RBAC (#27 ff.). HA Cluster (Epic 06) runs in parallel
-from Phase 2.
+Phase 1 – Core Domain (Epics 02–05). The Phase-1 ADR gate (**E01-01** / #20) is
+**cleared** — see below. Start with **Epic 02 Identity / RBAC** (#27 ff.,
+schema-first: E02-01 #27 → E02-02 #28 → …). HA Cluster (Epic 06) runs in
+parallel from Phase 2.
 
-## New ADRs (this phase)
-0007 monorepo layout · 0008 backend stack & boundaries · 0009 agent language (Go,
-proposed) · 0010 rule DSL · 0011 event log + outbox/inbox · 0012 API/idempotency
-conventions · 0013 frontend stack & a11y · 0014 CI/CD & supply chain · 0015
-config & secrets · 0016 Cayuga→Coda consolidation (accepted) · 0017 time handling
-(UTC) · 0018 distributed config store (etcd).
+## Architecture ADRs — status (after E01-01 / #20, 2026-08-29)
+**Accepted:** 0001, 0002 (baseline), 0003, 0004, 0005, 0006, 0007 monorepo
+layout, 0008 backend stack & boundaries, 0010 rule DSL, 0011 event log +
+outbox/inbox, 0012 API/idempotency conventions, 0013 frontend stack & a11y, 0014
+CI/CD & supply chain, 0015 config & secrets, 0016 Cayuga→Coda consolidation, 0017
+time handling (UTC), 0018 distributed config store (etcd).
+
+**Still Proposed / decision pending:**
+- **0009** agent language (Go) — decided in Epic 09 issue E09-01 (#145).
+
+**Open points recorded on accepted ADRs:**
+- ADR-0013: the coordinated `apps/web` major upgrade (PrimeVue 5 / Pinia 4 /
+  vue-router 5 / Vite 8) is evaluated in issue #14; baseline stays PrimeVue 4.
+- ADR-0015: the concrete runtime secret-store product → dedicated **ADR-0019**
+  (E01-03 / #22), required before staging.
+
+**New ADRs scheduled by the roadmap:** 0019 secret store (E01-03 / #22), 0020
+audit immutability (E04-10 / #66), 0021 PostgreSQL replication mode (E06-02 /
+#82), 0022 Electron load strategy (E08-07 / #143), 0023 SIP gateway (E13-02 /
+#271).
 
 ## Open external dependencies
 - exact Cisco CUCM version/SU and productive cluster/CTI configuration (§8.18)
