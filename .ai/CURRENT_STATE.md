@@ -44,7 +44,7 @@ Foundation skeleton only — **no domain logic, no productive vendor integration
 - Architecture boundaries enforced by `import-linter` (core ↛ integrations;
   api/domain ↛ SDK).
 
-## Test status (`main`, after Phase 0 merge)
+## Test status (`main`, after Phase 0 merge + dependency hygiene)
 - Python: **50 passed** (pytest 9.x), `ruff` + `ruff format` clean, `mypy
   --strict` clean, `import-linter` 3/3 contracts kept.
 - CI workflow **green**: backend (lint/type/import-linter/pytest+coverage,
@@ -52,9 +52,22 @@ Foundation skeleton only — **no domain logic, no productive vendor integration
   `docker compose config`.
 - Security workflow **green**: gitleaks, pip-audit (strict, third-party deps),
   Trivy FS.
-- Frontend job runs `npm lint` (passes, 0 errors) but is **continue-on-error**
-  until the first `apps/web` feature PR hardens `typecheck`/`test` (no Node in
-  the scaffolding environment).
+- Frontend job now runs `lint` + `typecheck` + `unit` and all pass, but is still
+  **continue-on-error**; dropping that (the DoD hardening) is tracked with the
+  coordinated frontend upgrade in issue #14.
+- Runtime is **Python 3.13** (`python:3.13-slim` image, CI + security workflows);
+  ADR-0008 floor stays "3.12+". Bump to 3.14 deferred until `asyncpg`'s pin can
+  move (no cp314 wheel below 0.31) — issue #13 / PR #15.
+- Dev stack (`docker compose --profile core`) **verified end-to-end** on
+  2026-08-28: `api` (health/ready, meta, cluster stub, OpenAPI, `/docs`),
+  Alembic `0001_baseline`, Postgres, etcd, and the Vue shell on `:5173` with the
+  API dev-proxy (`VITE_API_PROXY_TARGET`).
+
+## Dependency maintenance (2026-08-28)
+Dependabot backlog cleared: GitHub Actions bumped (`checkout` v7, `setup-python`
+v7, `setup-node` v7), Python dev-tooling group (pytest 9, mypy 2, ruff 0.16,
+…). Deferred as dedicated tasks: coordinated `apps/web` major upgrades (PrimeVue
+5 / Pinia 4 / vue-router 5 / vue-i18n 11 / Vite 8 — issue #14).
 
 ## Next target
 Phase 1 – Core Domain: identity, roles, permissions, workplaces, events, event
