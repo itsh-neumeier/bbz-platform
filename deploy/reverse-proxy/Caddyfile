@@ -1,0 +1,22 @@
+# Foundation-phase edge stub. Real config (TLS, HSTS, CSP, rate limits — see
+# SECURITY.md / MASTER_PROMPT §22) is completed in Phase 2/3.
+:8443 {
+	encode gzip
+	header {
+		X-Content-Type-Options nosniff
+		X-Frame-Options DENY
+		Referrer-Policy strict-origin-when-cross-origin
+	}
+	handle /api/* {
+		reverse_proxy api:8000
+	}
+	handle /health/* {
+		reverse_proxy api:8000
+	}
+	handle /cluster/* {
+		reverse_proxy api:8000
+	}
+	handle {
+		reverse_proxy web:5173
+	}
+}
