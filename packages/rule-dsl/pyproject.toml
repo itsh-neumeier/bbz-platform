@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "bbz-rule-dsl"
+version = "0.0.0"
+description = "Safe, restricted expression DSL for BBZ trigger rules and EPK OR/XOR conditions. NEVER eval."
+requires-python = ">=3.12"
+dependencies = ["pydantic>=2.7,<3.0"]
+
+[tool.setuptools.packages.find]
+include = ["bbz_rule_dsl*"]
+
+[tool.setuptools.package-data]
+bbz_rule_dsl = ["py.typed"]

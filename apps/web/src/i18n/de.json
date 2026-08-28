@@ -1,0 +1,32 @@
+{
+  "app": {
+    "title": "BBZ / 3-S-Zentrale",
+    "workplaceActive": "Arbeitsplatz aktiv",
+    "systemsReady": "Systeme betriebsbereit"
+  },
+  "nav": {
+    "workplace": "Arbeitsplatz",
+    "events": "Ereignisse",
+    "weather": "Wetterlage",
+    "phonebook": "Telefonbuch",
+    "admin": "Administration"
+  },
+  "comms": {
+    "phone": "Telefon",
+    "call": "Gespräch",
+    "phonebook": "Telefonbuch",
+    "history": "Historie",
+    "availableLines": "Verfügbare Leitungen"
+  },
+  "workplace": {
+    "eventStore": "Ereignisspeicher",
+    "accept": "Annehmen",
+    "acknowledge": "Quittieren",
+    "edit": "Bearbeiten",
+    "archive": "Archivieren"
+  },
+  "foundation": {
+    "notice": "Foundation-Phase: nur Grundgerüst. Fachfunktionen folgen ab Phase 1.",
+    "clusterStub": "Cluster-Status ist ein Platzhalter (Phase 2)."
+  }
+}

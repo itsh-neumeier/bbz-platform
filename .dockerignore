@@ -1,0 +1,14 @@
+**/.venv
+**/__pycache__
+**/*.pyc
+**/.pytest_cache
+**/.mypy_cache
+**/.ruff_cache
+**/node_modules
+**/dist
+**/.git
+**/coverage*
+**/htmlcov
+apps/web/dist
+*.md
+!server/alembic/**

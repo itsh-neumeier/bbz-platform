@@ -1,0 +1,72 @@
+# Developer convenience stack (single node). NOT the production topology —
+# per-node HA composition (Patroni + 3x etcd + 2 app nodes) lives in deploy/ and
+# is built in Phase 2 (ADR-0001, ADR-0018).
+#
+#   docker compose --profile core up --build
+#
+name: bbz-platform
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    profiles: ["core"]
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-bbz}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-bbz}
+      POSTGRES_DB: ${POSTGRES_DB:-bbz}
+    ports: ["5432:5432"]
+    volumes: ["bbz_pg:/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-bbz}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  etcd:
+    image: gcr.io/etcd-development/etcd:v3.5.16
+    profiles: ["core"]
+    command: >
+      /usr/local/bin/etcd
+      --name bbz-etcd-dev
+      --listen-client-urls http://0.0.0.0:2379
+      --advertise-client-urls http://etcd:2379
+      --listen-peer-urls http://0.0.0.0:2380
+    ports: ["2379:2379"]
+
+  api:
+    build:
+      context: .
+      dockerfile: server/Dockerfile
+    profiles: ["core"]
+    environment:
+      BBZ_ENVIRONMENT: local
+      BBZ_NODE_ID: BBZ-DEV01
+      BBZ_LOG_JSON: "true"
+      BBZ_DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-bbz}:${POSTGRES_PASSWORD:-bbz}@postgres:5432/${POSTGRES_DB:-bbz}
+      BBZ_CLUSTER_DCS: etcd
+      BBZ_CLUSTER_DCS_ENDPOINTS: '["http://etcd:2379"]'
+    ports: ["8000:8000"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  web:
+    image: node:20-alpine
+    profiles: ["core"]
+    working_dir: /app
+    command: sh -c "npm install && npm run dev -- --host 0.0.0.0"
+    environment:
+      VITE_API_BASE: http://api:8000
+    volumes: ["./apps/web:/app"]
+    ports: ["5173:5173"]
+    depends_on: ["api"]
+
+  reverse-proxy:
+    image: caddy:2-alpine
+    profiles: ["edge"]
+    ports: ["8443:8443"]
+    volumes: ["./deploy/reverse-proxy/Caddyfile:/etc/caddy/Caddyfile:ro"]
+    depends_on: ["api", "web"]
+
+volumes:
+  bbz_pg:

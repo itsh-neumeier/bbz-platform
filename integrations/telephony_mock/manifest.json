@@ -1,0 +1,19 @@
+{
+  "id": "telephony_mock",
+  "name": "Telephony Mock",
+  "version": "0.0.0",
+  "domain": "telephony",
+  "adapter": "integrations.telephony_mock.adapter:MockTelephonyProvider",
+  "minimum_core_version": "0.0.0",
+  "config_schema_version": 1,
+  "capabilities": [
+    "call.answer",
+    "call.dial",
+    "call.hangup",
+    "call.hold",
+    "call.resume",
+    "call.monitoring"
+  ],
+  "mock": true,
+  "description": "Deterministic in-memory telephony provider for development, tests and demos."
+}

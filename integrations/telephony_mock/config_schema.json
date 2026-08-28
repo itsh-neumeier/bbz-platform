@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "telephony_mock configuration",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "lines": {
+      "type": "array",
+      "items": { "type": "string" },
+      "default": ["1001", "1002"],
+      "description": "Logical line ids the mock exposes."
+    },
+    "auto_answer": { "type": "boolean", "default": false }
+  }
+}

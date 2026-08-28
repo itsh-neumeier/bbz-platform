@@ -1,0 +1,58 @@
+/*
+ * BBZ design tokens. Light palette on :root; dark overrides gated so an explicit
+ * toggle wins in both directions. Priority colours match the mockup contract
+ * (contacts blue/orange/red, MASTER_PROMPT §13.9).
+ */
+:root {
+  --bbz-bg: #f4f5f7;
+  --bbz-surface: #ffffff;
+  --bbz-text: #1c1f23;
+  --bbz-text-muted: #5b6470;
+  --bbz-border: #d6dae0;
+  --bbz-accent: #0a5;
+  --bbz-db-red: #ec0016; /* DB brand red */
+
+  --bbz-prio-low: #1e6fd9; /* blue */
+  --bbz-prio-medium: #e08600; /* orange */
+  --bbz-prio-high: #d1242f; /* red */
+  --bbz-prio-critical: #b3001b;
+
+  --bbz-sidebar-width: 260px;
+  --bbz-comms-width: 360px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --bbz-bg: #14171a;
+    --bbz-surface: #1d2125;
+    --bbz-text: #e7eaee;
+    --bbz-text-muted: #9aa4b0;
+    --bbz-border: #333a42;
+  }
+}
+
+:root[data-theme='dark'] {
+  --bbz-bg: #14171a;
+  --bbz-surface: #1d2125;
+  --bbz-text: #e7eaee;
+  --bbz-text-muted: #9aa4b0;
+  --bbz-border: #333a42;
+}
+
+/* Respect reduced-motion globally (MASTER_PROMPT §13.3, RULES.md). */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+body {
+  margin: 0;
+  background: var(--bbz-bg);
+  color: var(--bbz-text);
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+}

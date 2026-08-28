@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "coda_video (mock) configuration",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "instance_id": { "type": "string", "default": "coda-mock-1" },
+    "simulated_sources": {
+      "type": "array",
+      "default": [],
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["external_source_id", "name"],
+        "properties": {
+          "external_source_id": { "type": "string" },
+          "name": { "type": "string" },
+          "cameras": { "type": "array", "items": { "type": "string" }, "default": [] }
+        }
+      }
+    }
+  }
+}

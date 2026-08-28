@@ -1,0 +1,18 @@
+{
+  "id": "coda_video",
+  "name": "Coda Video (HxGN dC3 Video) — Mock",
+  "version": "0.0.0",
+  "domain": "video",
+  "adapter": "integrations.coda_video.adapter:MockCodaVideoProvider",
+  "config_schema_version": 1,
+  "capabilities": [
+    "video.resolve_camera",
+    "video.open_camera",
+    "video.open_camera_group",
+    "alarm.subscribe",
+    "alarm.resolve_source",
+    "alarm.get_context"
+  ],
+  "mock": true,
+  "description": "MOCK ONLY. Simulates Coda video + panic/duress alarm ingress. Contains NO vendor API — real integration is implemented strictly from official Coda/HxGN dC3 documentation (ADR-0006)."
+}
