@@ -1,9 +1,9 @@
 """Alembic environment.
 
 The DB URL comes from application settings (env: ``BBZ_DATABASE_URL``), never
-from ``alembic.ini``. Phase 0 has no ORM metadata yet, so ``target_metadata`` is
-``None`` and autogenerate is not used. Migrations are hand-written and reviewed
-(expand / migrate / contract, MASTER_PROMPT §21).
+from ``alembic.ini``. ``target_metadata`` is the ORM metadata so ``--autogenerate``
+can *assist*, but migrations stay hand-written and reviewed (expand / migrate /
+contract, MASTER_PROMPT §21).
 """
 
 from __future__ import annotations
@@ -13,6 +13,7 @@ from logging.config import fileConfig
 from alembic import context
 from sqlalchemy import engine_from_config, pool
 
+from bbz_core.infra.models import Base
 from bbz_core.settings import get_settings
 
 config = context.config
@@ -22,7 +23,7 @@ if config.config_file_name is not None:
 
 config.set_main_option("sqlalchemy.url", get_settings().database_url_sync)
 
-target_metadata = None
+target_metadata = Base.metadata
 
 
 def run_migrations_offline() -> None:
