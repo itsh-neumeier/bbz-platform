@@ -10,12 +10,40 @@ from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from bbz_core.auth.local import CredentialRecord
+from bbz_core.auth.provider import AuthenticatedIdentity
 from bbz_core.infra.models.identity import AuthIdentity, LocalCredential, User
 
 
 class SqlAlchemyCredentialStore:
+    """Local credential store + identity resolution (:class:`LocalIdentityStore`)."""
+
     def __init__(self, session: AsyncSession) -> None:
         self._s = session
+
+    async def get_identity(self, subject: str) -> AuthenticatedIdentity | None:
+        row = (
+            await self._s.execute(
+                select(User.display_name)
+                .join(AuthIdentity, AuthIdentity.user_id == User.id)
+                .where(AuthIdentity.provider == "local", AuthIdentity.subject == subject)
+            )
+        ).first()
+        if row is None:
+            return None
+        return AuthenticatedIdentity(provider="local", subject=subject, display_name=row[0])
+
+    async def resolve(
+        self, identity: AuthenticatedIdentity, *, provision: bool
+    ) -> uuid.UUID | None:
+        row = (
+            await self._s.execute(
+                select(AuthIdentity.user_id).where(
+                    AuthIdentity.provider == identity.provider,
+                    AuthIdentity.subject == identity.subject,
+                )
+            )
+        ).first()
+        return row[0] if row is not None else None
 
     async def get_by_username(self, username: str) -> CredentialRecord | None:
         row = (

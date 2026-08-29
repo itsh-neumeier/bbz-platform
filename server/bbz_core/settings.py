@@ -49,6 +49,13 @@ class Settings(BaseSettings):
     # --- auth: providers (E02-04). 'local' is always active regardless. ---
     auth_providers: list[str] = Field(default_factory=lambda: ["local"])
 
+    # --- auth: sessions / tokens (E02-05; secret via ADR-0015 in prod) ---
+    jwt_secret: str = "dev-insecure-secret-change-me-min-32-bytes!!"
+    access_token_ttl_seconds: int = 900
+    refresh_token_ttl_seconds: int = 60 * 60 * 24 * 7
+    session_cookie_secure: bool = True
+    session_cookie_domain: str | None = None
+
     # --- auth: local password credentials (ADR-0015; E02-03) ---
     argon2_time_cost: int = 3
     argon2_memory_cost_kib: int = 65536

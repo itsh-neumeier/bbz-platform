@@ -50,6 +50,25 @@ class NotFoundError(AppError):
     http_status = status.HTTP_404_NOT_FOUND
 
 
+class UnauthorizedError(AppError):
+    """No valid authentication was presented."""
+
+    code = "unauthorized"
+    http_status = status.HTTP_401_UNAUTHORIZED
+
+
+class ForbiddenError(AppError):
+    """Authenticated, but not allowed (missing permission or CSRF token)."""
+
+    code = "forbidden"
+    http_status = status.HTTP_403_FORBIDDEN
+
+
+class ValidationError(AppError):
+    code = "validation_error"
+    http_status = 422
+
+
 def _render(request: Request, exc: AppError) -> JSONResponse:
     from bbz_core.logging import correlation_id
 

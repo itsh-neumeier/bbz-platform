@@ -26,6 +26,7 @@ from bbz_core.infra.models.rbac import (
     UserGroup,
     UserRole,
 )
+from bbz_core.infra.models.session import Session
 
 __all__ = [
     "AuthIdentity",
@@ -39,6 +40,7 @@ __all__ = [
     "Role",
     "RolePermission",
     "Scope",
+    "Session",
     "User",
     "UserGroup",
     "UserPresence",
