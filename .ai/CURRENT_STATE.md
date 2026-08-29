@@ -1,12 +1,26 @@
 # .ai/CURRENT_STATE.md
 
 ## Current phase
-Phase 0 – Repository Foundation **complete**: merged to `main` via PR #2
-(2026-08-28), issue #1. CI and Security workflows green on `main`.
+Phase 0 complete. **Phase 1 – Core Domain in progress**, working the roadmap
+issues in order (see `.ai/ROADMAP.md`, tracking issue #18).
 
-Transitioning to Phase 1 – Core Domain (see "Next target" below). Prerequisite
-ADRs 0007–0018 still move from Proposed to Accepted on review before Phase 1
-implementation starts.
+### Progress (Epic 02 – Identity / RBAC)
+Merged: **#20** ADR acceptance gate · **#27** identity schema (`users`,
+`auth_identities`, `user_presence`) · **#28** RBAC schema (`permissions`,
+`roles`, `groups`, `role_permissions` w/ scope + Rule-DSL `condition`,
+assignment tables) · **#29** local password auth (`bbz_core.auth`: Argon2id,
+password policy, lockout; `local_credentials` table) · **#30** `AuthProvider`
+protocol + registry (local real; OIDC/LDAP stubs) · **#31** sessions +
+`/api/v1/auth/{login,refresh,logout,me}` (HS256 access JWT, opaque hashed
+refresh, `sessions` table, CSRF double-submit, `api/deps.py`).
+
+Migrations `0002`–`0005` on `main`. New test infra: `db` fixture in
+`server/tests/conftest.py` (real PostgreSQL or `skip`; leaves a clean schema
+for CI's post-pytest Alembic step).
+
+**Next:** #32 (E02-06 permission-check service) → #33 (E02-07 scope resolver) →
+#34 (E02-08 `require(...)` FastAPI dependency) → #35–#40 (admin APIs, presence,
+TOTP, seed). Then Epic 03 (Event Core, #41 ff.).
 
 ## Existing reference
 A functional HTML mockup defines important UX/feature behavior. **It is not yet in
