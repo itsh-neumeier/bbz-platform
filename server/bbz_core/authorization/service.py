@@ -14,6 +14,7 @@ from typing import Protocol
 
 from bbz_core.authorization.keys import assert_known
 from bbz_core.authorization.model import EffectivePermissions, Grant
+from bbz_core.authorization.resolver import ScopeContext, grant_resolves
 
 
 class GrantStore(Protocol):
@@ -33,5 +34,15 @@ class PermissionService:
         return cached
 
     async def authorize(self, user_id: uuid.UUID, permission_key: str) -> bool:
+        """Scope-agnostic: True if the user holds ``permission_key`` under any scope."""
         assert_known(permission_key)  # unknown key -> PermissionKeyError, never a silent allow
         return (await self.effective(user_id)).has(permission_key)
+
+    async def authorize_scoped(
+        self, user_id: uuid.UUID, permission_key: str, ctx: ScopeContext
+    ) -> bool:
+        """True iff at least one of the user's grants for ``permission_key``
+        resolves against ``ctx`` (scope covers + optional condition allows)."""
+        assert_known(permission_key)
+        effective = await self.effective(user_id)
+        return any(grant_resolves(g, ctx) for g in effective.grants_for(permission_key))

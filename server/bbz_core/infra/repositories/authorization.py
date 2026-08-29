@@ -31,8 +31,11 @@ class SqlAlchemyGrantStore:
         role_ids = union(direct, via_group).subquery()
 
         rows = await self._s.execute(
-            select(Permission.key, RolePermission.scope)
+            select(Permission.key, RolePermission.scope, RolePermission.condition)
             .join(RolePermission, RolePermission.permission_id == Permission.id)
             .where(RolePermission.role_id.in_(select(role_ids.c.role_id)))
         )
-        return [Grant(permission_key=key, scope=scope) for key, scope in rows.all()]
+        return [
+            Grant(permission_key=key, scope=scope, condition=condition)
+            for key, scope, condition in rows.all()
+        ]

@@ -49,6 +49,9 @@ class Settings(BaseSettings):
     # --- auth: providers (E02-04). 'local' is always active regardless. ---
     auth_providers: list[str] = Field(default_factory=lambda: ["local"])
 
+    # --- authorization (E02-07). Conditional grants stay deny until E05-01. ---
+    rbac_conditions_enabled: bool = False
+
     # --- auth: sessions / tokens (E02-05; secret via ADR-0015 in prod) ---
     jwt_secret: str = "dev-insecure-secret-change-me-min-32-bytes!!"
     access_token_ttl_seconds: int = 900
