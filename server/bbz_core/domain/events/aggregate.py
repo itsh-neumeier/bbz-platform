@@ -182,12 +182,25 @@ class EventAggregate:
 
     # -- ownership (does not change status) --------------------------------------
     def assign(self, *, to_user_id: uuid.UUID, actor_id: uuid.UUID) -> None:
-        if self.status in (EventStatus.ARCHIVED,):
+        """Hand responsibility for the whole event to ``to_user_id`` (E03-09).
+
+        Works whether or not the event already has an owner (reassignment). The
+        presence-gated grab by a third party is :meth:`take_over` (E03-10).
+        """
+        if self.status is EventStatus.ARCHIVED:
             raise InvalidTransition("cannot assign an archived event")
-        if self.assignee_id is not None:
-            raise EventDomainError("event already has an owner; use take_over")
+        if self.assignee_id == to_user_id:
+            raise EventDomainError("event is already assigned to that user")
+        previous = self.assignee_id
         self.assignee_id = to_user_id
-        self._emit("EVENT_ASSIGNED", {"to_user_id": _s(to_user_id), "actor_id": _s(actor_id)})
+        self._emit(
+            "EVENT_ASSIGNED",
+            {
+                "from_user_id": _s(previous),
+                "to_user_id": _s(to_user_id),
+                "actor_id": _s(actor_id),
+            },
+        )
 
     def take_over(self, *, new_user_id: uuid.UUID, actor_id: uuid.UUID) -> None:
         if self.status in (EventStatus.ARCHIVED,):

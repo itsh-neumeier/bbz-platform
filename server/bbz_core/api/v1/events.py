@@ -43,6 +43,7 @@ from bbz_core.infra.idempotency import (
     idempotent,
     request_hash,
 )
+from bbz_core.infra.models.identity import User, UserStatus
 from bbz_core.infra.repositories.events import (
     EventNotFoundError,
     EventRepository,
@@ -172,12 +173,18 @@ async def _apply_transition(
     ctx: AuthContext,
     env: CommandEnvelope,
     session: AsyncSession,
+    body_fields: dict[str, object] | None = None,
 ) -> EventOut:
     """Shared body for the single-transition verbs (accept / acknowledge / open …)."""
     if env.expected_version is None:
         raise ValidationError("X-Expected-Version header is required")
     rhash = request_hash(
-        {"event_id": str(event_id), "verb": verb, "expected_version": env.expected_version}
+        {
+            "event_id": str(event_id),
+            "verb": verb,
+            "expected_version": env.expected_version,
+            "fields": body_fields or {},
+        }
     )
     with _translate():
         async with idempotent(
@@ -313,3 +320,39 @@ async def update_event(
             out = _to_out(agg, version)
             slot.set_result(status.HTTP_200_OK, out.model_dump(mode="json"))
     return out
+
+
+class AssignEventIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    target_user_id: uuid.UUID
+
+
+async def _require_active_user(session: AsyncSession, user_id: uuid.UUID) -> None:
+    row = await session.get(User, user_id)
+    if row is None or row.status != UserStatus.ACTIVE.value:
+        raise ValidationError("target_user_id must be an existing active user")
+
+
+@router.post("/{event_id}/assign", response_model=EventOut)
+async def assign_event(
+    event_id: uuid.UUID,
+    body: AssignEventIn,
+    response: Response,
+    ctx: AuthContext = Depends(require("events.assign")),
+    env: CommandEnvelope = Depends(command_envelope),
+    session: AsyncSession = Depends(db_session),
+) -> EventOut:
+    if env.expected_version is None:
+        raise ValidationError("X-Expected-Version header is required")
+    await _require_active_user(session, body.target_user_id)
+    return await _apply_transition(
+        event_id=event_id,
+        verb="assign",
+        mutate=lambda agg, actor: agg.assign(to_user_id=body.target_user_id, actor_id=actor),
+        response=response,
+        ctx=ctx,
+        env=env,
+        session=session,
+        body_fields={"target_user_id": str(body.target_user_id)},
+    )

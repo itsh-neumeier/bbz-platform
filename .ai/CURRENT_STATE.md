@@ -25,7 +25,7 @@ Migrations `0002`–`0008` on `main`. `bbz_core` packages now: `auth`, `authoriz
 `import-linter`: 4 contracts (added `authorization` ↛ infra/api/sdk).
 New deps: `pyjwt`, `argon2-cffi`, `pyotp`, `cryptography>=46.0.7`.
 
-### Epic 03 – Event Core: **in progress (8/16)**
+### Epic 03 – Event Core: **in progress (9/16)**
 #41 event schema (`events`, `event_status_history`, `event_assignments` with a
 partial-unique "one active assignment", `event_notes`; enum cols = `VARCHAR`+`CHECK`;
 migration 0009) · #42 append-only `domain_events` log (`event_seq` BIGINT identity,
@@ -70,10 +70,16 @@ required, `EventAggregate.update()` emits `EVENT_UPDATED` with a per-field
 (nullable Text, migration 0012) + `description` on the aggregate, `EventOut`,
 `CreateEventIn`.
 
-**Next:** #49 (E03-09) `POST /events/{id}/assign` (target user, one active
-assignee, `EVENT_ASSIGNED`). Then #50 takeover (presence-gated + mandatory
-audit), #51 archive/reactivate (confirm=true), #52+ queries / SSE / WS.
-See `.ai/ROADMAP.md` Epic 03.
+#49 (E03-09) `POST /events/{id}/assign` — `require("events.assign")` +
+`X-Expected-Version` + `target_user_id` (must be an existing active user, else
+422). `EventAggregate.assign()` now allows **reassignment** (from/to in the
+`EVENT_ASSIGNED` payload); `EventRepository` keeps the one-active-row invariant.
+`_apply_transition` gained `body_fields` so the idempotency hash covers the body.
+
+**Next:** #50 (E03-10) `POST /events/{id}/takeover` — presence-gated (current
+assignee on break/offline) + **mandatory audit**. Then #51 archive/reactivate
+(confirm=true, no hard-delete), #52+ queries / SSE / WS. See `.ai/ROADMAP.md`
+Epic 03.
 
 ## Existing reference
 A functional HTML mockup defines important UX/feature behavior. **It is not yet in
