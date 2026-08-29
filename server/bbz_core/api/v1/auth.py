@@ -25,6 +25,7 @@ from bbz_core.api.deps import (
     require_csrf,
 )
 from bbz_core.api.errors import UnauthorizedError
+from bbz_core.audit import AuditAction, AuditWriter
 from bbz_core.auth.local import LocalAuthResult
 from bbz_core.auth.registry import AuthProviderRegistry
 from bbz_core.auth.sessions import (
@@ -32,6 +33,7 @@ from bbz_core.auth.sessions import (
     SessionNotFoundError,
     SessionService,
 )
+from bbz_core.auth.tokens import hash_refresh_token
 from bbz_core.authorization import PermissionService
 from bbz_core.infra.models.identity import User
 from bbz_core.infra.repositories.authorization import SqlAlchemyGrantStore
@@ -95,9 +97,22 @@ async def login(
     response: Response,
     session: AsyncSession = Depends(db_session),
 ) -> LoginResponse:
+    client_id = request.headers.get("x-client-id")
+    workplace_id = request.headers.get("x-workplace-id")
+    audit = AuditWriter(session)
+
     registry = AuthProviderRegistry.build(SqlAlchemyCredentialStore(session))
     outcome = await registry.default().authenticate_password(body.username, body.password)
     if outcome.result is not LocalAuthResult.SUCCESS or outcome.user_id is None:
+        await audit.record(
+            AuditAction.ACCOUNT_LOCKED
+            if outcome.result is LocalAuthResult.LOCKED
+            else AuditAction.LOGIN_FAILED,
+            actor_client_id=client_id,
+            workplace_id=workplace_id,
+            target_type="login_attempt",
+            target_id=body.username[:64],
+        )
         # One generic failure — no account-existence or lockout-reason leak.
         raise UnauthorizedError("invalid credentials")
 
@@ -107,9 +122,23 @@ async def login(
 
     tokens = await SessionService(SqlAlchemySessionStore(session)).start(
         outcome.user_id,
-        client_id=request.headers.get("x-client-id"),
-        workplace_id=request.headers.get("x-workplace-id"),
+        client_id=client_id,
+        workplace_id=workplace_id,
         user_agent=request.headers.get("user-agent"),
+    )
+    await audit.record(
+        AuditAction.LOGIN_SUCCEEDED,
+        actor_user_id=user.id,
+        actor_client_id=client_id,
+        workplace_id=workplace_id,
+    )
+    await audit.record(
+        AuditAction.SESSION_STARTED,
+        actor_user_id=user.id,
+        actor_client_id=client_id,
+        workplace_id=workplace_id,
+        target_type="session",
+        target_id=str(tokens.session_id),
     )
     csrf = secrets.token_urlsafe(32)
     _set_cookie(
@@ -176,7 +205,17 @@ async def logout(
 ) -> Response:
     token = request.cookies.get(REFRESH_COOKIE)
     if token:
-        await SessionService(SqlAlchemySessionStore(session)).revoke_by_refresh(token)
+        store = SqlAlchemySessionStore(session)
+        record = await store.get_active_by_refresh(hash_refresh_token(token))
+        await SessionService(store).revoke_by_refresh(token)
+        if record is not None:
+            await AuditWriter(session).record(
+                AuditAction.SESSION_ENDED,
+                actor_user_id=record.user_id,
+                target_type="session",
+                target_id=str(record.id),
+                reason="logout",
+            )
     for name in (ACCESS_COOKIE, REFRESH_COOKIE, CSRF_COOKIE):
         _clear_cookie(response, name)
     response.status_code = status.HTTP_204_NO_CONTENT

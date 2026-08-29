@@ -6,6 +6,7 @@ complete - used by Alembic (``target_metadata``) and by tests.
 
 from __future__ import annotations
 
+from bbz_core.infra.models.audit import AuditEvent
 from bbz_core.infra.models.base import Base
 from bbz_core.infra.models.identity import (
     AuthIdentity,
@@ -29,6 +30,7 @@ from bbz_core.infra.models.rbac import (
 from bbz_core.infra.models.session import Session
 
 __all__ = [
+    "AuditEvent",
     "AuthIdentity",
     "AuthProvider",
     "Base",
