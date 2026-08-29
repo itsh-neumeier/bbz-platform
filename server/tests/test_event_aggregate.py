@@ -79,6 +79,35 @@ def test_full_lifecycle_emits_expected_events() -> None:
     ]
 
 
+# -- field edit ---------------------------------------------------------------
+
+
+def test_update_records_before_and_after() -> None:
+    a = _agg(EventStatus.ACCEPTED)
+    a.update(actor_id=ACTOR, title="Neuer Titel", priority=EventPriority.CRITICAL)
+    assert a.title == "Neuer Titel"
+    assert a.priority is EventPriority.CRITICAL
+    ev = a.collect_events()
+    assert [e.type for e in ev] == ["EVENT_UPDATED"]
+    assert ev[0].payload["changes"]["title"]["to"] == "Neuer Titel"
+    assert ev[0].payload["changes"]["priority"] == {"from": "high", "to": "critical"}
+
+
+def test_update_with_no_effective_change_is_rejected() -> None:
+    a = _agg(EventStatus.ACCEPTED)
+    with pytest.raises(EventDomainError):
+        a.update(actor_id=ACTOR)  # nothing supplied
+    with pytest.raises(EventDomainError):
+        a.update(actor_id=ACTOR, title="Signalstörung W12")  # same value
+    assert a.collect_events() == []
+
+
+def test_update_blocked_on_archived() -> None:
+    a = _agg(EventStatus.ARCHIVED)
+    with pytest.raises(InvalidTransition):
+        a.update(actor_id=ACTOR, title="x")
+
+
 # -- invalid transitions -------------------------------------------------------
 
 _LIFECYCLE_CALLS = {

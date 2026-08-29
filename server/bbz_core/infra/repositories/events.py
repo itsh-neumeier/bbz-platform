@@ -70,6 +70,7 @@ class EventRepository:
             title=row.title,
             priority=EventPriority(row.priority),
             status=EventStatus(row.status),
+            description=row.description,
             bbz_id=row.bbz_id,
             workplace_id=row.workplace_id,
             assignee_id=assignee,
@@ -96,6 +97,7 @@ class EventRepository:
             Event(
                 id=agg.id,
                 title=agg.title,
+                description=agg.description,
                 priority=agg.priority.value,
                 status=agg.status.value,
                 bbz_id=agg.bbz_id,
@@ -134,6 +136,7 @@ class EventRepository:
                 .where(Event.id == agg.id, Event.version == expected_version)
                 .values(
                     title=agg.title,
+                    description=agg.description,
                     priority=agg.priority.value,
                     status=agg.status.value,
                     bbz_id=agg.bbz_id,

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from bbz_core.domain.events.aggregate import (
+    UNSET,
     DomainEventData,
     EventAggregate,
     EventDomainError,
@@ -17,6 +18,7 @@ from bbz_core.domain.events.state import (
 
 __all__ = [
     "ALLOWED_TRANSITIONS",
+    "UNSET",
     "DomainEventData",
     "EventAggregate",
     "EventDomainError",
