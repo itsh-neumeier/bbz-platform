@@ -4,26 +4,31 @@
 Phase 0 complete. **Phase 1 – Core Domain in progress**, working the roadmap
 issues in order (see `.ai/ROADMAP.md`, tracking issue #18).
 
-### Progress (Epic 02 – Identity / RBAC): 9/14
-Merged: **#20** ADR gate · **#27** identity schema · **#28** RBAC schema
-(scoped `role_permissions` + Rule-DSL `condition`) · **#29** local password
-auth (`bbz_core.auth`: Argon2id / policy / lockout, `local_credentials`) ·
-**#30** `AuthProvider` protocol + registry (local real; OIDC/LDAP stubs) ·
-**#31** sessions + `/api/v1/auth/{login,refresh,logout,me}` (HS256 access JWT,
-hashed opaque refresh, `sessions` table, CSRF) · **#32** permission catalog +
-`PermissionService` (new `bbz_core.authorization` layer, import-linter
-contract) · **#33** scope resolver (`ScopeContext`, global/region/bbz/
-workplace/own/assigned; conditional grants deny until E05-01) · **#34**
-`require("perm")` FastAPI dependency + contract test "every write route
-declares a permission"; `/auth/me` now lists effective permissions.
+### Epic 02 – Identity / RBAC: **COMPLETE (14/14)**
+#20 ADR gate · #27 identity schema · #28 RBAC schema (scoped
+`role_permissions` + Rule-DSL `condition`) · #29 local password auth
+(`bbz_core.auth`: Argon2id / policy / lockout) · #30 `AuthProvider` registry
+(local real; OIDC/LDAP stubs) · #31 sessions + `/api/v1/auth/*` (HS256 JWT,
+hashed refresh, `sessions`, CSRF) · #32 permission catalog + `PermissionService`
+(`bbz_core.authorization` layer) · #33 scope resolver · #34 `require("perm")`
+dependency + "every write route is gated" contract test · #35 RBAC admin API
+(roles/permissions/assignments/groups, last-admin guard) · #36 user admin API
+(create-with-login, deactivate revokes sessions, password reset) · #37 presence
+(effective-offline without a session) · #38 `audit_events` + authentication
+events + `GET /api/v1/audit` · #39 TOTP (`local_totp`, recovery codes, Fernet
+at rest, `totp_required` on login) · #40 seed (64 permissions, 5 built-in roles).
 
-Migrations `0002`–`0005` on `main`. Test infra: `db` fixture in
-`server/tests/conftest.py` (real PostgreSQL or `skip`; leaves a clean schema
-for CI's post-pytest Alembic step).
+Migrations `0002`–`0008` on `main`. `bbz_core` packages now: `auth`, `authorization`,
+`audit`. API routers under `/api/v1`: `auth`, `system`, `rbac`, `users`,
+`presence`, `auth/totp`, `audit`. Test infra: `db` fixture (real PostgreSQL or
+`skip`; drops schema on teardown so CI's post-pytest Alembic step is clean).
+`import-linter`: 4 contracts (added `authorization` ↛ infra/api/sdk).
+New deps: `pyjwt`, `argon2-cffi`, `pyotp`, `cryptography>=46.0.7`.
 
-**Next:** #35 (E02-09 RBAC admin API) → #36 (users admin) → #37 (presence) →
-#38 (login audit) → #39 (TOTP) → #40 (seed default roles). Then Epic 03
-(Event Core, #41 ff.).
+**Next:** Epic 03 – Event Core, starting **#41** (E03-01: DB schema `events`,
+`event_status_history`, `event_assignments`, `event_notes`). Then #42 `event_seq`
++ `domain_events` log, #43 `commands` + idempotency, #44 event aggregate, …
+See `.ai/ROADMAP.md` Epic 03.
 
 ## Existing reference
 A functional HTML mockup defines important UX/feature behavior. **It is not yet in
