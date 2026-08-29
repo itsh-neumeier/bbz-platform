@@ -139,8 +139,8 @@ def test_transition_matrix(name: str, status: EventStatus) -> None:
 # -- ownership ----------------------------------------------------------------
 
 
-def test_assign_then_take_over() -> None:
-    u1, u2 = uuid.uuid4(), uuid.uuid4()
+def test_assign_reassign_and_take_over() -> None:
+    u1, u2, u3 = uuid.uuid4(), uuid.uuid4(), uuid.uuid4()
     a = _agg(EventStatus.ACCEPTED)
 
     a.assign(to_user_id=u1, actor_id=ACTOR)
@@ -148,14 +148,23 @@ def test_assign_then_take_over() -> None:
     assert [e.type for e in a.collect_events()] == ["EVENT_ASSIGNED"]
 
     with pytest.raises(EventDomainError):
-        a.assign(to_user_id=u2, actor_id=ACTOR)  # already owned
+        a.assign(to_user_id=u1, actor_id=ACTOR)  # no change
     assert a.collect_events() == []
 
-    a.take_over(new_user_id=u2, actor_id=ACTOR)
-    assert a.assignee_id == u2
+    a.assign(to_user_id=u2, actor_id=ACTOR)  # reassignment is allowed
+    ev = a.collect_events()
+    assert [e.type for e in ev] == ["EVENT_ASSIGNED"]
+    assert ev[0].payload == {
+        "from_user_id": str(u1),
+        "to_user_id": str(u2),
+        "actor_id": str(ACTOR),
+    }
+
+    a.take_over(new_user_id=u3, actor_id=ACTOR)
+    assert a.assignee_id == u3
     ev = a.collect_events()
     assert [e.type for e in ev] == ["EVENT_TAKEN_OVER"]
-    assert ev[0].payload["from_user_id"] == str(u1)
+    assert ev[0].payload["from_user_id"] == str(u2)
 
 
 def test_take_over_requires_existing_owner_and_a_change() -> None:
