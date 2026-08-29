@@ -176,8 +176,14 @@ async def _apply_transition(
     env: CommandEnvelope,
     session: AsyncSession,
     body_fields: dict[str, object] | None = None,
+    audit_action: AuditAction | None = None,
+    audit_reason: str | None = None,
 ) -> EventOut:
-    """Shared body for the single-transition verbs (accept / acknowledge / open …)."""
+    """Shared body for the single-transition verbs (accept / acknowledge / open …).
+
+    When ``audit_action`` is set, a status before/after audit row is written in
+    the same transaction as the state change (mandatory audit — E03-10/11).
+    """
     if env.expected_version is None:
         raise ValidationError("X-Expected-Version header is required")
     rhash = request_hash(
@@ -203,6 +209,7 @@ async def _apply_transition(
             repo = EventRepository(session)
             async with session.begin():
                 agg = await repo.require(event_id)
+                before_status = agg.status
                 mutate(agg, ctx.user_id)
                 version = await repo.save(
                     agg,
@@ -210,6 +217,17 @@ async def _apply_transition(
                     expected_version=env.expected_version,
                     command_id=env.command_id,
                 )
+                if audit_action is not None:
+                    await AuditWriter(session).record(
+                        audit_action,
+                        actor_user_id=ctx.user_id,
+                        target_type="event",
+                        target_id=str(event_id),
+                        before={"status": before_status.value},
+                        after={"status": agg.status.value},
+                        reason=audit_reason,
+                        commit=False,
+                    )
             out = _to_out(agg, version)
             slot.set_result(status.HTTP_200_OK, out.model_dump(mode="json"))
     return out
@@ -439,3 +457,67 @@ async def _require_owner_away(session: AsyncSession, owner_id: uuid.UUID) -> Non
             "current owner is available; takeover is only allowed on break / offline",
             details={"owner_presence": state},
         )
+
+
+class ArchiveEventIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    reason: str | None = Field(default=None, max_length=2_000)
+
+
+class ReactivateEventIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    confirm: bool = False
+    reason: str = Field(min_length=1, max_length=2_000)
+
+
+@router.post("/{event_id}/archive", response_model=EventOut)
+async def archive_event(
+    event_id: uuid.UUID,
+    response: Response,
+    body: ArchiveEventIn | None = None,
+    ctx: AuthContext = Depends(require("events.archive")),
+    env: CommandEnvelope = Depends(command_envelope),
+    session: AsyncSession = Depends(db_session),
+) -> EventOut:
+    reason = (body.reason if body else None) or None
+    return await _apply_transition(
+        event_id=event_id,
+        verb="archive",
+        mutate=lambda agg, actor: agg.archive(actor, reason=reason),
+        response=response,
+        ctx=ctx,
+        env=env,
+        session=session,
+        body_fields={"reason": reason},
+        audit_action=AuditAction.EVENT_ARCHIVED,
+        audit_reason=reason,
+    )
+
+
+@router.post("/{event_id}/reactivate", response_model=EventOut)
+async def reactivate_event(
+    event_id: uuid.UUID,
+    body: ReactivateEventIn,
+    response: Response,
+    ctx: AuthContext = Depends(require("events.reactivate")),
+    env: CommandEnvelope = Depends(command_envelope),
+    session: AsyncSession = Depends(db_session),
+) -> EventOut:
+    # Explicit confirmation is mandatory — no reactivation by accident
+    # (MASTER_PROMPT §13.6/§26).
+    if not body.confirm:
+        raise ValidationError("reactivation requires confirm=true")
+    return await _apply_transition(
+        event_id=event_id,
+        verb="reactivate",
+        mutate=lambda agg, actor: agg.reactivate(actor, reason=body.reason),
+        response=response,
+        ctx=ctx,
+        env=env,
+        session=session,
+        body_fields={"reason": body.reason},
+        audit_action=AuditAction.EVENT_REACTIVATED,
+        audit_reason=body.reason,
+    )

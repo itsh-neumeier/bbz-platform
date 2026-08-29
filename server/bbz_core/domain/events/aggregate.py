@@ -163,11 +163,14 @@ class EventAggregate:
             raise InvalidTransition(f"{self.status.value} -> opened is not allowed")
         self._transition(EventStatus.OPENED, "EVENT_OPENED", actor_id)
 
-    def archive(self, actor_id: uuid.UUID, *, reason: str) -> None:
-        reason = reason.strip()
-        if not reason:
-            raise EventDomainError("archive requires a reason")
-        self._transition(EventStatus.ARCHIVED, "EVENT_ARCHIVED", actor_id, extra={"reason": reason})
+    def archive(self, actor_id: uuid.UUID, *, reason: str | None = None) -> None:
+        cleaned = (reason or "").strip() or None
+        self._transition(
+            EventStatus.ARCHIVED,
+            "EVENT_ARCHIVED",
+            actor_id,
+            extra={"reason": cleaned} if cleaned else None,
+        )
 
     def reactivate(self, actor_id: uuid.UUID, *, reason: str) -> None:
         if self.status is not EventStatus.ARCHIVED:

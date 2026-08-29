@@ -193,16 +193,18 @@ def test_take_over_blocked_on_archived() -> None:
 # -- reason requirements ------------------------------------------------------
 
 
-def test_archive_and_reactivate_need_a_reason() -> None:
+def test_archive_reason_is_optional_reactivate_reason_is_not() -> None:
     a = _agg(EventStatus.OPENED)
-    with pytest.raises(EventDomainError):
-        a.archive(ACTOR, reason="   ")
-    assert a.status is EventStatus.OPENED
+    a.archive(ACTOR)  # no reason is fine
+    assert a.status is EventStatus.ARCHIVED
+    assert "reason" not in a.collect_events()[0].payload
 
     b = _agg(EventStatus.ARCHIVED)
     with pytest.raises(EventDomainError):
         b.reactivate(ACTOR, reason="")
     assert b.status is EventStatus.ARCHIVED
+    b.reactivate(ACTOR, reason="Rückfrage")
+    assert b.status is EventStatus.OPENED
 
 
 def test_no_event_is_emitted_without_a_state_change() -> None:
