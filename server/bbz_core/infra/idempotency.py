@@ -30,7 +30,7 @@ from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
 from typing import Any, cast
 
-from sqlalchemy import CursorResult, delete, select
+from sqlalchemy import CursorResult, and_, delete, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -169,29 +169,21 @@ async def idempotent(
     await store.complete(command_id, status=slot._result.status, body=slot._result.body)
 
 
+async def _purge(session: AsyncSession, where: Any) -> int:
+    res = cast("CursorResult[Any]", await session.execute(delete(Command).where(where)))
+    await session.commit()
+    return res.rowcount or 0
+
+
 async def purge_stale(session: AsyncSession, *, older_than: _dt.timedelta) -> int:
     """Remove pending rows left behind by a crash between claim and completion."""
     cutoff = _dt.datetime.now(_dt.UTC) - older_than
-    res = cast(
-        "CursorResult[Any]",
-        await session.execute(
-            delete(Command).where(Command.result_status.is_(None), Command.created_at < cutoff)
-        ),
-    )
-    await session.commit()
-    return res.rowcount or 0
+    return await _purge(session, and_(Command.result_status.is_(None), Command.created_at < cutoff))
 
 
 async def purge_completed(session: AsyncSession, *, older_than: _dt.timedelta) -> int:
     """Drop completed rows past the offline-replay retention window."""
     cutoff = _dt.datetime.now(_dt.UTC) - older_than
-    res = cast(
-        "CursorResult[Any]",
-        await session.execute(
-            delete(Command).where(
-                Command.result_status.is_not(None), Command.completed_at < cutoff
-            )
-        ),
+    return await _purge(
+        session, and_(Command.result_status.is_not(None), Command.completed_at < cutoff)
     )
-    await session.commit()
-    return res.rowcount or 0
