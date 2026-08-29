@@ -16,6 +16,7 @@ _EXEMPT: set[tuple[str, str]] = {
     ("POST", "/api/v1/auth/login"),
     ("POST", "/api/v1/auth/refresh"),
     ("POST", "/api/v1/auth/logout"),
+    ("PUT", "/api/v1/presence"),  # self-service: sets the caller's own presence
 }
 _WRITE = {"POST", "PUT", "PATCH", "DELETE"}
 
