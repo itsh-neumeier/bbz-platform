@@ -129,7 +129,7 @@ accept/acknowledge/open · PATCH · assign · takeover · archive/reactivate ·
 notes · GET list/`?queue=active`/`{id}`/`{id}/export`/`priority-alert`/`stream`.
 WS at `/ws/events`.
 
-### Epic 04 – Audit / Domain Events: **in progress (3/11)**
+### Epic 04 – Audit / Domain Events: **in progress (4/11)**
 #57 (E04-01) `audit_events` schema review — added `event_seq_ref` BIGINT
 (nullable, no FK; migration 0013) linking an audit row to its domain event;
 ORM `before_update` / `before_delete` listeners raise `AuditImmutableError`
@@ -149,8 +149,16 @@ export. `_apply_transition` audits `{status, assignee_id}` before/after.
 CI if a critical action has no `AuditService` call site. RBAC/user critical
 actions (E02-09/10) still carry `TODO(E04-03)` — to be wired next.
 
-**Next:** finish #59's RBAC/user audit wiring (roles/permissions/user
-lifecycle), then #60 (E04-04) audit query API. See `.ai/ROADMAP.md` Epic 04.
+#60 (E04-04) `GET /api/v1/audit` rewritten on `AuditQueryRepository`
+(`bbz_core.infra.repositories.audit_queries`): filters actor / target_type /
+**target_id** / action / time range / **correlation_id**, keyset pagination on
+`(occurred_at_utc, id)` → `{items, next_cursor}`, `system.audit.view` required,
+`before`/`after`/`event_seq_ref` now in the output. `test_login_audit` updated
+for the new `{items}` shape. (`AuditWriter.query` now unused; left in place.)
+
+**Next:** RBAC/user critical-action audit wiring (deferred from #59; code
+comments point to #66/E04-10) and #61 (E04-05) domain-event envelope +
+`schema_version` policy. See `.ai/ROADMAP.md` Epic 04.
 
 ## Existing reference
 A functional HTML mockup defines important UX/feature behavior. **It is not yet in

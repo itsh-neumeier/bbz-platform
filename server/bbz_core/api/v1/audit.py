@@ -1,9 +1,15 @@
-"""Audit read API (E02-12 minimal; E04-04 is the full version)."""
+"""Audit read API (roadmap E04-04).
+
+`GET /api/v1/audit` — filters (actor / target / action / time / correlation-id),
+keyset pagination, `system.audit.view` required. Read-only: there is no write
+route here (the log is append-only, MASTER_PROMPT §17).
+"""
 
 from __future__ import annotations
 
 import datetime as _dt
 import uuid
+from typing import Any
 
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
@@ -11,7 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from bbz_core.api.authz import require
 from bbz_core.api.deps import AuthContext, db_session
-from bbz_core.audit.writer import AuditWriter
+from bbz_core.infra.repositories.audit_queries import AuditQueryRepository, AuditRow
 
 router = APIRouter(prefix="/audit", tags=["audit"])
 
@@ -26,27 +32,45 @@ class AuditEventOut(BaseModel):
     workplace_id: str | None
     target_type: str | None
     target_id: str | None
+    before: dict[str, Any] | None
+    after: dict[str, Any] | None
     reason: str | None
     correlation_id: str | None
+    event_seq_ref: int | None
 
 
-@router.get("", response_model=list[AuditEventOut])
+class AuditPageOut(BaseModel):
+    items: list[AuditEventOut]
+    next_cursor: str | None
+
+
+def _out(row: AuditRow) -> AuditEventOut:
+    return AuditEventOut.model_validate(row, from_attributes=True)
+
+
+@router.get("", response_model=AuditPageOut)
 async def list_audit(
     action: str | None = None,
     actor_user_id: uuid.UUID | None = None,
     target_type: str | None = None,
+    target_id: str | None = None,
+    correlation_id: str | None = None,
     since: _dt.datetime | None = None,
     until: _dt.datetime | None = None,
+    cursor: str | None = None,
     limit: int = Query(default=100, ge=1, le=500),
     _: AuthContext = Depends(require("system.audit.view")),
     session: AsyncSession = Depends(db_session),
-) -> list[AuditEventOut]:
-    rows = await AuditWriter(session).query(
+) -> AuditPageOut:
+    page = await AuditQueryRepository(session).query(
         action=action,
         actor_user_id=actor_user_id,
         target_type=target_type,
+        target_id=target_id,
+        correlation_id=correlation_id,
         since=since,
         until=until,
+        cursor=cursor,
         limit=limit,
     )
-    return [AuditEventOut(**r.__dict__) for r in rows]
+    return AuditPageOut(items=[_out(r) for r in page.items], next_cursor=page.next_cursor)
