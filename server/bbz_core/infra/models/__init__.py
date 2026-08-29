@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from bbz_core.infra.models.audit import AuditEvent
 from bbz_core.infra.models.base import Base
+from bbz_core.infra.models.commands import Command
 from bbz_core.infra.models.domain_events import DomainEvent
 from bbz_core.infra.models.events import (
     Event,
@@ -46,6 +47,7 @@ __all__ = [
     "AuthIdentity",
     "AuthProvider",
     "Base",
+    "Command",
     "DomainEvent",
     "Event",
     "EventAssignment",
