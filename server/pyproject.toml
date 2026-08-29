@@ -18,6 +18,8 @@ dependencies = [
   "psycopg[binary]>=3.2,<4.0",
   "argon2-cffi>=23.1,<26.0",
   "pyjwt>=2.9,<3.0",
+  "pyotp>=2.9,<3.0",
+  "cryptography>=46.0.7,<51",
   "structlog>=24.1",
   "bbz-integration-sdk",
 ]

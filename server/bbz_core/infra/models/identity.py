@@ -18,6 +18,7 @@ import enum
 import uuid
 
 from sqlalchemy import (
+    BigInteger,
     CheckConstraint,
     ForeignKey,
     Integer,
@@ -129,3 +130,29 @@ class LocalCredential(Base, TimestampMixin):
     failed_attempts: Mapped[int] = mapped_column(Integer, server_default=text("0"))
     locked_until: Mapped[_dt.datetime | None] = mapped_column()
     password_changed_at: Mapped[_dt.datetime] = mapped_column(server_default=text("now()"))
+
+
+class LocalTotp(Base):
+    """Optional second factor for a local identity (E02-13). Secret encrypted."""
+
+    __tablename__ = "local_totp"
+
+    auth_identity_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("auth_identities.id", ondelete="CASCADE"), primary_key=True
+    )
+    secret_ciphertext: Mapped[str] = mapped_column(Text)
+    activated: Mapped[bool] = mapped_column(server_default=text("false"))
+    last_step: Mapped[int | None] = mapped_column(BigInteger)
+    enrolled_at: Mapped[_dt.datetime] = mapped_column(server_default=text("now()"))
+
+
+class LocalTotpRecoveryCode(Base):
+    __tablename__ = "local_totp_recovery_codes"
+    __table_args__ = (UniqueConstraint("auth_identity_id", "code_hash"),)
+
+    id: Mapped[uuid.UUID] = uuid_pk()
+    auth_identity_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("auth_identities.id", ondelete="CASCADE"), index=True
+    )
+    code_hash: Mapped[str] = mapped_column(String(64))
+    used_at: Mapped[_dt.datetime | None] = mapped_column()

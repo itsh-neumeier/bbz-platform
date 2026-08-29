@@ -69,6 +69,13 @@ class ValidationError(AppError):
     http_status = 422
 
 
+class TotpRequiredError(AppError):
+    """Password was correct but a valid TOTP / recovery code is required."""
+
+    code = "totp_required"
+    http_status = status.HTTP_401_UNAUTHORIZED
+
+
 def _render(request: Request, exc: AppError) -> JSONResponse:
     from bbz_core.logging import correlation_id
 
