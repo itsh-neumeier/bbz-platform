@@ -25,7 +25,7 @@ Migrations `0002`–`0008` on `main`. `bbz_core` packages now: `auth`, `authoriz
 `import-linter`: 4 contracts (added `authorization` ↛ infra/api/sdk).
 New deps: `pyjwt`, `argon2-cffi`, `pyotp`, `cryptography>=46.0.7`.
 
-### Epic 03 – Event Core: **in progress (15/16)**
+### Epic 03 – Event Core: **COMPLETE (16/16)**
 #41 event schema (`events`, `event_status_history`, `event_assignments` with a
 partial-unique "one active assignment", `event_notes`; enum cols = `VARCHAR`+`CHECK`;
 migration 0009) · #42 append-only `domain_events` log (`event_seq` BIGINT identity,
@@ -116,13 +116,22 @@ task race. Tested via `_authorize`/`_origin_allowed` unit tests + shared
 `event_feed` tests.
 
 #55 (E03-15) `GET /api/v1/events/priority-alert` → `{active, events:[{id,
-priority, title}]}` — high/critical events still in `new` (unaccepted);
-`EventQueryRepository.priority_alert()`, `require("events.view")`, scope hook.
-Route declared before `/{event_id}`.
+priority, title}]}` — high/critical events still in `new` (unaccepted) ·
+#56 (E03-16) `POST /events/{id}/notes` (`require("events.postprocess")`, kind
+`work` only — postprocess deferred to Epic 20; `EVENT_NOTE_ADDED` domain event,
+`idempotent()`, 404 if event missing) + `GET /events/{id}/export`
+(`require("events.export")` → event detail + status history + notes + all
+`domain_events` ordered by `event_seq`; writes an `EVENT_EXPORTED` audit row).
+`AuditAction` gained `EVENT_EXPORTED`. `event_queries` gained `export()`.
 
-**Next:** #56 (E03-16) event notes (`POST /events/{id}/notes`, kinds work/
-postprocess) + export (`GET /events/{id}/export`). Closes Epic 03. See
-`.ai/ROADMAP.md`.
+Migrations `0002`–`0012`. Event API surface under `/api/v1/events`: create ·
+accept/acknowledge/open · PATCH · assign · takeover · archive/reactivate ·
+notes · GET list/`?queue=active`/`{id}`/`{id}/export`/`priority-alert`/`stream`.
+WS at `/ws/events`.
+
+**Next:** Epic 04 – Audit / Domain Events. #57 (E04-01) audit_events schema
+review + `event_seq_ref`, then the in-tx audit-write service, transactional
+outbox/inbox for exactly-once Active/Active. See `.ai/ROADMAP.md` Epic 04.
 
 ## Existing reference
 A functional HTML mockup defines important UX/feature behavior. **It is not yet in
