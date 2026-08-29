@@ -19,6 +19,14 @@ from typing import Any
 from bbz_core.domain.events.state import EventPriority, EventStatus, can_transition
 
 MAX_TITLE = 300
+MAX_DESCRIPTION = 20_000
+
+
+class _Unset:
+    """Sentinel: an :meth:`EventAggregate.update` field that was not supplied."""
+
+
+UNSET = _Unset()
 
 
 class EventDomainError(Exception):
@@ -46,12 +54,24 @@ def _clean_title(title: str) -> str:
     return cleaned
 
 
+def _clean_description(description: str | None) -> str | None:
+    if description is None:
+        return None
+    cleaned = description.strip()
+    if not cleaned:
+        return None
+    if len(cleaned) > MAX_DESCRIPTION:
+        raise EventDomainError(f"description must be <= {MAX_DESCRIPTION} characters")
+    return cleaned
+
+
 @dataclass
 class EventAggregate:
     id: uuid.UUID
     title: str
     priority: EventPriority
     status: EventStatus
+    description: str | None = None
     bbz_id: uuid.UUID | None = None
     workplace_id: uuid.UUID | None = None
     assignee_id: uuid.UUID | None = None
@@ -68,6 +88,7 @@ class EventAggregate:
         title: str,
         priority: EventPriority,
         actor_id: uuid.UUID,
+        description: str | None = None,
         bbz_id: uuid.UUID | None = None,
         workplace_id: uuid.UUID | None = None,
         source: str = "manual",
@@ -77,6 +98,7 @@ class EventAggregate:
             title=_clean_title(title),
             priority=EventPriority(priority),
             status=EventStatus.NEW,
+            description=_clean_description(description),
             bbz_id=bbz_id,
             workplace_id=workplace_id,
         )
@@ -84,6 +106,7 @@ class EventAggregate:
             "EVENT_CREATED",
             {
                 "title": agg.title,
+                "description": agg.description,
                 "priority": agg.priority.value,
                 "bbz_id": _s(bbz_id),
                 "workplace_id": _s(workplace_id),
@@ -92,6 +115,40 @@ class EventAggregate:
             },
         )
         return agg
+
+    # -- field edit (whitelist, no status change) ------------------------------
+    def update(
+        self,
+        *,
+        actor_id: uuid.UUID,
+        title: str | _Unset = UNSET,
+        description: str | _Unset | None = UNSET,
+        priority: EventPriority | _Unset = UNSET,
+    ) -> None:
+        if self.status is EventStatus.ARCHIVED:
+            raise InvalidTransition("cannot edit an archived event")
+        changes: dict[str, dict[str, Any]] = {}
+        if not isinstance(title, _Unset):
+            new_title = _clean_title(title)
+            if new_title != self.title:
+                changes["title"] = {"from": self.title, "to": new_title}
+                self.title = new_title
+        if not isinstance(description, _Unset):
+            new_desc = _clean_description(description)
+            if new_desc != self.description:
+                changes["description"] = {"from": self.description, "to": new_desc}
+                self.description = new_desc
+        if not isinstance(priority, _Unset):
+            new_prio = EventPriority(priority)
+            if new_prio != self.priority:
+                changes["priority"] = {
+                    "from": self.priority.value,
+                    "to": new_prio.value,
+                }
+                self.priority = new_prio
+        if not changes:
+            raise EventDomainError("no editable fields changed")
+        self._emit("EVENT_UPDATED", {"changes": changes, "actor_id": _s(actor_id)})
 
     # -- lifecycle transitions ----------------------------------------------------
     def accept(self, actor_id: uuid.UUID) -> None:

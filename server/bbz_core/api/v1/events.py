@@ -23,7 +23,7 @@ import uuid
 from collections.abc import Callable, Iterator
 
 from fastapi import APIRouter, Depends, Response, status
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from bbz_core.api.authz import require
@@ -80,14 +80,26 @@ def _translate() -> Iterator[None]:
 class CreateEventIn(BaseModel):
     title: str = Field(min_length=1, max_length=300)
     priority: EventPriority
+    description: str | None = Field(default=None, max_length=20_000)
     bbz_id: uuid.UUID | None = None
     workplace_id: uuid.UUID | None = None
     source: str = Field(default="manual", max_length=32)
 
 
+class UpdateEventIn(BaseModel):
+    """Whitelist of editable fields. Unknown fields are rejected (422)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    title: str | None = Field(default=None, min_length=1, max_length=300)
+    description: str | None = Field(default=None, max_length=20_000)
+    priority: EventPriority | None = None
+
+
 class EventOut(BaseModel):
     id: uuid.UUID
     title: str
+    description: str | None
     priority: EventPriority
     status: EventStatus
     bbz_id: uuid.UUID | None
@@ -99,6 +111,7 @@ def _to_out(agg: EventAggregate, version: int) -> EventOut:
     return EventOut(
         id=agg.id,
         title=agg.title,
+        description=agg.description,
         priority=agg.priority,
         status=agg.status,
         bbz_id=agg.bbz_id,
@@ -135,6 +148,7 @@ async def create_event(
                 title=body.title,
                 priority=body.priority,
                 actor_id=ctx.user_id,
+                description=body.description,
                 bbz_id=body.bbz_id,
                 workplace_id=body.workplace_id,
                 source=body.source,
@@ -247,3 +261,55 @@ async def open_event(
         env=env,
         session=session,
     )
+
+
+@router.patch("/{event_id}", response_model=EventOut)
+async def update_event(
+    event_id: uuid.UUID,
+    body: UpdateEventIn,
+    response: Response,
+    ctx: AuthContext = Depends(require("events.edit")),
+    env: CommandEnvelope = Depends(command_envelope),
+    session: AsyncSession = Depends(db_session),
+) -> EventOut:
+    if env.expected_version is None:
+        raise ValidationError("X-Expected-Version header is required")
+    provided = body.model_dump(exclude_unset=True)
+    if not provided:
+        raise ValidationError("no fields to update")
+    rhash = request_hash(
+        {"event_id": str(event_id), "expected_version": env.expected_version, "fields": provided}
+    )
+    with _translate():
+        async with idempotent(
+            session,
+            command_id=env.command_id,
+            endpoint="PATCH /api/v1/events/{id}",
+            request_hash=rhash,
+            user_id=ctx.user_id,
+        ) as slot:
+            if slot.replay is not None:
+                response.status_code = slot.replay.status
+                return EventOut.model_validate(slot.replay.body)
+
+            edits: dict[str, object] = {}
+            if "title" in provided:
+                edits["title"] = body.title
+            if "description" in provided:
+                edits["description"] = body.description
+            if "priority" in provided:
+                edits["priority"] = body.priority
+
+            repo = EventRepository(session)
+            async with session.begin():
+                agg = await repo.require(event_id)
+                agg.update(actor_id=ctx.user_id, **edits)  # type: ignore[arg-type]
+                version = await repo.save(
+                    agg,
+                    actor_id=ctx.user_id,
+                    expected_version=env.expected_version,
+                    command_id=env.command_id,
+                )
+            out = _to_out(agg, version)
+            slot.set_result(status.HTTP_200_OK, out.model_dump(mode="json"))
+    return out

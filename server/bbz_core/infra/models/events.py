@@ -57,6 +57,7 @@ class Event(Base, TimestampMixin):
 
     id: Mapped[uuid.UUID] = uuid_pk()
     title: Mapped[str] = mapped_column(String(300))
+    description: Mapped[str | None] = mapped_column(Text)
     priority: Mapped[str] = mapped_column(String(16))
     status: Mapped[str] = mapped_column(String(16), server_default=EventStatus.NEW.value)
     # Scope fields (E02-07). No BBZ/workplace entities yet — plain UUIDs.

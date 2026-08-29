@@ -25,7 +25,7 @@ Migrations `0002`–`0008` on `main`. `bbz_core` packages now: `auth`, `authoriz
 `import-linter`: 4 contracts (added `authorization` ↛ infra/api/sdk).
 New deps: `pyjwt`, `argon2-cffi`, `pyotp`, `cryptography>=46.0.7`.
 
-### Epic 03 – Event Core: **in progress (7/16)**
+### Epic 03 – Event Core: **in progress (8/16)**
 #41 event schema (`events`, `event_status_history`, `event_assignments` with a
 partial-unique "one active assignment", `event_notes`; enum cols = `VARCHAR`+`CHECK`;
 migration 0009) · #42 append-only `domain_events` log (`event_seq` BIGINT identity,
@@ -63,9 +63,17 @@ missing X-Command-Id / duplicate replay (one event) / body-mismatch 409.
 command → replay. Tests cover happy path / order / conflict / idempotency /
 missing header / 403.
 
-**Next:** #48 (E03-08) `PATCH /events/{id}` (edit fields, `EVENT_UPDATED`
-before/after). Then #49 assign, #50 takeover, #51 archive, #52 reactivate,
-#53+ queries / SSE / WS. See `.ai/ROADMAP.md` Epic 03.
+#48 (E03-08) `PATCH /events/{id}` — whitelist edit (title / description /
+priority; `extra="forbid"` → 422 on unknown field), `X-Expected-Version`
+required, `EventAggregate.update()` emits `EVENT_UPDATED` with a per-field
+`{from,to}` diff (no-op edit → 422). Added `events.description` column
+(nullable Text, migration 0012) + `description` on the aggregate, `EventOut`,
+`CreateEventIn`.
+
+**Next:** #49 (E03-09) `POST /events/{id}/assign` (target user, one active
+assignee, `EVENT_ASSIGNED`). Then #50 takeover (presence-gated + mandatory
+audit), #51 archive/reactivate (confirm=true), #52+ queries / SSE / WS.
+See `.ai/ROADMAP.md` Epic 03.
 
 ## Existing reference
 A functional HTML mockup defines important UX/feature behavior. **It is not yet in
