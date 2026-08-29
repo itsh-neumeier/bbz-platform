@@ -5,6 +5,7 @@ from pydantic import BaseModel
 
 from bbz_core import __version__
 from bbz_core.api.v1.auth import router as auth_router
+from bbz_core.api.v1.presence import router as presence_router
 from bbz_core.api.v1.rbac import router as rbac_router
 from bbz_core.api.v1.system import router as system_router
 from bbz_core.api.v1.users import router as users_router
@@ -16,6 +17,7 @@ api_v1.include_router(auth_router)
 api_v1.include_router(system_router)
 api_v1.include_router(rbac_router)
 api_v1.include_router(users_router)
+api_v1.include_router(presence_router)
 
 
 class MetaResponse(BaseModel):
