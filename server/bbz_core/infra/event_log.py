@@ -40,7 +40,8 @@ def _validator() -> jsonschema.Draft202012Validator:
     )
 
 
-def _envelope(row: DomainEvent) -> dict[str, Any]:
+def envelope(row: DomainEvent) -> dict[str, Any]:
+    """The row rendered as a ``domain_event.envelope.v1`` dict (streams reuse this)."""
     return {
         "event_seq": row.event_seq,
         "event_uuid": str(row.event_uuid),
@@ -92,7 +93,7 @@ async def append_event(
     )
     session.add(row)
     await session.flush()  # assigns event_seq
-    errors = sorted(_validator().iter_errors(_envelope(row)), key=str)
+    errors = sorted(_validator().iter_errors(envelope(row)), key=str)
     if errors:
         raise EnvelopeInvalidError("; ".join(e.message for e in errors))
     return row.event_seq
