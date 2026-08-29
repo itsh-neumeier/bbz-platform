@@ -46,6 +46,9 @@ class Settings(BaseSettings):
     cluster_dcs: Literal["etcd", "consul"] = "etcd"
     cluster_dcs_endpoints: list[str] = Field(default_factory=lambda: ["http://localhost:2379"])
 
+    # --- auth: providers (E02-04). 'local' is always active regardless. ---
+    auth_providers: list[str] = Field(default_factory=lambda: ["local"])
+
     # --- auth: local password credentials (ADR-0015; E02-03) ---
     argon2_time_cost: int = 3
     argon2_memory_cost_kib: int = 65536
