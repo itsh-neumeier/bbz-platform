@@ -33,7 +33,7 @@ from bbz_core.api.authz import require
 from bbz_core.api.deps import AuthContext, db_session
 from bbz_core.api.errors import ConflictError, NotFoundError, ValidationError
 from bbz_core.api.idempotency import CommandEnvelope, command_envelope
-from bbz_core.audit import AuditAction, AuditWriter
+from bbz_core.audit import AuditAction, AuditService
 from bbz_core.domain.events import (
     EventAggregate,
     EventDomainError,
@@ -388,7 +388,10 @@ async def _apply_transition(
             repo = EventRepository(session)
             async with session.begin():
                 agg = await repo.require(event_id)
-                before_status = agg.status
+                before = {
+                    "status": agg.status.value,
+                    "assignee_id": str(agg.assignee_id) if agg.assignee_id else None,
+                }
                 mutate(agg, ctx.user_id)
                 version = await repo.save(
                     agg,
@@ -397,15 +400,18 @@ async def _apply_transition(
                     command_id=env.command_id,
                 )
                 if audit_action is not None:
-                    await AuditWriter(session).record(
+                    after = {
+                        "status": agg.status.value,
+                        "assignee_id": str(agg.assignee_id) if agg.assignee_id else None,
+                    }
+                    await AuditService(session).write(
                         audit_action,
                         actor_user_id=ctx.user_id,
                         target_type="event",
                         target_id=str(event_id),
-                        before={"status": before_status.value},
-                        after={"status": agg.status.value},
+                        before=before,
+                        after=after,
                         reason=audit_reason,
-                        commit=False,
                     )
             out = _to_out(agg, version)
             slot.set_result(status.HTTP_200_OK, out.model_dump(mode="json"))
@@ -556,6 +562,7 @@ async def assign_event(
         env=env,
         session=session,
         body_fields={"target_user_id": str(body.target_user_id)},
+        audit_action=AuditAction.EVENT_ASSIGNED,
     )
 
 
@@ -615,7 +622,7 @@ async def takeover_event(
                     expected_version=env.expected_version,
                     command_id=env.command_id,
                 )
-                await AuditWriter(session).record(
+                await AuditService(session).write(
                     AuditAction.EVENT_TAKEN_OVER,
                     actor_user_id=ctx.user_id,
                     target_type="event",
@@ -623,7 +630,6 @@ async def takeover_event(
                     before={"assignee_id": str(previous)},
                     after={"assignee_id": str(ctx.user_id)},
                     reason=reason,
-                    commit=False,
                 )
             out = _to_out(agg, version)
             slot.set_result(status.HTTP_200_OK, out.model_dump(mode="json"))
@@ -773,10 +779,12 @@ async def export_event(
     export = await EventQueryRepository(session).export(event_id)
     if export is None:
         raise NotFoundError("event not found")
-    await AuditWriter(session).record(
-        AuditAction.EVENT_EXPORTED,
-        actor_user_id=ctx.user_id,
-        target_type="event",
-        target_id=str(event_id),
-    )
+    await session.rollback()  # close the read tx before the audit write tx
+    async with session.begin():
+        await AuditService(session).write(
+            AuditAction.EVENT_EXPORTED,
+            actor_user_id=ctx.user_id,
+            target_type="event",
+            target_id=str(event_id),
+        )
     return _export_out(export)

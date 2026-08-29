@@ -15,7 +15,21 @@ class AuditAction(enum.StrEnum):
     MFA_DISABLED = "MFA_DISABLED"
     MFA_CHALLENGE_FAILED = "MFA_CHALLENGE_FAILED"
     MFA_RECOVERY_USED = "MFA_RECOVERY_USED"
+    EVENT_ASSIGNED = "EVENT_ASSIGNED"
     EVENT_TAKEN_OVER = "EVENT_TAKEN_OVER"
     EVENT_ARCHIVED = "EVENT_ARCHIVED"
     EVENT_REACTIVATED = "EVENT_REACTIVATED"
     EVENT_EXPORTED = "EVENT_EXPORTED"
+
+
+#: Actions that MUST be emitted from a write path (MASTER_PROMPT §17). A missing
+#: wiring is caught by the "critical action -> audit" contract test (E04-03).
+CRITICAL_ACTIONS: frozenset[AuditAction] = frozenset(
+    {
+        AuditAction.EVENT_ASSIGNED,
+        AuditAction.EVENT_TAKEN_OVER,
+        AuditAction.EVENT_ARCHIVED,
+        AuditAction.EVENT_REACTIVATED,
+        AuditAction.EVENT_EXPORTED,
+    }
+)

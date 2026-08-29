@@ -129,7 +129,7 @@ accept/acknowledge/open · PATCH · assign · takeover · archive/reactivate ·
 notes · GET list/`?queue=active`/`{id}`/`{id}/export`/`priority-alert`/`stream`.
 WS at `/ws/events`.
 
-### Epic 04 – Audit / Domain Events: **in progress (2/11)**
+### Epic 04 – Audit / Domain Events: **in progress (3/11)**
 #57 (E04-01) `audit_events` schema review — added `event_seq_ref` BIGINT
 (nullable, no FK; migration 0013) linking an audit row to its domain event;
 ORM `before_update` / `before_delete` listeners raise `AuditImmutableError`
@@ -142,10 +142,15 @@ just `EVENT_REACTIVATED`), sets `correlation_id` + `node_id` + optional
 `event_seq_ref`. `changed_fields(before, after)` → `{field:{from,to}}` diff.
 Older `AuditWriter` kept for auth events / the basic read.
 
-**Next:** #59 (E04-03) wire `AuditService.write` into the critical actions
-(takeover/archive/reactivate already audit via `AuditWriter`; migrate them +
-RBAC role/user changes) + a registry-driven "critical action → audit"
-contract test. See `.ai/ROADMAP.md` Epic 04.
+#59 (E04-03) event-side critical actions now use `AuditService.write` (in the
+command TX): assign (`EVENT_ASSIGNED`, +diff), takeover, archive, reactivate,
+export. `_apply_transition` audits `{status, assignee_id}` before/after.
+`CRITICAL_ACTIONS` frozenset + a contract test that scans `bbz_core` and fails
+CI if a critical action has no `AuditService` call site. RBAC/user critical
+actions (E02-09/10) still carry `TODO(E04-03)` — to be wired next.
+
+**Next:** finish #59's RBAC/user audit wiring (roles/permissions/user
+lifecycle), then #60 (E04-04) audit query API. See `.ai/ROADMAP.md` Epic 04.
 
 ## Existing reference
 A functional HTML mockup defines important UX/feature behavior. **It is not yet in
