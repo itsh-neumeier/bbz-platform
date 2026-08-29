@@ -7,6 +7,7 @@ This package holds no I/O — it works against a store Protocol implemented in
 
 from __future__ import annotations
 
+from bbz_core.authorization.builtin_roles import BUILTIN_ROLES
 from bbz_core.authorization.keys import (
     CATALOG,
     PERMISSION_KEYS,
@@ -20,6 +21,7 @@ from bbz_core.authorization.scopes import Scope
 from bbz_core.authorization.service import GrantStore, PermissionService
 
 __all__ = [
+    "BUILTIN_ROLES",
     "CATALOG",
     "PERMISSION_KEYS",
     "SCOPES",
