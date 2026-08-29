@@ -1,0 +1,93 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://bbz-platform/schemas/event.payloads.v1.json",
+  "title": "BBZ event_type payload schemas (major version 1)",
+  "description": "MASTER_PROMPT §3 / ADR-0011. One sub-schema per event_type under `properties`. Versioning policy: additive changes stay within v1; a breaking change ships a `.v2.json` file and a migration note in docs/domain/event-catalog.md. See docs/domain/event-catalog.md.",
+  "type": "object",
+  "properties": {
+    "EVENT_CREATED": {
+      "type": "object",
+      "required": ["title", "priority", "actor_id"],
+      "additionalProperties": true,
+      "properties": {
+        "title": { "type": "string", "minLength": 1 },
+        "description": { "type": ["string", "null"] },
+        "priority": { "enum": ["critical", "high", "medium", "low"] },
+        "bbz_id": { "type": ["string", "null"] },
+        "workplace_id": { "type": ["string", "null"] },
+        "source": { "type": "string" },
+        "actor_id": { "type": "string" }
+      }
+    },
+    "EVENT_ACCEPTED": { "$ref": "#/$defs/transition" },
+    "EVENT_ACKNOWLEDGED": { "$ref": "#/$defs/transition" },
+    "EVENT_OPENED": { "$ref": "#/$defs/transition" },
+    "EVENT_ARCHIVED": {
+      "allOf": [{ "$ref": "#/$defs/transition" }],
+      "properties": { "reason": { "type": ["string", "null"] } }
+    },
+    "EVENT_REACTIVATED": {
+      "type": "object",
+      "required": ["from", "to", "actor_id", "reason"],
+      "additionalProperties": true,
+      "properties": {
+        "from": { "type": "string" },
+        "to": { "type": "string" },
+        "actor_id": { "type": "string" },
+        "reason": { "type": "string", "minLength": 1 }
+      }
+    },
+    "EVENT_ASSIGNED": {
+      "type": "object",
+      "required": ["to_user_id", "actor_id"],
+      "additionalProperties": true,
+      "properties": {
+        "from_user_id": { "type": ["string", "null"] },
+        "to_user_id": { "type": "string" },
+        "actor_id": { "type": "string" }
+      }
+    },
+    "EVENT_TAKEN_OVER": {
+      "type": "object",
+      "required": ["from_user_id", "to_user_id", "actor_id"],
+      "additionalProperties": true,
+      "properties": {
+        "from_user_id": { "type": "string" },
+        "to_user_id": { "type": "string" },
+        "actor_id": { "type": "string" }
+      }
+    },
+    "EVENT_UPDATED": {
+      "type": "object",
+      "required": ["changes", "actor_id"],
+      "additionalProperties": true,
+      "properties": {
+        "changes": { "type": "object", "minProperties": 1 },
+        "actor_id": { "type": "string" }
+      }
+    },
+    "EVENT_NOTE_ADDED": {
+      "type": "object",
+      "required": ["note_id", "kind", "body", "actor_id"],
+      "additionalProperties": true,
+      "properties": {
+        "note_id": { "type": "string" },
+        "kind": { "enum": ["work", "postprocess"] },
+        "body": { "type": "string", "minLength": 1 },
+        "actor_id": { "type": "string" }
+      }
+    }
+  },
+  "$defs": {
+    "transition": {
+      "type": "object",
+      "required": ["from", "to", "actor_id"],
+      "additionalProperties": true,
+      "properties": {
+        "from": { "type": ["string", "null"] },
+        "to": { "type": "string" },
+        "actor_id": { "type": "string" }
+      }
+    }
+  }
+}

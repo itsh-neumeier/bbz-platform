@@ -129,7 +129,7 @@ accept/acknowledge/open · PATCH · assign · takeover · archive/reactivate ·
 notes · GET list/`?queue=active`/`{id}`/`{id}/export`/`priority-alert`/`stream`.
 WS at `/ws/events`.
 
-### Epic 04 – Audit / Domain Events: **in progress (4/11)**
+### Epic 04 – Audit / Domain Events: **in progress (5/11)**
 #57 (E04-01) `audit_events` schema review — added `event_seq_ref` BIGINT
 (nullable, no FK; migration 0013) linking an audit row to its domain event;
 ORM `before_update` / `before_delete` listeners raise `AuditImmutableError`
@@ -156,9 +156,17 @@ actions (E02-09/10) still carry `TODO(E04-03)` — to be wired next.
 `before`/`after`/`event_seq_ref` now in the output. `test_login_audit` updated
 for the new `{items}` shape. (`AuditWriter.query` now unused; left in place.)
 
-**Next:** RBAC/user critical-action audit wiring (deferred from #59; code
-comments point to #66/E04-10) and #61 (E04-05) domain-event envelope +
-`schema_version` policy. See `.ai/ROADMAP.md` Epic 04.
+#61 (E04-05) per-`event_type` payload schemas finalized:
+`event.payloads.v1.json` (one sub-schema per type), loader
+`event_payload_schema()` / `known_event_types()` / `UnknownEventTypeError` in
+`bbz_event_schemas`. `append_event` now validates the payload against its type
+schema and **rejects an unknown `event_type`** (`UnknownEventTypeError`, an
+`EnvelopeInvalidError`). `schema_version` versioning policy + per-type required
+fields documented in `docs/domain/event-catalog.md` (additive→same major,
+breaking→new `.vN+1.json` + migration note; no secrets in payloads).
+
+**Next:** RBAC/user critical-action audit wiring (deferred from #59) and #62
+(E04-06) transactional outbox + dispatcher worker. See `.ai/ROADMAP.md` Epic 04.
 
 ## Existing reference
 A functional HTML mockup defines important UX/feature behavior. **It is not yet in

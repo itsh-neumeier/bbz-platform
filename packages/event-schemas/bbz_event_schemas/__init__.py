@@ -8,7 +8,19 @@ Backend and (later) frontend/agent code validate against these. Every schema
 carries a ``schema_version``. Changes are additive within a major version.
 """
 
-from bbz_event_schemas.loader import list_schemas, load_schema
+from bbz_event_schemas.loader import (
+    UnknownEventTypeError,
+    event_payload_schema,
+    known_event_types,
+    list_schemas,
+    load_schema,
+)
 
-__all__ = ["list_schemas", "load_schema"]
+__all__ = [
+    "UnknownEventTypeError",
+    "event_payload_schema",
+    "known_event_types",
+    "list_schemas",
+    "load_schema",
+]
 __version__ = "0.0.0"

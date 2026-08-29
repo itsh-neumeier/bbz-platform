@@ -1,22 +1,40 @@
-# Domain event catalog (seed)
+# Domain event catalog
 
-Seeded from MASTER_PROMPT §3. This is the **starting list**; Phase 1 finalizes
-payloads and `schema_version` policy (ADR-0011). Envelope schema:
-`packages/event-schemas/.../domain_event.envelope.v1.json`.
+Seeded from MASTER_PROMPT §3. Envelope schema:
+`packages/event-schemas/.../domain_event.envelope.v1.json`. Per-`event_type`
+payload schemas: `packages/event-schemas/.../event.payloads.v1.json` (one
+sub-schema under `properties.<EVENT_TYPE>`).
+
+## `schema_version` policy (ADR-0011, finalized E04-05)
+
+* Every domain event carries an integer `schema_version` (envelope field), and
+  every `event_type` in Phase 1 has a payload schema at that version.
+* `append_event` **rejects** an event whose `event_type` has no registered
+  payload schema (`UnknownEventTypeError`) or whose payload fails the schema.
+* **Additive** changes (new optional field, wider enum) stay within the current
+  major: edit `event.payloads.vN.json` in place.
+* **Breaking** changes (rename/remove a field, narrow a type, new required
+  field) ship a new `event.payloads.v(N+1).json`, bump the producer's
+  `schema_version`, and add a migration note here. Old versions stay shipped so
+  historical events keep validating on replay.
+* **Payload data policy:** identifiers and enums only — never raw secrets,
+  credentials, DTMF door codes or full call recordings in a payload.
 
 ## Events
 
-| event_type | aggregate | notes |
-|---|---|---|
-| EVENT_CREATED | event | |
-| EVENT_ACCEPTED | event | |
-| EVENT_ACKNOWLEDGED | event | |
-| EVENT_OPENED | event | |
-| EVENT_ASSIGNED | event | ownership = whole event |
-| EVENT_TAKEN_OVER | event | audited; only when owner is Pause/offline |
-| EVENT_ARCHIVED | event | leaves the work queue, stays in history |
-| EVENT_REACTIVATED | event | never one-click; explicit confirmation |
-| ACTION_STEP_COMPLETED | workflow_instance | |
+| event_type | aggregate | payload (required) | notes |
+|---|---|---|---|
+| EVENT_CREATED | event | title, priority, actor_id | + description/bbz_id/workplace_id/source |
+| EVENT_ACCEPTED | event | from, to, actor_id | |
+| EVENT_ACKNOWLEDGED | event | from, to, actor_id | |
+| EVENT_OPENED | event | from, to, actor_id | |
+| EVENT_UPDATED | event | changes, actor_id | `changes` = `{field: {from, to}}` |
+| EVENT_ASSIGNED | event | to_user_id, actor_id | + from_user_id; ownership = whole event |
+| EVENT_TAKEN_OVER | event | from_user_id, to_user_id, actor_id | audited; only when owner is Pause/offline |
+| EVENT_ARCHIVED | event | from, to, actor_id | + reason; leaves the work queue, stays in history |
+| EVENT_REACTIVATED | event | from, to, actor_id, **reason** | never one-click; explicit confirmation |
+| EVENT_NOTE_ADDED | event | note_id, kind, body, actor_id | kind ∈ {work, postprocess} |
+| ACTION_STEP_COMPLETED | workflow_instance | _(schema pending Epic 05)_ | |
 
 ## Calls
 
