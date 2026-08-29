@@ -77,3 +77,9 @@ forbidden_modules = ["bbz_integration_sdk"]
 # api/v1 may call into bbz_core.integrations_host (which legitimately uses the
 # SDK); what is forbidden is api/domain reaching for the SDK themselves.
 allow_indirect_imports = "true"
+
+[[tool.importlinter.contracts]]
+name = "Authorization layer is storage- and transport-agnostic"
+type = "forbidden"
+source_modules = ["bbz_core.authorization"]
+forbidden_modules = ["bbz_core.infra", "bbz_core.api", "bbz_integration_sdk"]

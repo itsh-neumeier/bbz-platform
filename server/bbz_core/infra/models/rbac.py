@@ -11,7 +11,6 @@ A ``role_permissions`` row may carry a ``scope`` and an optional structured
 from __future__ import annotations
 
 import datetime as _dt
-import enum
 import uuid
 from typing import Any
 
@@ -26,17 +25,19 @@ from sqlalchemy import (
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
+from bbz_core.authorization.scopes import Scope
 from bbz_core.infra.models.base import Base, TimestampMixin, uuid_pk
 
-
-class Scope(enum.StrEnum):
-    GLOBAL = "global"
-    REGION = "region"
-    BBZ = "bbz"
-    WORKPLACE = "workplace"
-    OWN_EVENTS = "own_events"
-    ASSIGNED_EVENTS = "assigned_events"
-
+__all__ = [
+    "Group",
+    "GroupRole",
+    "Permission",
+    "Role",
+    "RolePermission",
+    "Scope",
+    "UserGroup",
+    "UserRole",
+]
 
 _SCOPE_CHECK = CheckConstraint(
     "scope IN (" + ", ".join(f"'{s.value}'" for s in Scope) + ")",
