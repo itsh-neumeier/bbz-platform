@@ -41,6 +41,7 @@ from bbz_core.domain.events import (
     EventStatus,
     InvalidTransition,
 )
+from bbz_core.infra.event_log import append_event
 from bbz_core.infra.event_stream import notify_event_appended, sse_stream
 from bbz_core.infra.idempotency import (
     CommandConflictError,
@@ -48,9 +49,11 @@ from bbz_core.infra.idempotency import (
     idempotent,
     request_hash,
 )
+from bbz_core.infra.models.events import Event, EventNote, EventNoteKind
 from bbz_core.infra.models.identity import PresenceState, User, UserStatus
 from bbz_core.infra.repositories.event_queries import (
     EventDetail,
+    EventExport,
     EventListItem,
     EventQueryRepository,
 )
@@ -169,8 +172,44 @@ class EventDetailOut(EventListItemOut):
     notes: list[NoteOut]
 
 
+class AddNoteIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    body: str = Field(min_length=1, max_length=20_000)
+    kind: Literal["work"] = "work"  # postprocess notes arrive with Epic 20
+
+
+class DomainEventOut(BaseModel):
+    event_seq: int
+    event_type: str
+    occurred_at_utc: _dt.datetime
+    user_id: uuid.UUID | None
+    payload: dict[str, object]
+
+
+class EventExportOut(BaseModel):
+    event: EventDetailOut
+    domain_events: list[DomainEventOut]
+
+
 def _item_out(item: EventListItem) -> EventListItemOut:
     return EventListItemOut.model_validate(item, from_attributes=True)
+
+
+def _export_out(export: EventExport) -> EventExportOut:
+    return EventExportOut(
+        event=_detail_out(export.detail),
+        domain_events=[
+            DomainEventOut(
+                event_seq=d.event_seq,
+                event_type=d.event_type,
+                occurred_at_utc=d.occurred_at_utc,
+                user_id=d.user_id,
+                payload=d.payload,
+            )
+            for d in export.domain_events
+        ],
+    )
 
 
 def _detail_out(detail: EventDetail) -> EventDetailOut:
@@ -664,3 +703,80 @@ async def reactivate_event(
         audit_action=AuditAction.EVENT_REACTIVATED,
         audit_reason=body.reason,
     )
+
+
+class NoteAddedOut(BaseModel):
+    note_id: uuid.UUID
+    event_seq: int
+
+
+@router.post("/{event_id}/notes", response_model=NoteAddedOut, status_code=status.HTTP_201_CREATED)
+async def add_note(
+    event_id: uuid.UUID,
+    body: AddNoteIn,
+    ctx: AuthContext = Depends(require("events.postprocess")),
+    env: CommandEnvelope = Depends(command_envelope),
+    session: AsyncSession = Depends(db_session),
+) -> NoteAddedOut:
+    note_body = body.body.strip()
+    if not note_body:
+        raise ValidationError("note body must not be empty")
+    rhash = request_hash({"event_id": str(event_id), "kind": body.kind, "body": note_body})
+    with _translate():
+        async with idempotent(
+            session,
+            command_id=env.command_id,
+            endpoint="POST /api/v1/events/{id}/notes",
+            request_hash=rhash,
+            user_id=ctx.user_id,
+        ) as slot:
+            if slot.replay is not None:
+                return NoteAddedOut.model_validate(slot.replay.body)
+
+            note = EventNote(
+                event_id=event_id,
+                kind=EventNoteKind.WORK.value,
+                body=note_body,
+                created_by=ctx.user_id,
+            )
+            async with session.begin():
+                if await session.get(Event, event_id) is None:
+                    raise NotFoundError("event not found")
+                session.add(note)
+                await session.flush()
+                seq = await append_event(
+                    session,
+                    aggregate_type="event",
+                    aggregate_id=event_id,
+                    event_type="EVENT_NOTE_ADDED",
+                    payload={
+                        "note_id": str(note.id),
+                        "kind": body.kind,
+                        "body": note_body,
+                        "actor_id": str(ctx.user_id),
+                    },
+                    user_id=ctx.user_id,
+                    command_id=env.command_id,
+                )
+            out = NoteAddedOut(note_id=note.id, event_seq=seq)
+            slot.set_result(status.HTTP_201_CREATED, out.model_dump(mode="json"))
+    await notify_event_appended()
+    return out
+
+
+@router.get("/{event_id}/export", response_model=EventExportOut)
+async def export_event(
+    event_id: uuid.UUID,
+    ctx: AuthContext = Depends(require("events.export")),
+    session: AsyncSession = Depends(db_session),
+) -> EventExportOut:
+    export = await EventQueryRepository(session).export(event_id)
+    if export is None:
+        raise NotFoundError("event not found")
+    await AuditWriter(session).record(
+        AuditAction.EVENT_EXPORTED,
+        actor_user_id=ctx.user_id,
+        target_type="event",
+        target_id=str(event_id),
+    )
+    return _export_out(export)
