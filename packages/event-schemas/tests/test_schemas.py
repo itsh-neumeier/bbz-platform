@@ -6,7 +6,13 @@ from datetime import UTC, datetime
 import jsonschema
 import pytest
 
-from bbz_event_schemas import list_schemas, load_schema
+from bbz_event_schemas import (
+    UnknownEventTypeError,
+    event_payload_schema,
+    known_event_types,
+    list_schemas,
+    load_schema,
+)
 
 
 def test_all_shipped_schemas_are_valid_json_schema() -> None:
@@ -53,3 +59,22 @@ def test_telephony_event_enum_enforced() -> None:
     jsonschema.validate(base, schema)
     with pytest.raises(jsonschema.ValidationError):
         jsonschema.validate({**base, "event_type": "CALL_TELEPORTED"}, schema)
+
+
+def test_every_known_event_type_has_a_usable_payload_schema() -> None:
+    types = known_event_types()
+    assert {"EVENT_CREATED", "EVENT_ASSIGNED", "EVENT_NOTE_ADDED"} <= types
+    for name in types:
+        jsonschema.Draft202012Validator.check_schema(event_payload_schema(name))
+
+
+def test_event_payload_schema_validates_and_rejects() -> None:
+    schema = event_payload_schema("EVENT_CREATED")
+    jsonschema.validate({"title": "x", "priority": "high", "actor_id": "u1"}, schema)
+    with pytest.raises(jsonschema.ValidationError):
+        jsonschema.validate({"title": "x"}, schema)  # missing priority/actor_id
+
+
+def test_unknown_event_type_raises() -> None:
+    with pytest.raises(UnknownEventTypeError):
+        event_payload_schema("EVENT_TELEPORTED")

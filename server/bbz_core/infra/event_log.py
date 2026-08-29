@@ -20,7 +20,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from bbz_core.infra.models.domain_events import DomainEvent
 from bbz_core.logging import correlation_id
 from bbz_core.settings import get_settings
-from bbz_event_schemas import load_schema
+from bbz_event_schemas import UnknownEventTypeError as _SchemaUnknownEventType
+from bbz_event_schemas import event_payload_schema, load_schema
 
 _ENVELOPE = "domain_event.envelope.v1"
 
@@ -33,10 +34,22 @@ class EnvelopeInvalidError(ValueError):
     pass
 
 
+class UnknownEventTypeError(EnvelopeInvalidError):
+    """The event_type has no registered payload schema (ADR-0011) — rejected."""
+
+
 @lru_cache
 def _validator() -> jsonschema.Draft202012Validator:
     return jsonschema.Draft202012Validator(
         load_schema(_ENVELOPE), format_checker=jsonschema.FormatChecker()
+    )
+
+
+@lru_cache
+def _payload_validator(event_type: str, schema_version: int) -> jsonschema.Draft202012Validator:
+    return jsonschema.Draft202012Validator(
+        event_payload_schema(event_type, schema_version),
+        format_checker=jsonschema.FormatChecker(),
     )
 
 
@@ -96,6 +109,15 @@ async def append_event(
     errors = sorted(_validator().iter_errors(envelope(row)), key=str)
     if errors:
         raise EnvelopeInvalidError("; ".join(e.message for e in errors))
+    try:
+        payload_validator = _payload_validator(row.event_type, row.schema_version)
+    except _SchemaUnknownEventType as exc:
+        raise UnknownEventTypeError(str(exc)) from exc
+    payload_errors = sorted(payload_validator.iter_errors(row.payload), key=str)
+    if payload_errors:
+        raise EnvelopeInvalidError(
+            f"{row.event_type} payload: " + "; ".join(e.message for e in payload_errors)
+        )
     return row.event_seq
 
 

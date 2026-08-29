@@ -21,6 +21,14 @@ from bbz_core.infra.event_stream import (
     sse_stream,
 )
 
+_PAYLOADS: dict[str, dict[str, str]] = {
+    "EVENT_CREATED": {"title": "x", "priority": "high", "actor_id": "u1"},
+}
+
+
+def _payload(event_type: str) -> dict[str, str]:
+    return _PAYLOADS.get(event_type, {"from": "new", "to": "accepted", "actor_id": "u1"})
+
 
 async def _append(s: AsyncSession, event_type: str) -> int:
     async with s.begin():
@@ -29,7 +37,7 @@ async def _append(s: AsyncSession, event_type: str) -> int:
             aggregate_type="event",
             aggregate_id=uuid.uuid4(),
             event_type=event_type,
-            payload={},
+            payload=_payload(event_type),
         )
 
 
