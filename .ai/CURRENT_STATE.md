@@ -25,7 +25,7 @@ Migrations `0002`–`0008` on `main`. `bbz_core` packages now: `auth`, `authoriz
 `import-linter`: 4 contracts (added `authorization` ↛ infra/api/sdk).
 New deps: `pyjwt`, `argon2-cffi`, `pyotp`, `cryptography>=46.0.7`.
 
-### Epic 03 – Event Core: **in progress (12/16)**
+### Epic 03 – Event Core: **in progress (13/16)**
 #41 event schema (`events`, `event_status_history`, `event_assignments` with a
 partial-unique "one active assignment", `event_notes`; enum cols = `VARCHAR`+`CHECK`;
 migration 0009) · #42 append-only `domain_events` log (`event_seq` BIGINT identity,
@@ -97,9 +97,18 @@ under concurrent inserts, `include_archived`/`status` filters), `GET /events/{id
 (detail: description + status history + active assignee + notes). Scope filter is
 a no-op hook (`_scope_filter`) until user placement (E23).
 
-**Next:** #53 (E03-13) SSE stream `GET /events/stream` (catch-up by `event_seq`
-via `read_since`, then live). Then #54 WS stream, #55 priority-warning query,
-#56 notes + export. See `.ai/ROADMAP.md` Epic 03.
+#53 (E03-13) SSE stream `GET /api/v1/events/stream?after_seq=N` — catch-up from
+`domain_events` via `read_since`, then live. `bbz_core.infra.event_stream`:
+`sse_stream()` async generator (`: connected` / event frames `id:`/`event:`/`data:`
+/ `: heartbeat`), `EventBroker` (asyncio.Condition — latency hint only, DB poll
+every 15 s is the source of truth), `notify_event_appended()` called by the 4
+event write paths after commit. `event_log._envelope` → public `envelope()`.
+Scope-per-connection deferred to E23. Generator unit-tested; API tests cover
+auth + `/stream` vs `/{id}` routing.
+
+**Next:** #54 (E03-14) WebSocket variant `/ws/events` sharing the catch-up/
+fan-out logic + client ACK cursor. Then #55 priority-alert query, #56 notes +
+export. See `.ai/ROADMAP.md` Epic 03.
 
 ## Existing reference
 A functional HTML mockup defines important UX/feature behavior. **It is not yet in

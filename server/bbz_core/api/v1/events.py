@@ -24,7 +24,8 @@ import uuid
 from collections.abc import Callable, Iterator
 from typing import Literal
 
-from fastapi import APIRouter, Depends, Query, Response, status
+from fastapi import APIRouter, Depends, Query, Request, Response, status
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -40,6 +41,7 @@ from bbz_core.domain.events import (
     EventStatus,
     InvalidTransition,
 )
+from bbz_core.infra.event_stream import notify_event_appended, sse_stream
 from bbz_core.infra.idempotency import (
     CommandConflictError,
     CommandInProgressError,
@@ -207,6 +209,23 @@ async def list_events(
     return EventPageOut(items=[_item_out(i) for i in page.items], next_cursor=page.next_cursor)
 
 
+@router.get("/stream")
+async def event_stream(
+    request: Request,
+    after_seq: int = Query(default=0, ge=0),
+    _: AuthContext = Depends(require("events.view")),
+) -> StreamingResponse:
+    """SSE: missed events from ``after_seq`` (ADR-0011 catch-up) then live.
+
+    Scope filtering per connection is deferred to E23 (as the read queries).
+    """
+    return StreamingResponse(
+        sse_stream(after_seq, is_disconnected=request.is_disconnected),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
+
+
 @router.get("/{event_id}", response_model=EventDetailOut)
 async def get_event(
     event_id: uuid.UUID,
@@ -257,6 +276,7 @@ async def create_event(
                 version = await repo.add(agg, actor_id=ctx.user_id, command_id=env.command_id)
             out = _to_out(agg, version)
             slot.set_result(status.HTTP_201_CREATED, out.model_dump(mode="json"))
+            await notify_event_appended()
 
     response.headers["Location"] = f"/api/v1/events/{out.id}"
     return out
@@ -326,6 +346,7 @@ async def _apply_transition(
                     )
             out = _to_out(agg, version)
             slot.set_result(status.HTTP_200_OK, out.model_dump(mode="json"))
+            await notify_event_appended()
     return out
 
 
@@ -435,6 +456,7 @@ async def update_event(
                 )
             out = _to_out(agg, version)
             slot.set_result(status.HTTP_200_OK, out.model_dump(mode="json"))
+            await notify_event_appended()
     return out
 
 
@@ -542,6 +564,7 @@ async def takeover_event(
                 )
             out = _to_out(agg, version)
             slot.set_result(status.HTTP_200_OK, out.model_dump(mode="json"))
+            await notify_event_appended()
     return out
 
 
