@@ -25,7 +25,7 @@ Migrations `0002`–`0008` on `main`. `bbz_core` packages now: `auth`, `authoriz
 `import-linter`: 4 contracts (added `authorization` ↛ infra/api/sdk).
 New deps: `pyjwt`, `argon2-cffi`, `pyotp`, `cryptography>=46.0.7`.
 
-### Epic 03 – Event Core: **in progress (11/16)**
+### Epic 03 – Event Core: **in progress (12/16)**
 #41 event schema (`events`, `event_status_history`, `event_assignments` with a
 partial-unique "one active assignment", `event_notes`; enum cols = `VARCHAR`+`CHECK`;
 migration 0009) · #42 append-only `domain_events` log (`event_seq` BIGINT identity,
@@ -89,10 +89,17 @@ the command TX via `_apply_transition(audit_action=…)` — `AuditAction`
 `EVENT_ARCHIVED` / `EVENT_REACTIVATED`. `archive()` no longer forces a reason.
 Contract test: no DELETE route under `/api/v1/events` (no hard-delete).
 
-**Next:** #52 (E03-12) read endpoints — `GET /events?queue=active` (non-archived,
-priority-sorted), `GET /events` (chronological incl. archived, pagination by
-`event_seq`/id), `GET /events/{id}` (detail: status history, assignee, notes).
-Then #53/54 SSE/WS, #55 priority-warning, #56 notes/export. See `.ai/ROADMAP.md`.
+#52 (E03-12) read endpoints in `bbz_core.infra.repositories.event_queries`
+(`EventQueryRepository`) + `GET` routes, all gated `require("events.view")`:
+`GET /events?queue=active` (non-archived, priority rank then age),
+`GET /events` (newest-first, keyset pagination on `(created_at,id)` → stable
+under concurrent inserts, `include_archived`/`status` filters), `GET /events/{id}`
+(detail: description + status history + active assignee + notes). Scope filter is
+a no-op hook (`_scope_filter`) until user placement (E23).
+
+**Next:** #53 (E03-13) SSE stream `GET /events/stream` (catch-up by `event_seq`
+via `read_since`, then live). Then #54 WS stream, #55 priority-warning query,
+#56 notes + export. See `.ai/ROADMAP.md` Epic 03.
 
 ## Existing reference
 A functional HTML mockup defines important UX/feature behavior. **It is not yet in

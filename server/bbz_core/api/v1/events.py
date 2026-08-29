@@ -19,10 +19,12 @@ catalog exists; the immutable record today is the ``domain_events`` row.
 from __future__ import annotations
 
 import contextlib
+import datetime as _dt
 import uuid
 from collections.abc import Callable, Iterator
+from typing import Literal
 
-from fastapi import APIRouter, Depends, Response, status
+from fastapi import APIRouter, Depends, Query, Response, status
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -45,6 +47,11 @@ from bbz_core.infra.idempotency import (
     request_hash,
 )
 from bbz_core.infra.models.identity import PresenceState, User, UserStatus
+from bbz_core.infra.repositories.event_queries import (
+    EventDetail,
+    EventListItem,
+    EventQueryRepository,
+)
 from bbz_core.infra.repositories.events import (
     EventNotFoundError,
     EventRepository,
@@ -110,6 +117,60 @@ class EventOut(BaseModel):
     version: int
 
 
+class EventListItemOut(BaseModel):
+    id: uuid.UUID
+    title: str
+    priority: str
+    status: str
+    bbz_id: uuid.UUID | None
+    workplace_id: uuid.UUID | None
+    version: int
+    assignee_id: uuid.UUID | None
+    created_at: _dt.datetime
+    updated_at: _dt.datetime
+
+
+class EventPageOut(BaseModel):
+    items: list[EventListItemOut]
+    next_cursor: str | None
+
+
+class StatusHistoryOut(BaseModel):
+    from_status: str | None
+    to_status: str
+    changed_at: _dt.datetime
+    changed_by: uuid.UUID | None
+
+
+class NoteOut(BaseModel):
+    id: uuid.UUID
+    kind: str
+    body: str
+    created_by: uuid.UUID | None
+    created_at: _dt.datetime
+
+
+class EventDetailOut(EventListItemOut):
+    description: str | None
+    status_history: list[StatusHistoryOut]
+    notes: list[NoteOut]
+
+
+def _item_out(item: EventListItem) -> EventListItemOut:
+    return EventListItemOut.model_validate(item, from_attributes=True)
+
+
+def _detail_out(detail: EventDetail) -> EventDetailOut:
+    return EventDetailOut(
+        **_item_out(detail.event).model_dump(),
+        description=detail.description,
+        status_history=[
+            StatusHistoryOut.model_validate(h, from_attributes=True) for h in detail.status_history
+        ],
+        notes=[NoteOut.model_validate(n, from_attributes=True) for n in detail.notes],
+    )
+
+
 def _to_out(agg: EventAggregate, version: int) -> EventOut:
     return EventOut(
         id=agg.id,
@@ -121,6 +182,41 @@ def _to_out(agg: EventAggregate, version: int) -> EventOut:
         workplace_id=agg.workplace_id,
         version=version,
     )
+
+
+@router.get("", response_model=EventPageOut)
+async def list_events(
+    queue: Literal["active"] | None = Query(default=None),
+    cursor: str | None = Query(default=None),
+    limit: int = Query(default=50, ge=1, le=200),
+    include_archived: bool = Query(default=True),
+    status_filter: str | None = Query(default=None, alias="status"),
+    _: AuthContext = Depends(require("events.view")),
+    session: AsyncSession = Depends(db_session),
+) -> EventPageOut:
+    q = EventQueryRepository(session)
+    if queue == "active":
+        items = await q.work_queue(limit=limit)
+        return EventPageOut(items=[_item_out(i) for i in items], next_cursor=None)
+    page = await q.list_events(
+        limit=limit,
+        cursor=cursor,
+        include_archived=include_archived,
+        status=status_filter,
+    )
+    return EventPageOut(items=[_item_out(i) for i in page.items], next_cursor=page.next_cursor)
+
+
+@router.get("/{event_id}", response_model=EventDetailOut)
+async def get_event(
+    event_id: uuid.UUID,
+    _: AuthContext = Depends(require("events.view")),
+    session: AsyncSession = Depends(db_session),
+) -> EventDetailOut:
+    detail = await EventQueryRepository(session).detail(event_id)
+    if detail is None:
+        raise NotFoundError("event not found")
+    return _detail_out(detail)
 
 
 @router.post("", response_model=EventOut, status_code=status.HTTP_201_CREATED)
