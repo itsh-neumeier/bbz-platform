@@ -52,6 +52,11 @@ class Settings(BaseSettings):
     # --- authorization (E02-07). Conditional grants stay deny until E05-01. ---
     rbac_conditions_enabled: bool = False
 
+    # --- MFA / TOTP (E02-13). Fernet key (urlsafe-base64, 32 bytes) for the
+    # secret at rest; empty in dev disables enrolment. Real secret store: ADR-0019.
+    totp_encryption_key: str = ""
+    totp_issuer: str = "BBZ / 3-S-Zentrale"
+
     # --- auth: sessions / tokens (E02-05; secret via ADR-0015 in prod) ---
     jwt_secret: str = "dev-insecure-secret-change-me-min-32-bytes!!"
     access_token_ttl_seconds: int = 900

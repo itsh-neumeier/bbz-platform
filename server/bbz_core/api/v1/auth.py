@@ -24,9 +24,10 @@ from bbz_core.api.deps import (
     db_session,
     require_csrf,
 )
-from bbz_core.api.errors import UnauthorizedError
+from bbz_core.api.errors import TotpRequiredError, UnauthorizedError
 from bbz_core.audit import AuditAction, AuditWriter
 from bbz_core.auth.local import LocalAuthResult
+from bbz_core.auth.mfa import ChallengeResult, TotpService
 from bbz_core.auth.registry import AuthProviderRegistry
 from bbz_core.auth.sessions import (
     SessionExpiredError,
@@ -35,10 +36,11 @@ from bbz_core.auth.sessions import (
 )
 from bbz_core.auth.tokens import hash_refresh_token
 from bbz_core.authorization import PermissionService
-from bbz_core.infra.models.identity import User
+from bbz_core.infra.models.identity import AuthIdentity, User
 from bbz_core.infra.repositories.authorization import SqlAlchemyGrantStore
 from bbz_core.infra.repositories.local_credentials import SqlAlchemyCredentialStore
 from bbz_core.infra.repositories.sessions import SqlAlchemySessionStore
+from bbz_core.infra.repositories.totp import TotpRepository
 from bbz_core.settings import get_settings
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -47,6 +49,7 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 class LoginRequest(BaseModel):
     username: str
     password: str
+    totp: str | None = None  # TOTP or recovery code, when the account has MFA
 
 
 class UserOut(BaseModel):
@@ -119,6 +122,28 @@ async def login(
     user = await _load_user(session, outcome.user_id)
     if user is None:
         raise UnauthorizedError("invalid credentials")
+
+    aid = (
+        await session.execute(
+            select(AuthIdentity.id).where(
+                AuthIdentity.provider == "local", AuthIdentity.subject == body.username
+            )
+        )
+    ).scalar_one_or_none()
+    mfa = TotpService(TotpRepository(session))
+    if aid is not None and await mfa.is_active(aid):
+        if not body.totp:
+            raise TotpRequiredError("second factor required")
+        result = await mfa.challenge(aid, body.totp)
+        if result is ChallengeResult.BAD:
+            await audit.record(
+                AuditAction.MFA_CHALLENGE_FAILED,
+                actor_user_id=user.id,
+                actor_client_id=client_id,
+            )
+            raise UnauthorizedError("invalid credentials")
+        if result is ChallengeResult.RECOVERY_USED:
+            await audit.record(AuditAction.MFA_RECOVERY_USED, actor_user_id=user.id)
 
     tokens = await SessionService(SqlAlchemySessionStore(session)).start(
         outcome.user_id,
