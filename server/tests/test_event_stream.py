@@ -13,7 +13,13 @@ import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from bbz_core.infra.event_log import append_event
-from bbz_core.infra.event_stream import get_broker, notify_event_appended, sse_stream
+from bbz_core.infra.event_stream import (
+    EventFrame,
+    event_feed,
+    get_broker,
+    notify_event_appended,
+    sse_stream,
+)
 
 
 async def _append(s: AsyncSession, event_type: str) -> int:
@@ -79,6 +85,24 @@ async def test_live_event_is_delivered_after_connect(db: object) -> None:
         await gen.aclose()
 
     assert frame.startswith(f"id: {live_seq}\nevent: EVENT_OPENED\n".encode())
+
+
+async def test_event_feed_yields_typed_frames_then_heartbeat(db: object) -> None:
+    s = db  # type: ignore[assignment]
+    assert isinstance(s, AsyncSession)
+    seq = await _append(s, "EVENT_CREATED")
+
+    gen = event_feed(0)
+    try:
+        first = await asyncio.wait_for(gen.__anext__(), timeout=5.0)
+        second = await asyncio.wait_for(gen.__anext__(), timeout=5.0)
+    finally:
+        await gen.aclose()
+
+    assert isinstance(first, EventFrame)
+    assert (first.event_seq, first.event_type) == (seq, "EVENT_CREATED")
+    assert first.envelope["event_seq"] == seq
+    assert second is None  # heartbeat tick once the backlog is drained
 
 
 async def test_broker_notify_is_safe_without_waiters() -> None:
