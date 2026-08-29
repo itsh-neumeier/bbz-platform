@@ -15,6 +15,7 @@ from bbz_core.authorization.keys import (
     assert_known,
 )
 from bbz_core.authorization.model import EffectivePermissions, Grant
+from bbz_core.authorization.resolver import ScopeContext, grant_resolves, scope_covers
 from bbz_core.authorization.scopes import Scope
 from bbz_core.authorization.service import GrantStore, PermissionService
 
@@ -28,5 +29,8 @@ __all__ = [
     "PermissionKeyError",
     "PermissionService",
     "Scope",
+    "ScopeContext",
     "assert_known",
+    "grant_resolves",
+    "scope_covers",
 ]
