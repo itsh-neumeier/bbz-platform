@@ -15,6 +15,7 @@ from bbz_core.api.cluster import router as cluster_router
 from bbz_core.api.errors import install_error_handlers
 from bbz_core.api.health import router as health_router
 from bbz_core.api.v1.router import api_v1
+from bbz_core.api.ws import router as ws_router
 from bbz_core.infra.db import dispose_engine
 from bbz_core.logging import configure_logging, correlation_id, get_logger
 from bbz_core.settings import get_settings
@@ -67,6 +68,7 @@ def create_app() -> FastAPI:
     install_error_handlers(app)
     app.include_router(health_router)
     app.include_router(cluster_router)
+    app.include_router(ws_router)
     app.include_router(api_v1)
 
     instrument_app(app)

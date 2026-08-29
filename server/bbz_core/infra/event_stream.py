@@ -15,6 +15,8 @@ import asyncio
 import contextlib
 import json
 from collections.abc import AsyncIterator, Awaitable, Callable
+from dataclasses import dataclass
+from typing import Any
 
 from bbz_core.infra.db import session_scope
 from bbz_core.infra.event_log import envelope, read_since
@@ -49,6 +51,37 @@ async def notify_event_appended() -> None:
     await _broker.notify()
 
 
+@dataclass(frozen=True)
+class EventFrame:
+    event_seq: int
+    event_type: str
+    envelope: dict[str, Any]
+
+
+async def event_feed(
+    after_seq: int,
+    *,
+    is_disconnected: Callable[[], Awaitable[bool]] | None = None,
+) -> AsyncIterator[EventFrame | None]:
+    """Catch-up from ``after_seq`` then live: an :class:`EventFrame` per event,
+    ``None`` as a heartbeat tick. Shared by the SSE and WebSocket endpoints.
+    """
+    broker = get_broker()
+    last = after_seq
+    while True:
+        if is_disconnected is not None and await is_disconnected():
+            return
+        async with session_scope() as session:
+            rows = await read_since(session, last, limit=_CATCHUP_BATCH)
+        for row in rows:
+            last = row.event_seq
+            yield EventFrame(row.event_seq, row.event_type, envelope(row))
+        if rows:
+            continue  # drain backlog without waiting
+        yield None
+        await broker.wait(timeout=_POLL_SECONDS)
+
+
 def _sse_frame(event_seq: int, event_type: str, data: dict[str, object]) -> bytes:
     body = json.dumps(data, default=str, separators=(",", ":"))
     return f"id: {event_seq}\nevent: {event_type}\ndata: {body}\n\n".encode()
@@ -59,23 +92,10 @@ async def sse_stream(
     *,
     is_disconnected: Callable[[], Awaitable[bool]] | None = None,
 ) -> AsyncIterator[bytes]:
-    """Yield SSE frames: catch-up from ``after_seq``, then live via poll + broker.
-
-    ``is_disconnected`` is an optional zero-arg awaitable (``request.is_disconnected``)
-    used to stop promptly when the client goes away.
-    """
-    broker = get_broker()
-    last = after_seq
+    """SSE framing over :func:`event_feed`."""
     yield b": connected\n\n"
-    while True:
-        if is_disconnected is not None and await is_disconnected():
-            return
-        async with session_scope() as session:
-            rows = await read_since(session, last, limit=_CATCHUP_BATCH)
-        for row in rows:
-            last = row.event_seq
-            yield _sse_frame(row.event_seq, row.event_type, envelope(row))
-        if rows:
-            continue  # drain backlog without waiting
-        yield b": heartbeat\n\n"
-        await broker.wait(timeout=_POLL_SECONDS)
+    async for frame in event_feed(after_seq, is_disconnected=is_disconnected):
+        if frame is None:
+            yield b": heartbeat\n\n"
+        else:
+            yield _sse_frame(frame.event_seq, frame.event_type, frame.envelope)
