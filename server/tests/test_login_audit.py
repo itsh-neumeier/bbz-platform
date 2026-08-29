@@ -70,7 +70,7 @@ async def test_successful_login_writes_audit(env: tuple) -> None:
         "/api/v1/auth/login", json={"username": "auditor", "password": "Wolke7-Bahnhof!x"}
     )
 
-    rows = (await client.get("/api/v1/audit")).json()
+    rows = (await client.get("/api/v1/audit")).json()["items"]
     actions = [r["action"] for r in rows]
     assert "LOGIN_SUCCEEDED" in actions and "SESSION_STARTED" in actions
     ok = next(r for r in rows if r["action"] == "LOGIN_SUCCEEDED")
@@ -87,7 +87,7 @@ async def test_failed_login_is_audited_without_user_link(env: tuple) -> None:
         "/api/v1/auth/login", json={"username": "carol", "password": "Wolke7-Bahnhof!x"}
     )
 
-    rows = (await client.get("/api/v1/audit?action=LOGIN_FAILED")).json()
+    rows = (await client.get("/api/v1/audit?action=LOGIN_FAILED")).json()["items"]
     assert rows and rows[0]["actor_user_id"] is None
     assert rows[0]["target_id"] == "ghost"
 
@@ -114,5 +114,5 @@ async def test_logout_writes_session_ended(env: tuple) -> None:
     await client.post(
         "/api/v1/auth/login", json={"username": "dan", "password": "Wolke7-Bahnhof!x"}
     )
-    rows = (await client.get("/api/v1/audit?action=SESSION_ENDED")).json()
+    rows = (await client.get("/api/v1/audit?action=SESSION_ENDED")).json()["items"]
     assert rows and rows[0]["reason"] == "logout"
