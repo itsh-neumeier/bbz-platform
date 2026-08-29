@@ -2,8 +2,7 @@
 
 Cookie-based for the web/kiosk clients (HttpOnly access + refresh, plus a
 readable double-submit CSRF token). Bearer tokens also work for agents.
-Effective permissions on ``/me`` are wired in E02-08; the field is present now
-so clients can depend on the shape.
+Effective permissions on ``/me`` come from the permission service (E02-08).
 """
 
 from __future__ import annotations
@@ -33,7 +32,9 @@ from bbz_core.auth.sessions import (
     SessionNotFoundError,
     SessionService,
 )
+from bbz_core.authorization import PermissionService
 from bbz_core.infra.models.identity import User
+from bbz_core.infra.repositories.authorization import SqlAlchemyGrantStore
 from bbz_core.infra.repositories.local_credentials import SqlAlchemyCredentialStore
 from bbz_core.infra.repositories.sessions import SqlAlchemySessionStore
 from bbz_core.settings import get_settings
@@ -60,7 +61,7 @@ class LoginResponse(BaseModel):
 
 class MeResponse(BaseModel):
     user: UserOut
-    permissions: list[str]  # populated in E02-08
+    permissions: list[str]
     scopes: list[str]
 
 
@@ -190,8 +191,10 @@ async def me(
     user = await _load_user(session, ctx.user_id)
     if user is None:
         raise UnauthorizedError("user no longer exists")
+    effective = await PermissionService(SqlAlchemyGrantStore(session)).effective(ctx.user_id)
+    keys = effective.keys()
     return MeResponse(
         user=UserOut(id=user.id, display_name=user.display_name, status=user.status),
-        permissions=[],
-        scopes=[],
+        permissions=sorted(keys),
+        scopes=sorted({s for k in keys for s in effective.scopes_for(k)}),
     )
