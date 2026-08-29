@@ -129,16 +129,23 @@ accept/acknowledge/open · PATCH · assign · takeover · archive/reactivate ·
 notes · GET list/`?queue=active`/`{id}`/`{id}/export`/`priority-alert`/`stream`.
 WS at `/ws/events`.
 
-### Epic 04 – Audit / Domain Events: **in progress (1/11)**
+### Epic 04 – Audit / Domain Events: **in progress (2/11)**
 #57 (E04-01) `audit_events` schema review — added `event_seq_ref` BIGINT
 (nullable, no FK; migration 0013) linking an audit row to its domain event;
 ORM `before_update` / `before_delete` listeners raise `AuditImmutableError`
 (append-only at the mapping level; the DB grant/trigger is E04-10/E23-09).
 
-**Next:** #58 (E04-02) `write_audit()` audit-write service — in-TX with the
-triggering state change (`_require_tx` like `EventRepository`), standard action
-keys, before/after diff helper, mandatory-reason enforcement for flagged
-actions. Then #59 wire critical actions + contract test. See `.ai/ROADMAP.md`.
+#58 (E04-02) `bbz_core.audit.AuditService.write()` — appends in the caller's
+transaction (`AuditNotInTransactionError` otherwise), enforces a mandatory
+`reason` for `REASON_REQUIRED` actions (`AuditReasonRequiredError`; currently
+just `EVENT_REACTIVATED`), sets `correlation_id` + `node_id` + optional
+`event_seq_ref`. `changed_fields(before, after)` → `{field:{from,to}}` diff.
+Older `AuditWriter` kept for auth events / the basic read.
+
+**Next:** #59 (E04-03) wire `AuditService.write` into the critical actions
+(takeover/archive/reactivate already audit via `AuditWriter`; migrate them +
+RBAC role/user changes) + a registry-driven "critical action → audit"
+contract test. See `.ai/ROADMAP.md` Epic 04.
 
 ## Existing reference
 A functional HTML mockup defines important UX/feature behavior. **It is not yet in

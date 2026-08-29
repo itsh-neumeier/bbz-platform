@@ -1,14 +1,29 @@
-"""Audit log — seeded with authentication events (E02-12).
+"""Audit log (MASTER_PROMPT §17).
 
-``AuditWriter`` appends immutable rows. The full audit-write service (in-tx with
-the state change, before/after diffing, mandatory-reason enforcement) is E04-02;
-the generic query API is E04-04. What exists here is enough for auth events and
-a basic filtered read.
+``AuditService.write`` (E04-02) is the primary path: it appends an immutable row
+**in the caller's transaction**, enforces a mandatory ``reason`` for flagged
+actions, and offers :func:`changed_fields` for before/after diffs. ``AuditWriter``
+is the older read + fire-and-forget writer kept for the auth events and the
+basic filtered read (E02-12); the generic query API is E04-04.
 """
 
 from __future__ import annotations
 
 from bbz_core.audit.actions import AuditAction
+from bbz_core.audit.service import (
+    AuditNotInTransactionError,
+    AuditReasonRequiredError,
+    AuditService,
+    changed_fields,
+)
 from bbz_core.audit.writer import AuditRecord, AuditWriter
 
-__all__ = ["AuditAction", "AuditRecord", "AuditWriter"]
+__all__ = [
+    "AuditAction",
+    "AuditNotInTransactionError",
+    "AuditReasonRequiredError",
+    "AuditRecord",
+    "AuditService",
+    "AuditWriter",
+    "changed_fields",
+]
