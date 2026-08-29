@@ -25,7 +25,7 @@ Migrations `0002`–`0008` on `main`. `bbz_core` packages now: `auth`, `authoriz
 `import-linter`: 4 contracts (added `authorization` ↛ infra/api/sdk).
 New deps: `pyjwt`, `argon2-cffi`, `pyotp`, `cryptography>=46.0.7`.
 
-### Epic 03 – Event Core: **in progress (3/16)**
+### Epic 03 – Event Core: **in progress (4/16)**
 #41 event schema (`events`, `event_status_history`, `event_assignments` with a
 partial-unique "one active assignment", `event_notes`; enum cols = `VARCHAR`+`CHECK`;
 migration 0009) · #42 append-only `domain_events` log (`event_seq` BIGINT identity,
@@ -34,11 +34,17 @@ migration 0009) · #42 append-only `domain_events` log (`event_seq` BIGINT ident
 hash, stored result), `bbz_core.infra.idempotency` (`IdempotencyStore` claim →
 replay / `CommandConflictError` on body mismatch / `CommandInProgressError` while
 in flight, `idempotent()` context manager, `purge_stale`/`purge_completed`);
-migration 0011.
+migration 0011 · #44 pure event aggregate + state machine in
+`bbz_core.domain.events` (`EventStatus`/`EventPriority` moved here as the
+canonical vocabulary; infra models re-use them for `CHECK`s). `EventAggregate`
+with `create/accept/acknowledge/open/archive/reactivate/assign/take_over`;
+invalid transition → `InvalidTransition`, nothing mutated; `collect_events()`
+drains queued `DomainEventData`. 100 % branch coverage (ADR-0008 gate).
 
-**Next:** #44 (E03-04) event aggregate, then #45 repository/UoW, #46+ the
-create/accept/ack/open/edit/assign/takeover/archive command handlers. Wire
-`idempotent()` into the first write endpoint (#46). See `.ai/ROADMAP.md` Epic 03.
+**Next:** #45 (E03-05) `EventRepository` + Unit-of-Work (state + `append_event`
++ `event_status_history` + `version` bump atomic; optimistic concurrency vs
+`X-Expected-Version` → 409). Then #46+ the command handlers; wire `idempotent()`
+into the first write endpoint (#46). See `.ai/ROADMAP.md` Epic 03.
 
 ## Existing reference
 A functional HTML mockup defines important UX/feature behavior. **It is not yet in
