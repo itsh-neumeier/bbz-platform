@@ -30,6 +30,7 @@ from bbz_core.api.authz import require
 from bbz_core.api.deps import AuthContext, db_session
 from bbz_core.api.errors import ConflictError, NotFoundError, ValidationError
 from bbz_core.api.idempotency import CommandEnvelope, command_envelope
+from bbz_core.audit import AuditAction, AuditWriter
 from bbz_core.domain.events import (
     EventAggregate,
     EventDomainError,
@@ -43,12 +44,13 @@ from bbz_core.infra.idempotency import (
     idempotent,
     request_hash,
 )
-from bbz_core.infra.models.identity import User, UserStatus
+from bbz_core.infra.models.identity import PresenceState, User, UserStatus
 from bbz_core.infra.repositories.events import (
     EventNotFoundError,
     EventRepository,
     VersionConflictError,
 )
+from bbz_core.infra.repositories.presence import PresenceRepository
 
 router = APIRouter(prefix="/events", tags=["events"])
 
@@ -356,3 +358,84 @@ async def assign_event(
         session=session,
         body_fields={"target_user_id": str(body.target_user_id)},
     )
+
+
+class TakeoverEventIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    reason: str | None = Field(default=None, max_length=2_000)
+
+
+_TAKEOVER_ALLOWED_PRESENCE = {PresenceState.PAUSE.value, PresenceState.OFFLINE.value}
+
+
+@router.post("/{event_id}/takeover", response_model=EventOut)
+async def takeover_event(
+    event_id: uuid.UUID,
+    response: Response,
+    body: TakeoverEventIn | None = None,
+    ctx: AuthContext = Depends(require("events.takeover")),
+    env: CommandEnvelope = Depends(command_envelope),
+    session: AsyncSession = Depends(db_session),
+) -> EventOut:
+    """Grab an event whose owner is on break / offline (MASTER_PROMPT §13.4).
+
+    Presence is checked against the server-side effective state, never the
+    client. The takeover is always audited (mandatory) in the same transaction
+    as the state change. Scope ``bbz`` enforcement is deferred to E23.
+    """
+    if env.expected_version is None:
+        raise ValidationError("X-Expected-Version header is required")
+    reason = (body.reason if body else None) or None
+    rhash = request_hash(
+        {"event_id": str(event_id), "verb": "takeover", "expected_version": env.expected_version}
+    )
+    with _translate():
+        async with idempotent(
+            session,
+            command_id=env.command_id,
+            endpoint="POST /api/v1/events/{id}/takeover",
+            request_hash=rhash,
+            user_id=ctx.user_id,
+        ) as slot:
+            if slot.replay is not None:
+                response.status_code = slot.replay.status
+                return EventOut.model_validate(slot.replay.body)
+
+            repo = EventRepository(session)
+            async with session.begin():
+                agg = await repo.require(event_id)
+                previous = agg.assignee_id
+                if previous is None:
+                    raise ValidationError("event has no owner; use assign")
+                await _require_owner_away(session, previous)
+                agg.take_over(new_user_id=ctx.user_id, actor_id=ctx.user_id)
+                version = await repo.save(
+                    agg,
+                    actor_id=ctx.user_id,
+                    expected_version=env.expected_version,
+                    command_id=env.command_id,
+                )
+                await AuditWriter(session).record(
+                    AuditAction.EVENT_TAKEN_OVER,
+                    actor_user_id=ctx.user_id,
+                    target_type="event",
+                    target_id=str(event_id),
+                    before={"assignee_id": str(previous)},
+                    after={"assignee_id": str(ctx.user_id)},
+                    reason=reason,
+                    commit=False,
+                )
+            out = _to_out(agg, version)
+            slot.set_result(status.HTTP_200_OK, out.model_dump(mode="json"))
+    return out
+
+
+async def _require_owner_away(session: AsyncSession, owner_id: uuid.UUID) -> None:
+    view = await PresenceRepository(session).get(owner_id)
+    state = view.state if view is not None else PresenceState.OFFLINE.value
+    if state not in _TAKEOVER_ALLOWED_PRESENCE:
+        raise ConflictError(
+            "current owner is available; takeover is only allowed on break / offline",
+            details={"owner_presence": state},
+        )

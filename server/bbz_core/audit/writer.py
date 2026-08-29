@@ -46,7 +46,14 @@ class AuditWriter:
         before: dict[str, Any] | None = None,
         after: dict[str, Any] | None = None,
         reason: str | None = None,
+        commit: bool = True,
     ) -> None:
+        """Append one audit row.
+
+        ``commit=False`` only flushes, so the row commits atomically with the
+        caller's transaction (required for actions whose audit entry is
+        mandatory, e.g. event takeover — E03-10).
+        """
         self._s.add(
             AuditEvent(
                 node_id=get_settings().node_id,
@@ -62,7 +69,10 @@ class AuditWriter:
                 correlation_id=correlation_id.get(),
             )
         )
-        await self._s.commit()
+        if commit:
+            await self._s.commit()
+        else:
+            await self._s.flush()
 
     async def query(
         self,
