@@ -46,6 +46,15 @@ class Settings(BaseSettings):
     cluster_dcs: Literal["etcd", "consul"] = "etcd"
     cluster_dcs_endpoints: list[str] = Field(default_factory=lambda: ["http://localhost:2379"])
 
+    # --- auth: local password credentials (ADR-0015; E02-03) ---
+    argon2_time_cost: int = 3
+    argon2_memory_cost_kib: int = 65536
+    argon2_parallelism: int = 4
+    password_min_length: int = 12
+    password_min_char_classes: int = 3  # of {lower, upper, digit, symbol}
+    login_max_failed_attempts: int = 5
+    login_lockout_seconds: int = 900
+
     @property
     def database_url_sync(self) -> str:
         """Sync DSN for Alembic (psycopg v3 driver)."""

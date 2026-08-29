@@ -17,7 +17,15 @@ import datetime as _dt
 import enum
 import uuid
 
-from sqlalchemy import CheckConstraint, ForeignKey, String, UniqueConstraint, text
+from sqlalchemy import (
+    CheckConstraint,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+    text,
+)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from bbz_core.infra.models.base import Base, TimestampMixin, uuid_pk
@@ -102,3 +110,22 @@ class UserPresence(Base):
     )
 
     user: Mapped[User] = relationship(back_populates="presence", foreign_keys=[user_id])
+
+
+class LocalCredential(Base, TimestampMixin):
+    """Password material for a ``provider='local'`` auth identity (E02-03).
+
+    One row per local identity. Lockout counters live here so both application
+    nodes share the same state.
+    """
+
+    __tablename__ = "local_credentials"
+
+    auth_identity_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("auth_identities.id", ondelete="CASCADE"), primary_key=True
+    )
+    password_hash: Mapped[str] = mapped_column(Text)
+    must_change: Mapped[bool] = mapped_column(server_default=text("false"))
+    failed_attempts: Mapped[int] = mapped_column(Integer, server_default=text("0"))
+    locked_until: Mapped[_dt.datetime | None] = mapped_column()
+    password_changed_at: Mapped[_dt.datetime] = mapped_column(server_default=text("now()"))

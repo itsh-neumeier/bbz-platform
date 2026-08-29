@@ -10,6 +10,7 @@ from bbz_core.infra.models.base import Base
 from bbz_core.infra.models.identity import (
     AuthIdentity,
     AuthProvider,
+    LocalCredential,
     PresenceState,
     User,
     UserPresence,
@@ -32,6 +33,7 @@ __all__ = [
     "Base",
     "Group",
     "GroupRole",
+    "LocalCredential",
     "Permission",
     "PresenceState",
     "Role",
