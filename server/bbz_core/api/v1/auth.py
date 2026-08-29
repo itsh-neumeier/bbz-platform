@@ -1,0 +1,197 @@
+"""Interactive authentication endpoints: login / refresh / logout / me.
+
+Cookie-based for the web/kiosk clients (HttpOnly access + refresh, plus a
+readable double-submit CSRF token). Bearer tokens also work for agents.
+Effective permissions on ``/me`` are wired in E02-08; the field is present now
+so clients can depend on the shape.
+"""
+
+from __future__ import annotations
+
+import secrets
+import uuid
+
+from fastapi import APIRouter, Depends, Request, Response, status
+from pydantic import BaseModel
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from bbz_core.api.deps import (
+    ACCESS_COOKIE,
+    CSRF_COOKIE,
+    REFRESH_COOKIE,
+    AuthContext,
+    current_auth,
+    db_session,
+    require_csrf,
+)
+from bbz_core.api.errors import UnauthorizedError
+from bbz_core.auth.local import LocalAuthResult
+from bbz_core.auth.registry import AuthProviderRegistry
+from bbz_core.auth.sessions import (
+    SessionExpiredError,
+    SessionNotFoundError,
+    SessionService,
+)
+from bbz_core.infra.models.identity import User
+from bbz_core.infra.repositories.local_credentials import SqlAlchemyCredentialStore
+from bbz_core.infra.repositories.sessions import SqlAlchemySessionStore
+from bbz_core.settings import get_settings
+
+router = APIRouter(prefix="/auth", tags=["auth"])
+
+
+class LoginRequest(BaseModel):
+    username: str
+    password: str
+
+
+class UserOut(BaseModel):
+    id: uuid.UUID
+    display_name: str
+    status: str
+
+
+class LoginResponse(BaseModel):
+    user: UserOut
+    must_change_password: bool
+    csrf_token: str
+
+
+class MeResponse(BaseModel):
+    user: UserOut
+    permissions: list[str]  # populated in E02-08
+    scopes: list[str]
+
+
+def _set_cookie(resp: Response, name: str, value: str, *, max_age: int, http_only: bool) -> None:
+    s = get_settings()
+    resp.set_cookie(
+        name,
+        value,
+        max_age=max_age,
+        httponly=http_only,
+        secure=s.session_cookie_secure,
+        samesite="lax",
+        domain=s.session_cookie_domain,
+        path="/",
+    )
+
+
+def _clear_cookie(resp: Response, name: str) -> None:
+    s = get_settings()
+    resp.delete_cookie(name, domain=s.session_cookie_domain, path="/")
+
+
+async def _load_user(session: AsyncSession, user_id: uuid.UUID) -> User | None:
+    return (await session.execute(select(User).where(User.id == user_id))).scalar_one_or_none()
+
+
+@router.post("/login", response_model=LoginResponse)
+async def login(
+    body: LoginRequest,
+    request: Request,
+    response: Response,
+    session: AsyncSession = Depends(db_session),
+) -> LoginResponse:
+    registry = AuthProviderRegistry.build(SqlAlchemyCredentialStore(session))
+    outcome = await registry.default().authenticate_password(body.username, body.password)
+    if outcome.result is not LocalAuthResult.SUCCESS or outcome.user_id is None:
+        # One generic failure — no account-existence or lockout-reason leak.
+        raise UnauthorizedError("invalid credentials")
+
+    user = await _load_user(session, outcome.user_id)
+    if user is None:
+        raise UnauthorizedError("invalid credentials")
+
+    tokens = await SessionService(SqlAlchemySessionStore(session)).start(
+        outcome.user_id,
+        client_id=request.headers.get("x-client-id"),
+        workplace_id=request.headers.get("x-workplace-id"),
+        user_agent=request.headers.get("user-agent"),
+    )
+    csrf = secrets.token_urlsafe(32)
+    _set_cookie(
+        response,
+        ACCESS_COOKIE,
+        tokens.access_token,
+        max_age=tokens.access_ttl_seconds,
+        http_only=True,
+    )
+    _set_cookie(
+        response,
+        REFRESH_COOKIE,
+        tokens.refresh_token,
+        max_age=tokens.refresh_ttl_seconds,
+        http_only=True,
+    )
+    _set_cookie(response, CSRF_COOKIE, csrf, max_age=tokens.refresh_ttl_seconds, http_only=False)
+    return LoginResponse(
+        user=UserOut(id=user.id, display_name=user.display_name, status=user.status),
+        must_change_password=outcome.must_change_password,
+        csrf_token=csrf,
+    )
+
+
+@router.post(
+    "/refresh",
+    status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[Depends(require_csrf)],
+)
+async def refresh(
+    request: Request,
+    response: Response,
+    session: AsyncSession = Depends(db_session),
+) -> Response:
+    token = request.cookies.get(REFRESH_COOKIE)
+    if not token:
+        raise UnauthorizedError("no refresh token")
+    try:
+        access, _ = await SessionService(SqlAlchemySessionStore(session)).refresh(token)
+    except (SessionNotFoundError, SessionExpiredError) as exc:
+        _clear_cookie(response, ACCESS_COOKIE)
+        _clear_cookie(response, REFRESH_COOKIE)
+        raise UnauthorizedError("refresh token is invalid or expired") from exc
+    _set_cookie(
+        response,
+        ACCESS_COOKIE,
+        access,
+        max_age=get_settings().access_token_ttl_seconds,
+        http_only=True,
+    )
+    response.status_code = status.HTTP_204_NO_CONTENT
+    return response
+
+
+@router.post(
+    "/logout",
+    status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[Depends(require_csrf)],
+)
+async def logout(
+    request: Request,
+    response: Response,
+    session: AsyncSession = Depends(db_session),
+) -> Response:
+    token = request.cookies.get(REFRESH_COOKIE)
+    if token:
+        await SessionService(SqlAlchemySessionStore(session)).revoke_by_refresh(token)
+    for name in (ACCESS_COOKIE, REFRESH_COOKIE, CSRF_COOKIE):
+        _clear_cookie(response, name)
+    response.status_code = status.HTTP_204_NO_CONTENT
+    return response
+
+
+@router.get("/me", response_model=MeResponse)
+async def me(
+    ctx: AuthContext = Depends(current_auth),
+    session: AsyncSession = Depends(db_session),
+) -> MeResponse:
+    user = await _load_user(session, ctx.user_id)
+    if user is None:
+        raise UnauthorizedError("user no longer exists")
+    return MeResponse(
+        user=UserOut(id=user.id, display_name=user.display_name, status=user.status),
+        permissions=[],
+        scopes=[],
+    )

@@ -35,3 +35,39 @@ async def client() -> AsyncIterator[httpx.AsyncClient]:
     transport = httpx.ASGITransport(app=app)
     async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as ac:
         yield ac
+
+
+@pytest.fixture
+async def db() -> AsyncIterator[object]:
+    """An ``AsyncSession`` against a real PostgreSQL, or skip.
+
+    CI's backend job provides PostgreSQL and sets ``BBZ_DATABASE_URL``. Locally,
+    export ``BBZ_DATABASE_URL`` (e.g. the dev-compose db) to run these.
+    """
+    from sqlalchemy import text as _sql
+
+    from bbz_core.infra.db import get_engine, get_sessionmaker
+    from bbz_core.infra.models import Base
+
+    engine = get_engine()
+    try:
+        async with engine.connect() as conn:
+            await conn.execute(_sql("SELECT 1"))
+    except Exception:  # any connection failure here means "no DB in this env"
+        pytest.skip("no PostgreSQL available (set BBZ_DATABASE_URL)")
+
+    async with engine.begin() as conn:
+        await conn.execute(_sql('CREATE EXTENSION IF NOT EXISTS "pgcrypto"'))
+        await conn.execute(_sql('CREATE EXTENSION IF NOT EXISTS "citext"'))
+        await conn.run_sync(Base.metadata.drop_all)
+        await conn.run_sync(Base.metadata.create_all)
+
+    async with get_sessionmaker()() as session:
+        yield session
+
+    # Leave a clean DB: the CI backend job runs Alembic after pytest, and it
+    # must not collide with tables created here.
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.drop_all)
+        await conn.execute(_sql("DROP TABLE IF EXISTS alembic_version"))
+    await engine.dispose()

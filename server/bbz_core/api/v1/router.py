@@ -4,10 +4,12 @@ from fastapi import APIRouter
 from pydantic import BaseModel
 
 from bbz_core import __version__
+from bbz_core.api.v1.auth import router as auth_router
 from bbz_core.integrations_host.registry import IntegrationRegistry
 from bbz_core.settings import get_settings
 
-api_v1 = APIRouter(prefix="/api/v1", tags=["meta"])
+api_v1 = APIRouter(prefix="/api/v1")
+api_v1.include_router(auth_router)
 
 
 class MetaResponse(BaseModel):
@@ -20,7 +22,7 @@ class MetaResponse(BaseModel):
     known_integrations: list[str]
 
 
-@api_v1.get("/meta", response_model=MetaResponse)
+@api_v1.get("/meta", response_model=MetaResponse, tags=["meta"])
 async def meta() -> MetaResponse:
     s = get_settings()
     return MetaResponse(
