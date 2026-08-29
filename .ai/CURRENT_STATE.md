@@ -25,7 +25,7 @@ Migrations `0002`–`0008` on `main`. `bbz_core` packages now: `auth`, `authoriz
 `import-linter`: 4 contracts (added `authorization` ↛ infra/api/sdk).
 New deps: `pyjwt`, `argon2-cffi`, `pyotp`, `cryptography>=46.0.7`.
 
-### Epic 03 – Event Core: **in progress (5/16)**
+### Epic 03 – Event Core: **in progress (6/16)**
 #41 event schema (`events`, `event_status_history`, `event_assignments` with a
 partial-unique "one active assignment", `event_notes`; enum cols = `VARCHAR`+`CHECK`;
 migration 0009) · #42 append-only `domain_events` log (`event_seq` BIGINT identity,
@@ -45,12 +45,21 @@ drains queued `DomainEventData`. 100 % branch coverage (ADR-0008 gate) · #45
 `event_status_history` + `EVENT_CREATED`), `save` (guarded `UPDATE … WHERE
 version = :expected` → `VersionConflictError`; drains pending events into
 `domain_events` + status-history + assignment reconciliation, all in the
-caller's TX — `_require_tx` mirrors `append_event`). 100 % coverage.
+caller's TX — `_require_tx` mirrors `append_event`). 100 % coverage · #46
+(E03-06) `POST /api/v1/events` — first write endpoint. `bbz_core.api.v1.events`
+router: `require("events.create")` + `command_envelope` header dep +
+`idempotent()` (replay / 409 on `CommandConflict`/`InProgress`) +
+`EventAggregate.create` + `EventRepository.add`; 201 + `EventOut` + `Location`.
+`_translate()` maps `VersionConflictError`→409 (+ details), `EventNotFound`→404,
+`EventDomainError`→422 for the coming verbs. Scope-aware `require` and per-route
+CSRF deferred to E23 (matches the other admin routers). Audit-log entry
+deferred to E04 (`domain_events` row is the record). Tests: 201 / 403 / 422 /
+missing X-Command-Id / duplicate replay (one event) / body-mismatch 409.
 
-**Next:** #46 (E03-06) `POST /api/v1/events` — first write endpoint: wires
-`require("events.create", scope)` + command envelope + `idempotent()` +
-`EventAggregate.create` + `EventRepository.add`. Then #47+ accept/ack/open/…
-See `.ai/ROADMAP.md` Epic 03.
+**Next:** #47 (E03-07) `POST /events/{id}/accept|acknowledge|open` — three
+verbs, each `require(...)` + `X-Expected-Version` + `EventRepository.save`.
+Then #48+ edit / assign / takeover / archive / reactivate. See `.ai/ROADMAP.md`
+Epic 03.
 
 ## Existing reference
 A functional HTML mockup defines important UX/feature behavior. **It is not yet in

@@ -6,6 +6,7 @@ from pydantic import BaseModel
 from bbz_core import __version__
 from bbz_core.api.v1.audit import router as audit_router
 from bbz_core.api.v1.auth import router as auth_router
+from bbz_core.api.v1.events import router as events_router
 from bbz_core.api.v1.presence import router as presence_router
 from bbz_core.api.v1.rbac import router as rbac_router
 from bbz_core.api.v1.system import router as system_router
@@ -17,6 +18,7 @@ from bbz_core.settings import get_settings
 api_v1 = APIRouter(prefix="/api/v1")
 api_v1.include_router(auth_router)
 api_v1.include_router(audit_router)
+api_v1.include_router(events_router)
 api_v1.include_router(system_router)
 api_v1.include_router(rbac_router)
 api_v1.include_router(users_router)
