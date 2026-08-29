@@ -9,7 +9,7 @@ basic filtered read (E02-12); the generic query API is E04-04.
 
 from __future__ import annotations
 
-from bbz_core.audit.actions import AuditAction
+from bbz_core.audit.actions import CRITICAL_ACTIONS, AuditAction
 from bbz_core.audit.service import (
     AuditNotInTransactionError,
     AuditReasonRequiredError,
@@ -19,6 +19,7 @@ from bbz_core.audit.service import (
 from bbz_core.audit.writer import AuditRecord, AuditWriter
 
 __all__ = [
+    "CRITICAL_ACTIONS",
     "AuditAction",
     "AuditNotInTransactionError",
     "AuditReasonRequiredError",
