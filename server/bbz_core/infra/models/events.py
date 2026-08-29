@@ -24,22 +24,18 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
+from bbz_core.domain.events.state import EventPriority, EventStatus
 from bbz_core.infra.models.base import Base, TimestampMixin, uuid_pk
 
-
-class EventPriority(enum.StrEnum):
-    CRITICAL = "critical"
-    HIGH = "high"
-    MEDIUM = "medium"
-    LOW = "low"
-
-
-class EventStatus(enum.StrEnum):
-    NEW = "new"
-    ACCEPTED = "accepted"
-    ACKNOWLEDGED = "acknowledged"
-    OPENED = "opened"
-    ARCHIVED = "archived"
+__all__ = [
+    "Event",
+    "EventAssignment",
+    "EventNote",
+    "EventNoteKind",
+    "EventPriority",
+    "EventStatus",
+    "EventStatusHistory",
+]
 
 
 class EventNoteKind(enum.StrEnum):
