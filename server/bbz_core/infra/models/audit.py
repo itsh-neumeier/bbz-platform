@@ -1,8 +1,9 @@
 """Immutable audit log (MASTER_PROMPT §17).
 
-Append-only: no ``updated_at``, and the DB grant that forbids UPDATE/DELETE is
-added in E04-10 / E23-09. E04 extends this with the transactional outbox/inbox
-and the audit-write service; E02-12 seeds it with authentication events.
+Append-only. The ORM mapping refuses UPDATE and DELETE (the listeners below);
+the matching DB grant / trigger that enforces the same at the database level is
+E04-10 / E23-09. E04 extends this with the transactional outbox/inbox and the
+audit-write service; E02-12 seeds it with authentication events.
 """
 
 from __future__ import annotations
@@ -11,11 +12,15 @@ import datetime as _dt
 import uuid
 from typing import Any
 
-from sqlalchemy import String, Text, text
+from sqlalchemy import BigInteger, String, Text, event, text
 from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, Mapper, mapped_column
 
 from bbz_core.infra.models.base import Base, uuid_pk
+
+
+class AuditImmutableError(RuntimeError):
+    """An UPDATE or DELETE was attempted against the append-only audit log."""
 
 
 class AuditEvent(Base):
@@ -34,3 +39,16 @@ class AuditEvent(Base):
     after: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
     reason: Mapped[str | None] = mapped_column(Text)
     correlation_id: Mapped[str | None] = mapped_column(String(64), index=True)
+    # The domain event this audit row corresponds to, when there is one
+    # (MASTER_PROMPT §17). Null for infrastructure actions (e.g. login).
+    event_seq_ref: Mapped[int | None] = mapped_column(BigInteger)
+
+
+@event.listens_for(AuditEvent, "before_update")
+def _block_audit_update(_mapper: Mapper[AuditEvent], _conn: object, _target: AuditEvent) -> None:
+    raise AuditImmutableError("audit_events is append-only; UPDATE is not allowed")
+
+
+@event.listens_for(AuditEvent, "before_delete")
+def _block_audit_delete(_mapper: Mapper[AuditEvent], _conn: object, _target: AuditEvent) -> None:
+    raise AuditImmutableError("audit_events is append-only; DELETE is not allowed")

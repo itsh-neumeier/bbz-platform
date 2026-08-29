@@ -129,9 +129,16 @@ accept/acknowledge/open · PATCH · assign · takeover · archive/reactivate ·
 notes · GET list/`?queue=active`/`{id}`/`{id}/export`/`priority-alert`/`stream`.
 WS at `/ws/events`.
 
-**Next:** Epic 04 – Audit / Domain Events. #57 (E04-01) audit_events schema
-review + `event_seq_ref`, then the in-tx audit-write service, transactional
-outbox/inbox for exactly-once Active/Active. See `.ai/ROADMAP.md` Epic 04.
+### Epic 04 – Audit / Domain Events: **in progress (1/11)**
+#57 (E04-01) `audit_events` schema review — added `event_seq_ref` BIGINT
+(nullable, no FK; migration 0013) linking an audit row to its domain event;
+ORM `before_update` / `before_delete` listeners raise `AuditImmutableError`
+(append-only at the mapping level; the DB grant/trigger is E04-10/E23-09).
+
+**Next:** #58 (E04-02) `write_audit()` audit-write service — in-TX with the
+triggering state change (`_require_tx` like `EventRepository`), standard action
+keys, before/after diff helper, mandatory-reason enforcement for flagged
+actions. Then #59 wire critical actions + contract test. See `.ai/ROADMAP.md`.
 
 ## Existing reference
 A functional HTML mockup defines important UX/feature behavior. **It is not yet in
