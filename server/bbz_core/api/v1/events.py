@@ -137,6 +137,17 @@ class EventPageOut(BaseModel):
     next_cursor: str | None
 
 
+class PriorityAlertItemOut(BaseModel):
+    id: uuid.UUID
+    priority: str
+    title: str
+
+
+class PriorityAlertOut(BaseModel):
+    active: bool
+    events: list[PriorityAlertItemOut]
+
+
 class StatusHistoryOut(BaseModel):
     from_status: str | None
     to_status: str
@@ -223,6 +234,19 @@ async def event_stream(
         sse_stream(after_seq, is_disconnected=request.is_disconnected),
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
+
+
+@router.get("/priority-alert", response_model=PriorityAlertOut)
+async def priority_alert(
+    _: AuthContext = Depends(require("events.view")),
+    session: AsyncSession = Depends(db_session),
+) -> PriorityAlertOut:
+    """Is at least one high/critical event still unaccepted? (MASTER_PROMPT §13.7)"""
+    items = await EventQueryRepository(session).priority_alert()
+    return PriorityAlertOut(
+        active=bool(items),
+        events=[PriorityAlertItemOut(id=i.id, priority=i.priority, title=i.title) for i in items],
     )
 
 

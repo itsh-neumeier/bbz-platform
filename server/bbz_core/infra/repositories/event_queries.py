@@ -23,7 +23,7 @@ from dataclasses import dataclass
 from sqlalchemy import Select, and_, case, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from bbz_core.domain.events import EventStatus
+from bbz_core.domain.events import EventPriority, EventStatus
 from bbz_core.infra.models.events import (
     Event,
     EventAssignment,
@@ -130,6 +130,18 @@ class EventQueryRepository:
             )
             for e in events
         ]
+
+    async def priority_alert(self) -> list[EventListItem]:
+        """High/critical events still in ``new`` (not yet accepted) — MASTER_PROMPT §13.7."""
+        stmt = (
+            select(Event)
+            .where(
+                Event.status == EventStatus.NEW.value,
+                Event.priority.in_([EventPriority.CRITICAL.value, EventPriority.HIGH.value]),
+            )
+            .order_by(_PRIORITY_RANK.asc(), Event.created_at.asc(), Event.id.asc())
+        )
+        return await self._rows(self._scope_filter(stmt))
 
     async def work_queue(self, *, limit: int = 100) -> list[EventListItem]:
         stmt = (
