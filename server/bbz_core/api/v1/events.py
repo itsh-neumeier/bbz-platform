@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import contextlib
 import uuid
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 
 from fastapi import APIRouter, Depends, Response, status
 from pydantic import BaseModel, Field
@@ -35,6 +35,7 @@ from bbz_core.domain.events import (
     EventDomainError,
     EventPriority,
     EventStatus,
+    InvalidTransition,
 )
 from bbz_core.infra.idempotency import (
     CommandConflictError,
@@ -52,6 +53,8 @@ router = APIRouter(prefix="/events", tags=["events"])
 
 _ENDPOINT_CREATE = "POST /api/v1/events"
 
+Mutator = Callable[[EventAggregate, uuid.UUID], None]
+
 
 @contextlib.contextmanager
 def _translate() -> Iterator[None]:
@@ -68,6 +71,8 @@ def _translate() -> Iterator[None]:
         ) from exc
     except EventNotFoundError as exc:
         raise NotFoundError("event not found") from exc
+    except InvalidTransition as exc:
+        raise ConflictError(str(exc)) from exc
     except EventDomainError as exc:
         raise ValidationError(str(exc)) from exc
 
@@ -88,6 +93,18 @@ class EventOut(BaseModel):
     bbz_id: uuid.UUID | None
     workplace_id: uuid.UUID | None
     version: int
+
+
+def _to_out(agg: EventAggregate, version: int) -> EventOut:
+    return EventOut(
+        id=agg.id,
+        title=agg.title,
+        priority=agg.priority,
+        status=agg.status,
+        bbz_id=agg.bbz_id,
+        workplace_id=agg.workplace_id,
+        version=version,
+    )
 
 
 @router.post("", response_model=EventOut, status_code=status.HTTP_201_CREATED)
@@ -125,16 +142,108 @@ async def create_event(
             repo = EventRepository(session)
             async with session.begin():
                 version = await repo.add(agg, actor_id=ctx.user_id, command_id=env.command_id)
-            out = EventOut(
-                id=agg.id,
-                title=agg.title,
-                priority=agg.priority,
-                status=agg.status,
-                bbz_id=agg.bbz_id,
-                workplace_id=agg.workplace_id,
-                version=version,
-            )
+            out = _to_out(agg, version)
             slot.set_result(status.HTTP_201_CREATED, out.model_dump(mode="json"))
 
     response.headers["Location"] = f"/api/v1/events/{out.id}"
     return out
+
+
+async def _apply_transition(
+    *,
+    event_id: uuid.UUID,
+    verb: str,
+    mutate: Mutator,
+    response: Response,
+    ctx: AuthContext,
+    env: CommandEnvelope,
+    session: AsyncSession,
+) -> EventOut:
+    """Shared body for the single-transition verbs (accept / acknowledge / open …)."""
+    if env.expected_version is None:
+        raise ValidationError("X-Expected-Version header is required")
+    rhash = request_hash(
+        {"event_id": str(event_id), "verb": verb, "expected_version": env.expected_version}
+    )
+    with _translate():
+        async with idempotent(
+            session,
+            command_id=env.command_id,
+            endpoint=f"POST /api/v1/events/{{id}}/{verb}",
+            request_hash=rhash,
+            user_id=ctx.user_id,
+        ) as slot:
+            if slot.replay is not None:
+                response.status_code = slot.replay.status
+                return EventOut.model_validate(slot.replay.body)
+
+            repo = EventRepository(session)
+            async with session.begin():
+                agg = await repo.require(event_id)
+                mutate(agg, ctx.user_id)
+                version = await repo.save(
+                    agg,
+                    actor_id=ctx.user_id,
+                    expected_version=env.expected_version,
+                    command_id=env.command_id,
+                )
+            out = _to_out(agg, version)
+            slot.set_result(status.HTTP_200_OK, out.model_dump(mode="json"))
+    return out
+
+
+@router.post("/{event_id}/accept", response_model=EventOut)
+async def accept_event(
+    event_id: uuid.UUID,
+    response: Response,
+    ctx: AuthContext = Depends(require("events.accept")),
+    env: CommandEnvelope = Depends(command_envelope),
+    session: AsyncSession = Depends(db_session),
+) -> EventOut:
+    return await _apply_transition(
+        event_id=event_id,
+        verb="accept",
+        mutate=lambda agg, actor: agg.accept(actor),
+        response=response,
+        ctx=ctx,
+        env=env,
+        session=session,
+    )
+
+
+@router.post("/{event_id}/acknowledge", response_model=EventOut)
+async def acknowledge_event(
+    event_id: uuid.UUID,
+    response: Response,
+    ctx: AuthContext = Depends(require("events.acknowledge")),
+    env: CommandEnvelope = Depends(command_envelope),
+    session: AsyncSession = Depends(db_session),
+) -> EventOut:
+    return await _apply_transition(
+        event_id=event_id,
+        verb="acknowledge",
+        mutate=lambda agg, actor: agg.acknowledge(actor),
+        response=response,
+        ctx=ctx,
+        env=env,
+        session=session,
+    )
+
+
+@router.post("/{event_id}/open", response_model=EventOut)
+async def open_event(
+    event_id: uuid.UUID,
+    response: Response,
+    ctx: AuthContext = Depends(require("events.open")),
+    env: CommandEnvelope = Depends(command_envelope),
+    session: AsyncSession = Depends(db_session),
+) -> EventOut:
+    return await _apply_transition(
+        event_id=event_id,
+        verb="open",
+        mutate=lambda agg, actor: agg.open(actor),
+        response=response,
+        ctx=ctx,
+        env=env,
+        session=session,
+    )
