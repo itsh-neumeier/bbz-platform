@@ -19,7 +19,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from bbz_core.infra.db import session_scope
-from bbz_core.infra.event_log import envelope, read_since
+from bbz_core.infra.event_log import envelope, head_seq, read_since
 
 _POLL_SECONDS = 15.0
 _CATCHUP_BATCH = 500
@@ -58,26 +58,42 @@ class EventFrame:
     envelope: dict[str, Any]
 
 
+@dataclass(frozen=True)
+class CatchUpComplete:
+    """Emitted once, after the ``after_seq`` backlog is drained: the client now
+    holds everything through ``head`` and can trust a later ``event_seq`` jump
+    as a failover gap, not a loss (docs/client-catchup)."""
+
+    head: int
+
+
 async def event_feed(
     after_seq: int,
     *,
     is_disconnected: Callable[[], Awaitable[bool]] | None = None,
-) -> AsyncIterator[EventFrame | None]:
+) -> AsyncIterator[EventFrame | CatchUpComplete | None]:
     """Catch-up from ``after_seq`` then live: an :class:`EventFrame` per event,
-    ``None`` as a heartbeat tick. Shared by the SSE and WebSocket endpoints.
+    a single :class:`CatchUpComplete` once the backlog is drained, ``None`` as a
+    heartbeat tick. Shared by the SSE and WebSocket endpoints.
     """
     broker = get_broker()
     last = after_seq
+    caught_up = False
     while True:
         if is_disconnected is not None and await is_disconnected():
             return
         async with session_scope() as session:
             rows = await read_since(session, last, limit=_CATCHUP_BATCH)
-        for row in rows:
-            last = row.event_seq
-            yield EventFrame(row.event_seq, row.event_type, envelope(row))
+            for row in rows:
+                last = row.event_seq
+                yield EventFrame(row.event_seq, row.event_type, envelope(row))
+            if not rows and not caught_up:
+                last = max(last, await head_seq(session))
         if rows:
             continue  # drain backlog without waiting
+        if not caught_up:
+            caught_up = True
+            yield CatchUpComplete(last)
         yield None
         await broker.wait(timeout=_POLL_SECONDS)
 
@@ -97,5 +113,8 @@ async def sse_stream(
     async for frame in event_feed(after_seq, is_disconnected=is_disconnected):
         if frame is None:
             yield b": heartbeat\n\n"
+        elif isinstance(frame, CatchUpComplete):
+            body = json.dumps({"head": frame.head}, separators=(",", ":"))
+            yield f"event: caught_up\ndata: {body}\n\n".encode()
         else:
             yield _sse_frame(frame.event_seq, frame.event_type, frame.envelope)

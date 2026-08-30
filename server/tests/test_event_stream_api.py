@@ -94,3 +94,25 @@ async def test_stream_path_does_not_collide_with_detail(env: tuple) -> None:
     await _login(client, "viewer")
     r = await client.get(f"/api/v1/events/{uuid.uuid4()}")
     assert r.status_code == 404  # detail route still reachable for real UUIDs
+
+
+async def test_stream_head_reports_the_current_event_seq(env: tuple) -> None:
+    client, s = env
+    await _make_user(s, "hv", ["events.view", "events.create"])
+    await _login(client, "hv")
+
+    before = (await client.get("/api/v1/events/stream/head")).json()["event_seq"]
+    await client.post(
+        "/api/v1/events",
+        json={"title": "x", "priority": "low"},
+        headers={"X-Command-Id": str(uuid.uuid4())},
+    )
+    after = (await client.get("/api/v1/events/stream/head")).json()["event_seq"]
+    assert after > before
+
+
+async def test_stream_head_requires_events_view(env: tuple) -> None:
+    client, s = env
+    await _make_user(s, "noview", ["events.create"])
+    await _login(client, "noview")
+    assert (await client.get("/api/v1/events/stream/head")).status_code == 403

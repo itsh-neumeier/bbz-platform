@@ -14,7 +14,7 @@ from functools import lru_cache
 from typing import Any
 
 import jsonschema
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from bbz_core.infra.models.domain_events import DomainEvent
@@ -119,6 +119,16 @@ async def append_event(
             f"{row.event_type} payload: " + "; ".join(e.message for e in payload_errors)
         )
     return row.event_seq
+
+
+async def head_seq(session: AsyncSession) -> int:
+    """Highest assigned ``event_seq`` (0 on an empty log). ``event_seq`` is
+    monotonic but **not gapless** — a Patroni failover can skip a range of
+    identity values without losing any committed row (see docs/client-catchup)."""
+    value: int = (
+        await session.execute(select(func.coalesce(func.max(DomainEvent.event_seq), 0)))
+    ).scalar_one()
+    return value
 
 
 async def read_since(
