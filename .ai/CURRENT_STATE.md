@@ -668,9 +668,19 @@ All issues need Node/Electron; skipped like Epic 07.
 **Epic 10: 3/16 doable here (E10-01/02/14).** E10-03+ (enrollment, command bus,
 agent, UI) need the Go toolchain / identity lib.
 
-**Next:** **Epic 11 Telephony Core** (16 issues, mostly backend Python; E11-01
-calls schema, deps met). Epic 07 / 08, #92, the Go agents (09/10 impl) and the
-#429 browser E2E stay blocked on a Node / Go / multi-host session.
+### Epic 11 – Telephony Core: **in progress (1/16)**
+- **#197 (E11-01) telephony core schema** — migration 0026 + `telephony.py`:
+  `lines` (provider+external_id unique, state CHECK), `calls` (`bbz_call_id`
+  unique + **independent of** `source_call_id`; `direction`/`state` CHECK — the
+  E11-04 state machine + `ended_pending_documentation` for the E11-10 hangup
+  guard), `call_participants` (role CHECK, CASCADE), `call_documentation`
+  (PK = `call_id` → one per call, `category` CHECK nullable-until-set §13.10,
+  `mandatory_done`). `test_telephony_schema.py`.
+
+**Next:** E11-02 (telephony provider protocol in `bbz_integration_sdk`), then
+E11-03 (ingest → inbox → dedupe), E11-04 (call aggregate). Epic 07 / 08, #92,
+the Go agents (09/10 impl) and the #429 browser E2E stay blocked on a
+Node / Go / multi-host session.
 
 ## Existing reference
 A functional HTML mockup defines important UX/feature behavior. **It is not yet in
