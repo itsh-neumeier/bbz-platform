@@ -225,7 +225,18 @@ dispatcher, singleton runner), `infra/outbox.py`, `infra/inbox.py`,
 (code carries `TODO(E04-03)`); the code comments point at #66/E04-10 — do it
 alongside E23 hardening.
 
-**Next:** Epic 05 – EPK Workflow Engine (#68…). See `.ai/ROADMAP.md` Epic 05.
+### Epic 05 – EPK Workflow Engine: **in progress (1/9)**
+#68 (E05-01) `bbz_rule_dsl.evaluate()` implemented — total, side-effect-free,
+deterministic predicate over a typed `Context`. Operators
+`eq/ne/in/not_in/lt/lte/gt/gte/and/or/not/exists`; type mismatch / bad arity /
+unknown field-op / nesting > 64 → `RuleDslError`, never "silently true". Depth
+guard for totality. Tests: per-operator + edge cases + a Hypothesis fuzz suite
+(random AST → never a raw crash, always deterministic); 100 % branch coverage.
+Added `hypothesis` to `requirements-dev.txt`.
+
+**Next:** #69 (E05-02) typed context registry (`ALLOWED_FIELDS` split into a
+workflow-condition context and a trigger-condition context; validate an
+expression against a context at publish time). See `.ai/ROADMAP.md` Epic 05.
 
 ## Existing reference
 A functional HTML mockup defines important UX/feature behavior. **It is not yet in

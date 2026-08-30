@@ -7,12 +7,13 @@ Used for:
 **Hard constraint:** never ``eval``/``exec`` or any dynamic code execution.
 Expressions operate over an allowlisted, typed context and a fixed operator set.
 
-Foundation phase status: the public surface (``parse``, ``Expr``, ``Context``)
-is defined and a whitelist of field names / operators is fixed. The evaluator is
-intentionally not implemented yet — :func:`evaluate` raises
-``NotImplementedError``. The full parser + evaluator + fuzz tests land with the
-workflow/trigger engines. This keeps the contract stable without shipping an
-unsafe stub.
+``parse`` validates a structured expression against the operator/field
+allowlists; :func:`evaluate` is a **total, side-effect-free** predicate over a
+typed :class:`Context` — deterministic, never ``eval``, and raising
+``RuleDslError`` (never "silently true") on any type mismatch, bad arity,
+unknown field/operator or excessive nesting. Covered by unit tests per operator
+plus a Hypothesis fuzz suite (E05-01, ADR-0010). The typed context registry
+(``ALLOWED_FIELDS`` split by usage) is E05-02.
 """
 
 from bbz_rule_dsl.model import (
