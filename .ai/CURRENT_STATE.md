@@ -225,7 +225,7 @@ dispatcher, singleton runner), `infra/outbox.py`, `infra/inbox.py`,
 (code carries `TODO(E04-03)`); the code comments point at #66/E04-10 — do it
 alongside E23 hardening.
 
-### Epic 05 – EPK Workflow Engine: **in progress (8/9)**
+### Epic 05 – EPK Workflow Engine: **in progress (9/13)**
 #68 (E05-01) `bbz_rule_dsl.evaluate()` implemented — total, side-effect-free,
 deterministic predicate over a typed `Context`. Operators
 `eq/ne/in/not_in/lt/lte/gt/gte/and/or/not/exists`; type mismatch / bad arity /
@@ -310,8 +310,27 @@ method commits its own transaction. Migration 0020 adds
 `workflow_tokens.inbound_edge_key`. `ACTION_STEP_COMPLETED` joins
 `CRITICAL_ACTIONS`.
 
-**Next:** #76 (E05-09) XOR / OR split & join + branch decisions
-(`WorkflowDecision`, operator/auto selection). See `.ai/ROADMAP.md` Epic 05.
+#76 (E05-09) XOR / OR split & join. The engine
+(`bbz_core.domain.workflow.engine`) now also takes a condition `context` and
+the operator `decisions` recorded so far. **XOR split** — an operator
+decision if one exists, else the first branch (edge-key order) whose rule-DSL
+`condition` holds, else the unconditioned default; if nothing resolves the
+token parks and waits — never a wrong path. **XOR join** fires on the first
+arrival. **OR split** — a decision, else every branch whose guard holds or
+has none. **OR join** fires once a token has arrived and no other live token
+can still reach it (so it waits for exactly the activated branch set). Auto
+selections are reported so the service writes a `workflow_decisions` row
+(`auto=true`) + a `WORKFLOW_DECISION_MADE` audit entry; `WorkflowEngineService.
+decide(instance, connector, [edge_keys], actor_id=…)` records an operator
+choice (`auto=false`), wakes the parked token and resumes — idempotent per
+connector. The condition context is built from the pinned event
+(`event_priority`/`status`/`source`/`bbz_id`/`workplace_id`) plus
+`step_completed_count`. `WORKFLOW_DECISION_MADE` joins `CRITICAL_ACTIONS`. The
+`workflows.execute` gate for `decide` lands with the operator API (E05-10 ff.).
+
+**Next:** #77 (E05-10) task-kind runtime — manual / confirmation /
+documentation / timer, plus integration_action / notification / event_update.
+See `.ai/ROADMAP.md` Epic 05 (13 issues, #68–#80).
 
 ## Existing reference
 A functional HTML mockup defines important UX/feature behavior. **It is not yet in

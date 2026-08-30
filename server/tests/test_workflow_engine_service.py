@@ -1,4 +1,4 @@
-"""Workflow engine persistence: diamond run, audit, crash recovery (E05-08)."""
+"""Workflow engine persistence: AND / XOR / OR, audit, recovery (E05-08/09)."""
 
 from __future__ import annotations
 
@@ -13,10 +13,17 @@ from bbz_core.infra.models import Event, WorkflowTemplate, WorkflowTemplateVersi
 from bbz_core.infra.models.audit import AuditEvent
 from bbz_core.infra.models.workflow_runtime import WorkflowToken
 from bbz_core.infra.repositories.workflow_engine import (
+    DecisionNotAvailableError,
     InstanceNotFoundError,
+    InvalidDecisionError,
     StepNotAvailableError,
     WorkflowEngineService,
 )
+
+
+def _cond(field: str, value: Any) -> dict[str, Any]:
+    return {"op": "eq", "args": [{"field": field}, value]}
+
 
 _DIAMOND: dict[str, Any] = {
     "start": "e0",
@@ -39,9 +46,96 @@ _DIAMOND: dict[str, Any] = {
 }
 
 
-async def _published(s: AsyncSession, definition: dict[str, Any]) -> tuple[uuid.UUID, uuid.UUID]:
+_XOR: dict[str, Any] = {
+    "start": "e0",
+    "nodes": [
+        {"key": "e0", "type": "event"},
+        {"key": "xs", "type": "connector", "connector": "xor", "direction": "split"},
+        {"key": "f1", "type": "function", "kind": "manual"},
+        {"key": "f2", "type": "function", "kind": "manual"},
+        {"key": "xj", "type": "connector", "connector": "xor", "direction": "join"},
+        {"key": "e1", "type": "event"},
+    ],
+    "edges": [
+        {"key": "a", "from": "e0", "to": "xs"},
+        {"key": "b", "from": "xs", "to": "f1", "condition": _cond("event_priority", "critical")},
+        {"key": "c", "from": "xs", "to": "f2"},
+        {"key": "d", "from": "f1", "to": "xj"},
+        {"key": "e", "from": "f2", "to": "xj"},
+        {"key": "f", "from": "xj", "to": "e1"},
+    ],
+}
+
+_XOR_NO_DEFAULT: dict[str, Any] = {
+    "start": "e0",
+    "nodes": [
+        {"key": "e0", "type": "event"},
+        {"key": "xs", "type": "connector", "connector": "xor", "direction": "split"},
+        {"key": "f1", "type": "function", "kind": "manual"},
+        {"key": "f2", "type": "function", "kind": "manual"},
+    ],
+    "edges": [
+        {"key": "a", "from": "e0", "to": "xs"},
+        {"key": "b", "from": "xs", "to": "f1", "condition": _cond("status", "x")},
+        {"key": "c", "from": "xs", "to": "f2", "condition": _cond("status", "y")},
+    ],
+}
+
+_XOR_DEFERRED: dict[str, Any] = {
+    "start": "e0",
+    "nodes": [
+        {"key": "e0", "type": "event"},
+        {"key": "f0", "type": "function", "kind": "manual"},
+        {"key": "xs", "type": "connector", "connector": "xor", "direction": "split"},
+        {"key": "f1", "type": "function", "kind": "manual"},
+        {"key": "f2", "type": "function", "kind": "manual"},
+    ],
+    "edges": [
+        {"key": "a", "from": "e0", "to": "f0"},
+        {"key": "g", "from": "f0", "to": "xs"},
+        {"key": "b", "from": "xs", "to": "f1", "condition": _cond("status", "x")},
+        {"key": "c", "from": "xs", "to": "f2", "condition": _cond("status", "y")},
+    ],
+}
+
+_OR: dict[str, Any] = {
+    "start": "e0",
+    "nodes": [
+        {"key": "e0", "type": "event"},
+        {"key": "os", "type": "connector", "connector": "or", "direction": "split"},
+        {"key": "f1", "type": "function", "kind": "manual"},
+        {"key": "f2", "type": "function", "kind": "manual"},
+        {"key": "oj", "type": "connector", "connector": "or", "direction": "join"},
+        {"key": "e1", "type": "event"},
+    ],
+    "edges": [
+        {"key": "a", "from": "e0", "to": "os"},
+        {
+            "key": "b",
+            "from": "os",
+            "to": "f1",
+            "branch": "left",
+            "condition": _cond("event_priority", "critical"),
+        },
+        {
+            "key": "c",
+            "from": "os",
+            "to": "f2",
+            "branch": "right",
+            "condition": _cond("event_priority", "critical"),
+        },
+        {"key": "d", "from": "f1", "to": "oj"},
+        {"key": "e", "from": "f2", "to": "oj"},
+        {"key": "f", "from": "oj", "to": "e1"},
+    ],
+}
+
+
+async def _published(
+    s: AsyncSession, definition: dict[str, Any], *, priority: str = "high"
+) -> tuple[uuid.UUID, uuid.UUID]:
     async with s.begin():
-        ev = Event(title="Rauchmelder", priority="high")
+        ev = Event(title="Rauchmelder", priority=priority)
         tpl = WorkflowTemplate(key=f"k-{uuid.uuid4().hex[:8]}", name="Ablauf")
         s.add_all([ev, tpl])
         await s.flush()
@@ -229,3 +323,125 @@ async def test_single_event_template_completes_at_once(db: object) -> None:
         event_id=event_id, template_version_id=version_id
     )
     assert await _status(s, inst.id) == "completed"
+
+
+async def _tokens_at(s: AsyncSession, instance_id: uuid.UUID) -> list[str]:
+    return list(
+        (
+            await s.execute(
+                text(
+                    "SELECT node_key FROM workflow_tokens "
+                    "WHERE instance_id = :i AND state IN ('active', 'waiting') ORDER BY node_key"
+                ),
+                {"i": instance_id},
+            )
+        )
+        .scalars()
+        .all()
+    )
+
+
+async def test_xor_split_takes_exactly_one_branch_from_its_condition(db: object) -> None:
+    s = db  # type: ignore[assignment]
+    assert isinstance(s, AsyncSession)
+    event_id, version_id = await _published(s, _XOR, priority="critical")
+    svc = WorkflowEngineService(s)
+    inst = await svc.start_instance(event_id=event_id, template_version_id=version_id)
+
+    assert await _tokens_at(s, inst.id) == ["f1"]  # critical -> branch b only
+    auto = (
+        await s.execute(
+            text(
+                "SELECT connector_node_key, chosen_branches, auto FROM workflow_decisions "
+                "WHERE instance_id = :i"
+            ),
+            {"i": inst.id},
+        )
+    ).all()
+    assert auto == [("xs", ["b"], True)]
+    assert await _audit_count(s, "WORKFLOW_DECISION_MADE") == 1
+
+    await svc.complete_step(inst.id, "f1")
+    assert await _status(s, inst.id) == "completed"
+
+
+async def test_xor_split_without_a_match_waits_for_an_operator_decision(db: object) -> None:
+    s = db  # type: ignore[assignment]
+    assert isinstance(s, AsyncSession)
+    event_id, version_id = await _published(s, _XOR_NO_DEFAULT, priority="low")
+    svc = WorkflowEngineService(s)
+    inst = await svc.start_instance(event_id=event_id, template_version_id=version_id)
+
+    assert await _tokens_at(s, inst.id) == ["xs"]  # parked, no wrong path
+    assert await _status(s, inst.id) == "running"
+
+    await svc.decide(inst.id, "xs", ["c"])
+    assert await _tokens_at(s, inst.id) == ["f2"]
+    row = (
+        await s.execute(
+            text("SELECT chosen_branches, auto FROM workflow_decisions WHERE instance_id = :i"),
+            {"i": inst.id},
+        )
+    ).one()
+    assert row == (["c"], False)
+    assert await _audit_count(s, "WORKFLOW_DECISION_MADE") == 1
+
+    await svc.decide(inst.id, "xs", ["c"])  # idempotent no-op
+    assert await _audit_count(s, "WORKFLOW_DECISION_MADE") == 1
+
+
+async def test_or_split_multi_path_join_waits_for_the_activated_set(db: object) -> None:
+    s = db  # type: ignore[assignment]
+    assert isinstance(s, AsyncSession)
+    event_id, version_id = await _published(s, _OR, priority="critical")
+    svc = WorkflowEngineService(s)
+    inst = await svc.start_instance(event_id=event_id, template_version_id=version_id)
+
+    assert await _tokens_at(s, inst.id) == ["f1", "f2"]  # both guards true
+
+    await svc.complete_step(inst.id, "f1")
+    assert await _status(s, inst.id) == "running"  # OR join still waits for f2
+
+    await svc.complete_step(inst.id, "f2")
+    assert await _status(s, inst.id) == "completed"
+
+
+async def test_decide_rejects_a_non_connector_and_an_unknown_branch(db: object) -> None:
+    s = db  # type: ignore[assignment]
+    assert isinstance(s, AsyncSession)
+    event_id, version_id = await _published(s, _XOR_NO_DEFAULT, priority="low")
+    svc = WorkflowEngineService(s)
+    iid = (await svc.start_instance(event_id=event_id, template_version_id=version_id)).id
+
+    with pytest.raises(InvalidDecisionError):
+        await svc.decide(iid, "f1", ["b"])
+    await s.rollback()
+    with pytest.raises(InvalidDecisionError):
+        await svc.decide(iid, "xs", ["nope"])
+    await s.rollback()
+    with pytest.raises(InvalidDecisionError):
+        await svc.decide(iid, "xs", ["b", "c"])  # XOR wants exactly one
+    await s.rollback()
+
+
+async def test_decide_before_the_connector_is_reached_is_rejected(db: object) -> None:
+    s = db  # type: ignore[assignment]
+    assert isinstance(s, AsyncSession)
+    event_id, version_id = await _published(s, _XOR_DEFERRED, priority="low")
+    svc = WorkflowEngineService(s)
+    inst = await svc.start_instance(event_id=event_id, template_version_id=version_id)
+    # the run is parked at f0; xs has neither a token nor a decision yet
+    with pytest.raises(DecisionNotAvailableError):
+        await svc.decide(inst.id, "xs", ["c"])
+    await s.rollback()
+
+
+async def test_decide_after_an_auto_resolution_is_a_no_op(db: object) -> None:
+    s = db  # type: ignore[assignment]
+    assert isinstance(s, AsyncSession)
+    event_id, version_id = await _published(s, _XOR, priority="critical")
+    svc = WorkflowEngineService(s)
+    inst = await svc.start_instance(event_id=event_id, template_version_id=version_id)
+    await svc.decide(inst.id, "xs", ["c"])  # xs auto-resolved to b already -> no-op
+    assert await _tokens_at(s, inst.id) == ["f1"]
+    assert await _audit_count(s, "WORKFLOW_DECISION_MADE") == 1

@@ -1,6 +1,8 @@
-"""Deterministic EPK token engine: AND split/join, parking, guards (E05-08)."""
+"""Deterministic EPK token engine: AND / XOR / OR split & join (E05-08/09)."""
 
 from __future__ import annotations
+
+from typing import Any
 
 import pytest
 
@@ -15,6 +17,11 @@ from bbz_core.domain.workflow.engine import (
     advance,
     resume_function,
 )
+
+
+def _cond(field: str, value: Any) -> dict[str, Any]:
+    return {"op": "eq", "args": [{"field": field}, value]}
+
 
 # e0 --a--> as =and split=> f1, f2 (functions) --> aj =and join=> e1 (end)
 _DIAMOND = {
@@ -115,17 +122,228 @@ def test_resume_without_a_waiting_token_is_an_error() -> None:
         resume_function(graph, [Token(id=1, node_key="e0", state="active")], "f1")
 
 
-@pytest.mark.parametrize("direction", ["split", "join"])
-def test_xor_and_or_are_not_supported_yet(direction: str) -> None:
-    nodes = [
-        GraphNode(key="e0", type="event"),
-        GraphNode(key="c", type="connector", connector_type="xor", connector_direction=direction),
-    ]
-    graph = DerivedGraph(
-        start="e0", nodes=nodes, edges=[GraphEdge(key="a", from_key="e0", to_key="c")]
+# e0 -> xs (xor split): b -> f1 [priority==critical], c -> f2 (default)
+#                       f1,f2 -> xj (xor join) -> e1
+_XOR = {
+    "start": "e0",
+    "nodes": [
+        {"key": "e0", "type": "event"},
+        {"key": "xs", "type": "connector", "connector": "xor", "direction": "split"},
+        {"key": "f1", "type": "function", "kind": "manual"},
+        {"key": "f2", "type": "function", "kind": "manual"},
+        {"key": "xj", "type": "connector", "connector": "xor", "direction": "join"},
+        {"key": "e1", "type": "event"},
+    ],
+    "edges": [
+        {"key": "a", "from": "e0", "to": "xs"},
+        {"key": "b", "from": "xs", "to": "f1", "condition": _cond("event_priority", "critical")},
+        {"key": "c", "from": "xs", "to": "f2"},
+        {"key": "d", "from": "f1", "to": "xj"},
+        {"key": "e", "from": "f2", "to": "xj"},
+        {"key": "f", "from": "xj", "to": "e1"},
+    ],
+}
+
+# e0 -> os (or split): both branches labelled + guarded; f1,f2 -> oj (or join) -> e1
+_OR = {
+    "start": "e0",
+    "nodes": [
+        {"key": "e0", "type": "event"},
+        {"key": "os", "type": "connector", "connector": "or", "direction": "split"},
+        {"key": "f1", "type": "function", "kind": "manual"},
+        {"key": "f2", "type": "function", "kind": "manual"},
+        {"key": "oj", "type": "connector", "connector": "or", "direction": "join"},
+        {"key": "e1", "type": "event"},
+    ],
+    "edges": [
+        {"key": "a", "from": "e0", "to": "os"},
+        {
+            "key": "b",
+            "from": "os",
+            "to": "f1",
+            "branch": "left",
+            "condition": _cond("source", "bma"),
+        },
+        {
+            "key": "c",
+            "from": "os",
+            "to": "f2",
+            "branch": "right",
+            "condition": _cond("event_priority", "critical"),
+        },
+        {"key": "d", "from": "f1", "to": "oj"},
+        {"key": "e", "from": "f2", "to": "oj"},
+        {"key": "f", "from": "oj", "to": "e1"},
+    ],
+}
+
+
+def test_xor_split_auto_picks_the_first_matching_branch() -> None:
+    graph = derive_index(_XOR)
+    res = advance(
+        graph, [Token(id=1, node_key="e0", state="active")], context={"event_priority": "critical"}
     )
-    with pytest.raises(WorkflowEngineError, match="E05-09"):
-        advance(graph, [Token(id=1, node_key="e0", state="active")])
+    assert res.spawned == [("f1", "b")]
+    assert [(d.connector_node_key, d.chosen_edge_keys, d.auto) for d in res.decisions] == [
+        ("xs", ["b"], True)
+    ]
+
+
+def test_xor_split_falls_back_to_the_unconditioned_default() -> None:
+    graph = derive_index(_XOR)
+    res = advance(
+        graph, [Token(id=1, node_key="e0", state="active")], context={"event_priority": "low"}
+    )
+    assert res.spawned == [("f2", "c")]
+    assert res.decisions[0].chosen_edge_keys == ["c"]
+
+
+def test_xor_split_without_a_resolution_parks_for_an_operator() -> None:
+    graph = derive_index(
+        {
+            "start": "e0",
+            "nodes": [
+                {"key": "e0", "type": "event"},
+                {"key": "xs", "type": "connector", "connector": "xor", "direction": "split"},
+                {"key": "f1", "type": "function", "kind": "manual"},
+                {"key": "f2", "type": "function", "kind": "manual"},
+            ],
+            "edges": [
+                {"key": "a", "from": "e0", "to": "xs"},
+                {"key": "b", "from": "xs", "to": "f1", "condition": _cond("status", "x")},
+                {"key": "c", "from": "xs", "to": "f2", "condition": _cond("status", "y")},
+            ],
+        }
+    )
+    res = advance(graph, [Token(id=1, node_key="e0", state="active")], context={"status": "other"})
+    assert res.spawned == [("xs", "a")]  # a token now waits at the connector
+    assert res.decisions == []
+    assert not res.completed
+
+
+def test_xor_split_honours_an_operator_decision() -> None:
+    graph = derive_index(_XOR)
+    res = advance(
+        graph,
+        [Token(id=1, node_key="xs", state="active", inbound_edge_key="a")],
+        decisions={"xs": ["c"]},
+    )
+    assert res.consumed == [1]
+    assert res.spawned == [("f2", "c")]
+    assert res.decisions == []  # already persisted, not re-reported
+
+
+def test_xor_join_fires_on_the_first_token() -> None:
+    graph = derive_index(_XOR)
+    res = resume_function(
+        graph,
+        [Token(id=9, node_key="f2", state="waiting", inbound_edge_key="c")],
+        "f2",
+    )
+    assert res.consumed == [9]
+    assert res.completed  # f2 -> xj -> e1, nothing else outstanding
+
+
+def test_a_broken_guard_counts_as_not_satisfied() -> None:
+    graph = derive_index(
+        {
+            "start": "e0",
+            "nodes": [
+                {"key": "e0", "type": "event"},
+                {"key": "xs", "type": "connector", "connector": "xor", "direction": "split"},
+                {"key": "f1", "type": "function", "kind": "manual"},
+                {"key": "f2", "type": "function", "kind": "manual"},
+            ],
+            "edges": [
+                {"key": "a", "from": "e0", "to": "xs"},
+                {
+                    "key": "b",
+                    "from": "xs",
+                    "to": "f1",
+                    "condition": {"op": "lt", "args": [{"field": "event_priority"}, 5]},
+                },
+                {"key": "c", "from": "xs", "to": "f2"},
+            ],
+        }
+    )
+    res = advance(
+        graph, [Token(id=1, node_key="e0", state="active")], context={"event_priority": "high"}
+    )
+    assert res.spawned == [("f2", "c")]  # the type-mismatched guard did not match
+
+
+def test_a_decision_naming_no_valid_branch_is_rejected() -> None:
+    graph = derive_index(_XOR)
+    with pytest.raises(WorkflowEngineError, match="no valid branch"):
+        advance(
+            graph,
+            [Token(id=1, node_key="xs", state="active", inbound_edge_key="a")],
+            decisions={"xs": ["zzz"]},
+        )
+
+
+def test_an_xor_decision_with_two_branches_is_rejected() -> None:
+    graph = derive_index(_XOR)
+    with pytest.raises(WorkflowEngineError, match="exactly one branch"):
+        advance(
+            graph,
+            [Token(id=1, node_key="xs", state="active", inbound_edge_key="a")],
+            decisions={"xs": ["b", "c"]},
+        )
+
+
+def test_or_split_activates_every_matching_branch() -> None:
+    graph = derive_index(_OR)
+    res = advance(
+        graph,
+        [Token(id=1, node_key="e0", state="active")],
+        context={"source": "bma", "event_priority": "critical"},
+    )
+    assert sorted(res.spawned) == [("f1", "b"), ("f2", "c")]
+    assert res.decisions[0].chosen_edge_keys == ["b", "c"]
+
+
+def test_or_split_can_activate_a_single_branch() -> None:
+    graph = derive_index(_OR)
+    res = advance(
+        graph,
+        [Token(id=1, node_key="e0", state="active")],
+        context={"source": "bma", "event_priority": "low"},
+    )
+    assert res.spawned == [("f1", "b")]
+
+
+def test_or_split_without_a_resolution_parks() -> None:
+    graph = derive_index(_OR)
+    res = advance(
+        graph,
+        [Token(id=1, node_key="e0", state="active")],
+        context={"source": "manual", "event_priority": "low"},
+    )
+    assert res.spawned == [("os", "a")]
+    assert res.decisions == []
+
+
+def test_or_join_waits_for_the_whole_activated_branch_set() -> None:
+    graph = derive_index(_OR)
+    ctx = {"source": "bma", "event_priority": "critical"}
+    both_waiting = [
+        Token(id=1, node_key="f1", state="waiting", inbound_edge_key="b"),
+        Token(id=2, node_key="f2", state="waiting", inbound_edge_key="c"),
+    ]
+    # only one branch done -> the OR join must keep waiting for the other
+    res1 = resume_function(graph, both_waiting, "f1", context=ctx)
+    assert res1.consumed == [1]
+    assert not res1.completed
+    assert ("oj", "d") in res1.spawned
+
+    after1 = [
+        Token(id=2, node_key="f2", state="waiting", inbound_edge_key="c"),
+        Token(id=3, node_key="oj", state="waiting", inbound_edge_key="d"),
+    ]
+    res2 = resume_function(graph, after1, "f2", context=ctx)
+    assert set(res2.consumed) == {2, 3}
+    assert res2.completed
 
 
 def test_a_connector_without_a_direction_is_rejected() -> None:
