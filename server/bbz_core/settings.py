@@ -45,6 +45,11 @@ class Settings(BaseSettings):
     # --- cluster / HA (Phase 2 wires these; Phase 0 only reports them) ---
     cluster_dcs: Literal["etcd", "consul"] = "etcd"
     cluster_dcs_endpoints: list[str] = Field(default_factory=lambda: ["http://localhost:2379"])
+    # Application leader election (ADR-0018): "" -> local single-node (no etcd),
+    # "etcd" -> lease-based election against cluster_dcs_endpoints.
+    worker_leader_backend: Literal["", "etcd"] = ""
+    worker_leader_ttl_seconds: int = 10
+    worker_leader_prefix: str = "/bbz/leader"
 
     # --- auth: providers (E02-04). 'local' is always active regardless. ---
     auth_providers: list[str] = Field(default_factory=lambda: ["local"])
