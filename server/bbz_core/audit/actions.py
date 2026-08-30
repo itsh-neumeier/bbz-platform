@@ -20,6 +20,8 @@ class AuditAction(enum.StrEnum):
     EVENT_ARCHIVED = "EVENT_ARCHIVED"
     EVENT_REACTIVATED = "EVENT_REACTIVATED"
     EVENT_EXPORTED = "EVENT_EXPORTED"
+    EXTERNAL_ACTION_DISPATCHED = "EXTERNAL_ACTION_DISPATCHED"
+    EXTERNAL_ACTION_FAILED = "EXTERNAL_ACTION_FAILED"
 
 
 #: Actions that MUST be emitted from a write path (MASTER_PROMPT §17). A missing
@@ -31,5 +33,7 @@ CRITICAL_ACTIONS: frozenset[AuditAction] = frozenset(
         AuditAction.EVENT_ARCHIVED,
         AuditAction.EVENT_REACTIVATED,
         AuditAction.EVENT_EXPORTED,
+        AuditAction.EXTERNAL_ACTION_DISPATCHED,
+        AuditAction.EXTERNAL_ACTION_FAILED,
     }
 )
