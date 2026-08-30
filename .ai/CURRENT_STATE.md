@@ -381,7 +381,7 @@ if an instance is pinned) / `simulate_version` / `version_diff`, each audited
 
 **Epic 05 COMPLETE (13/13).**
 
-### Epic 06 – HA Cluster: **in progress (12/14)**
+### Epic 06 – HA Cluster: **in progress (13/14)**
 #81 (E06-01) per-node deployment topology. `deploy/node/` — the full stack for
 one BBZ server (`name: bbz-node`): api / web / PostgreSQL+Patroni (Spilo) /
 an etcd member / Caddy reverse proxy, with `.env.example`, file-based
@@ -527,7 +527,18 @@ labelled. CI validates + fmt-checks all three Caddyfiles;
 `test_deploy_topology.py` asserts the header baseline, drain + WS passthrough,
 and runs `caddy validate` on each.
 
-**Next:** #94 (E06-13) cluster/HA metrics endpoint. See `.ai/ROADMAP.md`
+#94 (E06-13) HA metrics endpoint. New dep `prometheus-client`.
+`bbz_core.infra.metrics` — a dedicated `CollectorRegistry` with
+`bbz_cluster_dcs_healthy` / `bbz_cluster_quorum` /
+`bbz_cluster_node_is_primary{node}` / `bbz_replication_lag_bytes{node}` /
+`bbz_event_seq_head` / `bbz_outbox_pending` / `bbz_worker_leader{singleton}`
+(all refreshed on scrape from `gather_status` + a DB read) and
+`bbz_stream_connections{transport}` (a live gauge the SSE/WS handlers
+`track_inprogress`). `GET /api/v1/system/metrics` (`require
+("system.cluster.view")` — not public) renders the exposition; never 500s.
+`docs/metrics.md` documents each metric + alerting starting points.
+
+**Next:** #95 (E06-15) PostgreSQL + etcd backup / restore. See `.ai/ROADMAP.md`
 Epic 06 (14 issues: #81, #82, #84–#95).
 
 ## Existing reference
