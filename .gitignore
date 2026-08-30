@@ -52,6 +52,8 @@ local.settings.*
 !deploy/**/secrets/
 deploy/**/secrets/*
 !deploy/**/secrets/*.example
+# generated etcd mTLS material — never committed
+deploy/**/etcd/certs/
 
 # --- IDE / OS ---
 .idea/

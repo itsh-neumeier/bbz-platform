@@ -50,6 +50,11 @@ class Settings(BaseSettings):
     # --- cluster / HA (Phase 2 wires these; Phase 0 only reports them) ---
     cluster_dcs: Literal["etcd", "consul"] = "etcd"
     cluster_dcs_endpoints: list[str] = Field(default_factory=lambda: ["http://localhost:2379"])
+    # etcd mTLS (ADR-0018). Empty -> plain HTTP (dev/tests). In deploy/node the
+    # compose points these at the mounted client-bbz-app certificate.
+    cluster_dcs_tls_ca_file: str = ""
+    cluster_dcs_tls_cert_file: str = ""
+    cluster_dcs_tls_key_file: str = ""
     # Application leader election (ADR-0018): "" -> local single-node (no etcd),
     # "etcd" -> lease-based election against cluster_dcs_endpoints.
     worker_leader_backend: Literal["", "etcd"] = ""

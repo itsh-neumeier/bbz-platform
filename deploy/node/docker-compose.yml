@@ -29,24 +29,41 @@ secrets:
 
 services:
   # --- distributed config store (this node's etcd member) -------------------
-  # A single member here is a one-node simulation; the real 3-member cluster
-  # (SRV01 + SRV02 + QUORUM01, mutual TLS) is wired in E06-03 (#84).
+  # One member of the 3-member cluster (SRV01 + SRV02 + QUORUM01). mTLS on both
+  # the peer (:2380) and client (:2379) planes; client-cert-auth maps a cert CN
+  # to an etcd user (see deploy/etcd/bootstrap-auth.sh). Certificates come from
+  # deploy/etcd/gen-certs.sh, mounted at ./etcd/certs.
   etcd:
     <<: *restart
     image: gcr.io/etcd-development/etcd:v3.5.16
+    environment:
+      ETCDCTL_CACERT: /etc/etcd/certs/ca.crt
+      ETCDCTL_CERT: /etc/etcd/certs/${BBZ_NODE_ID}-server.crt
+      ETCDCTL_KEY: /etc/etcd/certs/${BBZ_NODE_ID}-server.key
     command:
       - /usr/local/bin/etcd
       - --name=${BBZ_NODE_ID:?set in .env}
       - --data-dir=/etcd-data
-      - --listen-client-urls=http://0.0.0.0:2379
-      - --advertise-client-urls=http://${ETCD_ADVERTISE_HOST:?set in .env}:2379
-      - --listen-peer-urls=http://0.0.0.0:2380
-      - --initial-advertise-peer-urls=http://${ETCD_ADVERTISE_HOST}:2380
       - --initial-cluster=${ETCD_INITIAL_CLUSTER:?set in .env}
       - --initial-cluster-state=${ETCD_INITIAL_CLUSTER_STATE:-new}
       - --initial-cluster-token=${ETCD_CLUSTER_TOKEN:-bbz-etcd}
+      - --listen-client-urls=https://0.0.0.0:2379
+      - --advertise-client-urls=https://${ETCD_ADVERTISE_HOST:?set in .env}:2379
+      - --listen-peer-urls=https://0.0.0.0:2380
+      - --initial-advertise-peer-urls=https://${ETCD_ADVERTISE_HOST}:2380
+      # client-plane TLS + required client certificate
+      - --cert-file=/etc/etcd/certs/${BBZ_NODE_ID}-server.crt
+      - --key-file=/etc/etcd/certs/${BBZ_NODE_ID}-server.key
+      - --trusted-ca-file=/etc/etcd/certs/ca.crt
+      - --client-cert-auth
+      # peer-plane mutual TLS
+      - --peer-cert-file=/etc/etcd/certs/${BBZ_NODE_ID}-peer.crt
+      - --peer-key-file=/etc/etcd/certs/${BBZ_NODE_ID}-peer.key
+      - --peer-trusted-ca-file=/etc/etcd/certs/ca.crt
+      - --peer-client-cert-auth
     volumes:
       - etcd_data:/etcd-data
+      - ./etcd/certs:/etc/etcd/certs:ro
     ports:
       - "2379:2379"
       - "2380:2380"
@@ -65,7 +82,7 @@ services:
     environment:
       SCOPE: ${PATRONI_SCOPE:-bbz}
       PGVERSION: "16"
-      ETCD3_HOSTS: '"${ETCD_ADVERTISE_HOST}:2379"'
+      ETCD3_HOSTS: ${ETCD3_HOSTS:?set in .env}   # e.g. "srv01:2379","srv02:2379","quorum01:2379"
       PATRONI_NAME: ${BBZ_NODE_ID}
       PATRONI_POSTGRESQL_CONNECT_ADDRESS: ${POSTGRES_ADVERTISE_HOST:?set in .env}:5432
       PATRONI_RESTAPI_CONNECT_ADDRESS: ${POSTGRES_ADVERTISE_HOST}:8008
@@ -87,6 +104,7 @@ services:
     volumes:
       - postgres_data:/home/postgres/pgdata
       - ./patroni/patroni.node.yml:/etc/patroni.node.yml:ro
+      - ./etcd/certs:/etc/etcd/certs:ro   # ca.crt + client-patroni.{crt,key}
     ports:
       - "5432:5432"
       - "8008:8008"
@@ -104,7 +122,10 @@ services:
       BBZ_LOG_JSON: "true"
       BBZ_DATABASE_URL: ${BBZ_DATABASE_URL:?set in .env}
       BBZ_CLUSTER_DCS: etcd
-      BBZ_CLUSTER_DCS_ENDPOINTS: '["http://${ETCD_ADVERTISE_HOST}:2379"]'
+      BBZ_CLUSTER_DCS_ENDPOINTS: ${BBZ_CLUSTER_DCS_ENDPOINTS:?set in .env}
+      BBZ_CLUSTER_DCS_TLS_CA_FILE: /etc/etcd/certs/ca.crt
+      BBZ_CLUSTER_DCS_TLS_CERT_FILE: /etc/etcd/certs/client-bbz-app.crt
+      BBZ_CLUSTER_DCS_TLS_KEY_FILE: /etc/etcd/certs/client-bbz-app.key
       BBZ_WORKER_LEADER_BACKEND: etcd
       BBZ_SECRETS_DIR: /run/secrets
       BBZ_SESSION_COOKIE_SECURE: "true"
@@ -112,6 +133,8 @@ services:
     secrets:
       - bbz_jwt_secret
       - bbz_totp_encryption_key
+    volumes:
+      - ./etcd/certs:/etc/etcd/certs:ro   # ca.crt + client-bbz-app.{crt,key}
     expose:
       - "8000"
     depends_on:

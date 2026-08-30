@@ -21,6 +21,7 @@ from __future__ import annotations
 import base64
 import contextlib
 from abc import ABC, abstractmethod
+from dataclasses import dataclass
 from typing import Any
 
 import httpx
@@ -29,6 +30,15 @@ from bbz_core.logging import get_logger
 from bbz_core.settings import get_settings
 
 _log = get_logger(__name__)
+
+
+@dataclass(frozen=True)
+class EtcdTls:
+    """mTLS material for the etcd client (ADR-0018). Empty strings -> plain HTTP."""
+
+    ca_file: str = ""
+    cert_file: str = ""
+    key_file: str = ""
 
 
 class LeaderElection(ABC):
@@ -74,6 +84,7 @@ class EtcdLeaderElection(LeaderElection):
         endpoints: list[str],
         ttl_seconds: int,
         prefix: str = "/bbz/leader",
+        tls: EtcdTls | None = None,
     ) -> None:
         self.name = name
         self._node_id = node_id
@@ -81,7 +92,11 @@ class EtcdLeaderElection(LeaderElection):
         self._ttl = ttl_seconds
         self._key = f"{prefix.rstrip('/')}/{name}"
         self._lease_id: int | None = None
-        self._client = httpx.AsyncClient(timeout=max(2.0, ttl_seconds / 2))
+        verify: bool | str = tls.ca_file if tls and tls.ca_file else True
+        cert = (tls.cert_file, tls.key_file) if tls and tls.cert_file and tls.key_file else None
+        self._client = httpx.AsyncClient(
+            timeout=max(2.0, ttl_seconds / 2), verify=verify, cert=cert
+        )
 
     async def _post(self, path: str, body: dict[str, Any]) -> dict[str, Any]:
         resp = await self._client.post(f"{self._base}{path}", json=body)
@@ -164,5 +179,10 @@ def leader_election_for(name: str) -> LeaderElection:
             endpoints=s.cluster_dcs_endpoints,
             ttl_seconds=s.worker_leader_ttl_seconds,
             prefix=s.worker_leader_prefix,
+            tls=EtcdTls(
+                ca_file=s.cluster_dcs_tls_ca_file,
+                cert_file=s.cluster_dcs_tls_cert_file,
+                key_file=s.cluster_dcs_tls_key_file,
+            ),
         )
     return LocalLeaderElection(name)
