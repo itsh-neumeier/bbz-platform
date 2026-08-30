@@ -225,7 +225,7 @@ dispatcher, singleton runner), `infra/outbox.py`, `infra/inbox.py`,
 (code carries `TODO(E04-03)`); the code comments point at #66/E04-10 — do it
 alongside E23 hardening.
 
-### Epic 05 – EPK Workflow Engine: **in progress (7/9)**
+### Epic 05 – EPK Workflow Engine: **in progress (8/9)**
 #68 (E05-01) `bbz_rule_dsl.evaluate()` implemented — total, side-effect-free,
 deterministic predicate over a typed `Context`. Operators
 `eq/ne/in/not_in/lt/lte/gt/gte/and/or/not/exists`; type mismatch / bad arity /
@@ -292,8 +292,26 @@ all gated `workflows.view` / `workflows.manage_templates`; `_translate()`
 maps the trigger's "published definition is immutable" `DBAPIError` → 409.
 All 3 workflow actions added to `CRITICAL_ACTIONS`.
 
-**Next:** #75 (E05-08) engine AND-split/join + token semantics
-(`ACTION_STEP_COMPLETED` audit). See `.ai/ROADMAP.md` Epic 05.
+#75 (E05-08) token engine — AND split/join + token semantics.
+`bbz_core.domain.workflow.engine` (pure, deterministic): `advance(graph,
+tokens)` drives every active token to quiescence — an **event** node is a
+pass-through, a **function** node parks its token (`waiting`), an **AND
+split** emits one token per outgoing edge, an **AND join** fires only once a
+token is parked for every incoming edge (matched by `inbound_edge_key`).
+`resume_function(graph, tokens, node_key)` moves a completed step's token on.
+XOR/OR raise (E05-09). A totality budget bounds a cycle without a re-entry
+rule instead of hanging. `bbz_core.infra.repositories.workflow_engine.
+WorkflowEngineService`: `start_instance` (seeds the start token, the
+migration 0019 trigger enforces "published"), `complete_step` (records a
+`WorkflowTaskResult`, audits `ACTION_STEP_COMPLETED`, advances — idempotent:
+a second call for the same node is a no-op), `advance_instance` (re-drives
+from the persisted token state, so a failover resumes consistently). Each
+method commits its own transaction. Migration 0020 adds
+`workflow_tokens.inbound_edge_key`. `ACTION_STEP_COMPLETED` joins
+`CRITICAL_ACTIONS`.
+
+**Next:** #76 (E05-09) XOR / OR split & join + branch decisions
+(`WorkflowDecision`, operator/auto selection). See `.ai/ROADMAP.md` Epic 05.
 
 ## Existing reference
 A functional HTML mockup defines important UX/feature behavior. **It is not yet in
