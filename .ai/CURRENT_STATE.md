@@ -129,7 +129,7 @@ accept/acknowledge/open · PATCH · assign · takeover · archive/reactivate ·
 notes · GET list/`?queue=active`/`{id}`/`{id}/export`/`priority-alert`/`stream`.
 WS at `/ws/events`.
 
-### Epic 04 – Audit / Domain Events: **in progress (10/11)**
+### Epic 04 – Audit / Domain Events: **COMPLETE (11/11)**
 #57 (E04-01) `audit_events` schema review — added `event_seq_ref` BIGINT
 (nullable, no FK; migration 0013) linking an audit row to its domain event;
 ORM `before_update` / `before_delete` listeners raise `AuditImmutableError`
@@ -209,9 +209,23 @@ SQLAlchemy `after_create` DDL hook (`make_append_only` in `models/base.py`, so
 `DROP TABLE` (DDL) is unaffected. Hash-chain deferred (ADR-0020 rationale).
 Tests: raw SQL UPDATE/DELETE on both tables → `DBAPIError`, INSERT still works.
 
-**Next:** RBAC/user critical-action audit wiring (deferred from #59), #67
-(E04-11) replay/catch-up consistency tests — closes Epic 04. See
-`.ai/ROADMAP.md`.
+#67 (E04-11) replay / catch-up consistency suite
+(`server/tests/test_replay_consistency.py`): event catch-up by `event_seq`
+after a simulated drop loses/duplicates nothing (incl. events created while
+"offline"); inbox double-delivery → one processing; outbox worker killed
+mid-dispatch → row ends `dispatched` exactly once with one committed side
+effect; two concurrent dispatchers deliver a row once (`SKIP LOCKED`).
+
+Migrations `0002`–`0016`. `bbz_core` now also has: `workers/` (outbox
+dispatcher, singleton runner), `infra/outbox.py`, `infra/inbox.py`,
+`infra/leader.py`, `infra/event_stream.py`; `audit/` gained `AuditService` +
+`CRITICAL_ACTIONS`. `/ws/events` mounted app-level.
+
+**Open follow-up:** RBAC/user critical-action audit wiring is still deferred
+(code carries `TODO(E04-03)`); the code comments point at #66/E04-10 — do it
+alongside E23 hardening.
+
+**Next:** Epic 05 – EPK Workflow Engine (#68…). See `.ai/ROADMAP.md` Epic 05.
 
 ## Existing reference
 A functional HTML mockup defines important UX/feature behavior. **It is not yet in
