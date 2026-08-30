@@ -668,7 +668,7 @@ All issues need Node/Electron; skipped like Epic 07.
 **Epic 10: 3/16 doable here (E10-01/02/14).** E10-03+ (enrollment, command bus,
 agent, UI) need the Go toolchain / identity lib.
 
-### Epic 11 – Telephony Core: **in progress (9/16)**
+### Epic 11 – Telephony Core: **in progress (10/16)**
 - **#197 (E11-01) telephony core schema** — migration 0026 + `telephony.py`:
   `lines` (provider+external_id unique, state CHECK), `calls` (`bbz_call_id`
   unique + **independent of** `source_call_id`; `direction`/`state` CHECK — the
@@ -759,10 +759,21 @@ agent, UI) need the Go toolchain / identity lib.
   (`calls.document`) lists the open obligations, oldest first. No bypass —
   server-enforced. `test_call_hangup_guard_api.py`.
 
-**Next:** E11-08 is **blocked** (caller resolution needs Epic 14 contacts).
-E11-11 (call-history API), E11-12 (ringing-call list). Epic 07 / 08, #92,
-the Go agents (09/10 impl) and the #429 browser E2E stay blocked on a
-Node / Go / multi-host session.
+- **#217 (E11-11) call-history API** — `GET /api/v1/calls`
+  (`calls.view_history`, personenbeziehbar) returns the call history newest
+  first. `CallQueryRepository` (`infra/repositories/call_queries.py`): keyset
+  pagination on `(created_at, id)` desc (deterministic, stable under inserts),
+  filters `direction` / `state` / `number` (exact match on a participant) /
+  `category` (`call_documentation`) / `since` / `until` (on `created_at`,
+  inclusive). Each item carries participants + `category` + `has_free_text`.
+  Read-only — no audit event, no schema change. Scope-filter is a no-op hook
+  until E23 (same as the event queries). `test_call_history_api.py`.
+
+**Next:** E11-08 is **blocked** (caller resolution needs Epic 14 contacts);
+E11-12 (ringing-call list) needs E11-08's priority. Pivot to **Epic 14
+(Contacts)** — schema + CRUD + matching are backend and unblock E11-08/E11-12.
+Epic 07 / 08, #92, the Go agents (09/10 impl) and the #429 browser E2E stay
+blocked on a Node / Go / multi-host session.
 
 ## Existing reference
 A functional HTML mockup defines important UX/feature behavior. **It is not yet in
