@@ -10,12 +10,15 @@ from bbz_core.domain.workflow.graph import (
     derive_index,
     validate_graph,
 )
+from bbz_core.domain.workflow.publish import ValidationIssue, validate_publishable
 
 __all__ = [
     "DerivedGraph",
     "GraphEdge",
     "GraphNode",
+    "ValidationIssue",
     "WorkflowGraphError",
     "derive_index",
     "validate_graph",
+    "validate_publishable",
 ]

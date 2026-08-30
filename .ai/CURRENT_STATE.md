@@ -225,7 +225,7 @@ dispatcher, singleton runner), `infra/outbox.py`, `infra/inbox.py`,
 (code carries `TODO(E04-03)`); the code comments point at #66/E04-10 — do it
 alongside E23 hardening.
 
-### Epic 05 – EPK Workflow Engine: **in progress (5/9)**
+### Epic 05 – EPK Workflow Engine: **in progress (6/9)**
 #68 (E05-01) `bbz_rule_dsl.evaluate()` implemented — total, side-effect-free,
 deterministic predicate over a typed `Context`. Operators
 `eq/ne/in/not_in/lt/lte/gt/gte/and/or/not/exists`; type mismatch / bad arity /
@@ -268,10 +268,19 @@ RESTRICT, status), `workflow_tokens` (node_key, state active/waiting/consumed),
 `workflow_instances` rejects a `template_version_id` whose version isn't
 `published`. One event may have many instances (no unique on event_id).
 
-**Next:** #73 (E05-06) publish validation — start behaviour, reachable end
-paths, no orphans, split/join cardinality, XOR resolvable, OR trackable,
-required props, integration-action capability refs; `WORKFLOW_TEMPLATE_VALIDATED`
-audit. See `.ai/ROADMAP.md` Epic 05.
+#73 (E05-06) publish validation — `bbz_core.domain.workflow.publish.
+validate_publishable(definition, known_capabilities=…)` → `[ValidationIssue]`
+(empty = publishable). Rules: start is an event with no predecessor; every node
+reachable + a reachable end; split 1-in/≥2-out, join ≥2-in/1-out, non-connectors
+never branch; XOR split ≤1 unconditioned branch; OR split branches all labelled;
+`integration_action`/`notification`/`timer` required props; integration
+capability exists; a cycle needs a connector with `props.reentry`. 100 % branch
+coverage. `AuditAction.WORKFLOW_TEMPLATE_VALIDATED` added (wired with the
+lifecycle API, E05-07/08).
+
+**Next:** #74 (E05-07) template-version lifecycle & immutability service
+(draft→validated→published→deprecated transitions, publish snapshots + freezes,
+`workflows.manage_templates`). See `.ai/ROADMAP.md` Epic 05.
 
 ## Existing reference
 A functional HTML mockup defines important UX/feature behavior. **It is not yet in
