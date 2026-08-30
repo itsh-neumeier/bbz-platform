@@ -569,7 +569,7 @@ and Node/npm is not available in this environment** — the frontend CI job is
 also `continue-on-error`. Those need a Node-equipped session. Backend work
 continues on Epic 20 in the meantime.
 
-### Epic 20 – Archive / Postprocessing: **in progress (3/8)**
+### Epic 20 – Archive / Postprocessing: **in progress (4/8)**
 - **#414 (E20-01) archive detail model** — decision documented in
   `docs/domain/archive.md`: **no `event_archive` table**; an archived event is an
   `events` row with `status=archived` and all history lives in the same
@@ -586,7 +586,17 @@ continues on Epic 20 in the meantime.
   (`events.view`, no audit) renders the E20-01 bundle; every inner list is
   deterministically ordered (`event_seq`, then timestamps asc).
   `test_archive_detail_api.py`.
-**Next:** #420 (E20-04, postprocess notes). Live issues: #420, #422, #424, #426, #429.
+- **#420 (E20-04) postprocess notes, versioned** — `POST /events/{id}/notes` now
+  accepts `kind: postprocess` (works on archived events); new
+  `PATCH /events/{id}/notes/{note_id}` writes an append-only new version and
+  supersedes the old row (`FOR UPDATE` on the tip; `event_notes.version` /
+  `thread_id` / `superseded_by_id` / `edited_by/at`, migration 0022). Add + edit
+  each emit a domain event (`EVENT_NOTE_ADDED` / `EVENT_NOTE_UPDATED`, both now
+  in the payload schema + catalog) **and** an audit row (both in
+  `CRITICAL_ACTIONS`). `GET /events/{id}/notes` returns each thread's current
+  version + ordered history; the plain detail shows only the current version.
+  `test_postprocess_notes_api.py`.
+**Next:** #422 (E20-05, reactivation finalize). Live issues: #422, #424, #426, #429.
 
 ## Existing reference
 A functional HTML mockup defines important UX/feature behavior. **It is not yet in

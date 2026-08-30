@@ -76,6 +76,20 @@
         "body": { "type": "string", "minLength": 1 },
         "actor_id": { "type": "string" }
       }
+    },
+    "EVENT_NOTE_UPDATED": {
+      "type": "object",
+      "required": ["note_id", "thread_id", "version", "kind", "body", "actor_id"],
+      "additionalProperties": true,
+      "properties": {
+        "note_id": { "type": "string" },
+        "thread_id": { "type": "string" },
+        "supersedes_note_id": { "type": "string" },
+        "version": { "type": "integer", "minimum": 2 },
+        "kind": { "enum": ["work", "postprocess"] },
+        "body": { "type": "string", "minLength": 1 },
+        "actor_id": { "type": "string" }
+      }
     }
   },
   "$defs": {
