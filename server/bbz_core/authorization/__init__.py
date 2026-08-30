@@ -10,6 +10,7 @@ from __future__ import annotations
 from bbz_core.authorization.builtin_roles import BUILTIN_ROLES
 from bbz_core.authorization.keys import (
     CATALOG,
+    MACHINE_KEYS,
     PERMISSION_KEYS,
     SCOPES,
     PermissionKeyError,
@@ -23,6 +24,7 @@ from bbz_core.authorization.service import GrantStore, PermissionService
 __all__ = [
     "BUILTIN_ROLES",
     "CATALOG",
+    "MACHINE_KEYS",
     "PERMISSION_KEYS",
     "SCOPES",
     "EffectivePermissions",

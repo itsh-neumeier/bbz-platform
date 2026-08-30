@@ -668,7 +668,7 @@ All issues need Node/Electron; skipped like Epic 07.
 **Epic 10: 3/16 doable here (E10-01/02/14).** E10-03+ (enrollment, command bus,
 agent, UI) need the Go toolchain / identity lib.
 
-### Epic 11 – Telephony Core: **in progress (2/16)**
+### Epic 11 – Telephony Core: **in progress (3/16)**
 - **#197 (E11-01) telephony core schema** — migration 0026 + `telephony.py`:
   `lines` (provider+external_id unique, state CHECK), `calls` (`bbz_call_id`
   unique + **independent of** `source_call_id`; `direction`/`state` CHECK — the
@@ -686,8 +686,18 @@ agent, UI) need the Go toolchain / identity lib.
   `packages/integration-sdk/tests/test_telephony_protocol.py` is the conformance
   test (method set, full annotations, schema-field parity, mock satisfies it).
   The mock still returns dicts — E11-05 makes it return the typed models.
+- **#201 (E11-03) telephony event ingestion → inbox → dedupe** —
+  `bbz_core/infra/telephony_ingest.py`: validates against `telephony_event.v1`
+  (`additionalProperties:false` → a vendor field is a reject), dedupes via the
+  E04-07 provider inbox on `(provider, source_call_id, event_type)` for call
+  events (so a reconnect replay processes once) / `telephony_event_id` for
+  line/CTI events, then calls a registered `set_call_event_dispatch` hook
+  (E11-04 wires the call aggregate). `POST /api/v1/telephony/events` gated by the
+  new **M2M** permission `calls.ingest_provider_events` (`MACHINE_KEYS` — never
+  in a human built-in role; admin/sichtleiter globs now use `_HUMAN_KEYS`).
+  `test_telephony_ingest_api.py`.
 
-**Next:** E11-03 (ingest → inbox → dedupe), E11-04 (call aggregate), E11-05
+**Next:** E11-04 (call aggregate + lifecycle — wires the dispatch hook), E11-05
 (full mock). Epic 07 / 08, #92,
 the Go agents (09/10 impl) and the #429 browser E2E stay blocked on a
 Node / Go / multi-host session.
