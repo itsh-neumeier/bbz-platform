@@ -381,7 +381,7 @@ if an instance is pinned) / `simulate_version` / `version_diff`, each audited
 
 **Epic 05 COMPLETE (13/13).**
 
-### Epic 06 – HA Cluster: **in progress (9/14)**
+### Epic 06 – HA Cluster: **in progress (10/14)**
 #81 (E06-01) per-node deployment topology. `deploy/node/` — the full stack for
 one BBZ server (`name: bbz-node`): api / web / PostgreSQL+Patroni (Spilo) /
 an etcd member / Caddy reverse proxy, with `.env.example`, file-based
@@ -490,8 +490,20 @@ marker; it also checks `revision == filename stem`. New CI job
 `tools/check_migration_compat.py` — for every table the old ORM maps, a
 `SELECT` of all its columns must still succeed (catches drop/rename).
 
-**Next:** #90 (E06-09) rolling-update script + runbook (SRV02 → health → SRV01,
-pre-flight, rollback). See `.ai/ROADMAP.md` Epic 06 (14 issues: #81, #82, #84–#95).
+#90 (E06-09) rolling-update mechanism. `tools/rolling-update.sh` (POSIX):
+pre-flight (`/cluster/status` `stub:false`/`dcs_healthy`/`quorum`, no node
+over the 1 MiB replication-lag limit, `MIGRATION_CHECKED=1`), refuses a
+non-digest image, then per node **passive first** — `docker compose pull/up
+--no-deps api`, poll `/health/ready` until green (the 503 during boot is the
+drain), re-run pre-flight; any failure aborts and leaves later nodes
+untouched. `POST /api/v1/system/rolling-update` (`{phase, image, notes?}`,
+`require("system.cluster.manage")`) records `ROLLING_UPDATE_STARTED` /
+`_COMPLETED` audit markers (both in `CRITICAL_ACTIONS`).
+`docs/runbooks/rolling-update.md` rewritten with the order, drain, abort and
+rollback steps.
+
+**Next:** #92 (E06-11) HA failure-scenario test harness. See `.ai/ROADMAP.md`
+Epic 06 (14 issues: #81, #82, #84–#95).
 
 ## Existing reference
 A functional HTML mockup defines important UX/feature behavior. **It is not yet in

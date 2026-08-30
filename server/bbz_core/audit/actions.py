@@ -34,6 +34,8 @@ class AuditAction(enum.StrEnum):
     WORKFLOW_SIMULATED = "WORKFLOW_SIMULATED"
     #: leader-key change observed by the cluster watcher (emitter: E06-04 / #85).
     DB_FAILOVER = "DB_FAILOVER"
+    ROLLING_UPDATE_STARTED = "ROLLING_UPDATE_STARTED"
+    ROLLING_UPDATE_COMPLETED = "ROLLING_UPDATE_COMPLETED"
 
 
 #: Actions that MUST be emitted from a write path (MASTER_PROMPT §17). A missing
@@ -56,5 +58,7 @@ CRITICAL_ACTIONS: frozenset[AuditAction] = frozenset(
         AuditAction.WORKFLOW_TEMPLATE_CREATED,
         AuditAction.WORKFLOW_TEMPLATE_UPDATED,
         AuditAction.WORKFLOW_SIMULATED,
+        AuditAction.ROLLING_UPDATE_STARTED,
+        AuditAction.ROLLING_UPDATE_COMPLETED,
     }
 )
