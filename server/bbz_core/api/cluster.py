@@ -34,7 +34,12 @@ class ClusterStatus(BaseModel):
     dcs_healthy: bool | None = None
     quorum: bool | None = None
     control_leader: str | None = None
-    leaders: dict[str, str] = Field(default_factory=dict)
+    leaders: dict[str, str] = Field(
+        default_factory=dict, description="etcd /bbz/leader/<name> -> node_id holding it"
+    )
+    singletons: list[str] = Field(
+        default_factory=list, description="cluster singletons to look up in `leaders`"
+    )
     nodes: list[NodeStatus]
     last_event_seq: int | None = Field(
         default=None, description="Highest applied global event sequence."

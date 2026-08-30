@@ -66,6 +66,9 @@ class Settings(BaseSettings):
     worker_leader_backend: Literal["", "etcd"] = ""
     worker_leader_ttl_seconds: int = 10
     worker_leader_prefix: str = "/bbz/leader"
+    # start the cluster singletons (outbox dispatcher, workflow timer) in the
+    # app lifespan. Off by default (tests / bare API); deploy/node sets it.
+    run_background_workers: bool = False
 
     # --- auth: providers (E02-04). 'local' is always active regardless. ---
     auth_providers: list[str] = Field(default_factory=lambda: ["local"])
