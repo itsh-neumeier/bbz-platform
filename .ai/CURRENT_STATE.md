@@ -632,9 +632,26 @@ continues on Epic 20 in the meantime.
   hard-deleted (3 note rows kept, status history survives archive+reactivate).
   The browser half is scaffolded (`apps/web/e2e/archive-lifecycle.spec.ts`,
   `test.fixme`) pending E07-11/#113 + E07-12/#115. Merged as `Refs #429`.
-**Next:** Epic 20 done at the backend level. Pick the next backend epic in
-roadmap order (Epic 15 Technical Trigger Engine, or Epic 11 Telephony) —
-Epic 07 / #92 / #429-UI stay blocked on a Node-equipped / multi-host session.
+**Epic 20 done at the backend level** (PRs #576–583).
+
+### Epic 08 – BBZ Desktop Client (Electron): **blocked on toolchain**
+All issues need Node/Electron; skipped like Epic 07.
+
+### Epic 09 – BBZ Client Agent (Go): **1/10 (rest blocked on Go toolchain)**
+- **#145 (E09-01) ADR-0009 → Accepted** — language decision finalised: **Go**
+  for both agents. Shared internal libs named: `discovery` (SRV01/SRV02
+  discovery + failover), `outbox` (encrypted cache + offline outbox), and
+  `commandenvelope` (typed command envelope, closed type registry, no arbitrary
+  exec). Go workspace at `services/bbz-agents/`. E09-02+ need `go` (not
+  available here).
+
+### Epic 10 – BKU Agent (Go): the two DB-schema issues (E10-01/02) + `db` seed
+(E10-14) are doable here; E10-03+ need the Go identity lib / agent.
+
+**Next:** E10-01 (bku agent schema), E10-02 (app catalog schema), then
+**Epic 11 Telephony Core** (mostly backend Python, deps met). Epic 07 / 08,
+#92, the Go agents (09/10 impl) and the #429 browser E2E stay blocked on a
+Node / Go / multi-host session.
 
 ## Existing reference
 A functional HTML mockup defines important UX/feature behavior. **It is not yet in
@@ -715,15 +732,15 @@ Phase 1 – Core Domain (Epics 02–05). The Phase-1 ADR gate (**E01-01** / #20)
 schema-first: E02-01 #27 → E02-02 #28 → …). HA Cluster (Epic 06) runs in
 parallel from Phase 2.
 
-## Architecture ADRs — status (after E01-01 / #20, 2026-08-29)
+## Architecture ADRs — status (after E01-01 / #20, 2026-08-29; E09-01, 2026-08-30)
 **Accepted:** 0001, 0002 (baseline), 0003, 0004, 0005, 0006, 0007 monorepo
-layout, 0008 backend stack & boundaries, 0010 rule DSL, 0011 event log +
-outbox/inbox, 0012 API/idempotency conventions, 0013 frontend stack & a11y, 0014
-CI/CD & supply chain, 0015 config & secrets, 0016 Cayuga→Coda consolidation, 0017
-time handling (UTC), 0018 distributed config store (etcd).
+layout, 0008 backend stack & boundaries, **0009 agent language (Go) — E09-01**,
+0010 rule DSL, 0011 event log + outbox/inbox, 0012 API/idempotency conventions,
+0013 frontend stack & a11y, 0014 CI/CD & supply chain, 0015 config & secrets,
+0016 Cayuga→Coda consolidation, 0017 time handling (UTC), 0018 distributed config
+store (etcd).
 
-**Still Proposed / decision pending:**
-- **0009** agent language (Go) — decided in Epic 09 issue E09-01 (#145).
+**Still Proposed / decision pending:** none in the 0001–0018 range.
 
 **Open points recorded on accepted ADRs:**
 - ADR-0013: the coordinated `apps/web` major upgrade (PrimeVue 5 / Pinia 4 /
@@ -749,7 +766,8 @@ interfaces. No customer-specific or vendor API is invented.
 
 ## Open decisions / questions (carried from planning)
 - commit the functional HTML mockup into the repo
-- confirm ADR-0009 (Go vs. Rust for agents)
+- ~~confirm ADR-0009 (Go vs. Rust for agents)~~ → **Go** (ADR-0009 Accepted,
+  E09-01); shared libs `discovery` / `outbox` / `commandenvelope`
 - BKU workstation OS + corporate browser (launch mechanism)
 - offline→online conflict-resolution policy
 - Electron: load web build from server vs. bundle

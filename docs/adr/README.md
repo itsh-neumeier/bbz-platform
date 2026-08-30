@@ -28,7 +28,7 @@ a provider contract, a security boundary, a technology choice. `.ai/RULES.md`:
 | 0006 | Coda Video as video + alarm source | Accepted |
 | 0007 | Monorepo layout and tooling | Proposed |
 | 0008 | Backend stack and module boundaries | Proposed |
-| 0009 | Agent implementation language (Go) | Proposed |
+| 0009 | Agent implementation language (Go) | Accepted |
 | 0010 | Safe restricted rule DSL | Proposed |
 | 0011 | Event log + state tables, outbox/inbox | Proposed |
 | 0012 | API and idempotency conventions | Proposed |
