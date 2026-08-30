@@ -8,6 +8,14 @@ from __future__ import annotations
 
 from bbz_core.infra.models.audit import AuditEvent
 from bbz_core.infra.models.base import Base
+from bbz_core.infra.models.bku_agent import (
+    BkuAgent,
+    BkuAgentCommand,
+    BkuAgentEnrollment,
+    BkuAgentStatus,
+    BkuCommandStatus,
+    BkuCommandType,
+)
 from bbz_core.infra.models.commands import Command
 from bbz_core.infra.models.domain_events import DomainEvent
 from bbz_core.infra.models.events import (
@@ -64,6 +72,12 @@ __all__ = [
     "AuthIdentity",
     "AuthProvider",
     "Base",
+    "BkuAgent",
+    "BkuAgentCommand",
+    "BkuAgentEnrollment",
+    "BkuAgentStatus",
+    "BkuCommandStatus",
+    "BkuCommandType",
     "Command",
     "DomainEvent",
     "Event",
