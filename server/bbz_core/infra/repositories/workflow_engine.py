@@ -51,6 +51,7 @@ from bbz_core.domain.workflow.tasks import (
     step_dedupe_key,
     timer_seconds,
 )
+from bbz_core.infra.models.audit import AuditEvent
 from bbz_core.infra.models.events import Event
 from bbz_core.infra.models.workflow import (
     WorkflowLifecycle,
@@ -190,6 +191,160 @@ class WorkflowEngineService:
         return await self.start_instance(
             event_id=event_id, template_version_id=version_id, actor_id=actor_id
         )
+
+    async def resolve_event_instance(self, event_id: uuid.UUID) -> WorkflowInstance:
+        """The workflow instance an operator acts on for this event: the running
+        one, else the most recently started."""
+        inst = (
+            await self._s.execute(
+                select(WorkflowInstance)
+                .where(WorkflowInstance.event_id == event_id)
+                .order_by(
+                    (WorkflowInstance.status == WorkflowInstanceStatus.RUNNING.value).desc(),
+                    WorkflowInstance.started_at.desc(),
+                )
+                .limit(1)
+            )
+        ).scalar_one_or_none()
+        if inst is None:
+            raise InstanceNotFoundError(f"no workflow instance for event {event_id}")
+        return inst
+
+    async def instance_view(self, event_id: uuid.UUID) -> dict[str, Any]:
+        """The operator's step-by-step view of an event's workflow — it mirrors
+        the token state exactly (`.ai/WORKFLOW_EPK.md` "Operator behavior").
+        Responsibility stays on the whole event: steps carry no assignee."""
+        inst = await self.resolve_event_instance(event_id)
+        graph = await self._graph(inst.template_version_id)
+        version = await self._s.get(WorkflowTemplateVersion, inst.template_version_id)
+        assert version is not None
+        template = await self._s.get(WorkflowTemplate, version.template_id)
+
+        waiting = {
+            nk
+            for (nk,) in (
+                await self._s.execute(
+                    select(WorkflowToken.node_key).where(
+                        WorkflowToken.instance_id == inst.id,
+                        WorkflowToken.state == WorkflowTokenState.WAITING.value,
+                    )
+                )
+            ).all()
+        }
+        results = {
+            r.node_key: r
+            for r in (
+                await self._s.execute(
+                    select(WorkflowTaskResult).where(WorkflowTaskResult.instance_id == inst.id)
+                )
+            )
+            .scalars()
+            .all()
+        }
+        decisions = (
+            (
+                await self._s.execute(
+                    select(WorkflowDecision).where(WorkflowDecision.instance_id == inst.id)
+                )
+            )
+            .scalars()
+            .all()
+        )
+        decided_connectors = {d.connector_node_key for d in decisions}
+
+        functions = [n for n in graph.nodes if n.type == "function"]
+        steps = []
+        for n in functions:
+            if n.key in results:
+                state = "done"
+            elif n.key in waiting:
+                state = "active"
+            else:
+                state = "pending"
+            step: dict[str, Any] = {
+                "node_key": n.key,
+                "kind": n.function_kind,
+                "label": n.label,
+                "state": state,
+            }
+            if n.key in results:
+                r = results[n.key]
+                step["completed_at"] = r.completed_at.isoformat()
+                step["completed_by"] = str(r.completed_by) if r.completed_by else None
+            steps.append(step)
+
+        out_by: dict[str, list[Any]] = {}
+        for e in graph.edges:
+            out_by.setdefault(e.from_key, []).append(e)
+        pending_decisions = []
+        for n in graph.nodes:
+            if (
+                n.type == "connector"
+                and n.connector_direction == "split"
+                and n.connector_type in ("xor", "or")
+                and n.key in waiting
+                and n.key not in decided_connectors
+            ):
+                pending_decisions.append(
+                    {
+                        "connector_node_key": n.key,
+                        "connector_type": n.connector_type,
+                        "options": [
+                            {
+                                "edge_key": e.key,
+                                "to": e.to_key,
+                                "branch": e.branch,
+                                "has_condition": e.condition is not None,
+                            }
+                            for e in sorted(out_by.get(n.key, []), key=lambda e: e.key)
+                        ],
+                    }
+                )
+
+        audit = [
+            {
+                "id": str(a_id),
+                "action": action,
+                "occurred_at_utc": occurred.isoformat(),
+            }
+            for a_id, action, occurred in (
+                await self._s.execute(
+                    select(AuditEvent.id, AuditEvent.action, AuditEvent.occurred_at_utc)
+                    .where(
+                        AuditEvent.target_type == "workflow_instance",
+                        AuditEvent.target_id == str(inst.id),
+                    )
+                    .order_by(AuditEvent.occurred_at_utc.asc(), AuditEvent.id.asc())
+                )
+            ).all()
+        ]
+
+        done = sum(1 for s in steps if s["state"] == "done")
+        return {
+            "instance_id": str(inst.id),
+            "event_id": str(inst.event_id),
+            "status": inst.status,
+            "started_at": inst.started_at.isoformat(),
+            "ended_at": inst.ended_at.isoformat() if inst.ended_at else None,
+            "template": {
+                "key": template.key if template is not None else None,
+                "version_no": version.version_no,
+            },
+            "progress": {"done": done, "total": len(functions)},
+            "steps": steps,
+            "pending_decisions": pending_decisions,
+            "decisions": [
+                {
+                    "connector_node_key": d.connector_node_key,
+                    "chosen_branches": list(d.chosen_branches),
+                    "auto": d.auto,
+                    "decided_at": d.decided_at.isoformat(),
+                    "decided_by": str(d.decided_by) if d.decided_by else None,
+                }
+                for d in sorted(decisions, key=lambda d: d.decided_at)
+            ],
+            "audit": audit,
+        }
 
     async def advance_instance(self, instance_id: uuid.UUID) -> WorkflowInstance:
         """Re-run the engine from the persisted token state (crash recovery)."""

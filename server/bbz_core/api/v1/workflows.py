@@ -25,7 +25,11 @@ from bbz_core.api.errors import ConflictError, NotFoundError, ValidationError
 from bbz_core.infra.models.events import Event
 from bbz_core.infra.models.workflow import WorkflowTemplate, WorkflowTemplateVersion
 from bbz_core.infra.repositories.workflow_engine import (
+    DecisionNotAvailableError,
+    InstanceNotFoundError,
+    InvalidDecisionError,
     NoPublishedVersionError,
+    StepNotAvailableError,
     TemplateNotFoundError,
     WorkflowEngineService,
 )
@@ -279,3 +283,71 @@ async def start_event_workflow(
         template_version_id=inst.template_version_id,
         status=inst.status,
     )
+
+
+# -- instance operation (E05-12) --------------------------------------------
+
+
+class CompleteStepIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    result: dict[str, object] = Field(default_factory=dict)
+
+
+class DecideIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    chosen: list[str] = Field(min_length=1)
+
+
+def _engine(session: AsyncSession = Depends(db_session)) -> WorkflowEngineService:
+    return WorkflowEngineService(session)
+
+
+@router.get("/events/{event_id}/workflow")
+async def get_event_workflow(
+    event_id: uuid.UUID,
+    _: AuthContext = Depends(require("workflows.view")),
+    svc: WorkflowEngineService = Depends(_engine),
+) -> dict[str, object]:
+    """The operator's step-by-step view — mirrors the token state exactly."""
+    try:
+        return await svc.instance_view(event_id)
+    except InstanceNotFoundError as exc:
+        raise NotFoundError("no workflow instance for this event") from exc
+
+
+@router.post("/events/{event_id}/workflow/steps/{node_key}/complete")
+async def complete_workflow_step(
+    event_id: uuid.UUID,
+    node_key: str,
+    body: CompleteStepIn,
+    ctx: AuthContext = Depends(require("workflows.execute")),
+    svc: WorkflowEngineService = Depends(_engine),
+) -> dict[str, object]:
+    try:
+        inst = await svc.resolve_event_instance(event_id)
+        await svc.complete_step(inst.id, node_key, result=body.result, actor_id=ctx.user_id)
+    except InstanceNotFoundError as exc:
+        raise NotFoundError("no workflow instance for this event") from exc
+    except StepNotAvailableError as exc:
+        raise ConflictError(str(exc)) from exc
+    return await svc.instance_view(event_id)
+
+
+@router.post("/events/{event_id}/workflow/decisions/{connector_node_key}")
+async def decide_workflow_branch(
+    event_id: uuid.UUID,
+    connector_node_key: str,
+    body: DecideIn,
+    ctx: AuthContext = Depends(require("workflows.execute")),
+    svc: WorkflowEngineService = Depends(_engine),
+) -> dict[str, object]:
+    try:
+        inst = await svc.resolve_event_instance(event_id)
+        await svc.decide(inst.id, connector_node_key, body.chosen, actor_id=ctx.user_id)
+    except InstanceNotFoundError as exc:
+        raise NotFoundError("no workflow instance for this event") from exc
+    except InvalidDecisionError as exc:
+        raise ValidationError(str(exc)) from exc
+    except DecisionNotAvailableError as exc:
+        raise ConflictError(str(exc)) from exc
+    return await svc.instance_view(event_id)
