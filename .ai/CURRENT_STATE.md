@@ -381,7 +381,7 @@ if an instance is pinned) / `simulate_version` / `version_diff`, each audited
 
 **Epic 05 COMPLETE (13/13).**
 
-### Epic 06 – HA Cluster: **in progress (3/14)**
+### Epic 06 – HA Cluster: **in progress (4/14)**
 #81 (E06-01) per-node deployment topology. `deploy/node/` — the full stack for
 one BBZ server (`name: bbz-node`): api / web / PostgreSQL+Patroni (Spilo) /
 an etcd member / Caddy reverse proxy, with `.env.example`, file-based
@@ -422,8 +422,21 @@ httpx client (`EtcdTls`). `deploy/**/etcd/certs/` gitignored.
 and runs `gen-certs.sh` to verify a CA-signed member/client cert. The
 one-member-down harness is #92.
 
-**Next:** #85 (E06-04) `/cluster/status` real implementation
-(`system.cluster.view`). See `.ai/ROADMAP.md` Epic 06 (14 issues: #81, #82, #84–#95).
+#85 (E06-04) `/cluster/status` real implementation.
+`bbz_core.infra.cluster_status.gather_status(session)` probes three sources
+and degrades honestly (never a 500): **etcd** — per-endpoint
+`/v3/maintenance/status` for `dcs_healthy` + `quorum` (a raft leader visible),
+plus a range read of `worker_leader_prefix` for the `leaders` map (and
+`control_leader` = `leaders["control_leader"]`); **Patroni REST**
+(`patroni_rest_endpoints` setting) — `/cluster` for per-node `db_role` +
+`replication_lag_bytes`; **local PostgreSQL** — `pg_is_in_recovery()` + the
+receive/replay LSN gap, always representing this node. `last_event_seq` =
+`max(domain_events.event_seq)`. The endpoint now returns `stub: false`, is
+gated `require("system.cluster.view")` (401/403), and adds a `leaders` field.
+No secrets in the body.
+
+**Next:** #86 (E06-05) `/health/ready` gated on cluster/data state. See
+`.ai/ROADMAP.md` Epic 06 (14 issues: #81, #82, #84–#95).
 
 ## Existing reference
 A functional HTML mockup defines important UX/feature behavior. **It is not yet in
