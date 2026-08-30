@@ -4,13 +4,14 @@ from __future__ import annotations
 
 from typing import Literal
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Response, status
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from bbz_core.api.authz import require
 from bbz_core.api.deps import AuthContext, db_session
 from bbz_core.audit import AuditAction, AuditService
+from bbz_core.infra.metrics import render as render_metrics
 from bbz_core.settings import get_settings
 
 router = APIRouter(prefix="/system", tags=["system"])
@@ -62,3 +63,15 @@ async def rolling_update_marker(
             reason=body.notes,
         )
     return {"phase": body.phase, "image": body.image}
+
+
+@router.get("/metrics")
+async def metrics(
+    _: AuthContext = Depends(require("system.cluster.view")),
+    session: AsyncSession = Depends(db_session),
+) -> Response:
+    """Prometheus exposition of the HA-relevant gauges (roadmap E06-13). Behind
+    ``system.cluster.view`` — not a public endpoint; a dedicated internal scrape
+    port is Epic 22. See ``docs/metrics.md``."""
+    body, content_type = await render_metrics(session)
+    return Response(content=body, media_type=content_type)

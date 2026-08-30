@@ -65,25 +65,28 @@ async def _authorize(websocket: WebSocket) -> bool:
 
 
 async def _pump_events(websocket: WebSocket, after_seq: int) -> None:
+    from bbz_core.infra.metrics import stream_connection
+
     async def _disconnected() -> bool:
         return websocket.client_state != WebSocketState.CONNECTED
 
-    async for frame in event_feed(after_seq, is_disconnected=_disconnected):
-        if websocket.client_state != WebSocketState.CONNECTED:
-            return
-        if frame is None:
-            await websocket.send_json({"type": "heartbeat"})
-        elif isinstance(frame, CatchUpComplete):
-            await websocket.send_json({"type": "caught_up", "head": frame.head})
-        else:
-            await websocket.send_json(
-                {
-                    "type": "event",
-                    "event_seq": frame.event_seq,
-                    "event_type": frame.event_type,
-                    "envelope": frame.envelope,
-                }
-            )
+    with stream_connection("ws"):
+        async for frame in event_feed(after_seq, is_disconnected=_disconnected):
+            if websocket.client_state != WebSocketState.CONNECTED:
+                return
+            if frame is None:
+                await websocket.send_json({"type": "heartbeat"})
+            elif isinstance(frame, CatchUpComplete):
+                await websocket.send_json({"type": "caught_up", "head": frame.head})
+            else:
+                await websocket.send_json(
+                    {
+                        "type": "event",
+                        "event_seq": frame.event_seq,
+                        "event_type": frame.event_type,
+                        "envelope": frame.envelope,
+                    }
+                )
 
 
 async def _read_acks(websocket: WebSocket) -> None:

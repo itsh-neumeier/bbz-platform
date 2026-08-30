@@ -21,6 +21,7 @@ dependencies = [
   "pyotp>=2.9,<3.0",
   "cryptography>=46.0.7,<51",
   "structlog>=24.1",
+  "prometheus-client>=0.20,<1.0",
   "bbz-integration-sdk",
 ]
 

@@ -109,12 +109,15 @@ async def sse_stream(
     is_disconnected: Callable[[], Awaitable[bool]] | None = None,
 ) -> AsyncIterator[bytes]:
     """SSE framing over :func:`event_feed`."""
+    from bbz_core.infra.metrics import stream_connection
+
     yield b": connected\n\n"
-    async for frame in event_feed(after_seq, is_disconnected=is_disconnected):
-        if frame is None:
-            yield b": heartbeat\n\n"
-        elif isinstance(frame, CatchUpComplete):
-            body = json.dumps({"head": frame.head}, separators=(",", ":"))
-            yield f"event: caught_up\ndata: {body}\n\n".encode()
-        else:
-            yield _sse_frame(frame.event_seq, frame.event_type, frame.envelope)
+    with stream_connection("sse"):
+        async for frame in event_feed(after_seq, is_disconnected=is_disconnected):
+            if frame is None:
+                yield b": heartbeat\n\n"
+            elif isinstance(frame, CatchUpComplete):
+                body = json.dumps({"head": frame.head}, separators=(",", ":"))
+                yield f"event: caught_up\ndata: {body}\n\n".encode()
+            else:
+                yield _sse_frame(frame.event_seq, frame.event_type, frame.envelope)
