@@ -261,3 +261,64 @@ def test_gen_certs_produces_a_ca_signed_member_and_client_cert(tmp_path: Path) -
         text=True,
     ).stdout
     assert "bbz-srv01" in san and "10.0.0.11" in san
+
+
+# --- E06-12: reverse proxy hardening ---------------------------------------
+
+_NODE_CADDY = _NODE / "reverse-proxy" / "Caddyfile"
+
+
+def test_node_caddyfile_sets_the_security_header_baseline() -> None:
+    cf = _NODE_CADDY.read_text(encoding="utf-8")
+    for header in (
+        "Strict-Transport-Security",
+        "X-Content-Type-Options",
+        "X-Frame-Options",
+        "Referrer-Policy",
+        "Content-Security-Policy",
+        "Permissions-Policy",
+    ):
+        assert header in cf, header
+    assert "-Server" in cf  # the upstream Server header is stripped
+
+
+def test_node_caddyfile_drains_not_ready_upstreams_and_passes_websockets() -> None:
+    cf = _NODE_CADDY.read_text(encoding="utf-8")
+    assert "health_uri /health/ready" in cf
+    assert "flush_interval -1" in cf  # unbuffered SSE / WS
+    assert "/ws/*" in cf  # the WebSocket stream is routed to the API
+    assert "redir https://" in cf  # plain HTTP is redirected
+
+
+@pytest.mark.skipif(shutil.which("docker") is None, reason="needs docker to run caddy")
+@pytest.mark.parametrize(
+    "path",
+    [
+        _NODE_CADDY,
+        _ROOT / "deploy" / "reverse-proxy" / "Caddyfile",
+        _HA_CADDY := _ROOT / "deploy" / "ha-test" / "Caddyfile",
+    ],
+    ids=lambda p: str(p.relative_to(_ROOT)),
+)
+def test_caddyfile_validates(path: Path) -> None:
+    r = subprocess.run(
+        [
+            "docker",
+            "run",
+            "--rm",
+            "-e",
+            "BBZ_PUBLIC_NAME=bbz.ci.internal",
+            "-v",
+            f"{path}:/w/Caddyfile:ro",
+            "-w",
+            "/w",
+            "caddy:2-alpine",
+            "caddy",
+            "validate",
+            "--config",
+            "Caddyfile",
+        ],
+        capture_output=True,
+        text=True,
+    )
+    assert r.returncode == 0, r.stderr
