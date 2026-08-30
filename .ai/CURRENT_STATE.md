@@ -658,12 +658,19 @@ All issues need Node/Electron; skipped like Epic 07.
   window/app_window/tab, enabled, sort_order, version, icon,
   target_monitor_hint) + `application_catalog_scopes` (app_id CASCADE, optional
   role_key / bbz_id / workplace_id narrowing). `test_application_catalog_schema.py`.
-- E10-14 (BKU permission-seed guard test) also doable; E10-03+ need the Go
-  identity lib / agent.
+- **#191 (E10-14) BKU permission-seed guard** — the 8 `bku.*` keys + role
+  grants were already seeded by 0008 (generic `CATALOG`/`BUILTIN_ROLES`);
+  `test_bku_permissions_seed.py` now locks the policy: `bku.session.logout` /
+  `bku.device.restart` are Administrator/Sichtleiter only, Nur-Lesen at most
+  `status.view`/`catalog.view`, no role grants an unknown `bku.*` key.
+  `docs/domain/permission-catalog.md` documents the default grants.
 
-**Next:** E10-14 (bku permission-seed guard test), then **Epic 11 Telephony Core**
-(mostly backend Python, deps met). Epic 07 / 08, #92, the Go agents (09/10 impl)
-and the #429 browser E2E stay blocked on a Node / Go / multi-host session.
+**Epic 10: 3/16 doable here (E10-01/02/14).** E10-03+ (enrollment, command bus,
+agent, UI) need the Go toolchain / identity lib.
+
+**Next:** **Epic 11 Telephony Core** (16 issues, mostly backend Python; E11-01
+calls schema, deps met). Epic 07 / 08, #92, the Go agents (09/10 impl) and the
+#429 browser E2E stay blocked on a Node / Go / multi-host session.
 
 ## Existing reference
 A functional HTML mockup defines important UX/feature behavior. **It is not yet in
