@@ -98,6 +98,35 @@ async def _read_leaders(client: httpx.AsyncClient, endpoint: str) -> dict[str, s
     return out
 
 
+async def _patroni_readiness_status() -> int | None:
+    """HTTP status of this node's local Patroni ``/readiness`` — ``None`` when
+    no local Patroni is configured, ``-1`` when it is unreachable."""
+    url = get_settings().patroni_local_rest_url.rstrip("/")
+    if not url:
+        return None
+    try:
+        async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
+            return (await client.get(f"{url}/readiness")).status_code
+    except httpx.HTTPError:
+        return -1
+
+
+async def local_node_ready() -> tuple[bool, str]:
+    """Is this node's PostgreSQL role known and *not* mid-rejoin/replay?
+
+    Delegates to Patroni's own ``/readiness`` (503 while creating a replica or
+    while a standby lags past ``maximum_lag_on_failover``). A node with no local
+    Patroni configured (single-node dev) is considered ready."""
+    code = await _patroni_readiness_status()
+    if code is None:
+        return True, "patroni not configured (single node)"
+    if code == 200:
+        return True, "patroni ready"
+    if code == -1:
+        return False, "patroni unreachable — cluster role unknown"
+    return False, f"patroni not ready (readiness {code}) — rejoin/replay in progress"
+
+
 async def _probe_patroni() -> dict[str, Any]:
     endpoints = [e.rstrip("/") for e in get_settings().patroni_rest_endpoints]
     if not endpoints:

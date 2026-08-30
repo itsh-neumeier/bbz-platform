@@ -103,6 +103,24 @@ async def test_cluster_status_degrades_honestly_when_the_dcs_is_gone(env: tuple)
     assert me["db_role"] in {"primary", "standby", "unknown"}
 
 
+@pytest.mark.parametrize(
+    ("code", "ready"),
+    [(None, True), (200, True), (503, False), (500, False), (-1, False)],
+)
+async def test_local_node_ready_maps_patroni_readiness(
+    monkeypatch: pytest.MonkeyPatch, code: int | None, ready: bool
+) -> None:
+    from bbz_core.infra import cluster_status
+
+    async def fake() -> int | None:
+        return code
+
+    monkeypatch.setattr(cluster_status, "_patroni_readiness_status", fake)
+    ok, detail = await cluster_status.local_node_ready()
+    assert ok is ready
+    assert isinstance(detail, str) and detail
+
+
 async def test_cluster_status_reports_the_highest_event_seq(env: tuple) -> None:
     client, s = env
     await _make_user(s, "w2", ["system.cluster.view", "events.create"])

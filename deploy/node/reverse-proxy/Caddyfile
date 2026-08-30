@@ -19,7 +19,14 @@
 
 	@api path /api/* /health/* /cluster/* /ws/*
 	handle @api {
-		reverse_proxy api:8000
+		reverse_proxy api:8000 {
+			# a node in rejoin/replay answers /health/ready with 503 (E06-05).
+			# The client agent does server selection (E09-04); a load balancer
+			# in front of the two nodes would use this as its active check.
+			health_uri /health/ready
+			health_interval 5s
+			health_timeout 3s
+		}
 	}
 
 	handle {

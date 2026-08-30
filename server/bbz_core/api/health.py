@@ -1,12 +1,19 @@
 """Health endpoints (MASTER_PROMPT §23).
 
 - ``/health/live``    process is up
-- ``/health/ready``   dependencies (DB) reachable -> safe to route traffic
+- ``/health/ready``   dependencies reachable AND HA state valid -> route traffic
 - ``/health/details`` structured breakdown for operators/diagnostics
 
-The client agent polls ``/health/live`` and ``/health/ready`` for failover
-(MASTER_PROMPT §4). Readiness must be conservative: a node that cannot reach its
-database is NOT ready.
+The client agent (and any load balancer) polls ``/health/live`` and
+``/health/ready`` for failover (MASTER_PROMPT §4). Readiness is conservative and
+checked **in order**, each with a ~2 s timeout:
+
+1. **database** — the node can reach its PostgreSQL.
+2. **cluster** — this node's Patroni role is known and it is *not* mid
+   rejoin / replay (E06-05). Delegates to the local Patroni ``/readiness``;
+   skipped when no local Patroni is configured (single-node dev).
+
+Any failing check -> ``503 not_ready`` so the node is taken out of rotation.
 """
 
 from __future__ import annotations
@@ -17,6 +24,7 @@ from fastapi import APIRouter, Response, status
 from pydantic import BaseModel
 
 from bbz_core import __version__
+from bbz_core.infra.cluster_status import local_node_ready
 from bbz_core.infra.db import check_database
 from bbz_core.settings import get_settings
 
@@ -48,7 +56,10 @@ async def live() -> LiveResponse:
 
 async def _collect_checks() -> list[Check]:
     db_ok, db_detail = await check_database()
-    return [Check(name="database", ok=db_ok, detail=db_detail)]
+    checks = [Check(name="database", ok=db_ok, detail=db_detail)]
+    cluster_ok, cluster_detail = await local_node_ready()
+    checks.append(Check(name="cluster", ok=cluster_ok, detail=cluster_detail))
+    return checks
 
 
 @router.get("/ready", response_model=ReadyResponse)

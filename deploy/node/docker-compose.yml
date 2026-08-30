@@ -127,6 +127,9 @@ services:
       BBZ_CLUSTER_DCS_TLS_CERT_FILE: /etc/etcd/certs/client-bbz-app.crt
       BBZ_CLUSTER_DCS_TLS_KEY_FILE: /etc/etcd/certs/client-bbz-app.key
       BBZ_WORKER_LEADER_BACKEND: etcd
+      # cluster observability + readiness gate (E06-04 / E06-05)
+      BBZ_PATRONI_REST_ENDPOINTS: ${BBZ_PATRONI_REST_ENDPOINTS:?set in .env}
+      BBZ_PATRONI_LOCAL_REST_URL: http://postgres:8008
       BBZ_SECRETS_DIR: /run/secrets
       BBZ_SESSION_COOKIE_SECURE: "true"
       BBZ_CORS_ALLOW_ORIGINS: ${BBZ_CORS_ALLOW_ORIGINS:-[]}
