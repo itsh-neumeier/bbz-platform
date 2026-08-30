@@ -20,6 +20,11 @@ from bbz_core.domain.workflow.graph import (
     validate_graph,
 )
 from bbz_core.domain.workflow.publish import ValidationIssue, validate_publishable
+from bbz_core.domain.workflow.simulate import (
+    SimulationReport,
+    diff_definitions,
+    simulate,
+)
 
 __all__ = [
     "DecisionMade",
@@ -27,6 +32,7 @@ __all__ = [
     "EngineResult",
     "GraphEdge",
     "GraphNode",
+    "SimulationReport",
     "StepNotWaitingError",
     "Token",
     "ValidationIssue",
@@ -34,7 +40,9 @@ __all__ = [
     "WorkflowGraphError",
     "advance",
     "derive_index",
+    "diff_definitions",
     "resume_function",
+    "simulate",
     "validate_graph",
     "validate_publishable",
 ]
