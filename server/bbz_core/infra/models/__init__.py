@@ -50,6 +50,14 @@ from bbz_core.infra.models.workflow import (
     WorkflowTemplate,
     WorkflowTemplateVersion,
 )
+from bbz_core.infra.models.workflow_runtime import (
+    WorkflowDecision,
+    WorkflowInstance,
+    WorkflowInstanceStatus,
+    WorkflowTaskResult,
+    WorkflowToken,
+    WorkflowTokenState,
+)
 
 __all__ = [
     "AuditEvent",
@@ -84,9 +92,15 @@ __all__ = [
     "UserPresence",
     "UserRole",
     "UserStatus",
+    "WorkflowDecision",
     "WorkflowGraphEdge",
     "WorkflowGraphNode",
+    "WorkflowInstance",
+    "WorkflowInstanceStatus",
     "WorkflowLifecycle",
+    "WorkflowTaskResult",
     "WorkflowTemplate",
     "WorkflowTemplateVersion",
+    "WorkflowToken",
+    "WorkflowTokenState",
 ]

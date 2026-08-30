@@ -225,7 +225,7 @@ dispatcher, singleton runner), `infra/outbox.py`, `infra/inbox.py`,
 (code carries `TODO(E04-03)`); the code comments point at #66/E04-10 — do it
 alongside E23 hardening.
 
-### Epic 05 – EPK Workflow Engine: **in progress (4/9)**
+### Epic 05 – EPK Workflow Engine: **in progress (5/9)**
 #68 (E05-01) `bbz_rule_dsl.evaluate()` implemented — total, side-effect-free,
 deterministic predicate over a typed `Context`. Operators
 `eq/ne/in/not_in/lt/lte/gt/gte/and/or/not/exists`; type mismatch / bad arity /
@@ -260,8 +260,18 @@ workflow.graph`: `validate_graph()` (schema + unique keys + edge endpoints +
 `infra.repositories.workflow_graph.rebuild_graph_index()` replaces a version's
 index rows in the caller's TX (idempotent).
 
-**Next:** #72 (E05-05) DB schema `workflow_instances` / `tokens` /
-`task_results` / `decisions`. See `.ai/ROADMAP.md` Epic 05.
+#72 (E05-05) runtime schema (migration 0019, `bbz_core.infra.models.
+workflow_runtime`): `workflow_instances` (event_id, template_version_id
+RESTRICT, status), `workflow_tokens` (node_key, state active/waiting/consumed),
+`workflow_task_results` (result jsonb, completed_by/at), `workflow_decisions`
+(connector_node_key, chosen_branches, auto). A `BEFORE INSERT` trigger on
+`workflow_instances` rejects a `template_version_id` whose version isn't
+`published`. One event may have many instances (no unique on event_id).
+
+**Next:** #73 (E05-06) publish validation — start behaviour, reachable end
+paths, no orphans, split/join cardinality, XOR resolvable, OR trackable,
+required props, integration-action capability refs; `WORKFLOW_TEMPLATE_VALIDATED`
+audit. See `.ai/ROADMAP.md` Epic 05.
 
 ## Existing reference
 A functional HTML mockup defines important UX/feature behavior. **It is not yet in
