@@ -668,7 +668,7 @@ All issues need Node/Electron; skipped like Epic 07.
 **Epic 10: 3/16 doable here (E10-01/02/14).** E10-03+ (enrollment, command bus,
 agent, UI) need the Go toolchain / identity lib.
 
-### Epic 11 – Telephony Core: **in progress (6/16)**
+### Epic 11 – Telephony Core: **in progress (7/16)**
 - **#197 (E11-01) telephony core schema** — migration 0026 + `telephony.py`:
   `lines` (provider+external_id unique, state CHECK), `calls` (`bbz_call_id`
   unique + **independent of** `source_call_id`; `direction`/`state` CHECK — the
@@ -733,8 +733,16 @@ agent, UI) need the Go toolchain / identity lib.
   Transfer needs a non-empty destination (422); a call with no `source_call_id`
   yet → 409. `test_call_control_api.py`.
 
-**Next:** E11-07 (line status API), E11-08 (priority sort), E11-09/10 (call
-documentation + hangup guard). Epic 07 / 08, #92,
+- **#209 (E11-07) line status API** — `LineStatusService`
+  (`infra/repositories/line_status.py`, run alongside the call lifecycle from the
+  same dispatch hook) upserts the `lines` row from `LINE_IN_SERVICE` /
+  `LINE_OUT_OF_SERVICE` events and appends a `LINE_*` domain event (schema +
+  catalog; not audited) on a real change only. `GET /api/v1/lines`
+  (`calls.view`, optional `?provider=`). `test_line_status_api.py`.
+
+**Next:** E11-08 is **blocked** (caller resolution needs Epic 14 contacts).
+E11-09 (mandatory call documentation), E11-10 (hangup guard). Epic 07 / 08,
+#92,
 the Go agents (09/10 impl) and the #429 browser E2E stay blocked on a
 Node / Go / multi-host session.
 
