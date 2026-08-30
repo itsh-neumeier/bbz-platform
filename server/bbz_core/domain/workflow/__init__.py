@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from bbz_core.domain.workflow.engine import (
+    DecisionMade,
     EngineResult,
     StepNotWaitingError,
     Token,
@@ -21,6 +22,7 @@ from bbz_core.domain.workflow.graph import (
 from bbz_core.domain.workflow.publish import ValidationIssue, validate_publishable
 
 __all__ = [
+    "DecisionMade",
     "DerivedGraph",
     "EngineResult",
     "GraphEdge",
