@@ -44,6 +44,8 @@ from bbz_core.infra.models.rbac import (
 )
 from bbz_core.infra.models.session import Session
 from bbz_core.infra.models.workflow import (
+    WorkflowGraphEdge,
+    WorkflowGraphNode,
     WorkflowLifecycle,
     WorkflowTemplate,
     WorkflowTemplateVersion,
@@ -82,6 +84,8 @@ __all__ = [
     "UserPresence",
     "UserRole",
     "UserStatus",
+    "WorkflowGraphEdge",
+    "WorkflowGraphNode",
     "WorkflowLifecycle",
     "WorkflowTemplate",
     "WorkflowTemplateVersion",
