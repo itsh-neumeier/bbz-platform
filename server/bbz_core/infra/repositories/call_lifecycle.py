@@ -160,6 +160,9 @@ class CallLifecycleService:
 
 def register_call_dispatch() -> None:
     async def _dispatch(session: AsyncSession, event: dict[str, Any]) -> None:
+        from bbz_core.infra.repositories.line_status import LineStatusService
+
         await CallLifecycleService(session).on_provider_event(event)
+        await LineStatusService(session).on_line_event(event)
 
     telephony_ingest.set_call_event_dispatch(_dispatch)

@@ -39,6 +39,8 @@ sub-schema under `properties.<EVENT_TYPE>`).
 | CALL_RINGING | call | bbz_call_id, direction, from, to | driven by a normalized provider event (E11-04); audited |
 | CALL_ANSWERED | call | bbz_call_id, direction, from, to | first connect only; audited |
 | CALL_ENDED | call | bbz_call_id, direction, from, to | call reached a terminal state; audited |
+| LINE_IN_SERVICE | line | provider, external_id, state | line status change (E11-07); not audited |
+| LINE_OUT_OF_SERVICE | line | provider, external_id, state | line outage (E11-07); not audited |
 
 ## Calls
 

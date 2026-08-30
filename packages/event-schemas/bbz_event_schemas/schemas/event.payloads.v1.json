@@ -93,7 +93,9 @@
     },
     "CALL_RINGING": { "$ref": "#/$defs/call_transition" },
     "CALL_ANSWERED": { "$ref": "#/$defs/call_transition" },
-    "CALL_ENDED": { "$ref": "#/$defs/call_transition" }
+    "CALL_ENDED": { "$ref": "#/$defs/call_transition" },
+    "LINE_IN_SERVICE": { "$ref": "#/$defs/line_state" },
+    "LINE_OUT_OF_SERVICE": { "$ref": "#/$defs/line_state" }
   },
   "$defs": {
     "call_transition": {
@@ -107,6 +109,16 @@
         "line_id": { "type": ["string", "null"] },
         "from": { "type": "string" },
         "to": { "type": "string" }
+      }
+    },
+    "line_state": {
+      "type": "object",
+      "required": ["provider", "external_id", "state"],
+      "additionalProperties": true,
+      "properties": {
+        "provider": { "type": "string", "minLength": 1 },
+        "external_id": { "type": "string", "minLength": 1 },
+        "state": { "enum": ["in_service", "out_of_service", "unknown"] }
       }
     },
     "transition": {
