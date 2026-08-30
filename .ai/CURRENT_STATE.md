@@ -381,7 +381,7 @@ if an instance is pinned) / `simulate_version` / `version_diff`, each audited
 
 **Epic 05 COMPLETE (13/13).**
 
-### Epic 06 – HA Cluster: **in progress (8/14)**
+### Epic 06 – HA Cluster: **in progress (9/14)**
 #81 (E06-01) per-node deployment topology. `deploy/node/` — the full stack for
 one BBZ server (`name: bbz-node`): api / web / PostgreSQL+Patroni (Spilo) /
 an etcd member / Caddy reverse proxy, with `.env.example`, file-based
@@ -477,8 +477,21 @@ verify, replace a failed witness). CI now asserts `docker compose config
 --services` on the quorum profile is exactly `etcd`;
 `test_deploy_topology.py` checks the hardening flags + the docs exist.
 
-**Next:** #90 (E06-09) rolling-update mechanism (SRV02 → health → SRV01). See
-`.ai/ROADMAP.md` Epic 06 (14 issues: #81, #82, #84–#95).
+#91 (E06-10) migration strategy — expand/contract (done before #90 as its
+dependency). `docs/CONVENTIONS.md` gains the expand → migrate-data → contract
+convention + a migration-review checklist; a migration marks its phase in the
+docstring (`expand-contract: contract` / `: safe`).
+`server/tests/test_migration_safety.py` parses every migration's `upgrade()`
+via `ast` and fails on a destructive op (`drop_column/table/constraint`,
+`alter_column(nullable=False)`, destructive `op.execute` SQL) without a
+marker; it also checks `revision == filename stem`. New CI job
+**`migration-compat`**: migrate a fresh DB to the new head, install the
+**previous** app version (base sha, own venv), then run
+`tools/check_migration_compat.py` — for every table the old ORM maps, a
+`SELECT` of all its columns must still succeed (catches drop/rename).
+
+**Next:** #90 (E06-09) rolling-update script + runbook (SRV02 → health → SRV01,
+pre-flight, rollback). See `.ai/ROADMAP.md` Epic 06 (14 issues: #81, #82, #84–#95).
 
 ## Existing reference
 A functional HTML mockup defines important UX/feature behavior. **It is not yet in

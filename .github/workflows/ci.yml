@@ -53,6 +53,47 @@ jobs:
           alembic downgrade base
           alembic upgrade head
 
+  migration-compat:
+    name: migration compat (N-1 app × N schema)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: bbz
+          POSTGRES_PASSWORD: bbz
+          POSTGRES_DB: bbz
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U bbz"
+          --health-interval 5s --health-timeout 3s --health-retries 10
+    env:
+      BBZ_ENVIRONMENT: ci
+      BBZ_DATABASE_URL: postgresql+asyncpg://bbz:bbz@localhost:5432/bbz
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+      - name: Migrate a fresh DB to the new head
+        run: |
+          python -m pip install --upgrade pip
+          pip install ./packages/integration-sdk ./packages/rule-dsl ./packages/event-schemas ./server
+          (cd server && alembic upgrade head)
+      - name: Install the previous app version in its own venv
+        run: |
+          BASE="${{ github.event.pull_request.base.sha || 'HEAD^' }}"
+          git worktree add ../prev "$BASE"
+          python -m venv /tmp/prev
+          /tmp/prev/bin/pip install --quiet --upgrade pip
+          /tmp/prev/bin/pip install --quiet \
+            ../prev/packages/integration-sdk ../prev/packages/rule-dsl \
+            ../prev/packages/event-schemas ../prev/server
+      - name: The previous app version must still read the new schema
+        run: /tmp/prev/bin/python tools/check_migration_compat.py
+
   frontend:
     name: frontend (lint · type · unit)
     runs-on: ubuntu-latest
