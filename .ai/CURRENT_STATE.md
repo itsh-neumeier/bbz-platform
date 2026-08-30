@@ -668,7 +668,7 @@ All issues need Node/Electron; skipped like Epic 07.
 **Epic 10: 3/16 doable here (E10-01/02/14).** E10-03+ (enrollment, command bus,
 agent, UI) need the Go toolchain / identity lib.
 
-### Epic 11 – Telephony Core: **in progress (8/16)**
+### Epic 11 – Telephony Core: **in progress (9/16)**
 - **#197 (E11-01) telephony core schema** — migration 0026 + `telephony.py`:
   `lines` (provider+external_id unique, state CHECK), `calls` (`bbz_call_id`
   unique + **independent of** `source_call_id`; `direction`/`state` CHECK — the
@@ -748,8 +748,19 @@ agent, UI) need the Go toolchain / identity lib.
   silently. `GET /calls/{id}/documentation` (`calls.view`).
   `test_call_documentation_api.py`.
 
+- **#215 (E11-10) hangup guard** — `POST /calls/{id}/hangup` without a
+  documentation category leaves the call in `ended_pending_documentation` (the
+  connection is down but the call is *not* closed — no `CALL_ENDED` yet).
+  `_control` gained a `finalize` hook that runs in the state transaction;
+  `_finalize_ended` appends + audits `CALL_ENDED` once. `PUT
+  /calls/{id}/documentation` with a category on a pending call closes it
+  (`CALL_DOCUMENTED` then `CALL_ENDED`, state `disconnected`). Hangup with a
+  category already set closes immediately. `GET /calls/pending-documentation`
+  (`calls.document`) lists the open obligations, oldest first. No bypass —
+  server-enforced. `test_call_hangup_guard_api.py`.
+
 **Next:** E11-08 is **blocked** (caller resolution needs Epic 14 contacts).
-E11-10 (hangup guard — `ended_pending_documentation`). Epic 07 / 08, #92,
+E11-11 (call-history API), E11-12 (ringing-call list). Epic 07 / 08, #92,
 the Go agents (09/10 impl) and the #429 browser E2E stay blocked on a
 Node / Go / multi-host session.
 
