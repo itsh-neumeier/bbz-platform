@@ -90,9 +90,25 @@
         "body": { "type": "string", "minLength": 1 },
         "actor_id": { "type": "string" }
       }
-    }
+    },
+    "CALL_RINGING": { "$ref": "#/$defs/call_transition" },
+    "CALL_ANSWERED": { "$ref": "#/$defs/call_transition" },
+    "CALL_ENDED": { "$ref": "#/$defs/call_transition" }
   },
   "$defs": {
+    "call_transition": {
+      "type": "object",
+      "required": ["bbz_call_id", "direction", "from", "to"],
+      "additionalProperties": true,
+      "properties": {
+        "bbz_call_id": { "type": "string", "minLength": 1 },
+        "source_call_id": { "type": ["string", "null"] },
+        "direction": { "enum": ["inbound", "outbound"] },
+        "line_id": { "type": ["string", "null"] },
+        "from": { "type": "string" },
+        "to": { "type": "string" }
+      }
+    },
     "transition": {
       "type": "object",
       "required": ["from", "to", "actor_id"],
