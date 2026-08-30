@@ -15,6 +15,7 @@ from collections.abc import Awaitable, Callable
 
 from fastapi import APIRouter, Depends, status
 from pydantic import BaseModel, ConfigDict, Field
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from bbz_core.api.authz import require
@@ -24,7 +25,12 @@ from bbz_core.api.idempotency import CommandEnvelope, command_envelope
 from bbz_core.audit import AuditAction, AuditService
 from bbz_core.infra.event_log import append_event
 from bbz_core.infra.idempotency import idempotent, request_hash
-from bbz_core.infra.models.telephony import Call, CallCategory, CallDocumentation
+from bbz_core.infra.models.telephony import (
+    Call,
+    CallCategory,
+    CallDocumentation,
+    CallState,
+)
 from bbz_core.integrations_host.providers import NoActiveProvider, active_telephony_provider
 
 router = APIRouter(prefix="/calls", tags=["calls"])
@@ -64,6 +70,45 @@ async def _provider() -> object:
         raise ConflictError(f"telephony is not available: {exc}") from exc
 
 
+_FINAL_STATES = {CallState.DISCONNECTED.value, CallState.FAILED.value}
+
+
+async def _finalize_ended(session: AsyncSession, call: Call, *, actor_id: uuid.UUID | None) -> None:
+    """Move a call to ``disconnected`` and append + audit ``CALL_ENDED`` once
+    (the hangup guard, E11-10). No-op if the call is already final."""
+    if call.state in _FINAL_STATES:
+        return
+    from_state = call.state
+    call.state = CallState.DISCONNECTED.value
+    if call.ended_at is None:
+        call.ended_at = _dt.datetime.now(_dt.UTC)
+    seq = await append_event(
+        session,
+        aggregate_type="call",
+        aggregate_id=call.id,
+        event_type="CALL_ENDED",
+        payload={
+            "bbz_call_id": call.bbz_call_id,
+            "source_call_id": call.source_call_id,
+            "direction": call.direction,
+            "from": from_state,
+            "to": CallState.DISCONNECTED.value,
+        },
+        user_id=actor_id,
+    )
+    await AuditService(session).write(
+        AuditAction.CALL_ENDED,
+        actor_user_id=actor_id,
+        target_type="call",
+        target_id=str(call.id),
+        after={"bbz_call_id": call.bbz_call_id, "from": from_state, "to": "disconnected"},
+        event_seq_ref=seq,
+    )
+
+
+_Finalize = Callable[[AsyncSession, Call], Awaitable[str | None]]
+
+
 async def _control(
     *,
     call_id: uuid.UUID,
@@ -72,6 +117,7 @@ async def _control(
     ctx: AuthContext,
     env: CommandEnvelope,
     session: AsyncSession,
+    finalize: _Finalize | None = None,
 ) -> ControlOut:
     rhash = request_hash({"call_id": str(call_id), "action": action})
     async with idempotent(
@@ -96,7 +142,12 @@ async def _control(
         accepted, detail, _ = _ack_fields(ack)
 
         await session.rollback()
+        note = detail
         async with session.begin():
+            fresh = await session.get(Call, call_id)
+            assert fresh is not None
+            if finalize is not None:
+                note = await finalize(session, fresh) or detail
             await AuditService(session).write(
                 AuditAction.CALL_CONTROL_ACTION,
                 actor_user_id=ctx.user_id,
@@ -106,10 +157,10 @@ async def _control(
                     "action": action,
                     "bbz_call_id": bbz_call_id,
                     "accepted": accepted,
-                    "detail": detail,
+                    "detail": note,
                 },
             )
-        out = ControlOut(call_id=call_id, action=action, accepted=accepted, detail=detail)
+        out = ControlOut(call_id=call_id, action=action, accepted=accepted, detail=note)
         slot.set_result(status.HTTP_200_OK, out.model_dump(mode="json"))
         return out
 
@@ -138,6 +189,20 @@ async def hangup_call(
     env: CommandEnvelope = Depends(command_envelope),
     session: AsyncSession = Depends(db_session),
 ) -> ControlOut:
+    """Hang up. The connection ends, but the call is only **closed** once it has a
+    documentation category — until then it sits in ``ended_pending_documentation``
+    and shows up in ``GET /calls/pending-documentation`` (E11-10, §13.10)."""
+
+    async def _guard(sess: AsyncSession, call: Call) -> str | None:
+        doc = await sess.get(CallDocumentation, call.id)
+        if doc is not None and doc.mandatory_done:
+            await _finalize_ended(sess, call, actor_id=ctx.user_id)
+            return "closed"
+        call.state = CallState.ENDED_PENDING_DOCUMENTATION.value
+        if call.ended_at is None:
+            call.ended_at = _dt.datetime.now(_dt.UTC)
+        return "pending documentation"
+
     return await _control(
         call_id=call_id,
         action="hangup",
@@ -145,6 +210,7 @@ async def hangup_call(
         ctx=ctx,
         env=env,
         session=session,
+        finalize=_guard,
     )
 
 
@@ -329,6 +395,9 @@ async def put_documentation(
                 after={"category": doc.category, "has_free_text": free_text is not None},
                 event_seq_ref=seq,
             )
+            # the call was hung up and only waiting on this category (E11-10)
+            if call.state == CallState.ENDED_PENDING_DOCUMENTATION.value:
+                await _finalize_ended(session, call, actor_id=ctx.user_id)
         await session.flush()
         return _doc_out(call_id, doc)
 
@@ -352,3 +421,45 @@ async def get_documentation(
             mandatory_done=False,
         )
     return _doc_out(call_id, doc)
+
+
+class PendingDocItem(BaseModel):
+    call_id: uuid.UUID
+    bbz_call_id: str
+    direction: str
+    ended_at: _dt.datetime | None
+
+
+class PendingDocOut(BaseModel):
+    calls: list[PendingDocItem]
+
+
+@router.get("/pending-documentation", response_model=PendingDocOut)
+async def pending_documentation(
+    _: AuthContext = Depends(require("calls.document")),
+    session: AsyncSession = Depends(db_session),
+) -> PendingDocOut:
+    """Calls that were hung up without a documentation category — the open
+    obligations (E11-10). Oldest first."""
+    rows = (
+        (
+            await session.execute(
+                select(Call)
+                .where(Call.state == CallState.ENDED_PENDING_DOCUMENTATION.value)
+                .order_by(Call.ended_at.asc())
+            )
+        )
+        .scalars()
+        .all()
+    )
+    return PendingDocOut(
+        calls=[
+            PendingDocItem(
+                call_id=c.id,
+                bbz_call_id=c.bbz_call_id,
+                direction=c.direction,
+                ended_at=c.ended_at,
+            )
+            for c in rows
+        ]
+    )
