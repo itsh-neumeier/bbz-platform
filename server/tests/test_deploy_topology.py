@@ -86,3 +86,52 @@ def test_env_examples_exist_and_no_real_env_is_committed() -> None:
     for base in (_NODE, _QUORUM):
         assert (base / ".env.example").read_text(encoding="utf-8").strip()
         assert not (base / ".env").exists()
+
+
+# --- E06-02: Patroni replication + failover config (ADR-0021) ---------------
+
+_PATRONI = _NODE / "patroni" / "patroni.node.yml"
+_ADR_0021 = _ROOT / ".ai" / "DECISIONS" / "ADR-0021-POSTGRESQL-REPLICATION-MODE.md"
+
+
+def _patroni_raw() -> str:
+    # the file carries ${ENV} placeholders, so read it as text
+    return _PATRONI.read_text(encoding="utf-8")
+
+
+def test_patroni_uses_synchronous_replication_with_fallback() -> None:
+    text = _patroni_raw()
+    assert "synchronous_mode: true" in text
+    assert "synchronous_mode_strict: false" in text  # a lone primary stays writable
+    assert "maximum_lag_on_failover:" in text  # a laggy standby is never promoted
+    assert "namespace: /patroni/" in text  # ADR-0018 key-prefix split
+    assert "use_pg_rewind: true" in text  # demoted primary rejoins without a base backup
+
+
+def test_patroni_defines_a_failover_timing_budget() -> None:
+    text = _patroni_raw()
+    for key in ("ttl:", "loop_wait:", "retry_timeout:", "master_start_timeout:"):
+        assert key in text, key
+
+
+def test_replication_and_superuser_credentials_are_separate_secrets() -> None:
+    c = _compose(_NODE / "docker-compose.yml")
+    pg_secrets = set(c["services"]["postgres"]["secrets"])
+    assert {"postgres_superuser_password", "postgres_replication_password"} <= pg_secrets
+    text = _patroni_raw()
+    assert "username: postgres" in text and "username: standby" in text
+
+
+def test_adr_0021_is_accepted_and_indexed() -> None:
+    adr = _ADR_0021.read_text(encoding="utf-8")
+    assert "# ADR-0021:" in adr
+    status = adr.split("## Status", 1)[1].split("##", 1)[0]
+    assert status.strip().splitlines()[0].strip() == "Accepted"
+    index = (_ROOT / "docs" / "adr" / "README.md").read_text(encoding="utf-8")
+    assert "| 0021 |" in index and "Accepted |" in index.split("| 0021 |", 1)[1].splitlines()[0]
+
+
+def test_db_failover_runbook_points_at_adr_0021() -> None:
+    rb = (_ROOT / "docs" / "runbooks" / "db-failover.md").read_text(encoding="utf-8")
+    assert "ADR-0021" in rb
+    assert "RTO" in rb and "RPO" in rb

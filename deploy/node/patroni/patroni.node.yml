@@ -1,36 +1,50 @@
-# Patroni per-node configuration TEMPLATE (ADR-0001, ADR-0018).
+# Patroni per-node configuration (ADR-0001, ADR-0018, ADR-0021).
 #
-# E06-01 wires this into the node topology. The replication mode (sync vs
-# async), failover/switchover rules and PostgreSQL tuning are decided and
-# filled in by E06-02 (#82) together with ADR-0021.
+# This file is the source of truth for the deployment's replication and
+# failover behaviour. The compose service merges it into Spilo's generated
+# config via SPILO_CONFIGURATION. After bootstrap, DCS values live in etcd and
+# are changed with `patronictl edit-config` (never by editing this file on a
+# running cluster).
 #
-# Spilo reads /etc/patroni.node.yml when PATRONI_CONFIGURATION points here;
-# most values below are also settable via PATRONI_* env vars.
+# Decision (ADR-0021): synchronous replication with automatic fallback —
+# no acknowledged write is lost while a standby is caught up; if the sole
+# standby fails the primary degrades to async (logged) rather than blocking,
+# because a Leitstelle must stay writable. Failover only promotes a node
+# within `maximum_lag_on_failover` bytes; the async window is reconciled via
+# WAL / event_seq catch-up (ADR-0001).
 
 scope: bbz
-namespace: /patroni/          # Patroni owns the /patroni prefix; the app uses /bbz (ADR-0018)
+namespace: /patroni/          # Patroni owns /patroni; the app uses /bbz (ADR-0018)
 name: ${PATRONI_NAME}
 
 restapi:
   listen: 0.0.0.0:8008
+  connect_address: ${PATRONI_RESTAPI_CONNECT_ADDRESS}
 
 etcd3:
   hosts: ${ETCD3_HOSTS}
 
 bootstrap:
   dcs:
-    ttl: 30
-    loop_wait: 10
-    retry_timeout: 10
-    maximum_lag_on_failover: 1048576
-    # synchronous_mode: decided in E06-02 / ADR-0021
+    ttl: 30                    # leader lease — primary is declared dead after this
+    loop_wait: 10             # Patroni health loop
+    retry_timeout: 10         # DCS / PostgreSQL operation retry budget
+    master_start_timeout: 300
+    maximum_lag_on_failover: 1048576   # 1 MiB — a laggier standby is never promoted
+    synchronous_mode: true            # zero-RPO while a standby is in sync
+    synchronous_mode_strict: false    # ...but a lone primary keeps accepting writes
+    synchronous_node_count: 1
     postgresql:
       use_pg_rewind: true
+      use_slots: true
       parameters:
         wal_level: replica
         hot_standby: "on"
+        synchronous_commit: "on"
         max_wal_senders: 10
         max_replication_slots: 10
+        wal_keep_size: 1024
+        wal_log_hints: "on"
   initdb:
     - encoding: UTF8
     - data-checksums
@@ -40,9 +54,12 @@ postgresql:
   connect_address: ${PATRONI_POSTGRESQL_CONNECT_ADDRESS}
   authentication:
     superuser:
-      username: postgres
+      username: postgres        # PATRONI_SUPERUSER_PASSWORD from the secret file
     replication:
-      username: standby
+      username: standby         # PATRONI_REPLICATION_PASSWORD from the secret file
+  parameters:
+    # kept in sync with bootstrap.dcs.postgresql.parameters so a rebuild matches
+    synchronous_commit: "on"
 
 tags:
   nofailover: false

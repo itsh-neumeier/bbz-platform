@@ -32,6 +32,8 @@ class AuditAction(enum.StrEnum):
     WORKFLOW_TEMPLATE_CREATED = "WORKFLOW_TEMPLATE_CREATED"
     WORKFLOW_TEMPLATE_UPDATED = "WORKFLOW_TEMPLATE_UPDATED"
     WORKFLOW_SIMULATED = "WORKFLOW_SIMULATED"
+    #: leader-key change observed by the cluster watcher (emitter: E06-04 / #85).
+    DB_FAILOVER = "DB_FAILOVER"
 
 
 #: Actions that MUST be emitted from a write path (MASTER_PROMPT §17). A missing
