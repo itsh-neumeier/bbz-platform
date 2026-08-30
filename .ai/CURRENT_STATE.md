@@ -668,7 +668,7 @@ All issues need Node/Electron; skipped like Epic 07.
 **Epic 10: 3/16 doable here (E10-01/02/14).** E10-03+ (enrollment, command bus,
 agent, UI) need the Go toolchain / identity lib.
 
-### Epic 11 – Telephony Core: **in progress (5/16)**
+### Epic 11 – Telephony Core: **in progress (6/16)**
 - **#197 (E11-01) telephony core schema** — migration 0026 + `telephony.py`:
   `lines` (provider+external_id unique, state CHECK), `calls` (`bbz_call_id`
   unique + **independent of** `source_call_id`; `direction`/`state` CHECK — the
@@ -721,8 +721,20 @@ agent, UI) need the Go toolchain / identity lib.
   Commands idempotent on `command_id`. Manifest capabilities + config
   (`directory`) expanded. `integrations/telephony_mock/tests/test_mock_provider.py`.
 
-**Next:** E11-06 (call control API — needs a loaded active provider in the
-host). Epic 07 / 08, #92,
+- **#207 (E11-06) call control API** — `bbz_core/integrations_host/providers.py`
+  loads an adapter **dynamically** (`importlib`, so no static `bbz_core →
+  integrations` import) and caches the active telephony provider as a process
+  singleton (`active_telephony_provider()`, `reset_provider_cache()` for tests;
+  setting `telephony_integration_id` = `telephony_mock`). `api/v1/calls.py`:
+  `POST /calls/{id}/answer|hangup|hold|resume|transfer` + `POST /calls/dial`,
+  each `require("calls.<verb>")` (resume shares `calls.hold`), command-envelope
+  idempotent (a repeated `X-Command-Id` replays and never re-hits the provider),
+  audited `CALL_CONTROL_ACTION` (new `AuditAction` + `CRITICAL_ACTIONS`).
+  Transfer needs a non-empty destination (422); a call with no `source_call_id`
+  yet → 409. `test_call_control_api.py`.
+
+**Next:** E11-07 (line status API), E11-08 (priority sort), E11-09/10 (call
+documentation + hangup guard). Epic 07 / 08, #92,
 the Go agents (09/10 impl) and the #429 browser E2E stay blocked on a
 Node / Go / multi-host session.
 

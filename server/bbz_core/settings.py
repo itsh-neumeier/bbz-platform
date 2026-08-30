@@ -104,6 +104,9 @@ class Settings(BaseSettings):
     # --- events: export (E20-06). JSON is always available; PDF is opt-in. ---
     export_pdf_enabled: bool = False
 
+    # --- telephony (E11-06). Which telephony integration handles call control. ---
+    telephony_integration_id: str = "telephony_mock"
+
     # --- retention (E20-07, docs/domain/retention-policy.md). Windows for
     # *derived / non-essential* data only. Events, domain events, audit and the
     # event history tables are NEVER pruned (0 would be meaningless there). ---
