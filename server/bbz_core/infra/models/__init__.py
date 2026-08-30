@@ -22,6 +22,12 @@ from bbz_core.infra.models.bku_agent import (
     BkuCommandType,
 )
 from bbz_core.infra.models.commands import Command
+from bbz_core.infra.models.contacts import (
+    Contact,
+    ContactNumber,
+    ContactPriority,
+    ContactPriorityLevel,
+)
 from bbz_core.infra.models.domain_events import DomainEvent
 from bbz_core.infra.models.events import (
     Event,
@@ -103,6 +109,10 @@ __all__ = [
     "CallParticipant",
     "CallState",
     "Command",
+    "Contact",
+    "ContactNumber",
+    "ContactPriority",
+    "ContactPriorityLevel",
     "DomainEvent",
     "Event",
     "EventAssignment",
