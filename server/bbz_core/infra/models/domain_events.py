@@ -17,7 +17,7 @@ from sqlalchemy import BigInteger, Identity, Integer, String, text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
-from bbz_core.infra.models.base import Base
+from bbz_core.infra.models.base import Base, make_append_only
 
 
 class DomainEvent(Base):
@@ -39,3 +39,7 @@ class DomainEvent(Base):
     correlation_id: Mapped[str | None] = mapped_column(String(64), index=True)
     schema_version: Mapped[int] = mapped_column(Integer, server_default=text("1"))
     payload: Mapped[dict[str, Any]] = mapped_column(JSONB)
+
+
+# ADR-0020: the event log is append-only at the database level (see also E04-01).
+make_append_only(DomainEvent.__table__)

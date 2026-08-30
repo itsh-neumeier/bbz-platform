@@ -129,7 +129,7 @@ accept/acknowledge/open · PATCH · assign · takeover · archive/reactivate ·
 notes · GET list/`?queue=active`/`{id}`/`{id}/export`/`priority-alert`/`stream`.
 WS at `/ws/events`.
 
-### Epic 04 – Audit / Domain Events: **in progress (9/11)**
+### Epic 04 – Audit / Domain Events: **in progress (10/11)**
 #57 (E04-01) `audit_events` schema review — added `event_seq_ref` BIGINT
 (nullable, no FK; migration 0013) linking an audit row to its domain event;
 ORM `before_update` / `before_delete` listeners raise `AuditImmutableError`
@@ -201,9 +201,17 @@ integration test asserts one shared `correlation_id` across
 `domain_events` + `audit_events` + `external_action_outbox` for both a
 supplied and a server-generated id.
 
-**Next:** RBAC/user critical-action audit wiring (deferred from #59), #66
-(E04-10) audit-immutability DB grant + ADR-0020, #67 (E04-11) replay/catch-up
-consistency tests. See `.ai/ROADMAP.md` Epic 04.
+#66 (E04-10) audit immutability at the DB level — **ADR-0020** (Proposed):
+`audit_events` / `domain_events` get a `BEFORE UPDATE OR DELETE` trigger
+(`bbz_forbid_row_mutation`) that always `RAISE EXCEPTION`. Created both by a
+SQLAlchemy `after_create` DDL hook (`make_append_only` in `models/base.py`, so
+`create_all` in tests/dev matches) and by migration 0016 for provisioned DBs.
+`DROP TABLE` (DDL) is unaffected. Hash-chain deferred (ADR-0020 rationale).
+Tests: raw SQL UPDATE/DELETE on both tables → `DBAPIError`, INSERT still works.
+
+**Next:** RBAC/user critical-action audit wiring (deferred from #59), #67
+(E04-11) replay/catch-up consistency tests — closes Epic 04. See
+`.ai/ROADMAP.md`.
 
 ## Existing reference
 A functional HTML mockup defines important UX/feature behavior. **It is not yet in
