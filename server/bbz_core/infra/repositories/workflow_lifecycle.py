@@ -17,12 +17,24 @@ import uuid
 from collections.abc import Iterable
 from typing import Any
 
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
+from sqlalchemy.exc import DBAPIError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from bbz_core.audit import AuditAction, AuditService
-from bbz_core.domain.workflow import ValidationIssue, validate_publishable
-from bbz_core.infra.models.workflow import WorkflowLifecycle, WorkflowTemplateVersion
+from bbz_core.domain.workflow import (
+    SimulationReport,
+    ValidationIssue,
+    diff_definitions,
+    simulate,
+    validate_publishable,
+)
+from bbz_core.infra.models.workflow import (
+    WorkflowLifecycle,
+    WorkflowTemplate,
+    WorkflowTemplateVersion,
+)
+from bbz_core.infra.models.workflow_runtime import WorkflowInstance
 from bbz_core.infra.repositories.workflow_graph import rebuild_graph_index
 
 
@@ -46,6 +58,18 @@ class ChangelogRequiredError(WorkflowLifecycleError):
     pass
 
 
+class TemplateKeyExistsError(WorkflowLifecycleError):
+    pass
+
+
+class TemplateNotFoundError(WorkflowLifecycleError):
+    pass
+
+
+class VersionInUseError(WorkflowLifecycleError):
+    """A draft version cannot be deleted while an instance is pinned to it."""
+
+
 class GraphNotPublishableError(WorkflowLifecycleError):
     def __init__(self, issues: list[ValidationIssue]) -> None:
         super().__init__(f"{len(issues)} validation issue(s)")
@@ -62,12 +86,37 @@ class WorkflowLifecycleService:
             raise VersionNotFoundError(str(version_id))
         return row
 
+    async def create_template(
+        self, *, key: str, name: str, actor_id: uuid.UUID | None
+    ) -> WorkflowTemplate:
+        tpl = WorkflowTemplate(key=key, name=name, owner_id=actor_id)
+        self._s.add(tpl)
+        try:
+            await self._s.flush()
+        except DBAPIError as exc:
+            raise TemplateKeyExistsError(key) from exc
+        await self._audit_template(AuditAction.WORKFLOW_TEMPLATE_CREATED, tpl, actor_id)
+        await self._s.commit()
+        return tpl
+
+    async def rename_template(
+        self, template_id: uuid.UUID, *, name: str, actor_id: uuid.UUID | None
+    ) -> WorkflowTemplate:
+        tpl = await self._s.get(WorkflowTemplate, template_id)
+        if tpl is None:
+            raise TemplateNotFoundError(str(template_id))
+        tpl.name = name
+        await self._audit_template(AuditAction.WORKFLOW_TEMPLATE_UPDATED, tpl, actor_id)
+        await self._s.commit()
+        return tpl
+
     async def create_draft_version(
         self,
         template_id: uuid.UUID,
         *,
         definition: dict[str, Any],
         changelog: str | None = None,
+        actor_id: uuid.UUID | None = None,
     ) -> WorkflowTemplateVersion:
         next_no = (
             await self._s.execute(
@@ -84,17 +133,81 @@ class WorkflowLifecycleService:
             changelog=changelog,
         )
         self._s.add(row)
+        await self._s.flush()
+        await self._audit(AuditAction.WORKFLOW_TEMPLATE_UPDATED, row, actor_id)
         await self._s.commit()
         return row
 
-    async def edit_draft(self, version_id: uuid.UUID, *, definition: dict[str, Any]) -> None:
+    async def edit_draft(
+        self,
+        version_id: uuid.UUID,
+        *,
+        definition: dict[str, Any],
+        changelog: str | None = None,
+        actor_id: uuid.UUID | None = None,
+    ) -> None:
         row = await self._require(version_id)
         if row.lifecycle != WorkflowLifecycle.DRAFT.value:
             raise InvalidTransitionError(
                 f"version is {row.lifecycle}; create a new draft version to change it"
             )
         row.definition = definition
+        if changelog is not None:
+            row.changelog = changelog
+        await self._audit(AuditAction.WORKFLOW_TEMPLATE_UPDATED, row, actor_id)
         await self._s.commit()
+
+    async def delete_draft_version(
+        self, version_id: uuid.UUID, *, actor_id: uuid.UUID | None = None
+    ) -> None:
+        row = await self._require(version_id)
+        if row.lifecycle != WorkflowLifecycle.DRAFT.value:
+            raise InvalidTransitionError(f"cannot delete a {row.lifecycle} version")
+        pinned = (
+            await self._s.execute(
+                select(WorkflowInstance.id)
+                .where(WorkflowInstance.template_version_id == version_id)
+                .limit(1)
+            )
+        ).first()
+        if pinned is not None:
+            raise VersionInUseError(str(version_id))
+        await self._audit(AuditAction.WORKFLOW_TEMPLATE_UPDATED, row, actor_id)
+        await self._s.execute(
+            delete(WorkflowTemplateVersion).where(WorkflowTemplateVersion.id == version_id)
+        )
+        await self._s.commit()
+
+    async def simulate_version(
+        self,
+        version_id: uuid.UUID,
+        *,
+        context: dict[str, Any] | None = None,
+        decisions: dict[str, list[str]] | None = None,
+        actor_id: uuid.UUID | None = None,
+    ) -> SimulationReport:
+        """Dry-run the version's graph — no real outbox rows, no side effects."""
+        row = await self._require(version_id)
+        report = simulate(row.definition, context=context, decisions=decisions)
+        await self._audit(AuditAction.WORKFLOW_SIMULATED, row, actor_id)
+        await self._s.commit()
+        return report
+
+    async def version_diff(self, version_id: uuid.UUID) -> dict[str, Any]:
+        """Structural diff of this version against the previous version_no."""
+        row = await self._require(version_id)
+        prev = (
+            await self._s.execute(
+                select(WorkflowTemplateVersion.definition)
+                .where(
+                    WorkflowTemplateVersion.template_id == row.template_id,
+                    WorkflowTemplateVersion.version_no < row.version_no,
+                )
+                .order_by(WorkflowTemplateVersion.version_no.desc())
+                .limit(1)
+            )
+        ).scalar_one_or_none()
+        return diff_definitions(prev, row.definition)
 
     async def validate(
         self,
@@ -153,7 +266,7 @@ class WorkflowLifecycleService:
         self,
         action: AuditAction,
         row: WorkflowTemplateVersion,
-        actor_id: uuid.UUID,
+        actor_id: uuid.UUID | None,
         *,
         reason: str | None = None,
     ) -> None:
@@ -168,4 +281,15 @@ class WorkflowLifecycleService:
                 "lifecycle": row.lifecycle,
             },
             reason=reason,
+        )
+
+    async def _audit_template(
+        self, action: AuditAction, tpl: WorkflowTemplate, actor_id: uuid.UUID | None
+    ) -> None:
+        await AuditService(self._s).write(
+            action,
+            actor_user_id=actor_id,
+            target_type="workflow_template",
+            target_id=str(tpl.id),
+            after={"key": tpl.key, "name": tpl.name},
         )

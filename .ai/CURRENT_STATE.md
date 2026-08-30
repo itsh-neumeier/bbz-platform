@@ -225,7 +225,7 @@ dispatcher, singleton runner), `infra/outbox.py`, `infra/inbox.py`,
 (code carries `TODO(E04-03)`); the code comments point at #66/E04-10 — do it
 alongside E23 hardening.
 
-### Epic 05 – EPK Workflow Engine: **in progress (12/13)**
+### Epic 05 – EPK Workflow Engine: **COMPLETE (13/13)**
 #68 (E05-01) `bbz_rule_dsl.evaluate()` implemented — total, side-effect-free,
 deterministic predicate over a typed `Context`. Operators
 `eq/ne/in/not_in/lt/lte/gt/gte/and/or/not/exists`; type mismatch / bad arity /
@@ -365,8 +365,23 @@ assignee** — responsibility stays on the whole event. `POST
 fresh view; out-of-order → 409, bad decision → 422, both idempotent.
 `resolve_event_instance` picks the running instance (else the latest).
 
-**Next:** #80 (E05-13) template-admin API — Draft-CRUD, changelog, simulation.
-See `.ai/ROADMAP.md` Epic 05 (13 issues, #68–#80).
+#80 (E05-13) template-admin API + simulation. `bbz_core.domain.workflow.
+simulate.simulate(definition, context=…, decisions=…)` — a pure in-memory
+dry-run driving the real engine: operator steps auto-complete, timers
+fast-forward, auto actions are recorded as **would-be** outbox rows (never
+enqueued), unresolved branches surface as `pending_decisions`. Report:
+`status` / `visited_nodes` / `steps` / `decisions` / `outbox_dry_run` /
+`pending_decisions` / `active_nodes`. `diff_definitions(before, after)` →
+structural node/edge diff (the basis of a changelog). `WorkflowLifecycleService`
+gained `create_template` / `rename_template` / `delete_draft_version` (refused
+if an instance is pinned) / `simulate_version` / `version_diff`, each audited
+(`WORKFLOW_TEMPLATE_CREATED` / `_UPDATED` / `WORKFLOW_SIMULATED`, all in
+`CRITICAL_ACTIONS`). API: `GET/PATCH /workflow-templates/{id}`, `DELETE
+/workflow-template-versions/{id}`, `POST .../{id}/simulate`, `GET .../{id}/diff`.
+
+**Epic 05 COMPLETE (13/13).** **Next:** the next open roadmap epic — check
+`.ai/ROADMAP.md` / `roadmap_state.json` (Epic 06 HA Cluster runs in parallel
+from Phase 2; otherwise continue in order).
 
 ## Existing reference
 A functional HTML mockup defines important UX/feature behavior. **It is not yet in

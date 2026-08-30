@@ -37,8 +37,13 @@ from bbz_core.infra.repositories.workflow_lifecycle import (
     ChangelogRequiredError,
     InvalidTransitionError,
     NotValidatedError,
+    TemplateKeyExistsError,
+    VersionInUseError,
     VersionNotFoundError,
     WorkflowLifecycleService,
+)
+from bbz_core.infra.repositories.workflow_lifecycle import (
+    TemplateNotFoundError as LifecycleTemplateNotFoundError,
 )
 
 router = APIRouter(tags=["workflows"])
@@ -56,6 +61,12 @@ def _translate() -> Iterator[None]:
         raise ConflictError(str(exc)) from exc
     except ChangelogRequiredError as exc:
         raise ValidationError(str(exc)) from exc
+    except LifecycleTemplateNotFoundError as exc:
+        raise NotFoundError("workflow template not found") from exc
+    except TemplateKeyExistsError as exc:
+        raise ConflictError(f"template key {exc} already exists") from exc
+    except VersionInUseError as exc:
+        raise ConflictError("a workflow instance is pinned to this version") from exc
     except DBAPIError as exc:
         if "published definition is immutable" in str(exc):
             raise ConflictError(
@@ -82,9 +93,21 @@ class VersionIn(BaseModel):
     changelog: str | None = Field(default=None, max_length=4000)
 
 
+class RenameTemplateIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    name: str = Field(min_length=1, max_length=200)
+
+
 class EditVersionIn(BaseModel):
     model_config = ConfigDict(extra="forbid")
     definition: dict[str, object]
+    changelog: str | None = Field(default=None, max_length=4000)
+
+
+class SimulateIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    context: dict[str, object] = Field(default_factory=dict)
+    decisions: dict[str, list[str]] = Field(default_factory=dict)
 
 
 class PublishIn(BaseModel):
@@ -135,14 +158,53 @@ async def list_templates(
 async def create_template(
     body: TemplateIn,
     ctx: AuthContext = Depends(require("workflows.manage_templates")),
-    session: AsyncSession = Depends(db_session),
+    svc: WorkflowLifecycleService = Depends(_svc),
 ) -> TemplateOut:
-    tpl = WorkflowTemplate(key=body.key, name=body.name, owner_id=ctx.user_id)
-    session.add(tpl)
-    try:
-        await session.commit()
-    except DBAPIError as exc:  # unique key
-        raise ConflictError(f"template key {body.key!r} already exists") from exc
+    with _translate():
+        tpl = await svc.create_template(key=body.key, name=body.name, actor_id=ctx.user_id)
+    return TemplateOut.model_validate(tpl, from_attributes=True)
+
+
+@router.get("/workflow-templates/{template_id}")
+async def get_template(
+    template_id: uuid.UUID,
+    _: AuthContext = Depends(require("workflows.view")),
+    session: AsyncSession = Depends(db_session),
+) -> dict[str, object]:
+    tpl = await session.get(WorkflowTemplate, template_id)
+    if tpl is None:
+        raise NotFoundError("workflow template not found")
+    versions = (
+        (
+            await session.execute(
+                select(WorkflowTemplateVersion)
+                .where(WorkflowTemplateVersion.template_id == template_id)
+                .order_by(WorkflowTemplateVersion.version_no)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    return {
+        "id": str(tpl.id),
+        "key": tpl.key,
+        "name": tpl.name,
+        "versions": [
+            {"id": str(v.id), "version_no": v.version_no, "lifecycle": v.lifecycle}
+            for v in versions
+        ],
+    }
+
+
+@router.patch("/workflow-templates/{template_id}", response_model=TemplateOut)
+async def rename_template(
+    template_id: uuid.UUID,
+    body: RenameTemplateIn,
+    ctx: AuthContext = Depends(require("workflows.manage_templates")),
+    svc: WorkflowLifecycleService = Depends(_svc),
+) -> TemplateOut:
+    with _translate():
+        tpl = await svc.rename_template(template_id, name=body.name, actor_id=ctx.user_id)
     return TemplateOut.model_validate(tpl, from_attributes=True)
 
 
@@ -154,14 +216,14 @@ async def create_template(
 async def create_version(
     template_id: uuid.UUID,
     body: VersionIn,
-    _: AuthContext = Depends(require("workflows.manage_templates")),
+    ctx: AuthContext = Depends(require("workflows.manage_templates")),
     svc: WorkflowLifecycleService = Depends(_svc),
     session: AsyncSession = Depends(db_session),
 ) -> VersionOut:
     if await session.get(WorkflowTemplate, template_id) is None:
         raise NotFoundError("workflow template not found")
     v = await svc.create_draft_version(
-        template_id, definition=body.definition, changelog=body.changelog
+        template_id, definition=body.definition, changelog=body.changelog, actor_id=ctx.user_id
     )
     return _version_out(v)
 
@@ -185,15 +247,66 @@ async def get_version(
 async def edit_version(
     version_id: uuid.UUID,
     body: EditVersionIn,
-    _: AuthContext = Depends(require("workflows.manage_templates")),
+    ctx: AuthContext = Depends(require("workflows.manage_templates")),
     svc: WorkflowLifecycleService = Depends(_svc),
     session: AsyncSession = Depends(db_session),
 ) -> VersionOut:
     with _translate():
-        await svc.edit_draft(version_id, definition=body.definition)
+        await svc.edit_draft(
+            version_id,
+            definition=body.definition,
+            changelog=body.changelog,
+            actor_id=ctx.user_id,
+        )
     v = await session.get(WorkflowTemplateVersion, version_id)
     assert v is not None
     return _version_out(v)
+
+
+@router.delete("/workflow-template-versions/{version_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_version(
+    version_id: uuid.UUID,
+    ctx: AuthContext = Depends(require("workflows.manage_templates")),
+    svc: WorkflowLifecycleService = Depends(_svc),
+) -> None:
+    with _translate():
+        await svc.delete_draft_version(version_id, actor_id=ctx.user_id)
+
+
+@router.post("/workflow-template-versions/{version_id}/simulate")
+async def simulate_version(
+    version_id: uuid.UUID,
+    body: SimulateIn,
+    ctx: AuthContext = Depends(require("workflows.manage_templates")),
+    svc: WorkflowLifecycleService = Depends(_svc),
+) -> dict[str, object]:
+    """Dry-run the graph with test inputs — no real outbox rows, no side effects."""
+    with _translate():
+        report = await svc.simulate_version(
+            version_id,
+            context=body.context,
+            decisions=body.decisions,
+            actor_id=ctx.user_id,
+        )
+    return {
+        "status": report.status,
+        "visited_nodes": report.visited_nodes,
+        "steps": report.steps,
+        "decisions": report.decisions,
+        "outbox_dry_run": report.outbox_dry_run,
+        "pending_decisions": report.pending_decisions,
+        "active_nodes": report.active_nodes,
+    }
+
+
+@router.get("/workflow-template-versions/{version_id}/diff")
+async def diff_version(
+    version_id: uuid.UUID,
+    _: AuthContext = Depends(require("workflows.view")),
+    svc: WorkflowLifecycleService = Depends(_svc),
+) -> dict[str, object]:
+    with _translate():
+        return await svc.version_diff(version_id)
 
 
 @router.post("/workflow-template-versions/{version_id}/validate", response_model=ValidateOut)
