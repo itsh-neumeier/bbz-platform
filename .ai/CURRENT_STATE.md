@@ -129,7 +129,7 @@ accept/acknowledge/open · PATCH · assign · takeover · archive/reactivate ·
 notes · GET list/`?queue=active`/`{id}`/`{id}/export`/`priority-alert`/`stream`.
 WS at `/ws/events`.
 
-### Epic 04 – Audit / Domain Events: **in progress (8/11)**
+### Epic 04 – Audit / Domain Events: **in progress (9/11)**
 #57 (E04-01) `audit_events` schema review — added `event_seq_ref` BIGINT
 (nullable, no FK; migration 0013) linking an audit row to its domain event;
 ORM `before_update` / `before_delete` listeners raise `AuditImmutableError`
@@ -192,9 +192,18 @@ picks the backend from `BBZ_WORKER_LEADER_BACKEND` (`""`→local, `"etcd"`).
 campaign / work-while-leader / renew / step-down, audits `WORKER_LEADER_CHANGED`.
 New settings: `worker_leader_backend/_ttl_seconds/_prefix`.
 
-**Next:** RBAC/user critical-action audit wiring (deferred from #59), #65
-(E04-09) correlation-id propagation, #66 audit immutability DB grant, #67
-outbox/inbox metrics. See `.ai/ROADMAP.md` Epic 04.
+#65 (E04-09) correlation-id propagation verified end-to-end: the
+`CorrelationIdMiddleware` contextvar already flows into `append_event` /
+`AuditService.write` / outbox `enqueue` / inbox `ingest` and the
+`x-correlation-id` response header. Takeover now also `enqueue`s a `notify`
+outbox row (in the command TX) so one command touches all four sinks; the
+integration test asserts one shared `correlation_id` across
+`domain_events` + `audit_events` + `external_action_outbox` for both a
+supplied and a server-generated id.
+
+**Next:** RBAC/user critical-action audit wiring (deferred from #59), #66
+(E04-10) audit-immutability DB grant + ADR-0020, #67 (E04-11) replay/catch-up
+consistency tests. See `.ai/ROADMAP.md` Epic 04.
 
 ## Existing reference
 A functional HTML mockup defines important UX/feature behavior. **It is not yet in
