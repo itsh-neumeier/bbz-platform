@@ -668,7 +668,7 @@ All issues need Node/Electron; skipped like Epic 07.
 **Epic 10: 3/16 doable here (E10-01/02/14).** E10-03+ (enrollment, command bus,
 agent, UI) need the Go toolchain / identity lib.
 
-### Epic 11 – Telephony Core: **in progress (1/16)**
+### Epic 11 – Telephony Core: **in progress (2/16)**
 - **#197 (E11-01) telephony core schema** — migration 0026 + `telephony.py`:
   `lines` (provider+external_id unique, state CHECK), `calls` (`bbz_call_id`
   unique + **independent of** `source_call_id`; `direction`/`state` CHECK — the
@@ -676,9 +676,19 @@ agent, UI) need the Go toolchain / identity lib.
   guard), `call_participants` (role CHECK, CASCADE), `call_documentation`
   (PK = `call_id` → one per call, `category` CHECK nullable-until-set §13.10,
   `mandatory_done`). `test_telephony_schema.py`.
+- **#199 (E11-02) telephony provider protocol** — the `bbz_integration_sdk`
+  `TelephonyProvider` protocol is finalised: all 14 §8.12 methods, fully typed
+  with new vendor-neutral payload models in
+  `providers/telephony_types.py` (`LineInfo`, `CallSnapshot`,
+  `CallEvent` [mirrors `telephony_event.v1.json`], `CommandAccepted`,
+  `CallerResolution`, `ReconcileResult`, enums). `TELEPHONY_METHODS` /
+  `TELEPHONY_CAPABILITIES` constants. `mypy --strict` clean.
+  `packages/integration-sdk/tests/test_telephony_protocol.py` is the conformance
+  test (method set, full annotations, schema-field parity, mock satisfies it).
+  The mock still returns dicts — E11-05 makes it return the typed models.
 
-**Next:** E11-02 (telephony provider protocol in `bbz_integration_sdk`), then
-E11-03 (ingest → inbox → dedupe), E11-04 (call aggregate). Epic 07 / 08, #92,
+**Next:** E11-03 (ingest → inbox → dedupe), E11-04 (call aggregate), E11-05
+(full mock). Epic 07 / 08, #92,
 the Go agents (09/10 impl) and the #429 browser E2E stay blocked on a
 Node / Go / multi-host session.
 
