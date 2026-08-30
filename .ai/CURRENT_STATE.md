@@ -381,7 +381,7 @@ if an instance is pinned) / `simulate_version` / `version_diff`, each audited
 
 **Epic 05 COMPLETE (13/13).**
 
-### Epic 06 – HA Cluster: **in progress (5/14)**
+### Epic 06 – HA Cluster: **in progress (6/14)**
 #81 (E06-01) per-node deployment topology. `deploy/node/` — the full stack for
 one BBZ server (`name: bbz-node`): api / web / PostgreSQL+Patroni (Spilo) /
 an etcd member / Caddy reverse proxy, with `.env.example`, file-based
@@ -445,8 +445,19 @@ not_ready`. `deploy/node` sets `BBZ_PATRONI_LOCAL_REST_URL` +
 `BBZ_PATRONI_REST_ENDPOINTS`; the Caddyfile uses `/health/ready` as its
 upstream active health check.
 
-**Next:** #87 (E06-06) app leader-election usage docs + a second consumer.
-See `.ai/ROADMAP.md` Epic 06 (14 issues: #81, #82, #84–#95).
+#87 (E06-06) cluster singletons as shared infra. `bbz_core.workers.registry`
+declares the named singletons (`outbox-dispatcher`, `workflow-timer`; each a
+one-*tick* callable), `bbz_core.workers.manager.ClusterWorkers` starts one
+`run_as_singleton` per name in the FastAPI lifespan when
+`run_background_workers` is set (default off — tests/CI unaffected; both
+composes set it). Every node runs the loop; only the etcd-lease holder ticks;
+step-down on renewal failure → failover < 2×TTL; `dedupe_key` / `SKIP LOCKED`
+cover the hand-off overlap. `/cluster/status` gains `singletons` (the names)
+alongside `leaders` (`name → node_id` from `/bbz/leader/*`).
+`docs/ARCHITECTURE_OVERVIEW.md` documents the pattern.
+
+**Next:** #88 (E06-07) client catch-up protocol (last `event_seq` handoff,
+replay on failover). See `.ai/ROADMAP.md` Epic 06 (14 issues: #81, #82, #84–#95).
 
 ## Existing reference
 A functional HTML mockup defines important UX/feature behavior. **It is not yet in

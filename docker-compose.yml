@@ -45,6 +45,8 @@ services:
       BBZ_DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-bbz}:${POSTGRES_PASSWORD:-bbz}@postgres:5432/${POSTGRES_DB:-bbz}
       BBZ_CLUSTER_DCS: etcd
       BBZ_CLUSTER_DCS_ENDPOINTS: '["http://etcd:2379"]'
+      # single dev node -> local always-leader election; run the singletons here
+      BBZ_RUN_BACKGROUND_WORKERS: "true"
     ports: ["8000:8000"]
     depends_on:
       postgres:

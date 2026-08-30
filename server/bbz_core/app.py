@@ -20,6 +20,7 @@ from bbz_core.infra.db import dispose_engine
 from bbz_core.logging import configure_logging, correlation_id, get_logger
 from bbz_core.settings import get_settings
 from bbz_core.telemetry import instrument_app
+from bbz_core.workers.manager import ClusterWorkers
 
 _log = get_logger(__name__)
 
@@ -41,9 +42,18 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     s = get_settings()
     configure_logging(level=s.log_level, json=s.log_json)
     _log.info("startup", service=s.service_name, version=__version__, environment=s.environment)
-    yield
-    await dispose_engine()
-    _log.info("shutdown")
+
+    workers: ClusterWorkers | None = None
+    if s.run_background_workers:
+        workers = ClusterWorkers()
+        await workers.start()
+    try:
+        yield
+    finally:
+        if workers is not None:
+            await workers.stop()
+        await dispose_engine()
+        _log.info("shutdown")
 
 
 def create_app() -> FastAPI:

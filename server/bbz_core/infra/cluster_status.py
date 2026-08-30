@@ -200,6 +200,8 @@ async def gather_status(session: AsyncSession) -> dict[str, Any]:
             }
         )
 
+    from bbz_core.workers.registry import SINGLETON_NAMES
+
     leaders = etcd["leaders"]
     return {
         "stub": False,
@@ -208,6 +210,7 @@ async def gather_status(session: AsyncSession) -> dict[str, Any]:
         "quorum": etcd["quorum"],
         "control_leader": leaders.get("control_leader"),
         "leaders": leaders,
+        "singletons": list(SINGLETON_NAMES),
         "nodes": nodes,
         "last_event_seq": await _last_event_seq(session),
     }

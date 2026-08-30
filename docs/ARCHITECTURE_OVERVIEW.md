@@ -40,3 +40,25 @@ This is a navigation aid. The authoritative content is `.ai/**` and the ADRs.
 | Web UI | `apps/web` | ADR-0013 |
 | Local agents | `agents/*` | ADR-0003/0009 |
 | HA topology assets | `deploy/*` | ADR-0001/0018 |
+| Cluster singletons | `server/bbz_core/workers` | ADR-0011/0018 |
+
+## Cluster singletons (background work that must not run twice)
+
+Some work must run on exactly one node at a time. Each such job is a **named
+singleton** registered in `bbz_core/workers/registry.py`:
+
+| name | tick | source |
+|---|---|---|
+| `outbox-dispatcher` | `OutboxDispatcher().run_once()` — deliver `external_action_outbox` rows | ADR-0011 |
+| `workflow-timer` | `WorkflowEngineService.fire_due_timers()` — resume due EPK timers | E05-10 |
+| `cucm-control-leader` *(future)* | JTAPI control ownership | ADR-0002 / E12-07 |
+
+Every node starts every singleton (`ClusterWorkers`, wired into the FastAPI
+lifespan when `BBZ_RUN_BACKGROUND_WORKERS=true`). `run_as_singleton` campaigns
+for a short-lived etcd lease under `/bbz/leader/<name>` (ADR-0018) and calls the
+tick only while it holds the lease; it **steps down the instant a renewal
+fails**, so a dead leader is replaced within `2 × ttl`. `dedupe_key` /
+`SKIP LOCKED` in the outbox make a brief overlap during hand-off harmless.
+
+`GET /cluster/status` reports `singletons` (the names) and `leaders`
+(`name → node_id` currently holding each lease).
