@@ -153,3 +153,6 @@ jobs:
           # the witness runs etcd ONLY — no BBZ domain services (E06-08)
           services=$(docker compose config --services | sort | tr '\n' ' ')
           test "$services" = "etcd " || { echo "quorum services: $services"; exit 1; }
+      - name: deploy/ha-test harness
+        working-directory: deploy/ha-test
+        run: docker compose -f compose.yml config -q

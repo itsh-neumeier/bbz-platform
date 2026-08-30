@@ -381,7 +381,7 @@ if an instance is pinned) / `simulate_version` / `version_diff`, each audited
 
 **Epic 05 COMPLETE (13/13).**
 
-### Epic 06 – HA Cluster: **in progress (10/14)**
+### Epic 06 – HA Cluster: **in progress (11/14)**
 #81 (E06-01) per-node deployment topology. `deploy/node/` — the full stack for
 one BBZ server (`name: bbz-node`): api / web / PostgreSQL+Patroni (Spilo) /
 an etcd member / Caddy reverse proxy, with `.env.example`, file-based
@@ -502,8 +502,21 @@ untouched. `POST /api/v1/system/rolling-update` (`{phase, image, notes?}`,
 `docs/runbooks/rolling-update.md` rewritten with the order, drain, abort and
 rollback steps.
 
-**Next:** #92 (E06-11) HA failure-scenario test harness. See `.ai/ROADMAP.md`
-Epic 06 (14 issues: #81, #82, #84–#95).
+#92 (E06-11) HA failure-scenario harness — **scaffold** (scenarios written to
+the shape the HA guarantees require, but not executed end-to-end here).
+`deploy/ha-test/`: a single-host mini cluster (`compose.yml` — 2× api, pg1/pg2
+Spilo, `pgha` HAProxy routing `:5432` to the current primary, 3× etcd, Caddy
+LB) + `lib.sh` helpers + 7 `scenarios/*.sh` (srv01/srv02-down,
+db-primary-loss with an RTO check, net-isolation, witness-down,
+client-reconnect, recovery) + `run.sh` + `seed.py` + `setup.sh`.
+`assert_single_primary` after every fault (split brain = fail).
+`.github/workflows/ha-nightly.yml` runs it scheduled, `continue-on-error`
+until shaken out on real hardware; `test_ha_harness.py` lints the scripts +
+compose + workflow; `.ai/TESTING.md` documents the seven scenarios. The CI
+`compose` job now also config-checks `deploy/ha-test`.
+
+**Next:** #93 (E06-12) reverse proxy (Caddy) — TLS, routing, security headers.
+See `.ai/ROADMAP.md` Epic 06 (14 issues: #81, #82, #84–#95).
 
 ## Existing reference
 A functional HTML mockup defines important UX/feature behavior. **It is not yet in

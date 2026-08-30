@@ -1,0 +1,11 @@
+# ha-test load balancer: round-robin over the two API nodes, active health
+# checks on /health/ready so a node in rejoin/replay (503, E06-05) is dropped.
+:8080 {
+	reverse_proxy api1:8000 api2:8000 {
+		lb_policy round_robin
+		health_uri /health/ready
+		health_interval 2s
+		health_timeout 2s
+		fail_duration 5s
+	}
+}
