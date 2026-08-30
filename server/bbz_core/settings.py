@@ -55,6 +55,9 @@ class Settings(BaseSettings):
     cluster_dcs_tls_ca_file: str = ""
     cluster_dcs_tls_cert_file: str = ""
     cluster_dcs_tls_key_file: str = ""
+    # Patroni REST APIs (one per DB node, e.g. http://bbz-srv01:8008). Empty ->
+    # /cluster/status falls back to the local PostgreSQL role only.
+    patroni_rest_endpoints: list[str] = Field(default_factory=list)
     # Application leader election (ADR-0018): "" -> local single-node (no etcd),
     # "etcd" -> lease-based election against cluster_dcs_endpoints.
     worker_leader_backend: Literal["", "etcd"] = ""
