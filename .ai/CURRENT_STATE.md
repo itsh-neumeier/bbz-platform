@@ -225,7 +225,7 @@ dispatcher, singleton runner), `infra/outbox.py`, `infra/inbox.py`,
 (code carries `TODO(E04-03)`); the code comments point at #66/E04-10 — do it
 alongside E23 hardening.
 
-### Epic 05 – EPK Workflow Engine: **in progress (3/9)**
+### Epic 05 – EPK Workflow Engine: **in progress (4/9)**
 #68 (E05-01) `bbz_rule_dsl.evaluate()` implemented — total, side-effect-free,
 deterministic predicate over a typed `Context`. Operators
 `eq/ne/in/not_in/lt/lte/gt/gte/and/or/not/exists`; type mismatch / bad arity /
@@ -250,9 +250,18 @@ published_at/by) — migration 0017, `(template_id, version_no)` unique. A
 `BEFORE UPDATE` trigger freezes a **published** version's `definition`
 (lifecycle transitions still allowed). `bbz_core.infra.models.workflow`.
 
-**Next:** #71 (E05-04) graph JSON schema (event/function/connector nodes,
-function kinds, connector and/or/xor split/join) + derived
-`workflow_graph_nodes`/`_edges` index tables. See `.ai/ROADMAP.md` Epic 05.
+#71 (E05-04) EPK graph model — `workflow.graph.v1.json` (event/function/
+connector nodes; function `kind` ∈ manual/confirmation/documentation/
+integration_action/notification/timer/event_update; connector `and|or|xor` +
+`split|join`; edges with optional rule-DSL `condition`). `bbz_core.domain.
+workflow.graph`: `validate_graph()` (schema + unique keys + edge endpoints +
+`start` exists) and `derive_index()` (deterministic, key-ordered).
+`workflow_graph_nodes`/`_edges` derived tables (migration 0018);
+`infra.repositories.workflow_graph.rebuild_graph_index()` replaces a version's
+index rows in the caller's TX (idempotent).
+
+**Next:** #72 (E05-05) DB schema `workflow_instances` / `tokens` /
+`task_results` / `decisions`. See `.ai/ROADMAP.md` Epic 05.
 
 ## Existing reference
 A functional HTML mockup defines important UX/feature behavior. **It is not yet in

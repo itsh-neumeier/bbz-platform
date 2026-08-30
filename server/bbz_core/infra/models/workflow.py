@@ -4,8 +4,10 @@
 PUBLISHED -> DEPRECATED; ADR-0005: a **published** version is immutable — a
 running instance pinned to v3 must never be changed by publishing v4.
 
-Schema only (roadmap E05-03). The graph JSON schema, derived node/edge index
-tables, publish validation and the runtime land in E05-04 ff.
+``definition`` is a versioned structured graph (JSON Schema
+``workflow.graph.v1``); ``workflow_graph_nodes`` / ``workflow_graph_edges`` are
+**derived** index tables, rebuilt deterministically from it (E05-04). Publish
+validation and the runtime land in E05-06 ff.
 """
 
 from __future__ import annotations
@@ -74,6 +76,46 @@ class WorkflowTemplateVersion(Base):
     published_by: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("users.id", ondelete="SET NULL")
     )
+
+
+class WorkflowGraphNode(Base):
+    """Derived index of one node in a template version's graph (E05-04)."""
+
+    __tablename__ = "workflow_graph_nodes"
+    __table_args__ = (
+        UniqueConstraint("template_version_id", "node_key", name="uq_wgn_version_key"),
+    )
+
+    id: Mapped[uuid.UUID] = uuid_pk()
+    template_version_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("workflow_template_versions.id", ondelete="CASCADE"), index=True
+    )
+    node_key: Mapped[str] = mapped_column(String(64))
+    node_type: Mapped[str] = mapped_column(String(16))  # event | function | connector
+    function_kind: Mapped[str | None] = mapped_column(String(32))
+    connector_type: Mapped[str | None] = mapped_column(String(8))  # and | or | xor
+    connector_direction: Mapped[str | None] = mapped_column(String(8))  # split | join
+    label: Mapped[str | None] = mapped_column(String(300))
+    props: Mapped[dict[str, Any]] = mapped_column(JSONB, server_default=text("'{}'::jsonb"))
+
+
+class WorkflowGraphEdge(Base):
+    """Derived index of one edge in a template version's graph (E05-04)."""
+
+    __tablename__ = "workflow_graph_edges"
+    __table_args__ = (
+        UniqueConstraint("template_version_id", "edge_key", name="uq_wge_version_key"),
+    )
+
+    id: Mapped[uuid.UUID] = uuid_pk()
+    template_version_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("workflow_template_versions.id", ondelete="CASCADE"), index=True
+    )
+    edge_key: Mapped[str] = mapped_column(String(64))
+    from_node_key: Mapped[str] = mapped_column(String(64), index=True)
+    to_node_key: Mapped[str] = mapped_column(String(64), index=True)
+    branch_label: Mapped[str | None] = mapped_column(String(64))
+    condition: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
 
 
 # ADR-0005: once published, the definition is frozen. The migration
