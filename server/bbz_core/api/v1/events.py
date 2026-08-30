@@ -51,6 +51,7 @@ from bbz_core.infra.idempotency import (
 )
 from bbz_core.infra.models.events import Event, EventNote, EventNoteKind
 from bbz_core.infra.models.identity import PresenceState, User, UserStatus
+from bbz_core.infra.outbox import enqueue
 from bbz_core.infra.repositories.event_queries import (
     EventDetail,
     EventExport,
@@ -630,6 +631,19 @@ async def takeover_event(
                     before={"assignee_id": str(previous)},
                     after={"assignee_id": str(ctx.user_id)},
                     reason=reason,
+                )
+                # notify the person who lost the event (transport wired later);
+                # in the same TX so it commits with the state change (ADR-0011).
+                await enqueue(
+                    session,
+                    dedupe_key=f"event-takeover-notify:{event_id}:{version}",
+                    action_type="notify",
+                    payload={
+                        "channel": "user",
+                        "user_id": str(previous),
+                        "subject": "event_taken_over",
+                        "event_id": str(event_id),
+                    },
                 )
             out = _to_out(agg, version)
             slot.set_result(status.HTTP_200_OK, out.model_dump(mode="json"))
