@@ -129,7 +129,7 @@ accept/acknowledge/open · PATCH · assign · takeover · archive/reactivate ·
 notes · GET list/`?queue=active`/`{id}`/`{id}/export`/`priority-alert`/`stream`.
 WS at `/ws/events`.
 
-### Epic 04 – Audit / Domain Events: **in progress (5/11)**
+### Epic 04 – Audit / Domain Events: **in progress (6/11)**
 #57 (E04-01) `audit_events` schema review — added `event_seq_ref` BIGINT
 (nullable, no FK; migration 0013) linking an audit row to its domain event;
 ORM `before_update` / `before_delete` listeners raise `AuditImmutableError`
@@ -165,8 +165,17 @@ schema and **rejects an unknown `event_type`** (`UnknownEventTypeError`, an
 fields documented in `docs/domain/event-catalog.md` (additive→same major,
 breaking→new `.vN+1.json` + migration note; no secrets in payloads).
 
-**Next:** RBAC/user critical-action audit wiring (deferred from #59) and #62
-(E04-06) transactional outbox + dispatcher worker. See `.ai/ROADMAP.md` Epic 04.
+#62 (E04-06) transactional outbox — `external_action_outbox` (migration 0014,
+`dedupe_key` UNIQUE, status pending/dispatched/failed, attempts, next_attempt_at,
+backoff). `bbz_core.infra.outbox.enqueue()` runs in the caller's TX;
+`OutboxRepository.claim_due()` uses `FOR UPDATE SKIP LOCKED`. `bbz_core.workers.
+outbox_dispatcher.OutboxDispatcher` — handler registry (`noop`/`notify`),
+`run_once()` processes each row in its own TX, exponential backoff to
+`MAX_ATTEMPTS=8` then `failed`; status update + `EXTERNAL_ACTION_DISPATCHED` /
+`EXTERNAL_ACTION_FAILED` audit commit together. `run_forever()` for E04-08.
+
+**Next:** RBAC/user critical-action audit wiring (deferred from #59) and #63
+(E04-07) provider-event inbox + dedupe. See `.ai/ROADMAP.md` Epic 04.
 
 ## Existing reference
 A functional HTML mockup defines important UX/feature behavior. **It is not yet in

@@ -30,6 +30,7 @@ from bbz_core.infra.models.identity import (
     UserPresence,
     UserStatus,
 )
+from bbz_core.infra.models.outbox import ExternalActionOutbox, OutboxStatus
 from bbz_core.infra.models.rbac import (
     Group,
     GroupRole,
@@ -56,11 +57,13 @@ __all__ = [
     "EventPriority",
     "EventStatus",
     "EventStatusHistory",
+    "ExternalActionOutbox",
     "Group",
     "GroupRole",
     "LocalCredential",
     "LocalTotp",
     "LocalTotpRecoveryCode",
+    "OutboxStatus",
     "Permission",
     "PresenceState",
     "Role",
