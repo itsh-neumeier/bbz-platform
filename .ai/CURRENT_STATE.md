@@ -555,8 +555,20 @@ pg_dump→gpg→restore→count-match round trip + an etcd snapshot save/restore
 **Epic 06 COMPLETE (14/14)** — #92 (HA harness) shipped as a scaffold that
 needs a real multi-host runner before its nightly job can gate.
 
-**Next:** Epic 07 – Web UI / PrimeVue, or the next open roadmap epic. See
-`.ai/ROADMAP.md`.
+### Epic 07 – Web UI / PrimeVue: **blocked on toolchain (1/19)**
+#96 (E07-01) mockup-parity checklist — `docs/mockup-parity-checklist.md`:
+every `.ai/FEATURES.md` / §13 feature → the issue that delivers its UI →
+status (`todo` / `backend-done` / `done` …). 21 core-UI rows point at Epic 07
+(#96–#129, `E07-01`…`E07-19`); telephony / contacts / triggers / video / BKU
+rows point at their epics. `server/tests/test_parity_checklist.py` enforces
+the issue-ref format, the `E07-xx ↔ #issue` map, valid statuses, and
+FEATURES.md coverage.
+
+**#97–#129 are all `Area: frontend` (Vue 3 / PrimeVue / Vitest / Playwright)
+and Node/npm is not available in this environment** — the frontend CI job is
+also `continue-on-error`. Those need a Node-equipped session. **Next:** skip
+to a backend epic — **Epic 20 (Archive / Postprocessing, backend, deps met)**
+— or Epic 15 (Technical Trigger Engine). See `.ai/ROADMAP.md`.
 
 ## Existing reference
 A functional HTML mockup defines important UX/feature behavior. **It is not yet in
