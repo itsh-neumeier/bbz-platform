@@ -43,6 +43,9 @@ CATALOG: dict[str, tuple[str, ...]] = {
         "calls.transfer",
         "calls.document",
         "calls.view_history",
+        # machine-to-machine: a telephony provider / CTI gateway posting
+        # normalized events (E11-03). Not granted to any human built-in role.
+        "calls.ingest_provider_events",
     ),
     "contacts": (
         "contacts.view",
@@ -99,6 +102,10 @@ CATALOG: dict[str, tuple[str, ...]] = {
 }
 
 PERMISSION_KEYS: frozenset[str] = frozenset(k for keys in CATALOG.values() for k in keys)
+
+#: keys that are only ever held by service accounts (machine-to-machine), never
+#: by a human built-in role.
+MACHINE_KEYS: frozenset[str] = frozenset({"calls.ingest_provider_events"})
 
 SCOPES: frozenset[str] = frozenset(s.value for s in Scope)
 

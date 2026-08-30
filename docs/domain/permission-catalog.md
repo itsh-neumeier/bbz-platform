@@ -14,7 +14,7 @@ the enforced model. **Enforcement is server-side, always.**
 |---|---|
 | Events | `events.view` `events.create` `events.accept` `events.acknowledge` `events.open` `events.edit` `events.assign` `events.takeover` `events.close` `events.archive` `events.reactivate` `events.postprocess` `events.export` |
 | Workflows | `workflows.view` `workflows.execute` `workflows.override` `workflows.manage_templates` |
-| Calls | `calls.view` `calls.answer` `calls.dial` `calls.hangup` `calls.hold` `calls.transfer` `calls.document` `calls.view_history` |
+| Calls | `calls.view` `calls.answer` `calls.dial` `calls.hangup` `calls.hold` `calls.transfer` `calls.document` `calls.view_history` · _(M2M)_ `calls.ingest_provider_events` |
 | Contacts | `contacts.view` `contacts.create` `contacts.edit` `contacts.delete` `contacts.assign_priority` |
 | Monitor | `monitor.view` `monitor.route` `monitor.reset_standard` `monitor.manage_profiles` |
 | Weather | `weather.view` `weather.create_event` |
@@ -23,6 +23,13 @@ the enforced model. **Enforcement is server-side, always.**
 | System | `system.audit.view` `system.cluster.view` `system.cluster.manage` `system.settings.manage` |
 | BKU | `bku.status.view` `bku.apps.launch` `bku.apps.close` `bku.session.logout` `bku.device.restart` `bku.catalog.view` `bku.catalog.manage` `bku.agent.manage` |
 | Door / technical | `door.view` `door.answer` `door.open` `door.configure` `technical_endpoints.view` `technical_endpoints.manage` |
+
+## Machine-to-machine keys
+
+`calls.ingest_provider_events` (E11-03) is held only by a **service account** (a
+telephony provider / CTI gateway) — it is deliberately excluded from every human
+built-in role, including Administrator (`MACHINE_KEYS` in
+`bbz_core/authorization/keys.py`).
 
 ## BKU least-privilege defaults (E10-14)
 

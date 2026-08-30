@@ -6,7 +6,7 @@ import pytest
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from bbz_core.authorization import BUILTIN_ROLES, PERMISSION_KEYS
+from bbz_core.authorization import BUILTIN_ROLES, MACHINE_KEYS, PERMISSION_KEYS
 
 
 @pytest.fixture
@@ -48,7 +48,8 @@ async def test_administrator_can_manage_and_read_only_only_views(seeded: AsyncSe
         }
 
     admin = await grants("administrator")
-    assert admin == PERMISSION_KEYS
+    assert admin == PERMISSION_KEYS - MACHINE_KEYS  # every *human* permission
+    assert not (admin & MACHINE_KEYS)
 
     read_only = await grants("nur_lesen")
     assert read_only and all(k.rsplit(".", 1)[-1] == "view" for k in read_only)

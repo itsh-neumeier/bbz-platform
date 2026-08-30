@@ -6,25 +6,28 @@ Deployments create their own roles; these are a sensible starting point
 
 from __future__ import annotations
 
-from bbz_core.authorization.keys import PERMISSION_KEYS
+from bbz_core.authorization.keys import MACHINE_KEYS, PERMISSION_KEYS
 
-_VIEW_ONLY = frozenset(k for k in PERMISSION_KEYS if k.rsplit(".", 1)[-1] == "view")
+#: keys used only by service accounts (M2M) — never part of a human built-in role
+_HUMAN_KEYS = PERMISSION_KEYS - MACHINE_KEYS
 
-_ADMINISTRATOR = PERMISSION_KEYS  # everything
+_VIEW_ONLY = frozenset(k for k in _HUMAN_KEYS if k.rsplit(".", 1)[-1] == "view")
+
+_ADMINISTRATOR = _HUMAN_KEYS  # every human permission
 
 _SICHTLEITER = frozenset(
     {
-        *[k for k in PERMISSION_KEYS if k.startswith("events.")],
+        *[k for k in _HUMAN_KEYS if k.startswith("events.")],
         "workflows.view",
         "workflows.execute",
         "workflows.override",
-        *[k for k in PERMISSION_KEYS if k.startswith("calls.")],
+        *[k for k in _HUMAN_KEYS if k.startswith("calls.")],
         *[k for k in PERMISSION_KEYS if k.startswith("contacts.")],
         *[k for k in PERMISSION_KEYS if k.startswith("monitor.")],
         "weather.view",
         "weather.create_event",
-        *[k for k in PERMISSION_KEYS if k.startswith("bku.")],
-        *[k for k in PERMISSION_KEYS if k.startswith("door.")],
+        *[k for k in _HUMAN_KEYS if k.startswith("bku.")],
+        *[k for k in _HUMAN_KEYS if k.startswith("door.")],
         "technical_endpoints.view",
         "integrations.view",
         "integrations.diagnostics",
