@@ -774,7 +774,7 @@ E11-12 (ringing-call list) needs E11-08's priority. Epic 07 / 08, #92, the Go
 agents (09/10 impl) and the #429 browser E2E stay blocked on a Node / Go /
 multi-host session.
 
-### Epic 14 – Contacts / Call Priorities: **in progress (1/10)**
+### Epic 14 – Contacts / Call Priorities: **in progress (2/10)**
 - **#285 (E14-01) contacts schema** — migration 0027 + `contacts.py`:
   `contacts` (name, org, notes, `quick_dial`, `bbz_id` scope — plain UUID like
   `events.bbz_id`), `contact_numbers` (`e164` stored normalized — a CHECK
@@ -783,9 +783,20 @@ multi-host session.
   contact, `priority` `low|medium|high` CHECK, `set_by`→users SET NULL,
   `set_at`; change history lives in `domain_events` via E14-03). Migration
   up/down/up verified on real PG. `test_contacts_schema.py`.
-- Next: E14-02 (contacts CRUD API), E14-03 (priority + `CONTACT_PRIORITY_CHANGED`),
-  E14-04 (number→contact matching, unblocks E11-08), E14-05 (event/audit wiring),
-  E14-06 (quick-dial). E14-07..10 are frontend → blocked.
+- **#287 (E14-02) contacts CRUD API** — migration 0028 adds `contacts.deleted_at`
+  (soft-delete) + `pg_trgm` GIN indexes on `name`/`org` + a btree on
+  `contact_numbers.e164` (`pg_trgm` also added to the conftest `db` fixture).
+  `ContactRepository` (`infra/repositories/contacts.py`): CRUD, `search` (name /
+  org substring + number, alphabetical, keyset-paginated on `(lower(name), id)`,
+  soft-deleted excluded), numbers sub-resource with primary-demotion. `GET/POST
+  /api/v1/contacts`, `GET/PATCH/DELETE /api/v1/contacts/{id}`, `…/numbers`
+  sub-resource. `POST` carries the command envelope + `idempotent()`; every
+  change audits `CONTACT_CREATED`/`UPDATED`/`DELETED` (new `AuditAction` +
+  `CRITICAL_ACTIONS`). Domain-event emission + audit-diff are E14-05.
+  `test_contacts_api.py`.
+- Next: E14-03 (priority + `CONTACT_PRIORITY_CHANGED`), E14-04 (number→contact
+  matching, unblocks E11-08), E14-05 (event/audit wiring), E14-06 (quick-dial).
+  E14-07..10 are frontend → blocked.
 
 ## Existing reference
 A functional HTML mockup defines important UX/feature behavior. **It is not yet in

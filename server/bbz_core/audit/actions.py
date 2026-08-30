@@ -45,6 +45,9 @@ class AuditAction(enum.StrEnum):
     CALL_ENDED = "CALL_ENDED"
     CALL_CONTROL_ACTION = "CALL_CONTROL_ACTION"
     CALL_DOCUMENTED = "CALL_DOCUMENTED"
+    CONTACT_CREATED = "CONTACT_CREATED"
+    CONTACT_UPDATED = "CONTACT_UPDATED"
+    CONTACT_DELETED = "CONTACT_DELETED"
 
 
 #: Actions that MUST be emitted from a write path (MASTER_PROMPT §17). A missing
@@ -78,5 +81,8 @@ CRITICAL_ACTIONS: frozenset[AuditAction] = frozenset(
         AuditAction.CALL_ENDED,
         AuditAction.CALL_CONTROL_ACTION,
         AuditAction.CALL_DOCUMENTED,
+        AuditAction.CONTACT_CREATED,
+        AuditAction.CONTACT_UPDATED,
+        AuditAction.CONTACT_DELETED,
     }
 )
