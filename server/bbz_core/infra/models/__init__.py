@@ -43,6 +43,11 @@ from bbz_core.infra.models.rbac import (
     UserRole,
 )
 from bbz_core.infra.models.session import Session
+from bbz_core.infra.models.workflow import (
+    WorkflowLifecycle,
+    WorkflowTemplate,
+    WorkflowTemplateVersion,
+)
 
 __all__ = [
     "AuditEvent",
@@ -77,4 +82,7 @@ __all__ = [
     "UserPresence",
     "UserRole",
     "UserStatus",
+    "WorkflowLifecycle",
+    "WorkflowTemplate",
+    "WorkflowTemplateVersion",
 ]
