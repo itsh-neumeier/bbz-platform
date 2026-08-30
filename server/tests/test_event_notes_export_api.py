@@ -158,15 +158,36 @@ async def test_add_note_unknown_event_is_404(env: tuple) -> None:
     assert r.status_code == 404
 
 
-async def test_add_note_rejects_postprocess_kind(env: tuple) -> None:
+async def test_add_note_accepts_postprocess_kind(env: tuple) -> None:
+    # E20-04: postprocess notes are allowed (kept out of E03-16, enabled here).
     client, s = env
     await _make_user(s, "op4", _ALL)
     await _login(client, "op4")
     eid = await _create(client)
     r = await client.post(
         f"/api/v1/events/{eid}/notes",
-        json={"body": "x", "kind": "postprocess"},
+        json={"body": "Nachbearbeitung", "kind": "postprocess"},
         headers=_cmd(),
+    )
+    assert r.status_code == 201, r.text
+    row = (
+        await s.execute(
+            select(DomainEvent).where(
+                DomainEvent.aggregate_id == eid,
+                DomainEvent.event_type == "EVENT_NOTE_ADDED",
+            )
+        )
+    ).scalar_one()
+    assert row.payload["kind"] == "postprocess"
+
+
+async def test_add_note_rejects_unknown_kind(env: tuple) -> None:
+    client, s = env
+    await _make_user(s, "op4b", _ALL)
+    await _login(client, "op4b")
+    eid = await _create(client)
+    r = await client.post(
+        f"/api/v1/events/{eid}/notes", json={"body": "x", "kind": "bogus"}, headers=_cmd()
     )
     assert r.status_code == 422
 

@@ -27,6 +27,7 @@ from typing import Literal
 from fastapi import APIRouter, Depends, Query, Request, Response, status
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, ConfigDict, Field
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from bbz_core.api.authz import require
@@ -49,7 +50,7 @@ from bbz_core.infra.idempotency import (
     idempotent,
     request_hash,
 )
-from bbz_core.infra.models.events import Event, EventNote, EventNoteKind
+from bbz_core.infra.models.events import Event, EventNote
 from bbz_core.infra.models.identity import PresenceState, User, UserStatus
 from bbz_core.infra.outbox import enqueue
 from bbz_core.infra.repositories.archive_queries import (
@@ -169,6 +170,9 @@ class NoteOut(BaseModel):
     body: str
     created_by: uuid.UUID | None
     created_at: _dt.datetime
+    version: int = 1
+    edited_by: uuid.UUID | None = None
+    edited_at: _dt.datetime | None = None
 
 
 class EventDetailOut(EventListItemOut):
@@ -181,7 +185,40 @@ class AddNoteIn(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     body: str = Field(min_length=1, max_length=20_000)
-    kind: Literal["work"] = "work"  # postprocess notes arrive with Epic 20
+    kind: Literal["work", "postprocess"] = "work"
+
+
+class EditNoteIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    body: str = Field(min_length=1, max_length=20_000)
+
+
+class NoteVersionOut(BaseModel):
+    id: uuid.UUID
+    version: int
+    body: str
+    author_id: uuid.UUID | None
+    written_at: _dt.datetime
+
+
+class NoteThreadOut(BaseModel):
+    """The current version of a note plus every superseded version, oldest first."""
+
+    id: uuid.UUID
+    thread_id: uuid.UUID
+    kind: str
+    body: str
+    version: int
+    created_by: uuid.UUID | None
+    created_at: _dt.datetime
+    edited_by: uuid.UUID | None
+    edited_at: _dt.datetime | None
+    history: list[NoteVersionOut]
+
+
+class NoteThreadsOut(BaseModel):
+    notes: list[NoteThreadOut]
 
 
 class DomainEventOut(BaseModel):
@@ -880,7 +917,7 @@ async def add_note(
 
             note = EventNote(
                 event_id=event_id,
-                kind=EventNoteKind.WORK.value,
+                kind=body.kind,
                 body=note_body,
                 created_by=ctx.user_id,
             )
@@ -903,8 +940,147 @@ async def add_note(
                     user_id=ctx.user_id,
                     command_id=env.command_id,
                 )
+                await AuditService(session).write(
+                    AuditAction.EVENT_NOTE_ADDED,
+                    actor_user_id=ctx.user_id,
+                    target_type="event",
+                    target_id=str(event_id),
+                    after={"note_id": str(note.id), "kind": body.kind, "version": 1},
+                )
             out = NoteAddedOut(note_id=note.id, event_seq=seq)
             slot.set_result(status.HTTP_201_CREATED, out.model_dump(mode="json"))
+    await notify_event_appended()
+    return out
+
+
+@router.get("/{event_id}/notes", response_model=NoteThreadsOut)
+async def list_notes(
+    event_id: uuid.UUID,
+    _: AuthContext = Depends(require("events.view")),
+    session: AsyncSession = Depends(db_session),
+) -> NoteThreadsOut:
+    """All note threads for the event — each current version plus its ordered
+    history of superseded versions (E20-04)."""
+    if await session.get(Event, event_id) is None:
+        raise NotFoundError("event not found")
+    threads = await EventQueryRepository(session).note_threads(event_id)
+    return NoteThreadsOut(
+        notes=[
+            NoteThreadOut(
+                id=t.id,
+                thread_id=t.thread_id,
+                kind=t.kind,
+                body=t.body,
+                version=t.version,
+                created_by=t.created_by,
+                created_at=t.created_at,
+                edited_by=t.edited_by,
+                edited_at=t.edited_at,
+                history=[
+                    NoteVersionOut(
+                        id=v.id,
+                        version=v.version,
+                        body=v.body,
+                        author_id=v.author_id,
+                        written_at=v.written_at,
+                    )
+                    for v in t.history
+                ],
+            )
+            for t in threads
+        ]
+    )
+
+
+@router.patch("/{event_id}/notes/{note_id}", response_model=NoteAddedOut)
+async def edit_note(
+    event_id: uuid.UUID,
+    note_id: uuid.UUID,
+    body: EditNoteIn,
+    ctx: AuthContext = Depends(require("events.postprocess")),
+    env: CommandEnvelope = Depends(command_envelope),
+    session: AsyncSession = Depends(db_session),
+) -> NoteAddedOut:
+    """Edit a note — append-only: a new version is written and the previous one
+    is kept, marked superseded (E20-04). ``note_id`` may be any version in the
+    thread (or the thread root); the edit always targets the current version.
+    """
+    new_body = body.body.strip()
+    if not new_body:
+        raise ValidationError("note body must not be empty")
+    rhash = request_hash({"note_id": str(note_id), "body": new_body})
+    with _translate():
+        async with idempotent(
+            session,
+            command_id=env.command_id,
+            endpoint="PATCH /api/v1/events/{id}/notes/{note_id}",
+            request_hash=rhash,
+            user_id=ctx.user_id,
+        ) as slot:
+            if slot.replay is not None:
+                return NoteAddedOut.model_validate(slot.replay.body)
+
+            async with session.begin():
+                if await session.get(Event, event_id) is None:
+                    raise NotFoundError("event not found")
+                referenced = await session.get(EventNote, note_id)
+                if referenced is None or referenced.event_id != event_id:
+                    raise NotFoundError("note not found")
+                thread_id = referenced.thread_id or referenced.id
+                old = (
+                    await session.execute(
+                        select(EventNote)
+                        .where(
+                            EventNote.event_id == event_id,
+                            EventNote.superseded_by_id.is_(None),
+                            or_(EventNote.id == thread_id, EventNote.thread_id == thread_id),
+                        )
+                        .with_for_update()
+                    )
+                ).scalar_one()
+                if new_body == old.body:
+                    raise ValidationError("note body is unchanged")
+
+                new = EventNote(
+                    event_id=event_id,
+                    kind=old.kind,
+                    body=new_body,
+                    created_by=old.created_by,
+                    version=old.version + 1,
+                    thread_id=thread_id,
+                    edited_by=ctx.user_id,
+                    edited_at=_dt.datetime.now(_dt.UTC),
+                )
+                session.add(new)
+                await session.flush()
+                old.superseded_by_id = new.id
+                seq = await append_event(
+                    session,
+                    aggregate_type="event",
+                    aggregate_id=event_id,
+                    event_type="EVENT_NOTE_UPDATED",
+                    payload={
+                        "note_id": str(new.id),
+                        "thread_id": str(thread_id),
+                        "supersedes_note_id": str(old.id),
+                        "version": new.version,
+                        "kind": old.kind,
+                        "body": new_body,
+                        "actor_id": str(ctx.user_id),
+                    },
+                    user_id=ctx.user_id,
+                    command_id=env.command_id,
+                )
+                await AuditService(session).write(
+                    AuditAction.EVENT_NOTE_UPDATED,
+                    actor_user_id=ctx.user_id,
+                    target_type="event",
+                    target_id=str(event_id),
+                    before={"note_id": str(old.id), "version": old.version, "body": old.body},
+                    after={"note_id": str(new.id), "version": new.version, "body": new_body},
+                )
+            out = NoteAddedOut(note_id=new.id, event_seq=seq)
+            slot.set_result(status.HTTP_200_OK, out.model_dump(mode="json"))
     await notify_event_appended()
     return out
 

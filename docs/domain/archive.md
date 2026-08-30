@@ -61,6 +61,26 @@ optional and composable, without changing the keyset-cursor contract
 `queue=active` still returns the live work queue and never contains archived
 events; it ignores these filters.
 
+## Post-processing notes (E20-04)
+
+Notes are **append-only and versioned**:
+
+- `POST /api/v1/events/{id}/notes` (`events.postprocess`) takes
+  `kind ∈ {work, postprocess}`; a `postprocess` note can be added to an archived
+  event.
+- `PATCH /api/v1/events/{id}/notes/{note_id}` (`events.postprocess`) *edits* a
+  note by writing a new `event_notes` row (`version` + 1, same `thread_id`) and
+  setting `superseded_by_id` on the previous row — old text is never lost. The
+  path locks the current tip (`FOR UPDATE`); `note_id` may be any version in the
+  thread.
+- `GET /api/v1/events/{id}/notes` (`events.view`) lists each thread's current
+  version plus its ordered `history` of superseded versions.
+- The plain event detail and the archive-detail bundle show **only the current
+  version** of each note.
+
+Add and edit each emit a domain event (`EVENT_NOTE_ADDED` / `EVENT_NOTE_UPDATED`)
+and an audit entry (both are `CRITICAL_ACTIONS`).
+
 ## Invariant under test
 
 `server/tests/test_archive_detail.py` (the aggregator query) and

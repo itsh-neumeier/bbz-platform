@@ -107,6 +107,13 @@ class EventAssignment(Base):
 
 
 class EventNote(Base):
+    """A note is append-only (E20-04). An edit inserts a new row (``version`` + 1,
+    same ``thread_id``) and sets ``superseded_by_id`` on the old one; the current
+    version of a thread is the row with ``superseded_by_id IS NULL``. ``thread_id``
+    is ``NULL`` on a v1 row — it is its own thread root (use
+    ``COALESCE(thread_id, id)``). The edit path takes ``FOR UPDATE`` on the row it
+    supersedes, so a thread never ends up with two live versions."""
+
     __tablename__ = "event_notes"
     __table_args__ = (_in_check("kind", EventNoteKind, "event_note_kind"),)
 
@@ -120,3 +127,13 @@ class EventNote(Base):
         ForeignKey("users.id", ondelete="SET NULL")
     )
     created_at: Mapped[_dt.datetime] = mapped_column(server_default=text("now()"))
+    version: Mapped[int] = mapped_column(Integer, server_default=text("1"))
+    #: thread root — ``NULL`` means "this row is the root" (its own v1).
+    thread_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("event_notes.id", ondelete="CASCADE"), index=True
+    )
+    superseded_by_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("event_notes.id", ondelete="RESTRICT")
+    )
+    edited_by: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    edited_at: Mapped[_dt.datetime | None] = mapped_column()

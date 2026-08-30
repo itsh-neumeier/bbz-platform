@@ -76,6 +76,32 @@ class NoteItem:
     body: str
     created_by: uuid.UUID | None
     created_at: _dt.datetime
+    version: int = 1
+    edited_by: uuid.UUID | None = None
+    edited_at: _dt.datetime | None = None
+
+
+@dataclass(frozen=True)
+class NoteVersion:
+    id: uuid.UUID
+    version: int
+    body: str
+    author_id: uuid.UUID | None
+    written_at: _dt.datetime
+
+
+@dataclass(frozen=True)
+class NoteThread:
+    id: uuid.UUID
+    thread_id: uuid.UUID
+    kind: str
+    body: str
+    version: int
+    created_by: uuid.UUID | None
+    created_at: _dt.datetime
+    edited_by: uuid.UUID | None
+    edited_at: _dt.datetime | None
+    history: list[NoteVersion]
 
 
 @dataclass(frozen=True)
@@ -248,7 +274,10 @@ class EventQueryRepository:
             (
                 await self._s.execute(
                     select(EventNote)
-                    .where(EventNote.event_id == event_id)
+                    .where(
+                        EventNote.event_id == event_id,
+                        EventNote.superseded_by_id.is_(None),
+                    )
                     .order_by(EventNote.created_at.asc())
                 )
             )
@@ -274,10 +303,64 @@ class EventQueryRepository:
                     body=n.body,
                     created_by=n.created_by,
                     created_at=n.created_at,
+                    version=n.version,
+                    edited_by=n.edited_by,
+                    edited_at=n.edited_at,
                 )
                 for n in notes
             ],
         )
+
+    async def note_threads(self, event_id: uuid.UUID) -> list[NoteThread]:
+        """Every note thread for the event: its current version plus the ordered
+        history of superseded versions (E20-04). Threads are ordered by when the
+        thread started, versions within a thread by ``version``.
+        """
+        rows = (
+            (
+                await self._s.execute(
+                    select(EventNote)
+                    .where(EventNote.event_id == event_id)
+                    .order_by(EventNote.version.asc(), EventNote.created_at.asc())
+                )
+            )
+            .scalars()
+            .all()
+        )
+        by_thread: dict[uuid.UUID, list[EventNote]] = {}
+        for n in rows:
+            by_thread.setdefault(n.thread_id or n.id, []).append(n)
+
+        threads: list[NoteThread] = []
+        for versions in by_thread.values():
+            versions.sort(key=lambda n: n.version)
+            current = next((n for n in versions if n.superseded_by_id is None), versions[-1])
+            threads.append(
+                NoteThread(
+                    id=current.id,
+                    thread_id=versions[0].id,
+                    kind=current.kind,
+                    body=current.body,
+                    version=current.version,
+                    created_by=versions[0].created_by,
+                    created_at=versions[0].created_at,
+                    edited_by=current.edited_by,
+                    edited_at=current.edited_at,
+                    history=[
+                        NoteVersion(
+                            id=n.id,
+                            version=n.version,
+                            body=n.body,
+                            author_id=n.edited_by if n.version > 1 else n.created_by,
+                            written_at=n.edited_at or n.created_at,
+                        )
+                        for n in versions
+                        if n.superseded_by_id is not None
+                    ],
+                )
+            )
+        threads.sort(key=lambda t: t.created_at)
+        return threads
 
     async def export(self, event_id: uuid.UUID) -> EventExport | None:
         """Full bundle for one event, domain events ordered by ``event_seq``."""
