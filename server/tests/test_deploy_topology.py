@@ -49,6 +49,22 @@ def test_quorum_runs_only_etcd() -> None:
         assert not any(x in img for x in ("bbz-api", "bbz-web", "spilo", "patroni")), img
 
 
+def test_quorum_container_is_hardened() -> None:
+    etcd = _compose(_QUORUM / "docker-compose.yml")["services"]["etcd"]
+    assert etcd["read_only"] is True
+    assert etcd["cap_drop"] == ["ALL"]
+    assert "no-new-privileges:true" in etcd["security_opt"]
+    assert "mem_limit" in etcd and "pids_limit" in etcd
+    # published ports bound via a configurable interface, not hard 0.0.0.0
+    assert all("${QUORUM_BIND" in p for p in etcd["ports"])
+
+
+def test_quorum_hardening_and_runbook_exist() -> None:
+    assert (_QUORUM / "HARDENING.md").read_text(encoding="utf-8").strip()
+    rb = (_ROOT / "docs" / "runbooks" / "quorum-node.md").read_text(encoding="utf-8")
+    assert "BBZ-QUORUM01" in rb and "member add" in rb
+
+
 def test_node_stack_has_every_service() -> None:
     c = _compose(_NODE / "docker-compose.yml")
     assert c["name"] == "bbz-node"
@@ -168,7 +184,9 @@ def test_etcd_enforces_mutual_tls_on_both_planes(path: Path) -> None:
     assert "--peer-client-cert-auth" in cmd
     assert "--peer-trusted-ca-file=" in cmd and "--peer-cert-file=" in cmd
     assert "--listen-peer-urls=https://" in cmd
-    assert "http://" not in cmd  # no plaintext endpoint anywhere
+    # no plaintext endpoint except the local-only Prometheus /metrics listener
+    non_metrics = [a for a in _etcd_command(path) if not a.startswith("--listen-metrics-urls=")]
+    assert "http://" not in " ".join(non_metrics)
 
 
 @pytest.mark.parametrize("path", [_NODE / "docker-compose.yml", _QUORUM / "docker-compose.yml"])
