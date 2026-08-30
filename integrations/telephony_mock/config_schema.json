@@ -10,6 +10,11 @@
       "default": ["1001", "1002"],
       "description": "Logical line ids the mock exposes."
     },
-    "auto_answer": { "type": "boolean", "default": false }
+    "auto_answer": { "type": "boolean", "default": false },
+    "directory": {
+      "type": "object",
+      "additionalProperties": { "type": "string" },
+      "description": "number -> display name, for resolve_caller() in demos/tests."
+    }
   }
 }

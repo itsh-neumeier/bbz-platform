@@ -668,7 +668,7 @@ All issues need Node/Electron; skipped like Epic 07.
 **Epic 10: 3/16 doable here (E10-01/02/14).** E10-03+ (enrollment, command bus,
 agent, UI) need the Go toolchain / identity lib.
 
-### Epic 11 – Telephony Core: **in progress (4/16)**
+### Epic 11 – Telephony Core: **in progress (5/16)**
 - **#197 (E11-01) telephony core schema** — migration 0026 + `telephony.py`:
   `lines` (provider+external_id unique, state CHECK), `calls` (`bbz_call_id`
   unique + **independent of** `source_call_id`; `direction`/`state` CHECK — the
@@ -711,8 +711,18 @@ agent, UI) need the Go toolchain / identity lib.
   `telephony_ingest`'s dispatch hook in `create_app`.
   `test_call_aggregate.py` (transition matrix + chaos), `test_call_lifecycle_api.py`.
 
-**Next:** E11-05 (full `telephony_mock`), E11-06 (call control commands). Epic
-07 / 08, #92,
+- **#205 (E11-05) full `telephony_mock`** — `MockTelephonyProvider` now
+  implements the whole protocol with the E11-02 typed models and a driveable
+  `asyncio.Queue` event stream (`drain_events()`). Scenario helpers:
+  `simulate_incoming` (known/unknown caller), multiple waiting calls,
+  answer/hangup/hold/resume/**transfer** (2 events, requires destination)/
+  **conference**, `send_dtmf` (profile only, never the code), `resolve_caller`
+  (directory), `simulate_provider_out/in_service`, `replay_backlog` (reconnect).
+  Commands idempotent on `command_id`. Manifest capabilities + config
+  (`directory`) expanded. `integrations/telephony_mock/tests/test_mock_provider.py`.
+
+**Next:** E11-06 (call control API — needs a loaded active provider in the
+host). Epic 07 / 08, #92,
 the Go agents (09/10 impl) and the #429 browser E2E stay blocked on a
 Node / Go / multi-host session.
 
