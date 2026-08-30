@@ -381,7 +381,7 @@ if an instance is pinned) / `simulate_version` / `version_diff`, each audited
 
 **Epic 05 COMPLETE (13/13).**
 
-### Epic 06 – HA Cluster: **in progress (1/14)**
+### Epic 06 – HA Cluster: **in progress (2/14)**
 #81 (E06-01) per-node deployment topology. `deploy/node/` — the full stack for
 one BBZ server (`name: bbz-node`): api / web / PostgreSQL+Patroni (Spilo) /
 an etcd member / Caddy reverse proxy, with `.env.example`, file-based
@@ -394,8 +394,21 @@ CI `compose` job now `docker compose config`-checks all three stacks.
 set, images pinned, no plaintext credentials, no committed secret/.env).
 Patroni tuning is #82, the 3-member etcd cluster is #84.
 
-**Next:** #82 (E06-02) Patroni + PostgreSQL primary/standby + ADR-0021
-(sync-mode decision). See `.ai/ROADMAP.md` Epic 06 (14 issues: #81, #82, #84–#95).
+#82 (E06-02) Patroni replication + failover — **ADR-0021 (Accepted)**:
+synchronous replication with automatic fallback (`synchronous_mode: true`,
+`synchronous_mode_strict: false`, `synchronous_node_count: 1`,
+`maximum_lag_on_failover: 1 MiB`). Zero RPO while both DB nodes are healthy; a
+lone primary stays writable (degrades to async, logged) rather than blocking —
+a Leitstelle must keep taking calls. Timing `ttl 30 / loop_wait 10 /
+retry_timeout 10`, target RTO ≤ 60 s. `deploy/node/patroni/patroni.node.yml`
+fleshed out (pg_rewind, slots, `synchronous_commit on`), merged into Spilo via
+`SPILO_CONFIGURATION`. `docs/runbooks/db-failover.md` rewritten with the
+RTO/RPO table + switchover steps. `AuditAction.DB_FAILOVER` added (emitter is
+the cluster observer, E06-04/#85). Replication vs superuser creds are separate
+secret files. The real primary-kill harness is #92.
+
+**Next:** #84 (E06-03) etcd 3-member cluster with mutual TLS (SRV01, SRV02,
+QUORUM01). See `.ai/ROADMAP.md` Epic 06 (14 issues: #81, #82, #84–#95).
 
 ## Existing reference
 A functional HTML mockup defines important UX/feature behavior. **It is not yet in
@@ -493,9 +506,9 @@ time handling (UTC), 0018 distributed config store (etcd).
   (E01-03 / #22), required before staging.
 
 **New ADRs scheduled by the roadmap:** 0019 secret store (E01-03 / #22), 0020
-audit immutability (E04-10 / #66), 0021 PostgreSQL replication mode (E06-02 /
-#82), 0022 Electron load strategy (E08-07 / #143), 0023 SIP gateway (E13-02 /
-#271).
+audit immutability (E04-10 / #66, Proposed), **0021 PostgreSQL replication mode
+(E06-02 / #82 — Accepted: synchronous + auto fallback)**, 0022 Electron load
+strategy (E08-07 / #143), 0023 SIP gateway (E13-02 / #271).
 
 ## Open external dependencies
 - exact Cisco CUCM version/SU and productive cluster/CTI configuration (§8.18)
@@ -516,7 +529,8 @@ interfaces. No customer-specific or vendor API is invented.
 - Electron: load web build from server vs. bundle
 - multi-BBZ / multi-tenancy scope (`region`/`bbz` scopes)
 - LICENSE choice + container-registry mirror (see `docs/repo-settings.md`)
-- synchronous vs. asynchronous PostgreSQL replication mode
+- ~~synchronous vs. asynchronous PostgreSQL replication mode~~ → **ADR-0021**
+  (synchronous with automatic fallback)
 - audit immutability mechanism (append-only + DB grants / hash-chain / WORM)
 - co-determination / DPIA for BKU session monitoring + remote logout/restart
 

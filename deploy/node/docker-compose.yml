@@ -77,6 +77,9 @@ services:
       - |
         export PATRONI_SUPERUSER_PASSWORD="$$(cat /run/secrets/postgres_superuser_password)"
         export PATRONI_REPLICATION_PASSWORD="$$(cat /run/secrets/postgres_replication_password)"
+        # merge the committed Patroni config (sync mode + failover rules,
+        # ADR-0021) into Spilo's generated configuration
+        export SPILO_CONFIGURATION="$$(cat /etc/patroni.node.yml)"
         exec /launch.sh
     secrets:
       - postgres_superuser_password
