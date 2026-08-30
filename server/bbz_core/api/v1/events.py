@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import contextlib
 import datetime as _dt
+import json as _json
 import uuid
 from collections.abc import Awaitable, Callable, Iterator
 from typing import Literal
@@ -39,6 +40,7 @@ from bbz_core.api.errors import (
     ValidationError,
 )
 from bbz_core.api.idempotency import CommandEnvelope, command_envelope
+from bbz_core.api.pdf import render_text_pdf
 from bbz_core.api.reactivation import ReactivationTokenError, mint_token, verify_token
 from bbz_core.audit import AuditAction, AuditService
 from bbz_core.domain.events import (
@@ -63,10 +65,11 @@ from bbz_core.infra.outbox import enqueue
 from bbz_core.infra.repositories.archive_queries import (
     ArchiveDetail,
     ArchiveQueryRepository,
+    ExportBundle,
+    WorkflowInstanceItem,
 )
 from bbz_core.infra.repositories.event_queries import (
     EventDetail,
-    EventExport,
     EventListItem,
     EventQueryRepository,
 )
@@ -238,11 +241,6 @@ class DomainEventOut(BaseModel):
     payload: dict[str, object]
 
 
-class EventExportOut(BaseModel):
-    event: EventDetailOut
-    domain_events: list[DomainEventOut]
-
-
 class WorkflowTaskResultOut(BaseModel):
     node_key: str
     result: dict[str, object]
@@ -291,13 +289,42 @@ class ArchiveDetailOut(BaseModel):
     calls: list[object]
 
 
+class AuditEntryOut(BaseModel):
+    id: uuid.UUID
+    occurred_at_utc: _dt.datetime
+    node_id: str
+    action: str
+    actor_user_id: uuid.UUID | None
+    target_type: str | None
+    target_id: str | None
+    before: dict[str, object] | None
+    after: dict[str, object] | None
+    reason: str | None
+    correlation_id: str | None
+    event_seq_ref: int | None
+
+
+class EventExportOut(BaseModel):
+    """The complete, reproducible record of one event (E20-06). Lists are
+    deterministically ordered (``event_seq``, then timestamps ascending)."""
+
+    bundle_version: Literal["1"] = "1"
+    exported_at: _dt.datetime
+    event: EventDetailOut
+    domain_events: list[DomainEventOut]
+    workflows: list[WorkflowInstanceOut]
+    audit_entries: list[AuditEntryOut]
+    calls: list[object]
+
+
 def _item_out(item: EventListItem) -> EventListItemOut:
     return EventListItemOut.model_validate(item, from_attributes=True)
 
 
-def _export_out(export: EventExport) -> EventExportOut:
+def _export_out(bundle: ExportBundle, *, exported_at: _dt.datetime) -> EventExportOut:
     return EventExportOut(
-        event=_detail_out(export.detail),
+        exported_at=exported_at,
+        event=_detail_out(bundle.detail),
         domain_events=[
             DomainEventOut(
                 event_seq=d.event_seq,
@@ -306,7 +333,30 @@ def _export_out(export: EventExport) -> EventExportOut:
                 user_id=d.user_id,
                 payload=d.payload,
             )
-            for d in export.domain_events
+            for d in bundle.domain_events
+        ],
+        workflows=[_workflow_out(w) for w in bundle.workflows],
+        audit_entries=[
+            AuditEntryOut.model_validate(a, from_attributes=True) for a in bundle.audit_entries
+        ],
+        calls=list(bundle.calls),
+    )
+
+
+def _workflow_out(w: WorkflowInstanceItem) -> WorkflowInstanceOut:
+    return WorkflowInstanceOut(
+        id=w.id,
+        template_key=w.template_key,
+        template_name=w.template_name,
+        template_version=w.template_version,
+        status=w.status,
+        started_at=w.started_at,
+        ended_at=w.ended_at,
+        task_results=[
+            WorkflowTaskResultOut.model_validate(t, from_attributes=True) for t in w.task_results
+        ],
+        decisions=[
+            WorkflowDecisionOut.model_validate(d, from_attributes=True) for d in w.decisions
         ],
     )
 
@@ -324,25 +374,7 @@ def _archive_detail_out(bundle: ArchiveDetail) -> ArchiveDetailOut:
             )
             for d in bundle.domain_events
         ],
-        workflows=[
-            WorkflowInstanceOut(
-                id=w.id,
-                template_key=w.template_key,
-                template_name=w.template_name,
-                template_version=w.template_version,
-                status=w.status,
-                started_at=w.started_at,
-                ended_at=w.ended_at,
-                task_results=[
-                    WorkflowTaskResultOut.model_validate(t, from_attributes=True)
-                    for t in w.task_results
-                ],
-                decisions=[
-                    WorkflowDecisionOut.model_validate(d, from_attributes=True) for d in w.decisions
-                ],
-            )
-            for w in bundle.workflows
-        ],
+        workflows=[_workflow_out(w) for w in bundle.workflows],
         audit_refs=[AuditRefOut.model_validate(a, from_attributes=True) for a in bundle.audit_refs],
         calls=list(bundle.calls),
     )
@@ -1165,21 +1197,42 @@ async def edit_note(
 @router.get("/{event_id}/export", response_model=EventExportOut)
 async def export_event(
     event_id: uuid.UUID,
+    export_format: Literal["json", "pdf"] = Query(default="json", alias="format"),
     ctx: AuthContext = Depends(require("events.export")),
+    _audit: AuthContext = Depends(require("system.audit.view")),
     session: AsyncSession = Depends(db_session),
-) -> EventExportOut:
-    export = await EventQueryRepository(session).export(event_id)
-    if export is None:
+) -> EventExportOut | Response:
+    """The complete, reproducible record of one event — status history, notes,
+    workflow results, calls (Epic 11), and full audit entries — in
+    deterministic order (E20-06). Requires ``events.export`` **and**
+    ``system.audit.view`` (the bundle contains audit before/after). The export
+    itself is audited (``EVENT_EXPORTED``). ``format=pdf`` needs the
+    ``export_pdf_enabled`` setting."""
+    if export_format == "pdf" and not get_settings().export_pdf_enabled:
+        raise NotFoundError("pdf export is not enabled on this deployment")
+
+    bundle = await ArchiveQueryRepository(session).export_bundle(event_id)
+    if bundle is None:
         raise NotFoundError("event not found")
     await session.rollback()  # close the read tx before the audit write tx
+    exported_at = _dt.datetime.now(_dt.UTC)
     async with session.begin():
         await AuditService(session).write(
             AuditAction.EVENT_EXPORTED,
             actor_user_id=ctx.user_id,
             target_type="event",
             target_id=str(event_id),
+            after={"format": export_format},
         )
-    return _export_out(export)
+    out = _export_out(bundle, exported_at=exported_at)
+    if export_format == "pdf":
+        pdf = render_text_pdf(_json.dumps(out.model_dump(mode="json"), indent=2, sort_keys=True))
+        return Response(
+            content=pdf,
+            media_type="application/pdf",
+            headers={"Content-Disposition": f'attachment; filename="event-{event_id}.pdf"'},
+        )
+    return out
 
 
 @router.get("/{event_id}/archive-detail", response_model=ArchiveDetailOut)

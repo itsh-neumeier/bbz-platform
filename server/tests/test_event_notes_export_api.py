@@ -20,6 +20,7 @@ _ALL = [
     "events.postprocess",
     "events.export",
     "events.view",
+    "system.audit.view",  # E20-06: the export bundle carries full audit entries
 ]
 
 

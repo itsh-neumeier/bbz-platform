@@ -141,7 +141,7 @@ async def test_assign_writes_exactly_one_audit_row_with_diff(env: tuple) -> None
 
 async def test_export_is_audited(env: tuple) -> None:
     client, s = env
-    await _make_user(s, "exp", ["events.create", "events.export"])
+    await _make_user(s, "exp", ["events.create", "events.export", "system.audit.view"])
     await _login(client, "exp")
     eid = (
         await client.post("/api/v1/events", json={"title": "x", "priority": "low"}, headers=_cmd())
