@@ -6,6 +6,11 @@ complete - used by Alembic (``target_metadata``) and by tests.
 
 from __future__ import annotations
 
+from bbz_core.infra.models.application_catalog import (
+    ApplicationCatalogEntry,
+    ApplicationCatalogScope,
+    LaunchMode,
+)
 from bbz_core.infra.models.audit import AuditEvent
 from bbz_core.infra.models.base import Base
 from bbz_core.infra.models.bku_agent import (
@@ -68,6 +73,8 @@ from bbz_core.infra.models.workflow_runtime import (
 )
 
 __all__ = [
+    "ApplicationCatalogEntry",
+    "ApplicationCatalogScope",
     "AuditEvent",
     "AuthIdentity",
     "AuthProvider",
@@ -90,6 +97,7 @@ __all__ = [
     "ExternalActionOutbox",
     "Group",
     "GroupRole",
+    "LaunchMode",
     "LocalCredential",
     "LocalTotp",
     "LocalTotpRecoveryCode",
