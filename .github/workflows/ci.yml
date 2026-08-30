@@ -156,3 +156,10 @@ jobs:
       - name: deploy/ha-test harness
         working-directory: deploy/ha-test
         run: docker compose -f compose.yml config -q
+      - name: Caddyfiles are valid + formatted (E06-12)
+        run: |
+          for cf in deploy/node/reverse-proxy/Caddyfile deploy/reverse-proxy/Caddyfile deploy/ha-test/Caddyfile; do
+            echo "== $cf =="
+            docker run --rm -e BBZ_PUBLIC_NAME=bbz.ci.internal -v "$PWD/$cf:/w/Caddyfile:ro" -w /w \
+              caddy:2-alpine sh -c "caddy validate --config Caddyfile && diff -u Caddyfile <(caddy fmt Caddyfile)"
+          done

@@ -1,5 +1,6 @@
-# Foundation-phase edge stub. Real config (TLS, HSTS, CSP, rate limits — see
-# SECURITY.md / MASTER_PROMPT §22) is completed in Phase 2/3.
+# Dev-only edge for the repo-root docker-compose.yml (`--profile edge`). The
+# production edge — TLS, HSTS/CSP baseline, /health/ready draining, WS
+# pass-through — is deploy/node/reverse-proxy/Caddyfile (E06-12).
 :8443 {
 	encode gzip
 	header {
@@ -7,14 +8,11 @@
 		X-Frame-Options DENY
 		Referrer-Policy strict-origin-when-cross-origin
 	}
-	handle /api/* {
-		reverse_proxy api:8000
-	}
-	handle /health/* {
-		reverse_proxy api:8000
-	}
-	handle /cluster/* {
-		reverse_proxy api:8000
+	@api path /api/* /health/* /cluster/* /ws/*
+	handle @api {
+		reverse_proxy api:8000 {
+			flush_interval -1
+		}
 	}
 	handle {
 		reverse_proxy web:5173

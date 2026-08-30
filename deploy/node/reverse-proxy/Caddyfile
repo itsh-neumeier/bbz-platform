@@ -1,35 +1,63 @@
-# deploy/node edge — TLS termination, security headers, routing.
-# Full hardening (HSTS preload, CSP, rate limits — MASTER_PROMPT §22) is
-# completed in E06-13 (#93). E06-01 only wires the proxy into the topology.
-
+# deploy/node edge (roadmap E06-12). TLS termination, security-header baseline,
+# api/web routing, WebSocket pass-through, health-based draining of a node that
+# is not ready (E06-05). CSP fine-tuning for the web/Electron client is E23.
 {
 	admin off
 	email ops@{$BBZ_PUBLIC_NAME}
 }
 
-{$BBZ_PUBLIC_NAME} {
-	encode gzip
-
+(security_headers) {
 	header {
-		X-Content-Type-Options nosniff
-		X-Frame-Options DENY
-		Referrer-Policy strict-origin-when-cross-origin
+		# HTTPS only, 1 year, include subdomains (add `preload` once submitted)
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		Permissions-Policy "geolocation=(), camera=(), microphone=(), payment=()"
+		Cross-Origin-Opener-Policy "same-origin"
+		# baseline CSP — the web app tightens this in E23
+		Content-Security-Policy "default-src 'self'; frame-ancestors 'none'; base-uri 'self'; object-src 'none'; connect-src 'self' wss:"
 		-Server
+		-X-Powered-By
 	}
+}
 
+(api_upstream) {
+	reverse_proxy api:8000 {
+		# a node in rejoin/replay answers /health/ready with 503 (E06-05) →
+		# Caddy marks the upstream down and stops routing to it (drain).
+		health_uri /health/ready
+		health_interval 3s
+		health_timeout 3s
+		health_status 2xx
+		fail_duration 10s
+		# streaming: no response buffering for SSE / WebSocket
+		flush_interval -1
+	}
+}
+
+{$BBZ_PUBLIC_NAME} {
+	encode zstd gzip
+	import security_headers
+
+	# Internal PKI: mount the node's server cert + key and uncomment. Left out,
+	# Caddy issues from its own local CA for the (non-public) internal hostname.
+	# tls /etc/caddy/tls/server.crt /etc/caddy/tls/server.key
+
+	# API, health, cluster status and the WebSocket stream (Caddy upgrades WS
+	# transparently; flush_interval -1 keeps frames unbuffered)
 	@api path /api/* /health/* /cluster/* /ws/*
 	handle @api {
-		reverse_proxy api:8000 {
-			# a node in rejoin/replay answers /health/ready with 503 (E06-05).
-			# The client agent does server selection (E09-04); a load balancer
-			# in front of the two nodes would use this as its active check.
-			health_uri /health/ready
-			health_interval 5s
-			health_timeout 3s
-		}
+		import api_upstream
 	}
 
+	# SPA
 	handle {
 		reverse_proxy web:8080
 	}
+}
+
+# plain HTTP → HTTPS
+http://{$BBZ_PUBLIC_NAME} {
+	redir https://{host}{uri} permanent
 }

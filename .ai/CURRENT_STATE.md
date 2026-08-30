@@ -381,7 +381,7 @@ if an instance is pinned) / `simulate_version` / `version_diff`, each audited
 
 **Epic 05 COMPLETE (13/13).**
 
-### Epic 06 – HA Cluster: **in progress (11/14)**
+### Epic 06 – HA Cluster: **in progress (12/14)**
 #81 (E06-01) per-node deployment topology. `deploy/node/` — the full stack for
 one BBZ server (`name: bbz-node`): api / web / PostgreSQL+Patroni (Spilo) /
 an etcd member / Caddy reverse proxy, with `.env.example`, file-based
@@ -515,8 +515,20 @@ until shaken out on real hardware; `test_ha_harness.py` lints the scripts +
 compose + workflow; `.ai/TESTING.md` documents the seven scenarios. The CI
 `compose` job now also config-checks `deploy/ha-test`.
 
-**Next:** #93 (E06-12) reverse proxy (Caddy) — TLS, routing, security headers.
-See `.ai/ROADMAP.md` Epic 06 (14 issues: #81, #82, #84–#95).
+#93 (E06-12) reverse-proxy finalised. `deploy/node/reverse-proxy/Caddyfile`:
+a `(security_headers)` snippet (HSTS, CSP baseline, X-Content-Type-Options,
+X-Frame-Options, Referrer-Policy, Permissions-Policy, COOP, strips
+`Server`/`X-Powered-By`), an `(api_upstream)` snippet with `health_uri
+/health/ready` + `flush_interval -1` (unbuffered SSE/WS) + `fail_duration`
+draining, `@api` routes `/api|/health|/cluster|/ws/*` to the API and the rest
+to the SPA, plain HTTP → HTTPS redirect, internal-PKI `tls` line commented for
+the operator. The dev-only root `deploy/reverse-proxy/Caddyfile` is trimmed +
+labelled. CI validates + fmt-checks all three Caddyfiles;
+`test_deploy_topology.py` asserts the header baseline, drain + WS passthrough,
+and runs `caddy validate` on each.
+
+**Next:** #94 (E06-13) cluster/HA metrics endpoint. See `.ai/ROADMAP.md`
+Epic 06 (14 issues: #81, #82, #84–#95).
 
 ## Existing reference
 A functional HTML mockup defines important UX/feature behavior. **It is not yet in
