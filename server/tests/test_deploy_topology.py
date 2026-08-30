@@ -8,6 +8,8 @@ plaintext credential sits in a committed file.
 
 from __future__ import annotations
 
+import shutil
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -16,6 +18,21 @@ import yaml
 _ROOT = Path(__file__).resolve().parents[2]
 _NODE = _ROOT / "deploy" / "node"
 _QUORUM = _ROOT / "deploy" / "quorum"
+_ETCD = _ROOT / "deploy" / "etcd"
+
+
+def _etcd_command(compose_path: Path) -> list[str]:
+    return _compose(compose_path)["services"]["etcd"]["command"]
+
+
+def _env_example(base: Path) -> dict[str, str]:
+    out: dict[str, str] = {}
+    for line in (base / ".env.example").read_text(encoding="utf-8").splitlines():
+        line = line.split("#", 1)[0].strip()
+        if "=" in line:
+            k, _, v = line.partition("=")
+            out[k.strip()] = v.strip().strip("'\"")
+    return out
 
 
 def _compose(path: Path) -> dict:
@@ -135,3 +152,94 @@ def test_db_failover_runbook_points_at_adr_0021() -> None:
     rb = (_ROOT / "docs" / "runbooks" / "db-failover.md").read_text(encoding="utf-8")
     assert "ADR-0021" in rb
     assert "RTO" in rb and "RPO" in rb
+
+
+# --- E06-03: etcd 3-member cluster with mutual TLS (ADR-0018) ---------------
+
+
+@pytest.mark.parametrize("path", [_NODE / "docker-compose.yml", _QUORUM / "docker-compose.yml"])
+def test_etcd_enforces_mutual_tls_on_both_planes(path: Path) -> None:
+    cmd = " ".join(_etcd_command(path))
+    # client plane
+    assert "--client-cert-auth" in cmd
+    assert "--trusted-ca-file=" in cmd and "--cert-file=" in cmd
+    assert "--listen-client-urls=https://" in cmd
+    # peer plane
+    assert "--peer-client-cert-auth" in cmd
+    assert "--peer-trusted-ca-file=" in cmd and "--peer-cert-file=" in cmd
+    assert "--listen-peer-urls=https://" in cmd
+    assert "http://" not in cmd  # no plaintext endpoint anywhere
+
+
+@pytest.mark.parametrize("path", [_NODE / "docker-compose.yml", _QUORUM / "docker-compose.yml"])
+def test_every_member_lists_all_three_peers(path: Path) -> None:
+    cmd = " ".join(_etcd_command(path))
+    assert "${ETCD_INITIAL_CLUSTER" in cmd
+    cluster = _env_example(path.parent)["ETCD_INITIAL_CLUSTER"]
+    assert cluster.count("https://") == 3
+    assert {"BBZ-SRV01", "BBZ-SRV02", "BBZ-QUORUM01"} <= set(cluster.replace("=", ",").split(","))
+
+
+def test_bootstrap_auth_scopes_patroni_and_app_to_separate_prefixes() -> None:
+    sh = (_ETCD / "bootstrap-auth.sh").read_text(encoding="utf-8")
+    assert "role grant-permission patroni readwrite --prefix=true /patroni/" in sh
+    assert "role grant-permission bbz readwrite --prefix=true /bbz/" in sh
+    assert "auth enable" in sh
+
+
+def test_etcd_helper_scripts_are_present_and_posix() -> None:
+    for name in ("gen-certs.sh", "bootstrap-auth.sh", "snapshot.sh"):
+        head = (_ETCD / name).read_text(encoding="utf-8").splitlines()[0]
+        assert head.startswith("#!") and "sh" in head
+
+
+def test_patroni_talks_to_etcd_over_tls_as_the_patroni_user() -> None:
+    text = _patroni_raw()
+    assert "protocol: https" in text
+    assert "cert: /etc/etcd/certs/client-patroni.crt" in text
+
+
+def test_generated_etcd_certs_are_gitignored() -> None:
+    probe = _NODE / "etcd" / "certs" / "BBZ-SRV01-peer.key"
+    r = subprocess.run(
+        ["git", "check-ignore", str(probe)], cwd=_ROOT, capture_output=True, text=True
+    )
+    assert r.returncode == 0, "deploy/**/etcd/certs/ must be gitignored"
+
+
+@pytest.mark.skipif(
+    not (shutil.which("sh") and shutil.which("openssl")),
+    reason="needs sh + openssl",
+)
+def test_gen_certs_produces_a_ca_signed_member_and_client_cert(tmp_path: Path) -> None:
+    out = tmp_path / "certs"
+    env = {
+        "PATH": __import__("os").environ["PATH"],
+        "OUT": str(out),
+        "MEMBERS": "BBZ-SRV01=bbz-srv01,10.0.0.11 BBZ-QUORUM01=bbz-quorum01,10.0.0.13",
+        "CLIENTS": "client-patroni client-bbz-app",
+        "DAYS": "30",
+    }
+    subprocess.run(["sh", str(_ETCD / "gen-certs.sh")], env=env, check=True, capture_output=True)
+    assert (out / "ca.crt").exists()
+    verify = subprocess.run(
+        [
+            "openssl",
+            "verify",
+            "-CAfile",
+            "ca.crt",
+            "BBZ-SRV01-peer.crt",
+            "client-patroni.crt",
+        ],
+        cwd=out,
+        capture_output=True,
+        text=True,
+    )
+    assert verify.returncode == 0, verify.stderr
+    san = subprocess.run(
+        ["openssl", "x509", "-in", "BBZ-SRV01-peer.crt", "-noout", "-text"],
+        cwd=out,
+        capture_output=True,
+        text=True,
+    ).stdout
+    assert "bbz-srv01" in san and "10.0.0.11" in san

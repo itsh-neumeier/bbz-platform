@@ -23,6 +23,12 @@ restapi:
 
 etcd3:
   hosts: ${ETCD3_HOSTS}
+  protocol: https
+  cacert: /etc/etcd/certs/ca.crt
+  cert: /etc/etcd/certs/client-patroni.crt
+  key: /etc/etcd/certs/client-patroni.key
+  # the member maps this client cert's CN (patroni) to the etcd user that may
+  # only touch /patroni/ (deploy/etcd/bootstrap-auth.sh)
 
 bootstrap:
   dcs:

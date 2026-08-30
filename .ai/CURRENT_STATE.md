@@ -381,7 +381,7 @@ if an instance is pinned) / `simulate_version` / `version_diff`, each audited
 
 **Epic 05 COMPLETE (13/13).**
 
-### Epic 06 – HA Cluster: **in progress (2/14)**
+### Epic 06 – HA Cluster: **in progress (3/14)**
 #81 (E06-01) per-node deployment topology. `deploy/node/` — the full stack for
 one BBZ server (`name: bbz-node`): api / web / PostgreSQL+Patroni (Spilo) /
 an etcd member / Caddy reverse proxy, with `.env.example`, file-based
@@ -407,8 +407,23 @@ RTO/RPO table + switchover steps. `AuditAction.DB_FAILOVER` added (emitter is
 the cluster observer, E06-04/#85). Replication vs superuser creds are separate
 secret files. The real primary-kill harness is #92.
 
-**Next:** #84 (E06-03) etcd 3-member cluster with mutual TLS (SRV01, SRV02,
-QUORUM01). See `.ai/ROADMAP.md` Epic 06 (14 issues: #81, #82, #84–#95).
+#84 (E06-03) etcd 3-member cluster with mutual TLS. `deploy/etcd/`:
+`gen-certs.sh` (openssl — CA + per-member peer/server + per-client certs, SANs
+from a member table), `bootstrap-auth.sh` (`auth enable`; role `patroni` RW on
+`/patroni/`, role `bbz` RW on `/bbz/`, `admin` read-only — users authenticated
+by client-cert CN), `snapshot.sh` (backup hook; retention is #95). Both etcd
+services (node + quorum) now enforce mTLS on the peer **and** client planes
+(`--client-cert-auth` / `--peer-client-cert-auth`, `https://` everywhere), list
+all three members, and mount `./etcd/certs`. Patroni talks to etcd over TLS as
+user `patroni`; the API over TLS as `bbz-app` — new settings
+`cluster_dcs_tls_{ca,cert,key}_file` threaded into the `EtcdLeaderElection`
+httpx client (`EtcdTls`). `deploy/**/etcd/certs/` gitignored.
+`test_deploy_topology.py` covers the TLS flags, the ACL prefixes, the scripts,
+and runs `gen-certs.sh` to verify a CA-signed member/client cert. The
+one-member-down harness is #92.
+
+**Next:** #85 (E06-04) `/cluster/status` real implementation
+(`system.cluster.view`). See `.ai/ROADMAP.md` Epic 06 (14 issues: #81, #82, #84–#95).
 
 ## Existing reference
 A functional HTML mockup defines important UX/feature behavior. **It is not yet in
