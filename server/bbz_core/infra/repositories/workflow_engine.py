@@ -52,7 +52,11 @@ from bbz_core.domain.workflow.tasks import (
     timer_seconds,
 )
 from bbz_core.infra.models.events import Event
-from bbz_core.infra.models.workflow import WorkflowTemplateVersion
+from bbz_core.infra.models.workflow import (
+    WorkflowLifecycle,
+    WorkflowTemplate,
+    WorkflowTemplateVersion,
+)
 from bbz_core.infra.models.workflow_runtime import (
     WorkflowDecision,
     WorkflowInstance,
@@ -86,17 +90,42 @@ class InvalidDecisionError(WorkflowEngineError):
     """The decision does not name a valid branch set for this connector."""
 
 
+class TemplateNotFoundError(WorkflowEngineError):
+    """start_for_event() was given a template key that does not exist."""
+
+
+class NoPublishedVersionError(WorkflowEngineError):
+    """The template has no PUBLISHED version to pin a new instance to."""
+
+
 class WorkflowEngineService:
     def __init__(self, session: AsyncSession) -> None:
         self._s = session
 
     async def start_instance(
-        self, *, event_id: uuid.UUID, template_version_id: uuid.UUID
+        self,
+        *,
+        event_id: uuid.UUID,
+        template_version_id: uuid.UUID,
+        actor_id: uuid.UUID | None = None,
     ) -> WorkflowInstance:
-        """Create an instance on a published version, seed the start token, run."""
+        """Create an instance on a published version, seed the start token, run.
+
+        The instance is pinned to ``template_version_id`` for life — publishing
+        a later version never touches it (ADR-0005)."""
         inst = WorkflowInstance(event_id=event_id, template_version_id=template_version_id)
         self._s.add(inst)
         await self._s.flush()  # the BEFORE INSERT trigger enforces "published"
+        await AuditService(self._s).write(
+            AuditAction.WORKFLOW_INSTANCE_STARTED,
+            actor_user_id=actor_id,
+            target_type="workflow_instance",
+            target_id=str(inst.id),
+            after={
+                "event_id": str(event_id),
+                "template_version_id": str(template_version_id),
+            },
+        )
         graph = await self._graph(template_version_id)
         self._s.add(
             WorkflowToken(
@@ -110,6 +139,57 @@ class WorkflowEngineService:
         await self._drive(inst, graph, actor_id=None)
         await self._s.commit()
         return inst
+
+    async def start_for_event(
+        self,
+        event_id: uuid.UUID,
+        template_key: str,
+        *,
+        actor_id: uuid.UUID | None = None,
+    ) -> WorkflowInstance:
+        """Start a workflow for an event on the template's *current* PUBLISHED
+        version. Idempotent: if a running instance for that event + version
+        already exists it is returned unchanged."""
+        template_id = (
+            await self._s.execute(
+                select(WorkflowTemplate.id).where(WorkflowTemplate.key == template_key)
+            )
+        ).scalar_one_or_none()
+        if template_id is None:
+            raise TemplateNotFoundError(template_key)
+
+        version_id = (
+            await self._s.execute(
+                select(WorkflowTemplateVersion.id)
+                .where(
+                    WorkflowTemplateVersion.template_id == template_id,
+                    WorkflowTemplateVersion.lifecycle == WorkflowLifecycle.PUBLISHED.value,
+                )
+                .order_by(WorkflowTemplateVersion.version_no.desc())
+                .limit(1)
+            )
+        ).scalar_one_or_none()
+        if version_id is None:
+            raise NoPublishedVersionError(f"template {template_key!r} has no published version")
+
+        running = (
+            await self._s.execute(
+                select(WorkflowInstance)
+                .where(
+                    WorkflowInstance.event_id == event_id,
+                    WorkflowInstance.template_version_id == version_id,
+                    WorkflowInstance.status == WorkflowInstanceStatus.RUNNING.value,
+                )
+                .limit(1)
+            )
+        ).scalar_one_or_none()
+        if running is not None:
+            await self._s.commit()
+            return running
+
+        return await self.start_instance(
+            event_id=event_id, template_version_id=version_id, actor_id=actor_id
+        )
 
     async def advance_instance(self, instance_id: uuid.UUID) -> WorkflowInstance:
         """Re-run the engine from the persisted token state (crash recovery)."""

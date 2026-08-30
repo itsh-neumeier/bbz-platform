@@ -22,7 +22,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from bbz_core.api.authz import require
 from bbz_core.api.deps import AuthContext, db_session
 from bbz_core.api.errors import ConflictError, NotFoundError, ValidationError
+from bbz_core.infra.models.events import Event
 from bbz_core.infra.models.workflow import WorkflowTemplate, WorkflowTemplateVersion
+from bbz_core.infra.repositories.workflow_engine import (
+    NoPublishedVersionError,
+    TemplateNotFoundError,
+    WorkflowEngineService,
+)
 from bbz_core.infra.repositories.workflow_lifecycle import (
     ChangelogRequiredError,
     InvalidTransitionError,
@@ -227,3 +233,49 @@ async def deprecate_version(
     with _translate():
         v = await svc.deprecate(version_id, actor_id=ctx.user_id)
     return _version_out(v)
+
+
+# -- instance start (E05-11) --------------------------------------------------
+
+
+class StartWorkflowIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    template_key: str = Field(min_length=1, max_length=64)
+
+
+class InstanceOut(BaseModel):
+    instance_id: uuid.UUID
+    event_id: uuid.UUID
+    template_version_id: uuid.UUID
+    status: str
+
+
+@router.post(
+    "/events/{event_id}/workflow",
+    response_model=InstanceOut,
+    status_code=status.HTTP_201_CREATED,
+)
+async def start_event_workflow(
+    event_id: uuid.UUID,
+    body: StartWorkflowIn,
+    ctx: AuthContext = Depends(require("workflows.execute")),
+    session: AsyncSession = Depends(db_session),
+) -> InstanceOut:
+    """Pin a new workflow instance to this event and the template's current
+    PUBLISHED version. Idempotent, and immune to later publishes (ADR-0005)."""
+    if await session.get(Event, event_id) is None:
+        raise NotFoundError("event not found")
+    try:
+        inst = await WorkflowEngineService(session).start_for_event(
+            event_id, body.template_key, actor_id=ctx.user_id
+        )
+    except TemplateNotFoundError as exc:
+        raise NotFoundError(f"workflow template {body.template_key!r} not found") from exc
+    except NoPublishedVersionError as exc:
+        raise ConflictError(str(exc)) from exc
+    return InstanceOut(
+        instance_id=inst.id,
+        event_id=inst.event_id,
+        template_version_id=inst.template_version_id,
+        status=inst.status,
+    )
