@@ -176,12 +176,41 @@ class EventQueryRepository:
         cursor: str | None = None,
         include_archived: bool = True,
         status: str | None = None,
+        priority: list[str] | None = None,
+        bbz_id: uuid.UUID | None = None,
+        assignee_id: uuid.UUID | None = None,
+        created_from: _dt.datetime | None = None,
+        created_to: _dt.datetime | None = None,
     ) -> EventPage:
+        """Chronological list (newest first), keyset-paginated on ``(created_at, id)``.
+
+        The optional filters (E20-02, for the archive view) narrow the set without
+        touching the cursor contract: ``created_from``/``created_to`` bound the
+        creation time, ``priority`` is an OR-set, ``bbz_id`` and ``assignee_id``
+        (the *active* responsible user) are exact matches.
+        """
         stmt = select(Event).order_by(Event.created_at.desc(), Event.id.desc())
         if not include_archived:
             stmt = stmt.where(Event.status != EventStatus.ARCHIVED.value)
         if status is not None:
             stmt = stmt.where(Event.status == status)
+        if priority:
+            stmt = stmt.where(Event.priority.in_(priority))
+        if bbz_id is not None:
+            stmt = stmt.where(Event.bbz_id == bbz_id)
+        if created_from is not None:
+            stmt = stmt.where(Event.created_at >= created_from)
+        if created_to is not None:
+            stmt = stmt.where(Event.created_at <= created_to)
+        if assignee_id is not None:
+            stmt = stmt.where(
+                Event.id.in_(
+                    select(EventAssignment.event_id).where(
+                        EventAssignment.active.is_(True),
+                        EventAssignment.user_id == assignee_id,
+                    )
+                )
+            )
         if cursor is not None:
             c_at, c_id = _parse_cursor(cursor)
             stmt = stmt.where(

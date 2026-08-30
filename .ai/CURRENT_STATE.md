@@ -569,17 +569,21 @@ and Node/npm is not available in this environment** — the frontend CI job is
 also `continue-on-error`. Those need a Node-equipped session. Backend work
 continues on Epic 20 in the meantime.
 
-### Epic 20 – Archive / Postprocessing: **in progress (1/8)**
-#414 (E20-01) archive detail model — decision documented in
-`docs/domain/archive.md`: **no `event_archive` table**; an archived event is an
-`events` row with `status=archived` and all history lives in the same
-append-only tables (ADR-0011). `ArchiveQueryRepository.detail(event_id)`
-(`bbz_core/infra/repositories/archive_queries.py`) bundles event detail +
-`domain_events` + workflow instances (task results, decisions, pinned template
-version) + audit refs + `calls` (reserved, Epic 11). Exposed as
-`GET /api/v1/events/{id}/archive-detail` (`events.view`, no audit — read).
-`server/tests/test_archive_detail.py` proves active-vs-archived depth parity.
-**Next:** #416 (E20-02). Live issues: #416, #418, #420, #422, #424, #426, #429.
+### Epic 20 – Archive / Postprocessing: **in progress (2/8)**
+- **#414 (E20-01) archive detail model** — decision documented in
+  `docs/domain/archive.md`: **no `event_archive` table**; an archived event is an
+  `events` row with `status=archived` and all history lives in the same
+  append-only tables (ADR-0011). `ArchiveQueryRepository.detail(event_id)`
+  (`bbz_core/infra/repositories/archive_queries.py`) bundles event detail +
+  `domain_events` + workflow instances (task results, decisions, pinned template
+  version) + audit refs + `calls` (reserved, Epic 11). Query only — the HTTP
+  detail endpoint is E20-03 (#418). `test_archive_detail.py` proves
+  active-vs-archived depth parity.
+- **#416 (E20-02) archive list filters** — `GET /api/v1/events` gained optional
+  `created_from`/`created_to`, repeatable `priority`, `bbz_id`, `assignee_id`
+  (active responsible) filters; keyset cursor unchanged. `queue=active` still
+  excludes archived and ignores the filters. `test_archive_list_api.py`.
+**Next:** #418 (E20-03). Live issues: #418, #420, #422, #424, #426, #429.
 
 ## Existing reference
 A functional HTML mockup defines important UX/feature behavior. **It is not yet in
