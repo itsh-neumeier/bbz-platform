@@ -95,7 +95,26 @@
     "CALL_ANSWERED": { "$ref": "#/$defs/call_transition" },
     "CALL_ENDED": { "$ref": "#/$defs/call_transition" },
     "LINE_IN_SERVICE": { "$ref": "#/$defs/line_state" },
-    "LINE_OUT_OF_SERVICE": { "$ref": "#/$defs/line_state" }
+    "LINE_OUT_OF_SERVICE": { "$ref": "#/$defs/line_state" },
+    "CALL_DOCUMENTED": {
+      "type": "object",
+      "required": ["bbz_call_id", "category", "actor_id"],
+      "additionalProperties": true,
+      "properties": {
+        "bbz_call_id": { "type": "string", "minLength": 1 },
+        "category": {
+          "enum": [
+            "information_request",
+            "technical_fault",
+            "cleaning_report_customer",
+            "evu_evi_notice",
+            "other"
+          ]
+        },
+        "has_free_text": { "type": "boolean" },
+        "actor_id": { "type": "string" }
+      }
+    }
   },
   "$defs": {
     "call_transition": {

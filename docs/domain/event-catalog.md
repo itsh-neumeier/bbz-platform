@@ -41,6 +41,7 @@ sub-schema under `properties.<EVENT_TYPE>`).
 | CALL_ENDED | call | bbz_call_id, direction, from, to | call reached a terminal state; audited |
 | LINE_IN_SERVICE | line | provider, external_id, state | line status change (E11-07); not audited |
 | LINE_OUT_OF_SERVICE | line | provider, external_id, state | line outage (E11-07); not audited |
+| CALL_DOCUMENTED | call | bbz_call_id, category, actor_id | mandatory call categorization set (E11-09); audited |
 
 ## Calls
 
