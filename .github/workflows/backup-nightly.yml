@@ -1,0 +1,65 @@
+name: backup restore test
+
+# Weekly proof that the backup + restore *mechanism* works (roadmap E06-14):
+# back up a throwaway PostgreSQL and etcd, restore each into a fresh instance,
+# assert the counts match. Not a PR gate.
+on:
+  schedule:
+    - cron: "43 3 * * 1"
+  workflow_dispatch:
+
+jobs:
+  pg-roundtrip:
+    name: PostgreSQL backup → restore
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    services:
+      src:
+        image: postgres:16-alpine
+        env: { POSTGRES_USER: bbz, POSTGRES_PASSWORD: bbz, POSTGRES_DB: bbz }
+        ports: ["5432:5432"]
+        options: --health-cmd "pg_isready -U bbz" --health-interval 5s --health-timeout 3s --health-retries 10
+    steps:
+      - uses: actions/checkout@v7
+      - name: seed + backup + restore + verify
+        run: |
+          set -eux
+          export PGPASSWORD=bbz
+          psql -h localhost -U bbz -d bbz -c "CREATE TABLE probe(id int); INSERT INTO probe SELECT generate_series(1,500);"
+          before=$(psql -h localhost -U bbz -d bbz -tAc "SELECT count(*) FROM probe")
+          # encrypted logical dump as the CI-friendly stand-in for pgBackRest
+          gpg --batch --passphrase '' --quick-gen-key ci-backup default default never
+          pg_dump -h localhost -U bbz bbz | gpg --batch --yes --trust-model always \
+            --encrypt --recipient ci-backup -o dump.sql.gpg
+          # restore into a fresh database
+          psql -h localhost -U bbz -d postgres -c "CREATE DATABASE restored"
+          gpg --batch --yes --decrypt dump.sql.gpg | psql -h localhost -U bbz -d restored
+          after=$(psql -h localhost -U bbz -d restored -tAc "SELECT count(*) FROM probe")
+          test "$before" = "$after" || { echo "row count $before != $after"; exit 1; }
+          echo "PostgreSQL restore verified: $after rows"
+
+  etcd-roundtrip:
+    name: etcd snapshot → restore
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v7
+      - name: snapshot + restore + verify
+        run: |
+          set -eux
+          img=gcr.io/etcd-development/etcd:v3.5.16
+          docker network create bnet
+          docker run -d --name e1 --network bnet $img /usr/local/bin/etcd \
+            --name e1 --data-dir /d \
+            --listen-client-urls http://0.0.0.0:2379 --advertise-client-urls http://e1:2379 \
+            --listen-peer-urls http://0.0.0.0:2380 --initial-advertise-peer-urls http://e1:2380 \
+            --initial-cluster e1=http://e1:2380 --initial-cluster-state new
+          sleep 5
+          for i in $(seq 1 50); do docker exec e1 etcdctl put "/bbz/k$i" "v$i"; done
+          before=$(docker exec e1 etcdctl get /bbz/ --prefix --keys-only | grep -c /bbz/)
+          docker exec e1 etcdctl snapshot save /snap.db
+          docker cp e1:/snap.db snap.db
+          docker run --rm -v "$PWD/snap.db:/snap.db" $img etcdctl snapshot restore /snap.db \
+            --name e1 --initial-cluster e1=http://e1:2380 --data-dir /tmp/restored 2>&1
+          docker run --rm -v "$PWD/snap.db:/snap.db" $img etcdctl snapshot status --write-out=table /snap.db
+          echo "etcd snapshot of $before keys restored + status-checked"

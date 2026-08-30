@@ -1,6 +1,7 @@
 # Runbook: rollback
 
-> Stub — hardened in Phase 2. The principles are fixed now.
+Code / config / deploy rollback. For a **restore from backup** after a state
+store is lost, see `restore.md`.
 
 ## Code / config
 
@@ -23,8 +24,9 @@
 - Destructive "contract" steps ship one release *after* the expand, once the
   rollback window has closed. If a contract step must be undone, roll **forward**
   with a corrective migration; never a data-losing downgrade.
-- Before any risky migration: WAL/PITR checkpoint (pgBackRest — Phase 2) and a
-  snapshot of affected tables.
+- Before any risky migration: a fresh base backup (`deploy/backup/pg-backup.sh`)
+  and note the WAL position, so a PITR to just before the migration is possible
+  (`restore.md`).
 
 ## Integrations
 
