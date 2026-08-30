@@ -129,7 +129,7 @@ accept/acknowledge/open · PATCH · assign · takeover · archive/reactivate ·
 notes · GET list/`?queue=active`/`{id}`/`{id}/export`/`priority-alert`/`stream`.
 WS at `/ws/events`.
 
-### Epic 04 – Audit / Domain Events: **in progress (6/11)**
+### Epic 04 – Audit / Domain Events: **in progress (7/11)**
 #57 (E04-01) `audit_events` schema review — added `event_seq_ref` BIGINT
 (nullable, no FK; migration 0013) linking an audit row to its domain event;
 ORM `before_update` / `before_delete` listeners raise `AuditImmutableError`
@@ -174,8 +174,16 @@ outbox_dispatcher.OutboxDispatcher` — handler registry (`noop`/`notify`),
 `MAX_ATTEMPTS=8` then `failed`; status update + `EXTERNAL_ACTION_DISPATCHED` /
 `EXTERNAL_ACTION_FAILED` audit commit together. `run_forever()` for E04-08.
 
-**Next:** RBAC/user critical-action audit wiring (deferred from #59) and #63
-(E04-07) provider-event inbox + dedupe. See `.ai/ROADMAP.md` Epic 04.
+#63 (E04-07) provider-event inbox — `provider_event_inbox` (migration 0015,
+`dedupe_key` UNIQUE, `provider`, `provider_event_id`, `raw_ref`/`raw_hash`,
+`normalized` jsonb, `received_at`/`processed_at`). `bbz_core.infra.inbox.ingest()`
+→ `IngestResult(outcome=new|duplicate, inbox_id, dedupe_key)`;
+`derive_dedupe_key()` = `provider:<id>` or `provider:sha256:<payload hash>` when
+the provider has no stable id (key-order-insensitive). `mark_processed()`
+idempotent.
+
+**Next:** RBAC/user critical-action audit wiring (deferred from #59) and #64
+(E04-08) singleton worker via etcd lease. See `.ai/ROADMAP.md` Epic 04.
 
 ## Existing reference
 A functional HTML mockup defines important UX/feature behavior. **It is not yet in
