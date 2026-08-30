@@ -62,6 +62,7 @@ async def db() -> AsyncIterator[object]:
     async with engine.begin() as conn:
         await conn.execute(_sql('CREATE EXTENSION IF NOT EXISTS "pgcrypto"'))
         await conn.execute(_sql('CREATE EXTENSION IF NOT EXISTS "citext"'))
+        await conn.execute(_sql('CREATE EXTENSION IF NOT EXISTS "pg_trgm"'))
         await conn.run_sync(Base.metadata.drop_all)
         await conn.run_sync(Base.metadata.create_all)
 

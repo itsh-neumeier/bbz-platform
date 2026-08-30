@@ -7,6 +7,7 @@ from bbz_core import __version__
 from bbz_core.api.v1.audit import router as audit_router
 from bbz_core.api.v1.auth import router as auth_router
 from bbz_core.api.v1.calls import router as calls_router
+from bbz_core.api.v1.contacts import router as contacts_router
 from bbz_core.api.v1.events import router as events_router
 from bbz_core.api.v1.lines import router as lines_router
 from bbz_core.api.v1.presence import router as presence_router
@@ -24,6 +25,7 @@ api_v1.include_router(auth_router)
 api_v1.include_router(audit_router)
 api_v1.include_router(events_router)
 api_v1.include_router(calls_router)
+api_v1.include_router(contacts_router)
 api_v1.include_router(lines_router)
 api_v1.include_router(system_router)
 api_v1.include_router(rbac_router)

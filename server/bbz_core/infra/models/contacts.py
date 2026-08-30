@@ -12,7 +12,11 @@ Notes:
   happens in the matching service (E14-04);
 * ``contact_priorities`` is current-state, one row per contact (``contact_id`` is
   the PK) — the history of changes lives in ``domain_events``
-  (``CONTACT_PRIORITY_CHANGED``, E14-03). No row = not prioritized.
+  (``CONTACT_PRIORITY_CHANGED``, E14-03). No row = not prioritized;
+* deletion is **soft** (``contacts.deleted_at``, E14-02) — a deleted contact
+  drops out of search and lookups but its numbers/priority rows stay for the
+  retention window; ``name`` / ``org`` carry ``pg_trgm`` GIN indexes so the
+  phone-book search (substring, case-insensitive) stays index-backed.
 """
 
 from __future__ import annotations
@@ -25,6 +29,7 @@ from sqlalchemy import (
     Boolean,
     CheckConstraint,
     ForeignKey,
+    Index,
     String,
     Text,
     UniqueConstraint,
@@ -47,6 +52,20 @@ class ContactPriorityLevel(enum.StrEnum):
 
 class Contact(Base, TimestampMixin):
     __tablename__ = "contacts"
+    __table_args__ = (
+        Index(
+            "ix_contacts_name_trgm",
+            "name",
+            postgresql_using="gin",
+            postgresql_ops={"name": "gin_trgm_ops"},
+        ),
+        Index(
+            "ix_contacts_org_trgm",
+            "org",
+            postgresql_using="gin",
+            postgresql_ops={"org": "gin_trgm_ops"},
+        ),
+    )
 
     id: Mapped[uuid.UUID] = uuid_pk()
     name: Mapped[str] = mapped_column(String(200))
@@ -56,6 +75,8 @@ class Contact(Base, TimestampMixin):
     #: the BBZ this contact belongs to. No BBZ entity yet — plain UUID, like
     #: ``events.bbz_id`` (E02-07); scope filtering is wired in E23.
     bbz_id: Mapped[uuid.UUID | None] = mapped_column(index=True)
+    #: soft-delete tombstone (E14-02); NULL = live.
+    deleted_at: Mapped[_dt.datetime | None] = mapped_column()
 
 
 class ContactNumber(Base, TimestampMixin):
@@ -69,7 +90,7 @@ class ContactNumber(Base, TimestampMixin):
     contact_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("contacts.id", ondelete="CASCADE"), index=True
     )
-    e164: Mapped[str] = mapped_column(String(16))
+    e164: Mapped[str] = mapped_column(String(16), index=True)
     label: Mapped[str | None] = mapped_column(String(80))
     is_primary: Mapped[bool] = mapped_column(Boolean, server_default=text("false"))
 
