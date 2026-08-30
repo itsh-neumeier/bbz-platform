@@ -12,7 +12,12 @@
     "call.hangup",
     "call.hold",
     "call.resume",
-    "call.monitoring"
+    "call.transfer",
+    "call.conference",
+    "call.send_dtmf",
+    "call.monitoring",
+    "device.monitoring",
+    "directory.lookup"
   ],
   "mock": true,
   "description": "Deterministic in-memory telephony provider for development, tests and demos."
