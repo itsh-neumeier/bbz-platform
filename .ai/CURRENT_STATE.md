@@ -774,7 +774,7 @@ E11-12 (ringing-call list) needs E11-08's priority. Epic 07 / 08, #92, the Go
 agents (09/10 impl) and the #429 browser E2E stay blocked on a Node / Go /
 multi-host session.
 
-### Epic 14 – Contacts / Call Priorities: **in progress (2/10)**
+### Epic 14 – Contacts / Call Priorities: **in progress (3/10)**
 - **#285 (E14-01) contacts schema** — migration 0027 + `contacts.py`:
   `contacts` (name, org, notes, `quick_dial`, `bbz_id` scope — plain UUID like
   `events.bbz_id`), `contact_numbers` (`e164` stored normalized — a CHECK
@@ -792,11 +792,18 @@ multi-host session.
   /api/v1/contacts`, `GET/PATCH/DELETE /api/v1/contacts/{id}`, `…/numbers`
   sub-resource. `POST` carries the command envelope + `idempotent()`; every
   change audits `CONTACT_CREATED`/`UPDATED`/`DELETED` (new `AuditAction` +
-  `CRITICAL_ACTIONS`). Domain-event emission + audit-diff are E14-05.
-  `test_contacts_api.py`.
-- Next: E14-03 (priority + `CONTACT_PRIORITY_CHANGED`), E14-04 (number→contact
-  matching, unblocks E11-08), E14-05 (event/audit wiring), E14-06 (quick-dial).
-  E14-07..10 are frontend → blocked.
+  `CRITICAL_ACTIONS`). The `CONTACT_CREATED` domain event + field-level
+  audit-diff are E14-05. `test_contacts_api.py`.
+- **#289 (E14-03) priority assignment** — `PUT /api/v1/contacts/{id}/priority`
+  (`contacts.assign_priority`). `ContactRepository.set_priority` upserts
+  `contact_priorities`; assigning the level the contact already has is a no-op
+  (`changed: false`, no event, no audit). A real change emits exactly one
+  `CONTACT_PRIORITY_CHANGED` domain event (new payload sub-schema: `contact_id`,
+  `from` [null on first assignment], `to`, `actor_id`; + event-catalog row) and
+  one audit entry with before/after, `event_seq_ref` linked. New `AuditAction`
+  in `CRITICAL_ACTIONS`. `test_contact_priority_api.py`.
+- Next: E14-04 (number→contact matching, unblocks E11-08), E14-05 (event/audit
+  wiring), E14-06 (quick-dial). E14-07..10 are frontend → blocked.
 
 ## Existing reference
 A functional HTML mockup defines important UX/feature behavior. **It is not yet in
