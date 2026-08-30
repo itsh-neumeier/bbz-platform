@@ -225,7 +225,7 @@ dispatcher, singleton runner), `infra/outbox.py`, `infra/inbox.py`,
 (code carries `TODO(E04-03)`); the code comments point at #66/E04-10 — do it
 alongside E23 hardening.
 
-### Epic 05 – EPK Workflow Engine: **in progress (11/13)**
+### Epic 05 – EPK Workflow Engine: **in progress (12/13)**
 #68 (E05-01) `bbz_rule_dsl.evaluate()` implemented — total, side-effect-free,
 deterministic predicate over a typed `Context`. Operators
 `eq/ne/in/not_in/lt/lte/gt/gte/and/or/not/exists`; type mismatch / bad arity /
@@ -352,8 +352,21 @@ version → 409, unknown template / event → 404. A later publish never touches
 a running instance (the instance holds its `template_version_id`, and
 migration 0017's freeze trigger keeps that definition immutable — ADR-0005).
 
-**Next:** #79 (E05-12) instance API — current steps, complete step, make
-decision (`workflows.execute`). See `.ai/ROADMAP.md` Epic 05 (13 issues, #68–#80).
+#79 (E05-12) operator instance API. `GET /api/v1/events/{id}/workflow`
+(`workflows.view`) → `WorkflowEngineService.instance_view`: per function node
+`state` (done/active/pending) mirroring the token state, `progress`,
+`pending_decisions` (XOR/OR splits with a waiting token and no decision, plus
+their branch options), `decisions` made (auto + operator), `started_at` /
+`ended_at`, and the instance's audit-event references. Steps carry **no
+assignee** — responsibility stays on the whole event. `POST
+.../workflow/steps/{node}/complete` and `POST
+.../workflow/decisions/{connector}` (`workflows.execute`) drive
+`complete_step` / `decide` on the event's running instance and return the
+fresh view; out-of-order → 409, bad decision → 422, both idempotent.
+`resolve_event_instance` picks the running instance (else the latest).
+
+**Next:** #80 (E05-13) template-admin API — Draft-CRUD, changelog, simulation.
+See `.ai/ROADMAP.md` Epic 05 (13 issues, #68–#80).
 
 ## Existing reference
 A functional HTML mockup defines important UX/feature behavior. **It is not yet in
