@@ -73,6 +73,9 @@ class WorkflowToken(Base):
         ForeignKey("workflow_instances.id", ondelete="CASCADE"), index=True
     )
     node_key: Mapped[str] = mapped_column(String(64), index=True)
+    #: key of the edge the token arrived on (``None`` for the seed token). Lets
+    #: an AND join tell its incoming branches apart (E05-08).
+    inbound_edge_key: Mapped[str | None] = mapped_column(String(64))
     state: Mapped[str] = mapped_column(String(16), server_default=WorkflowTokenState.ACTIVE.value)
     entered_at: Mapped[_dt.datetime] = mapped_column(server_default=text("now()"))
     left_at: Mapped[_dt.datetime | None] = mapped_column()
