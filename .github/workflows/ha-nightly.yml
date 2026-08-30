@@ -1,0 +1,25 @@
+name: HA nightly
+
+# The HA failure-scenario harness (roadmap E06-11). Not a PR gate — it spins up
+# a Patroni cluster and injects faults, which is slow and, until shaken out on
+# real hardware, allowed to fail. Runs nightly and on demand.
+on:
+  schedule:
+    - cron: "17 2 * * *"
+  workflow_dispatch:
+
+jobs:
+  ha-scenarios:
+    name: HA failure scenarios
+    runs-on: ubuntu-latest
+    continue-on-error: true          # flip to false once green on real hardware
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v7
+      - name: Run every scenario
+        working-directory: deploy/ha-test
+        run: ./run.sh
+      - name: Cluster logs on failure
+        if: failure()
+        working-directory: deploy/ha-test
+        run: docker compose -f compose.yml logs --no-color --tail=200 || true
