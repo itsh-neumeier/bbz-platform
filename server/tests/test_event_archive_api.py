@@ -107,6 +107,19 @@ async def _opened_event(client: httpx.AsyncClient) -> str:
     return eid  # now status "opened", version 4
 
 
+async def _reactivate(
+    client: httpx.AsyncClient, eid: str, *, version: int, reason: str = "Nachfrage BPol"
+) -> httpx.Response:
+    """The two-step E20-05 flow: fetch an intent token, then reactivate."""
+    intent = await client.post(f"/api/v1/events/{eid}/reactivation-intent")
+    assert intent.status_code == 200, intent.text
+    return await client.post(
+        f"/api/v1/events/{eid}/reactivate",
+        json={"confirm": True, "reason": reason, "token": intent.json()["token"]},
+        headers=_cmd(version=version),
+    )
+
+
 async def _count(s: AsyncSession, action: str) -> int:
     return (
         await s.execute(
@@ -136,11 +149,7 @@ async def test_archive_then_reactivate_with_confirm(env: tuple) -> None:
     assert arch.status_code == 200 and arch.json()["status"] == "archived"
     assert await _count(s, "EVENT_ARCHIVED") == 1
 
-    re = await client.post(
-        f"/api/v1/events/{eid}/reactivate",
-        json={"confirm": True, "reason": "Nachfrage BPol"},
-        headers=_cmd(version=5),
-    )
+    re = await _reactivate(client, eid, version=5)
     assert re.status_code == 200 and re.json()["status"] == "opened"
     assert re.json()["version"] == 6
     assert await _count(s, "EVENT_REACTIVATED") == 1
@@ -160,10 +169,11 @@ async def test_reactivate_without_confirm_is_rejected(env: tuple) -> None:
     await _login(client, "sl2")
     eid = await _opened_event(client)
     await client.post(f"/api/v1/events/{eid}/archive", headers=_cmd(version=4))
+    token = (await client.post(f"/api/v1/events/{eid}/reactivation-intent")).json()["token"]
 
     r = await client.post(
         f"/api/v1/events/{eid}/reactivate",
-        json={"confirm": False, "reason": "x"},
+        json={"confirm": False, "reason": "x", "token": token},
         headers=_cmd(version=5),
     )
     assert r.status_code == 422
@@ -176,9 +186,12 @@ async def test_reactivate_requires_reason(env: tuple) -> None:
     await _login(client, "sl3")
     eid = await _opened_event(client)
     await client.post(f"/api/v1/events/{eid}/archive", headers=_cmd(version=4))
+    token = (await client.post(f"/api/v1/events/{eid}/reactivation-intent")).json()["token"]
 
     r = await client.post(
-        f"/api/v1/events/{eid}/reactivate", json={"confirm": True}, headers=_cmd(version=5)
+        f"/api/v1/events/{eid}/reactivate",
+        json={"confirm": True, "token": token},
+        headers=_cmd(version=5),
     )
     assert r.status_code == 422
 

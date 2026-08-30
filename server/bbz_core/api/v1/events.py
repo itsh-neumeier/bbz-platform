@@ -21,7 +21,7 @@ from __future__ import annotations
 import contextlib
 import datetime as _dt
 import uuid
-from collections.abc import Callable, Iterator
+from collections.abc import Awaitable, Callable, Iterator
 from typing import Literal
 
 from fastapi import APIRouter, Depends, Query, Request, Response, status
@@ -32,8 +32,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from bbz_core.api.authz import require
 from bbz_core.api.deps import AuthContext, db_session
-from bbz_core.api.errors import ConflictError, NotFoundError, ValidationError
+from bbz_core.api.errors import (
+    ConflictError,
+    NotFoundError,
+    RateLimitedError,
+    ValidationError,
+)
 from bbz_core.api.idempotency import CommandEnvelope, command_envelope
+from bbz_core.api.reactivation import ReactivationTokenError, mint_token, verify_token
 from bbz_core.audit import AuditAction, AuditService
 from bbz_core.domain.events import (
     EventAggregate,
@@ -50,6 +56,7 @@ from bbz_core.infra.idempotency import (
     idempotent,
     request_hash,
 )
+from bbz_core.infra.models.domain_events import DomainEvent
 from bbz_core.infra.models.events import Event, EventNote
 from bbz_core.infra.models.identity import PresenceState, User, UserStatus
 from bbz_core.infra.outbox import enqueue
@@ -69,12 +76,14 @@ from bbz_core.infra.repositories.events import (
     VersionConflictError,
 )
 from bbz_core.infra.repositories.presence import PresenceRepository
+from bbz_core.settings import get_settings
 
 router = APIRouter(prefix="/events", tags=["events"])
 
 _ENDPOINT_CREATE = "POST /api/v1/events"
 
 Mutator = Callable[[EventAggregate, uuid.UUID], None]
+Precondition = Callable[[AsyncSession, EventAggregate], Awaitable[None]]
 
 
 @contextlib.contextmanager
@@ -520,11 +529,14 @@ async def _apply_transition(
     body_fields: dict[str, object] | None = None,
     audit_action: AuditAction | None = None,
     audit_reason: str | None = None,
+    precondition: Precondition | None = None,
 ) -> EventOut:
     """Shared body for the single-transition verbs (accept / acknowledge / open …).
 
     When ``audit_action`` is set, a status before/after audit row is written in
     the same transaction as the state change (mandatory audit — E03-10/11).
+    ``precondition`` (if given) runs inside that transaction, on the loaded
+    aggregate, before the mutation — it may raise to abort.
     """
     if env.expected_version is None:
         raise ValidationError("X-Expected-Version header is required")
@@ -551,6 +563,8 @@ async def _apply_transition(
             repo = EventRepository(session)
             async with session.begin():
                 agg = await repo.require(event_id)
+                if precondition is not None:
+                    await precondition(session, agg)
                 before = {
                     "status": agg.status.value,
                     "assignee_id": str(agg.assignee_id) if agg.assignee_id else None,
@@ -834,6 +848,14 @@ class ReactivateEventIn(BaseModel):
 
     confirm: bool = False
     reason: str = Field(min_length=1, max_length=2_000)
+    #: the single-use token from ``POST /events/{id}/reactivation-intent`` (E20-05)
+    token: str = Field(min_length=1)
+
+
+class ReactivationIntentOut(BaseModel):
+    token: str
+    expires_at: _dt.datetime
+    event_version: int
 
 
 @router.post("/{event_id}/archive", response_model=EventOut)
@@ -860,6 +882,54 @@ async def archive_event(
     )
 
 
+@router.post("/{event_id}/reactivation-intent", response_model=ReactivationIntentOut)
+async def reactivation_intent(
+    event_id: uuid.UUID,
+    ctx: AuthContext = Depends(require("events.reactivate")),
+    session: AsyncSession = Depends(db_session),
+) -> ReactivationIntentOut:
+    """Step one of the two-step reactivation (E20-05): mint a short-lived,
+    single-purpose token bound to this event's current version. The client then
+    presents it on ``POST /events/{id}/reactivate`` together with ``confirm`` and
+    a reason. Read-only; not audited (the reactivation itself is)."""
+    ev = await session.get(Event, event_id)
+    if ev is None:
+        raise NotFoundError("event not found")
+    if ev.status != EventStatus.ARCHIVED.value:
+        raise ConflictError("only an archived event can be reactivated")
+    token, expiry = mint_token(event_id, ctx.user_id, ev.version)
+    return ReactivationIntentOut(
+        token=token,
+        expires_at=_dt.datetime.fromtimestamp(expiry, tz=_dt.UTC),
+        event_version=ev.version,
+    )
+
+
+async def _reactivation_cooldown(session: AsyncSession, agg: EventAggregate) -> None:
+    seconds = get_settings().reactivation_cooldown_seconds
+    if seconds <= 0:
+        return
+    last = (
+        await session.execute(
+            select(DomainEvent.occurred_at_utc)
+            .where(
+                DomainEvent.aggregate_id == str(agg.id),
+                DomainEvent.event_type == "EVENT_REACTIVATED",
+            )
+            .order_by(DomainEvent.event_seq.desc())
+            .limit(1)
+        )
+    ).scalar_one_or_none()
+    if last is None:
+        return
+    if last.tzinfo is None:
+        last = last.replace(tzinfo=_dt.UTC)
+    if _dt.datetime.now(_dt.UTC) - last < _dt.timedelta(seconds=seconds):
+        raise RateLimitedError(
+            f"this event was reactivated less than {seconds}s ago — wait before retrying"
+        )
+
+
 @router.post("/{event_id}/reactivate", response_model=EventOut)
 async def reactivate_event(
     event_id: uuid.UUID,
@@ -869,10 +939,16 @@ async def reactivate_event(
     env: CommandEnvelope = Depends(command_envelope),
     session: AsyncSession = Depends(db_session),
 ) -> EventOut:
-    # Explicit confirmation is mandatory — no reactivation by accident
-    # (MASTER_PROMPT §13.6/§26).
+    # Two-step, no reactivation by accident (MASTER_PROMPT §13.6/§26.8):
+    # explicit confirm + a valid single-use token bound to the exact version.
     if not body.confirm:
         raise ValidationError("reactivation requires confirm=true")
+    if env.expected_version is None:
+        raise ValidationError("X-Expected-Version header is required")
+    try:
+        verify_token(body.token, event_id, ctx.user_id, env.expected_version)
+    except ReactivationTokenError as exc:
+        raise ValidationError(str(exc)) from exc
     return await _apply_transition(
         event_id=event_id,
         verb="reactivate",
@@ -884,6 +960,7 @@ async def reactivate_event(
         body_fields={"reason": body.reason},
         audit_action=AuditAction.EVENT_REACTIVATED,
         audit_reason=body.reason,
+        precondition=_reactivation_cooldown,
     )
 
 
