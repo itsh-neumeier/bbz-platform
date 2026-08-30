@@ -4,8 +4,8 @@ Archiving only ever *adds* rows (a status-history entry, an audit entry, a domai
 event). The archive-detail aggregator therefore returns at least the same depth
 for an archived event as it did while the event was active. Nothing is deleted.
 
-The HTTP surface for this is E20-03 (#418); here the aggregator query is
-exercised directly against the DB.
+The HTTP surface is E20-03 (`test_archive_detail_api.py`); here the aggregator
+query is exercised directly against the DB.
 """
 
 from __future__ import annotations

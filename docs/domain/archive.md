@@ -39,8 +39,9 @@ returns an `ArchiveDetail` regardless of the event's status:
   (`target_type = 'event'`);
 - `calls` — reserved for Epic 11 (telephony); currently always empty.
 
-Exposed as `GET /api/v1/events/{event_id}/archive-detail` (`events.view`, no
-audit — it is a read). The UI lands in E07-11 (#113).
+Exposed as `GET /api/v1/events/{event_id}/archive-detail` (E20-03; `events.view`,
+no audit — it is a read). Every list inside the bundle is ordered deterministically
+(`event_seq`, then timestamps ascending). The UI lands in E07-11 (#113).
 
 ## Listing the archive
 
@@ -62,7 +63,8 @@ events; it ignores these filters.
 
 ## Invariant under test
 
-`server/tests/test_archive_detail.py` archives an event and asserts the
-archive-detail bundle has the **same depth** (identical status history, notes,
-domain events, workflow results, and *more* audit refs) as it did while active —
-archiving only ever *adds* rows.
+`server/tests/test_archive_detail.py` (the aggregator query) and
+`server/tests/test_archive_detail_api.py` (the endpoint) archive an event and
+assert the archive-detail bundle has the **same depth** (identical status
+history, notes, domain events, workflow results, and *more* audit refs) as it did
+while active — archiving only ever *adds* rows.

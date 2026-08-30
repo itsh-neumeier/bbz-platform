@@ -52,6 +52,10 @@ from bbz_core.infra.idempotency import (
 from bbz_core.infra.models.events import Event, EventNote, EventNoteKind
 from bbz_core.infra.models.identity import PresenceState, User, UserStatus
 from bbz_core.infra.outbox import enqueue
+from bbz_core.infra.repositories.archive_queries import (
+    ArchiveDetail,
+    ArchiveQueryRepository,
+)
 from bbz_core.infra.repositories.event_queries import (
     EventDetail,
     EventExport,
@@ -193,6 +197,54 @@ class EventExportOut(BaseModel):
     domain_events: list[DomainEventOut]
 
 
+class WorkflowTaskResultOut(BaseModel):
+    node_key: str
+    result: dict[str, object]
+    completed_by: uuid.UUID | None
+    completed_at: _dt.datetime
+
+
+class WorkflowDecisionOut(BaseModel):
+    connector_node_key: str
+    chosen_branches: list[str]
+    auto: bool
+    decided_by: uuid.UUID | None
+    decided_at: _dt.datetime
+
+
+class WorkflowInstanceOut(BaseModel):
+    id: uuid.UUID
+    template_key: str | None
+    template_name: str | None
+    template_version: int | None
+    status: str
+    started_at: _dt.datetime
+    ended_at: _dt.datetime | None
+    task_results: list[WorkflowTaskResultOut]
+    decisions: list[WorkflowDecisionOut]
+
+
+class AuditRefOut(BaseModel):
+    id: uuid.UUID
+    occurred_at_utc: _dt.datetime
+    action: str
+    actor_user_id: uuid.UUID | None
+    correlation_id: str | None
+    event_seq_ref: int | None
+
+
+class ArchiveDetailOut(BaseModel):
+    """Full, deterministically ordered history for one event — identical depth
+    whether the event is active or archived (E20-03; see docs/domain/archive.md).
+    """
+
+    event: EventDetailOut
+    domain_events: list[DomainEventOut]
+    workflows: list[WorkflowInstanceOut]
+    audit_refs: list[AuditRefOut]
+    calls: list[object]
+
+
 def _item_out(item: EventListItem) -> EventListItemOut:
     return EventListItemOut.model_validate(item, from_attributes=True)
 
@@ -210,6 +262,43 @@ def _export_out(export: EventExport) -> EventExportOut:
             )
             for d in export.domain_events
         ],
+    )
+
+
+def _archive_detail_out(bundle: ArchiveDetail) -> ArchiveDetailOut:
+    return ArchiveDetailOut(
+        event=_detail_out(bundle.detail),
+        domain_events=[
+            DomainEventOut(
+                event_seq=d.event_seq,
+                event_type=d.event_type,
+                occurred_at_utc=d.occurred_at_utc,
+                user_id=d.user_id,
+                payload=d.payload,
+            )
+            for d in bundle.domain_events
+        ],
+        workflows=[
+            WorkflowInstanceOut(
+                id=w.id,
+                template_key=w.template_key,
+                template_name=w.template_name,
+                template_version=w.template_version,
+                status=w.status,
+                started_at=w.started_at,
+                ended_at=w.ended_at,
+                task_results=[
+                    WorkflowTaskResultOut.model_validate(t, from_attributes=True)
+                    for t in w.task_results
+                ],
+                decisions=[
+                    WorkflowDecisionOut.model_validate(d, from_attributes=True) for d in w.decisions
+                ],
+            )
+            for w in bundle.workflows
+        ],
+        audit_refs=[AuditRefOut.model_validate(a, from_attributes=True) for a in bundle.audit_refs],
+        calls=list(bundle.calls),
     )
 
 
@@ -838,3 +927,20 @@ async def export_event(
             target_id=str(event_id),
         )
     return _export_out(export)
+
+
+@router.get("/{event_id}/archive-detail", response_model=ArchiveDetailOut)
+async def archive_detail(
+    event_id: uuid.UUID,
+    _: AuthContext = Depends(require("events.view")),
+    session: AsyncSession = Depends(db_session),
+) -> ArchiveDetailOut:
+    """Complete history for one event — status, notes, workflow results, calls
+    (Epic 11), and audit references — with the same depth and deterministic
+    ordering whether the event is active or archived (E20-03). Read-only, no
+    audit. See ``docs/domain/archive.md``.
+    """
+    bundle = await ArchiveQueryRepository(session).detail(event_id)
+    if bundle is None:
+        raise NotFoundError("event not found")
+    return _archive_detail_out(bundle)
