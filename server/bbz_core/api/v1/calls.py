@@ -13,14 +13,14 @@ import datetime as _dt
 import uuid
 from collections.abc import Awaitable, Callable
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Query, status
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from bbz_core.api.authz import require
 from bbz_core.api.deps import AuthContext, db_session
-from bbz_core.api.errors import ConflictError, NotFoundError
+from bbz_core.api.errors import ConflictError, NotFoundError, ValidationError
 from bbz_core.api.idempotency import CommandEnvelope, command_envelope
 from bbz_core.audit import AuditAction, AuditService
 from bbz_core.infra.event_log import append_event
@@ -28,9 +28,11 @@ from bbz_core.infra.idempotency import idempotent, request_hash
 from bbz_core.infra.models.telephony import (
     Call,
     CallCategory,
+    CallDirection,
     CallDocumentation,
     CallState,
 )
+from bbz_core.infra.repositories.call_queries import CallQueryRepository
 from bbz_core.integrations_host.providers import NoActiveProvider, active_telephony_provider
 
 router = APIRouter(prefix="/calls", tags=["calls"])
@@ -462,4 +464,93 @@ async def pending_documentation(
             )
             for c in rows
         ]
+    )
+
+
+# --- call history (E11-11) -----------------------------------------------
+
+
+class HistoryParticipant(BaseModel):
+    number: str | None
+    display_name: str | None
+    role: str
+
+
+class CallHistoryItemOut(BaseModel):
+    id: uuid.UUID
+    bbz_call_id: str
+    provider: str
+    direction: str
+    state: str
+    line_id: uuid.UUID | None
+    workplace_id: uuid.UUID | None
+    started_at: _dt.datetime | None
+    ended_at: _dt.datetime | None
+    created_at: _dt.datetime
+    category: str | None
+    has_free_text: bool
+    participants: list[HistoryParticipant]
+
+
+class CallHistoryOut(BaseModel):
+    items: list[CallHistoryItemOut]
+    next_cursor: str | None
+
+
+@router.get("", response_model=CallHistoryOut)
+async def list_calls(
+    direction: CallDirection | None = None,
+    state: CallState | None = None,
+    number: str | None = Query(default=None, max_length=64),
+    category: CallCategory | None = None,
+    since: _dt.datetime | None = None,
+    until: _dt.datetime | None = None,
+    limit: int = Query(default=50, ge=1, le=200),
+    cursor: str | None = None,
+    _: AuthContext = Depends(require("calls.view_history")),
+    session: AsyncSession = Depends(db_session),
+) -> CallHistoryOut:
+    """Rufhistorie (§13.8) — personenbeziehbar, daher ``calls.view_history`` +
+    Scope (scope-Filter greift ab E23). Filter: Zeitraum (``since``/``until`` auf
+    ``created_at``), Richtung, Nummer (exakter Treffer auf einen Teilnehmer),
+    Kategorie, Status. Keyset-Pagination: ``next_cursor`` zurückgeben als
+    ``cursor``. Ordnung ``created_at`` desc, dann ``id`` desc — deterministisch
+    und stabil unter Inserts. Read-only, kein Audit-Event."""
+    try:
+        page = await CallQueryRepository(session).history(
+            limit=limit,
+            cursor=cursor,
+            direction=direction.value if direction is not None else None,
+            state=state.value if state is not None else None,
+            number=number,
+            category=category.value if category is not None else None,
+            since=since,
+            until=until,
+        )
+    except (ValueError, KeyError) as exc:
+        raise ValidationError("invalid cursor") from exc
+
+    return CallHistoryOut(
+        items=[
+            CallHistoryItemOut(
+                id=it.id,
+                bbz_call_id=it.bbz_call_id,
+                provider=it.provider,
+                direction=it.direction,
+                state=it.state,
+                line_id=it.line_id,
+                workplace_id=it.workplace_id,
+                started_at=it.started_at,
+                ended_at=it.ended_at,
+                created_at=it.created_at,
+                category=it.category,
+                has_free_text=it.has_free_text,
+                participants=[
+                    HistoryParticipant(number=p.number, display_name=p.display_name, role=p.role)
+                    for p in it.participants
+                ],
+            )
+            for it in page.items
+        ],
+        next_cursor=page.next_cursor,
     )
