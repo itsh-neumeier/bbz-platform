@@ -36,6 +36,8 @@ class AuditAction(enum.StrEnum):
     DB_FAILOVER = "DB_FAILOVER"
     ROLLING_UPDATE_STARTED = "ROLLING_UPDATE_STARTED"
     ROLLING_UPDATE_COMPLETED = "ROLLING_UPDATE_COMPLETED"
+    BACKUP_COMPLETED = "BACKUP_COMPLETED"
+    RESTORE_PERFORMED = "RESTORE_PERFORMED"
 
 
 #: Actions that MUST be emitted from a write path (MASTER_PROMPT §17). A missing
@@ -60,5 +62,7 @@ CRITICAL_ACTIONS: frozenset[AuditAction] = frozenset(
         AuditAction.WORKFLOW_SIMULATED,
         AuditAction.ROLLING_UPDATE_STARTED,
         AuditAction.ROLLING_UPDATE_COMPLETED,
+        AuditAction.BACKUP_COMPLETED,
+        AuditAction.RESTORE_PERFORMED,
     }
 )

@@ -65,6 +65,41 @@ async def rolling_update_marker(
     return {"phase": body.phase, "image": body.image}
 
 
+class BackupMarkerIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    phase: Literal["completed", "restored"]
+    kind: Literal["postgres", "etcd"]
+    notes: str | None = Field(default=None, max_length=1000)
+
+
+_BACKUP_ACTION = {
+    "completed": AuditAction.BACKUP_COMPLETED,
+    "restored": AuditAction.RESTORE_PERFORMED,
+}
+
+
+@router.post("/backup", status_code=status.HTTP_202_ACCEPTED)
+async def backup_marker(
+    body: BackupMarkerIn,
+    ctx: AuthContext = Depends(require("system.cluster.manage")),
+    session: AsyncSession = Depends(db_session),
+) -> dict[str, str]:
+    """Record a backup / restore on the audit trail — backups contain BBZ data
+    and the audit log, so the fact of a restore is itself audited (roadmap
+    E06-14). Called by the backup jobs / the restore runbook."""
+    await session.rollback()
+    async with session.begin():
+        await AuditService(session).write(
+            _BACKUP_ACTION[body.phase],
+            actor_user_id=ctx.user_id,
+            target_type=f"backup:{body.kind}",
+            target_id=get_settings().node_id,
+            after={"phase": body.phase, "kind": body.kind},
+            reason=body.notes,
+        )
+    return {"phase": body.phase, "kind": body.kind}
+
+
 @router.get("/metrics")
 async def metrics(
     _: AuthContext = Depends(require("system.cluster.view")),

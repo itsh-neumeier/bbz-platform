@@ -1,0 +1,16 @@
+[Unit]
+Description=BBZ PostgreSQL encrypted base backup
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=bbz-backup
+# only on the node that currently holds the primary
+ExecCondition=/usr/bin/curl -fsS -o /dev/null http://localhost:8008/primary
+Environment=GPG_RECIPIENT=CHANGE_ME
+Environment=BACKUP_DIR=/var/backups/bbz
+Environment=PGHOST=localhost
+ExecStart=/opt/bbz/deploy/backup/pg-backup.sh
+Nice=10
+IOSchedulingClass=idle

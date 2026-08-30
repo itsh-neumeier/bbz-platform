@@ -1,0 +1,10 @@
+[Unit]
+Description=Six-hourly BBZ etcd snapshot
+
+[Timer]
+OnCalendar=*-*-* 00/6:15:00
+RandomizedDelaySec=120
+Persistent=true
+
+[Install]
+WantedBy=timers.target

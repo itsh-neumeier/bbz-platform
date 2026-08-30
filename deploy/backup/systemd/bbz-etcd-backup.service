@@ -1,0 +1,14 @@
+[Unit]
+Description=BBZ etcd encrypted snapshot
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=bbz-backup
+Environment=GPG_RECIPIENT=CHANGE_ME
+Environment=BACKUP_DIR=/var/backups/bbz
+Environment=ETCD_ENDPOINT=https://127.0.0.1:2379
+Environment=CERTS=/opt/bbz/deploy/etcd/certs
+ExecStart=/opt/bbz/deploy/backup/etcd-backup.sh
+Nice=10

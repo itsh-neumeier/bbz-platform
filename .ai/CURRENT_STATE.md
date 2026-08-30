@@ -381,7 +381,7 @@ if an instance is pinned) / `simulate_version` / `version_diff`, each audited
 
 **Epic 05 COMPLETE (13/13).**
 
-### Epic 06 – HA Cluster: **in progress (13/14)**
+### Epic 06 – HA Cluster: **COMPLETE (14/14)** — #92 shipped as a scaffold
 #81 (E06-01) per-node deployment topology. `deploy/node/` — the full stack for
 one BBZ server (`name: bbz-node`): api / web / PostgreSQL+Patroni (Spilo) /
 an etcd member / Caddy reverse proxy, with `.env.example`, file-based
@@ -538,8 +538,25 @@ and runs `caddy validate` on each.
 ("system.cluster.view")` — not public) renders the exposition; never 500s.
 `docs/metrics.md` documents each metric + alerting starting points.
 
-**Next:** #95 (E06-15) PostgreSQL + etcd backup / restore. See `.ai/ROADMAP.md`
-Epic 06 (14 issues: #81, #82, #84–#95).
+#95 (E06-14) backup / restore. `deploy/backup/` — `common.sh` (gpg
+**asymmetric** encrypt/decrypt, retention prune), `pg-backup.sh` /
+`pg-restore.sh` (encrypted base backup + integrity check; the intended
+production tool is pgBackRest, this is the dependency-light reference),
+`etcd-backup.sh` / `etcd-restore.sh` (encrypted snapshot save/restore),
+`systemd/` daily+6-hourly timers (the PG unit `ExecCondition`s on Patroni
+`/primary`). RPO ≤ `archive_timeout` (PG) / ≤ 6 h (etcd), documented.
+`docs/runbooks/restore.md` — the operator procedure for both stores;
+`rollback.md` updated. `POST /api/v1/system/backup` (`{phase, kind, notes?}`,
+`require("system.cluster.manage")`) audits `BACKUP_COMPLETED` /
+`RESTORE_PERFORMED` (both in `CRITICAL_ACTIONS`).
+`.github/workflows/backup-nightly.yml` (weekly, non-gating): a real
+pg_dump→gpg→restore→count-match round trip + an etcd snapshot save/restore.
+
+**Epic 06 COMPLETE (14/14)** — #92 (HA harness) shipped as a scaffold that
+needs a real multi-host runner before its nightly job can gate.
+
+**Next:** Epic 07 – Web UI / PrimeVue, or the next open roadmap epic. See
+`.ai/ROADMAP.md`.
 
 ## Existing reference
 A functional HTML mockup defines important UX/feature behavior. **It is not yet in
