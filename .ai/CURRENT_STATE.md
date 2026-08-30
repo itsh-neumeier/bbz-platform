@@ -645,13 +645,19 @@ All issues need Node/Electron; skipped like Epic 07.
   exec). Go workspace at `services/bbz-agents/`. E09-02+ need `go` (not
   available here).
 
-### Epic 10 – BKU Agent (Go): the two DB-schema issues (E10-01/02) + `db` seed
-(E10-14) are doable here; E10-03+ need the Go identity lib / agent.
+### Epic 10 – BKU Agent (Go): **1/16 (schema issues doable; agent needs Go)**
+- **#165 (E10-01) bku agent schema** — migration 0024 + `bku_agent.py` model:
+  `bku_agents` (agent_id, workplace_id, device_pubkey, generation, status;
+  partial unique `one active per workplace`), `bku_agent_enrollments`
+  (token_hash unique — hashed only, single-use `used_at`, `expires_at`),
+  `bku_agent_commands` (closed `type` CHECK — no arbitrary exec —, status
+  CHECK, `expected_generation`, CASCADE from agent). `test_bku_agent_schema.py`.
+- E10-02 (app-catalog schema) + E10-14 (`db` seed) also doable here; E10-03+
+  need the Go identity lib / agent.
 
-**Next:** E10-01 (bku agent schema), E10-02 (app catalog schema), then
-**Epic 11 Telephony Core** (mostly backend Python, deps met). Epic 07 / 08,
-#92, the Go agents (09/10 impl) and the #429 browser E2E stay blocked on a
-Node / Go / multi-host session.
+**Next:** E10-02 (application_catalog schema), then **Epic 11 Telephony Core**
+(mostly backend Python, deps met). Epic 07 / 08, #92, the Go agents (09/10 impl)
+and the #429 browser E2E stay blocked on a Node / Go / multi-host session.
 
 ## Existing reference
 A functional HTML mockup defines important UX/feature behavior. **It is not yet in
