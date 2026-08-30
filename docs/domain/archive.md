@@ -101,6 +101,25 @@ Reactivating an archived event is deliberately two requests:
 `reactivation_cooldown_seconds` (default 60) is refused with **429**. Set the
 setting to `0` to disable.
 
+## Export bundle (E20-06)
+
+`GET /api/v1/events/{id}/export` returns the **complete, reproducible** record of
+one event. Requires `events.export` **and** `system.audit.view` (the bundle
+carries full audit `before`/`after`, not just references). The export is itself
+audited (`EVENT_EXPORTED`, `after.format`).
+
+The JSON bundle (`bundle_version: "1"`) contains: `event` (detail + status
+history + current notes), `domain_events` (by `event_seq`), `workflows` (task
+results + decisions), `audit_entries` (rows targeting the event *or* one of its
+workflow instances, by `occurred_at_utc` then `id`), `calls` (Epic 11), and an
+`exported_at` stamp. Every list is deterministically ordered, so two exports of
+unchanged data differ only in `exported_at` and the newly added `EVENT_EXPORTED`
+row.
+
+`?format=pdf` returns the same bundle rendered to a PDF (`bbz_core/api/pdf.py`, a
+dependency-free text writer) — only when `export_pdf_enabled` is set, otherwise
+**404**.
+
 ## Invariant under test
 
 `server/tests/test_archive_detail.py` (the aggregator query) and

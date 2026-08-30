@@ -569,7 +569,7 @@ and Node/npm is not available in this environment** — the frontend CI job is
 also `continue-on-error`. Those need a Node-equipped session. Backend work
 continues on Epic 20 in the meantime.
 
-### Epic 20 – Archive / Postprocessing: **in progress (5/8)**
+### Epic 20 – Archive / Postprocessing: **in progress (6/8)**
 - **#414 (E20-01) archive detail model** — decision documented in
   `docs/domain/archive.md`: **no `event_archive` table**; an archived event is an
   `events` row with `status=archived` and all history lives in the same
@@ -606,7 +606,16 @@ continues on Epic 20 in the meantime.
   **429** (`RateLimitedError`, `_apply_transition` gained a `precondition` hook).
   Reactivated event re-enters `queue=active`. `test_reactivation_flow_api.py`,
   `test_reactivation_token.py`.
-**Next:** #424 (E20-06, export bundle). Live issues: #424, #426, #429.
+- **#424 (E20-06) export bundle** — `GET /events/{id}/export` now returns the
+  complete reproducible record (`bundle_version` "1", `exported_at`, event +
+  `domain_events` + `workflows` + full `audit_entries` [event- **and**
+  workflow-instance-targeted] + `calls`), deterministically ordered.
+  `ArchiveQueryRepository.export_bundle()`. Now requires `events.export` **+**
+  `system.audit.view`. `?format=pdf` → dependency-free PDF via
+  `bbz_core/api/pdf.py` when `export_pdf_enabled` (else 404). The old lean
+  `EventQueryRepository.export()`/`EventExport` were removed.
+  `test_event_export_bundle_api.py`.
+**Next:** #426 (E20-07, retention policy + no-hard-delete guard). Live issues: #426, #429.
 
 ## Existing reference
 A functional HTML mockup defines important UX/feature behavior. **It is not yet in

@@ -25,7 +25,6 @@ from sqlalchemy import Select, and_, case, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from bbz_core.domain.events import EventPriority, EventStatus
-from bbz_core.infra.models.domain_events import DomainEvent
 from bbz_core.infra.models.events import (
     Event,
     EventAssignment,
@@ -119,12 +118,6 @@ class DomainEventItem:
     occurred_at_utc: _dt.datetime
     user_id: uuid.UUID | None
     payload: dict[str, Any]
-
-
-@dataclass(frozen=True)
-class EventExport:
-    detail: EventDetail
-    domain_events: list[DomainEventItem]
 
 
 def _cursor(item_created_at: _dt.datetime, item_id: uuid.UUID) -> str:
@@ -361,33 +354,3 @@ class EventQueryRepository:
             )
         threads.sort(key=lambda t: t.created_at)
         return threads
-
-    async def export(self, event_id: uuid.UUID) -> EventExport | None:
-        """Full bundle for one event, domain events ordered by ``event_seq``."""
-        detail = await self.detail(event_id)
-        if detail is None:
-            return None
-        rows = (
-            (
-                await self._s.execute(
-                    select(DomainEvent)
-                    .where(DomainEvent.aggregate_id == str(event_id))
-                    .order_by(DomainEvent.event_seq.asc())
-                )
-            )
-            .scalars()
-            .all()
-        )
-        return EventExport(
-            detail=detail,
-            domain_events=[
-                DomainEventItem(
-                    event_seq=r.event_seq,
-                    event_type=r.event_type,
-                    occurred_at_utc=r.occurred_at_utc,
-                    user_id=r.user_id,
-                    payload=r.payload,
-                )
-                for r in rows
-            ],
-        )

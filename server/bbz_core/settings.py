@@ -101,6 +101,9 @@ class Settings(BaseSettings):
     reactivation_token_ttl_seconds: int = 300
     reactivation_cooldown_seconds: int = 60
 
+    # --- events: export (E20-06). JSON is always available; PDF is opt-in. ---
+    export_pdf_enabled: bool = False
+
     @property
     def database_url_sync(self) -> str:
         """Sync DSN for Alembic (psycopg v3 driver)."""

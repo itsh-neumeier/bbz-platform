@@ -25,7 +25,7 @@ import uuid
 from dataclasses import dataclass, field
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import and_, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from bbz_core.infra.models.audit import AuditEvent
@@ -92,6 +92,40 @@ class ArchiveDetail:
     calls: list[Any] = field(default_factory=list)  # Epic 11
 
 
+@dataclass(frozen=True)
+class AuditEntryItem:
+    """A full audit row (with ``before``/``after``/``reason``) — the export bundle
+    carries these rather than the light references the archive detail uses."""
+
+    id: uuid.UUID
+    occurred_at_utc: _dt.datetime
+    node_id: str
+    action: str
+    actor_user_id: uuid.UUID | None
+    target_type: str | None
+    target_id: str | None
+    before: dict[str, Any] | None
+    after: dict[str, Any] | None
+    reason: str | None
+    correlation_id: str | None
+    event_seq_ref: int | None
+
+
+@dataclass(frozen=True)
+class ExportBundle:
+    """The complete, deterministically ordered record of one event (E20-06).
+
+    Same aggregation as :class:`ArchiveDetail` but with **full** audit entries;
+    the caller adds the export metadata (``exported_at``) and audits the export.
+    """
+
+    detail: EventDetail
+    domain_events: list[DomainEventItem]
+    workflows: list[WorkflowInstanceItem]
+    audit_entries: list[AuditEntryItem]
+    calls: list[Any] = field(default_factory=list)  # Epic 11
+
+
 class ArchiveQueryRepository:
     def __init__(self, session: AsyncSession) -> None:
         self._s = session
@@ -106,6 +140,62 @@ class ArchiveQueryRepository:
             workflows=await self._workflows(event_id),
             audit_refs=await self._audit_refs(event_id),
         )
+
+    async def export_bundle(self, event_id: uuid.UUID) -> ExportBundle | None:
+        detail = await EventQueryRepository(self._s).detail(event_id)
+        if detail is None:
+            return None
+        workflows = await self._workflows(event_id)
+        return ExportBundle(
+            detail=detail,
+            domain_events=await self._domain_events(event_id),
+            workflows=workflows,
+            audit_entries=await self._audit_entries(event_id, [w.id for w in workflows]),
+        )
+
+    async def _audit_entries(
+        self, event_id: uuid.UUID, workflow_instance_ids: list[uuid.UUID] | None = None
+    ) -> list[AuditEntryItem]:
+        # audit rows that target the event itself, plus those that target one of
+        # its workflow instances (ACTION_STEP_COMPLETED / WORKFLOW_DECISION_MADE …)
+        target_clauses = [
+            and_(AuditEvent.target_type == "event", AuditEvent.target_id == str(event_id))
+        ]
+        if workflow_instance_ids:
+            target_clauses.append(
+                and_(
+                    AuditEvent.target_type == "workflow_instance",
+                    AuditEvent.target_id.in_([str(i) for i in workflow_instance_ids]),
+                )
+            )
+        rows = (
+            (
+                await self._s.execute(
+                    select(AuditEvent)
+                    .where(or_(*target_clauses))
+                    .order_by(AuditEvent.occurred_at_utc.asc(), AuditEvent.id.asc())
+                )
+            )
+            .scalars()
+            .all()
+        )
+        return [
+            AuditEntryItem(
+                id=r.id,
+                occurred_at_utc=r.occurred_at_utc,
+                node_id=r.node_id,
+                action=r.action,
+                actor_user_id=r.actor_user_id,
+                target_type=r.target_type,
+                target_id=r.target_id,
+                before=r.before,
+                after=r.after,
+                reason=r.reason,
+                correlation_id=r.correlation_id,
+                event_seq_ref=r.event_seq_ref,
+            )
+            for r in rows
+        ]
 
     async def _domain_events(self, event_id: uuid.UUID) -> list[DomainEventItem]:
         rows = (
