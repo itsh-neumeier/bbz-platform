@@ -6,6 +6,7 @@ committed; ``.env.example`` documents the shape only. See ADR-0015.
 
 from __future__ import annotations
 
+import os
 from functools import lru_cache
 from typing import Literal
 
@@ -19,6 +20,10 @@ class Settings(BaseSettings):
         env_file=".env",
         env_file_encoding="utf-8",
         extra="ignore",
+        # Docker/Podman secrets: when BBZ_SECRETS_DIR is set (deploy/node mounts
+        # it at /run/secrets), a file named e.g. `bbz_jwt_secret` supplies that
+        # field. Unset (dev/CI/tests) -> no secrets source, no warning.
+        secrets_dir=os.environ.get("BBZ_SECRETS_DIR") or None,
     )
 
     # --- identity / deployment ---

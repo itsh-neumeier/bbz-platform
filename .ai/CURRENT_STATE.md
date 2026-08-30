@@ -379,9 +379,23 @@ if an instance is pinned) / `simulate_version` / `version_diff`, each audited
 `CRITICAL_ACTIONS`). API: `GET/PATCH /workflow-templates/{id}`, `DELETE
 /workflow-template-versions/{id}`, `POST .../{id}/simulate`, `GET .../{id}/diff`.
 
-**Epic 05 COMPLETE (13/13).** **Next:** the next open roadmap epic — check
-`.ai/ROADMAP.md` / `roadmap_state.json` (Epic 06 HA Cluster runs in parallel
-from Phase 2; otherwise continue in order).
+**Epic 05 COMPLETE (13/13).**
+
+### Epic 06 – HA Cluster: **in progress (1/14)**
+#81 (E06-01) per-node deployment topology. `deploy/node/` — the full stack for
+one BBZ server (`name: bbz-node`): api / web / PostgreSQL+Patroni (Spilo) /
+an etcd member / Caddy reverse proxy, with `.env.example`, file-based
+`secrets/*.example` (real files gitignored), `patroni/patroni.node.yml`
+template, `reverse-proxy/Caddyfile`. `deploy/quorum/` (`name: bbz-quorum`) —
+an etcd member **only**, no BBZ services. Settings gained `secrets_dir` (from
+`BBZ_SECRETS_DIR`, so `/run/secrets/bbz_jwt_secret` supplies `BBZ_JWT_SECRET`).
+CI `compose` job now `docker compose config`-checks all three stacks.
+`test_deploy_topology.py` guards the shape (quorum = etcd only, node = full
+set, images pinned, no plaintext credentials, no committed secret/.env).
+Patroni tuning is #82, the 3-member etcd cluster is #84.
+
+**Next:** #82 (E06-02) Patroni + PostgreSQL primary/standby + ADR-0021
+(sync-mode decision). See `.ai/ROADMAP.md` Epic 06 (14 issues: #81, #82, #84–#95).
 
 ## Existing reference
 A functional HTML mockup defines important UX/feature behavior. **It is not yet in
