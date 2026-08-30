@@ -20,7 +20,7 @@ from bbz_core.auth.sessions import SessionService
 from bbz_core.auth.tokens import TokenError, decode_access_token
 from bbz_core.authorization import PermissionService
 from bbz_core.infra.db import session_scope
-from bbz_core.infra.event_stream import event_feed
+from bbz_core.infra.event_stream import CatchUpComplete, event_feed
 from bbz_core.infra.repositories.authorization import SqlAlchemyGrantStore
 from bbz_core.infra.repositories.sessions import SqlAlchemySessionStore
 from bbz_core.logging import get_logger
@@ -73,6 +73,8 @@ async def _pump_events(websocket: WebSocket, after_seq: int) -> None:
             return
         if frame is None:
             await websocket.send_json({"type": "heartbeat"})
+        elif isinstance(frame, CatchUpComplete):
+            await websocket.send_json({"type": "caught_up", "head": frame.head})
         else:
             await websocket.send_json(
                 {

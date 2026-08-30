@@ -41,7 +41,7 @@ from bbz_core.domain.events import (
     EventStatus,
     InvalidTransition,
 )
-from bbz_core.infra.event_log import append_event
+from bbz_core.infra.event_log import append_event, head_seq
 from bbz_core.infra.event_stream import notify_event_appended, sse_stream
 from bbz_core.infra.idempotency import (
     CommandConflictError,
@@ -275,6 +275,21 @@ async def event_stream(
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
+
+
+class StreamHeadOut(BaseModel):
+    event_seq: int
+
+
+@router.get("/stream/head", response_model=StreamHeadOut)
+async def stream_head(
+    _: AuthContext = Depends(require("events.view")),
+    session: AsyncSession = Depends(db_session),
+) -> StreamHeadOut:
+    """The current highest ``event_seq`` on this node's log. A client compares
+    its last-seen seq to this on (re)connect to know whether it is behind; the
+    value is identical on every node once replicated (docs/client-catchup)."""
+    return StreamHeadOut(event_seq=await head_seq(session))
 
 
 @router.get("/priority-alert", response_model=PriorityAlertOut)

@@ -381,7 +381,7 @@ if an instance is pinned) / `simulate_version` / `version_diff`, each audited
 
 **Epic 05 COMPLETE (13/13).**
 
-### Epic 06 – HA Cluster: **in progress (6/14)**
+### Epic 06 – HA Cluster: **in progress (7/14)**
 #81 (E06-01) per-node deployment topology. `deploy/node/` — the full stack for
 one BBZ server (`name: bbz-node`): api / web / PostgreSQL+Patroni (Spilo) /
 an etcd member / Caddy reverse proxy, with `.env.example`, file-based
@@ -456,8 +456,19 @@ cover the hand-off overlap. `/cluster/status` gains `singletons` (the names)
 alongside `leaders` (`name → node_id` from `/bbz/leader/*`).
 `docs/ARCHITECTURE_OVERVIEW.md` documents the pattern.
 
-**Next:** #88 (E06-07) client catch-up protocol (last `event_seq` handoff,
-replay on failover). See `.ai/ROADMAP.md` Epic 06 (14 issues: #81, #82, #84–#95).
+#88 (E06-07) client catch-up protocol. `event_feed` now emits one
+`CatchUpComplete(head)` after the `after_seq` backlog is drained (SSE: `event:
+caught_up` / `{"head":N}`; WS: `{"type":"caught_up","head":N}`), so a client
+that fails over to the other node replays `read_since` and then knows it holds
+everything through `head`. `event_log.head_seq(session)` + `GET
+/api/v1/events/stream/head` → `{event_seq}` let a client cheaply check if it is
+behind (identical on every node once replicated). `event_seq` is documented as
+**monotonic but not gapless** — a post-failover jump is a gap, not a loss; the
+client tracks "highest seen", never "next expected". `docs/client-catchup.md`
+specifies the handshake. Authz is per (re)connect.
+
+**Next:** #89 (E06-08) quorum-node deployment (etcd only). See `.ai/ROADMAP.md`
+Epic 06 (14 issues: #81, #82, #84–#95).
 
 ## Existing reference
 A functional HTML mockup defines important UX/feature behavior. **It is not yet in
