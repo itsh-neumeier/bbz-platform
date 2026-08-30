@@ -16,6 +16,12 @@ plus a Hypothesis fuzz suite (E05-01, ADR-0010). The typed context registry
 (``ALLOWED_FIELDS`` split by usage) is E05-02.
 """
 
+from bbz_rule_dsl.context import (
+    TRIGGER_CONTEXT,
+    WORKFLOW_CONTEXT,
+    ContextSchema,
+    FieldType,
+)
 from bbz_rule_dsl.model import (
     ALLOWED_OPERATORS,
     Context,
@@ -28,8 +34,12 @@ from bbz_rule_dsl.model import (
 
 __all__ = [
     "ALLOWED_OPERATORS",
+    "TRIGGER_CONTEXT",
+    "WORKFLOW_CONTEXT",
     "Context",
+    "ContextSchema",
     "Expr",
+    "FieldType",
     "RuleDslError",
     "UnknownField",
     "evaluate",

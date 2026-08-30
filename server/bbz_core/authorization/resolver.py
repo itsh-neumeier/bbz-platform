@@ -63,16 +63,16 @@ def _condition_allows(grant: Grant, ctx: ScopeContext) -> bool:
     if grant.condition is None:
         return True
     if not get_settings().rbac_conditions_enabled:
-        return False  # safe default until the Rule-DSL evaluator ships (E05-01)
-    # Feature flag is on: attempt real evaluation. The RBAC condition context
-    # (which ScopeContext fields map to which allowlisted DSL fields) is defined
-    # together with the DSL field registry in E05-02; until then any parse/eval
-    # error is a deny, never an allow.
+        return False  # safe default: conditional grants stay deny unless opted in
+    # Feature flag is on: attempt real evaluation. A dedicated RBAC condition
+    # context (which ScopeContext fields expose as which DSL fields) is still to
+    # be defined; until then the context is empty and any parse/eval error is a
+    # deny, never an allow.
     from bbz_rule_dsl import Context, RuleDslError, evaluate, parse
 
     try:
         return bool(evaluate(parse(dict(grant.condition)), Context()))
-    except (NotImplementedError, RuleDslError):
+    except RuleDslError:
         return False
 
 

@@ -72,11 +72,6 @@ def test_operator_results(tree: dict[str, Any], expected: bool) -> None:
 # -- errors, never "silently true" ------------------------------------------------
 
 
-def test_unknown_field_is_rejected_at_parse() -> None:
-    with pytest.raises(RuleDslError):
-        parse({"op": "eq", "args": [{"field": "not_allowed"}, 1]})
-
-
 def test_unknown_operator_is_rejected_at_parse() -> None:
     with pytest.raises(RuleDslError):
         parse({"op": "regex", "args": []})
@@ -116,9 +111,8 @@ def test_evaluate_rejects_an_operator_that_bypassed_parse() -> None:
         evaluate(Expr(op="regex", args=()), _CTX)
 
 
-def test_context_get_rejects_unknown_field_at_runtime() -> None:
-    with pytest.raises(RuleDslError):
-        Context({}).get("definitely_not_allowed")
+def test_context_get_of_a_missing_field_is_none() -> None:
+    assert Context({}).get("anything") is None
 
 
 @pytest.mark.parametrize(

@@ -7,28 +7,6 @@ ALLOWED_OPERATORS: Final[frozenset[str]] = frozenset(
     {"eq", "ne", "in", "not_in", "lt", "lte", "gt", "gte", "and", "or", "not", "exists"}
 )
 
-# Allowlisted context fields for trigger-rule / condition evaluation
-# (TECHNICAL_TRIGGERS.md + WORKFLOW_EPK.md). Extended per phase via ADR only.
-ALLOWED_FIELDS: Final[frozenset[str]] = frozenset(
-    {
-        "provider",
-        "signal_type",
-        "calling_number",
-        "called_number",
-        "cti_route_point",
-        "technical_endpoint_id",
-        "external_source_id",
-        "workplace",
-        "site",
-        "station",
-        "alarm_type",
-        "alarm_subtype",
-        "severity",
-        "call_direction",
-        "call_state",
-    }
-)
-
 
 class RuleDslError(ValueError):
     """Base error for the rule DSL."""
@@ -36,24 +14,23 @@ class RuleDslError(ValueError):
 
 class UnknownField(RuleDslError):
     def __init__(self, name: str) -> None:
-        super().__init__(f"field not allowlisted in rule DSL: {name!r}")
+        super().__init__(f"field not in the rule-DSL context: {name}")
         self.name = name
 
 
 @dataclass(frozen=True)
 class Context:
-    """Typed, read-only evaluation context. Only allowlisted keys are accepted."""
+    """Read-only evaluation context: resolved ``field name -> value``.
+
+    Field *allowlisting* is a publish-time concern of
+    :class:`bbz_rule_dsl.context.ContextSchema`; by the time a ``Context`` is
+    built the fields have already been validated, so any key is accepted here
+    and a missing field resolves to ``None``.
+    """
 
     values: dict[str, Any] = field(default_factory=dict)
 
-    def __post_init__(self) -> None:
-        unknown = set(self.values) - ALLOWED_FIELDS
-        if unknown:
-            raise UnknownField(", ".join(sorted(unknown)))
-
     def get(self, name: str) -> Any:
-        if name not in ALLOWED_FIELDS:
-            raise UnknownField(name)
         return self.values.get(name)
 
 
@@ -70,9 +47,11 @@ class Expr:
 
 
 def parse(tree: dict[str, Any]) -> Expr:
-    """Validate a structured expression (no string parsing, no code).
+    """Validate the *structure* of an expression (no string parsing, no code).
 
-    Raises ``RuleDslError`` for unknown operators or non-allowlisted fields.
+    Checks the operator against the allowlist and the node shape. Field names
+    are **not** checked here — that is :meth:`bbz_rule_dsl.context.ContextSchema.validate`,
+    which knows the field set and types for the target context.
     """
     if not isinstance(tree, dict) or "op" not in tree:
         raise RuleDslError("expression must be an object with an 'op' key")
@@ -88,9 +67,8 @@ def parse(tree: dict[str, Any]) -> Expr:
         if isinstance(arg, dict) and "op" in arg:
             parsed_args.append(parse(arg))
         elif isinstance(arg, dict) and "field" in arg:
-            name = arg["field"]
-            if name not in ALLOWED_FIELDS:
-                raise UnknownField(str(name))
+            if not isinstance(arg["field"], str) or not arg["field"]:
+                raise RuleDslError("a field reference must be {'field': '<name>'}")
             parsed_args.append(arg)
         else:
             parsed_args.append(arg)
