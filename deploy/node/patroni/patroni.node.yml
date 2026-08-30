@@ -1,0 +1,51 @@
+# Patroni per-node configuration TEMPLATE (ADR-0001, ADR-0018).
+#
+# E06-01 wires this into the node topology. The replication mode (sync vs
+# async), failover/switchover rules and PostgreSQL tuning are decided and
+# filled in by E06-02 (#82) together with ADR-0021.
+#
+# Spilo reads /etc/patroni.node.yml when PATRONI_CONFIGURATION points here;
+# most values below are also settable via PATRONI_* env vars.
+
+scope: bbz
+namespace: /patroni/          # Patroni owns the /patroni prefix; the app uses /bbz (ADR-0018)
+name: ${PATRONI_NAME}
+
+restapi:
+  listen: 0.0.0.0:8008
+
+etcd3:
+  hosts: ${ETCD3_HOSTS}
+
+bootstrap:
+  dcs:
+    ttl: 30
+    loop_wait: 10
+    retry_timeout: 10
+    maximum_lag_on_failover: 1048576
+    # synchronous_mode: decided in E06-02 / ADR-0021
+    postgresql:
+      use_pg_rewind: true
+      parameters:
+        wal_level: replica
+        hot_standby: "on"
+        max_wal_senders: 10
+        max_replication_slots: 10
+  initdb:
+    - encoding: UTF8
+    - data-checksums
+
+postgresql:
+  listen: 0.0.0.0:5432
+  connect_address: ${PATRONI_POSTGRESQL_CONNECT_ADDRESS}
+  authentication:
+    superuser:
+      username: postgres
+    replication:
+      username: standby
+
+tags:
+  nofailover: false
+  noloadbalance: false
+  clonefrom: false
+  nosync: false

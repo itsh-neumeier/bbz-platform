@@ -1,0 +1,28 @@
+# deploy/node edge — TLS termination, security headers, routing.
+# Full hardening (HSTS preload, CSP, rate limits — MASTER_PROMPT §22) is
+# completed in E06-13 (#93). E06-01 only wires the proxy into the topology.
+
+{
+	admin off
+	email ops@{$BBZ_PUBLIC_NAME}
+}
+
+{$BBZ_PUBLIC_NAME} {
+	encode gzip
+
+	header {
+		X-Content-Type-Options nosniff
+		X-Frame-Options DENY
+		Referrer-Policy strict-origin-when-cross-origin
+		-Server
+	}
+
+	@api path /api/* /health/* /cluster/* /ws/*
+	handle @api {
+		reverse_proxy api:8000
+	}
+
+	handle {
+		reverse_proxy web:8080
+	}
+}

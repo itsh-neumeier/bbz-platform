@@ -48,6 +48,10 @@ agents/**/*.exe
 secrets/
 *.secret
 local.settings.*
+# ...but deploy secret *templates* are tracked (the real files stay ignored):
+!deploy/**/secrets/
+deploy/**/secrets/*
+!deploy/**/secrets/*.example
 
 # --- IDE / OS ---
 .idea/

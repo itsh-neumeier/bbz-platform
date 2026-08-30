@@ -94,5 +94,18 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - run: cp .env.example .env
-      - run: docker compose --profile core --profile edge config
+      - name: dev stack
+        run: |
+          cp .env.example .env
+          docker compose --profile core --profile edge config -q
+      - name: deploy/node stack
+        working-directory: deploy/node
+        run: |
+          cp .env.example .env
+          for f in secrets/*.example; do cp "$f" "${f%.example}"; done
+          docker compose config -q
+      - name: deploy/quorum stack
+        working-directory: deploy/quorum
+        run: |
+          cp .env.example .env
+          docker compose config -q

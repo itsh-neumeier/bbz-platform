@@ -1,0 +1,148 @@
+# deploy/node — the full stack for ONE BBZ application server (BBZ-SRV01 /
+# BBZ-SRV02). MASTER_PROMPT §20, ADR-0001, ADR-0018.
+#
+# Each node runs: bbz-api, bbz-web, PostgreSQL (managed by Patroni), an etcd
+# member, and a Caddy reverse proxy. The quorum host (deploy/quorum) runs an
+# etcd member ONLY.
+#
+#   cd deploy/node
+#   cp .env.example .env                       # then edit
+#   for f in secrets/*.example; do cp "$f" "${f%.example}"; done   # then edit
+#   docker compose up -d
+#
+# This file is the per-node topology. The developer convenience stack is the
+# repo-root docker-compose.yml (single node, no Patroni, no HA).
+name: bbz-node
+
+x-restart: &restart
+  restart: unless-stopped
+
+secrets:
+  bbz_jwt_secret:
+    file: ./secrets/bbz_jwt_secret
+  bbz_totp_encryption_key:
+    file: ./secrets/bbz_totp_encryption_key
+  postgres_superuser_password:
+    file: ./secrets/postgres_superuser_password
+  postgres_replication_password:
+    file: ./secrets/postgres_replication_password
+
+services:
+  # --- distributed config store (this node's etcd member) -------------------
+  # A single member here is a one-node simulation; the real 3-member cluster
+  # (SRV01 + SRV02 + QUORUM01, mutual TLS) is wired in E06-03 (#84).
+  etcd:
+    <<: *restart
+    image: gcr.io/etcd-development/etcd:v3.5.16
+    command:
+      - /usr/local/bin/etcd
+      - --name=${BBZ_NODE_ID:?set in .env}
+      - --data-dir=/etcd-data
+      - --listen-client-urls=http://0.0.0.0:2379
+      - --advertise-client-urls=http://${ETCD_ADVERTISE_HOST:?set in .env}:2379
+      - --listen-peer-urls=http://0.0.0.0:2380
+      - --initial-advertise-peer-urls=http://${ETCD_ADVERTISE_HOST}:2380
+      - --initial-cluster=${ETCD_INITIAL_CLUSTER:?set in .env}
+      - --initial-cluster-state=${ETCD_INITIAL_CLUSTER_STATE:-new}
+      - --initial-cluster-token=${ETCD_CLUSTER_TOKEN:-bbz-etcd}
+    volumes:
+      - etcd_data:/etcd-data
+    ports:
+      - "2379:2379"
+      - "2380:2380"
+    healthcheck:
+      test: ["CMD", "etcdctl", "endpoint", "health"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  # --- PostgreSQL, managed by Patroni ------------------------------------------
+  # Spilo bundles PostgreSQL + Patroni. Replication tuning, sync-mode and the
+  # failover rules are E06-02 (#82); here it is only wired into the topology.
+  postgres:
+    <<: *restart
+    image: ghcr.io/zalando/spilo-16:3.3-p1
+    environment:
+      SCOPE: ${PATRONI_SCOPE:-bbz}
+      PGVERSION: "16"
+      ETCD3_HOSTS: '"${ETCD_ADVERTISE_HOST}:2379"'
+      PATRONI_NAME: ${BBZ_NODE_ID}
+      PATRONI_POSTGRESQL_CONNECT_ADDRESS: ${POSTGRES_ADVERTISE_HOST:?set in .env}:5432
+      PATRONI_RESTAPI_CONNECT_ADDRESS: ${POSTGRES_ADVERTISE_HOST}:8008
+      # passwords are read from the mounted secret files (see command)
+      DCS_ENABLE_KUBERNETES_API: ""
+    command:
+      - bash
+      - -c
+      - |
+        export PATRONI_SUPERUSER_PASSWORD="$$(cat /run/secrets/postgres_superuser_password)"
+        export PATRONI_REPLICATION_PASSWORD="$$(cat /run/secrets/postgres_replication_password)"
+        exec /launch.sh
+    secrets:
+      - postgres_superuser_password
+      - postgres_replication_password
+    volumes:
+      - postgres_data:/home/postgres/pgdata
+      - ./patroni/patroni.node.yml:/etc/patroni.node.yml:ro
+    ports:
+      - "5432:5432"
+      - "8008:8008"
+    depends_on:
+      etcd:
+        condition: service_healthy
+
+  # --- BBZ API ---------------------------------------------------------------
+  api:
+    <<: *restart
+    image: ${BBZ_API_IMAGE:?set in .env}
+    environment:
+      BBZ_ENVIRONMENT: ${BBZ_ENVIRONMENT:-production}
+      BBZ_NODE_ID: ${BBZ_NODE_ID}
+      BBZ_LOG_JSON: "true"
+      BBZ_DATABASE_URL: ${BBZ_DATABASE_URL:?set in .env}
+      BBZ_CLUSTER_DCS: etcd
+      BBZ_CLUSTER_DCS_ENDPOINTS: '["http://${ETCD_ADVERTISE_HOST}:2379"]'
+      BBZ_WORKER_LEADER_BACKEND: etcd
+      BBZ_SECRETS_DIR: /run/secrets
+      BBZ_SESSION_COOKIE_SECURE: "true"
+      BBZ_CORS_ALLOW_ORIGINS: ${BBZ_CORS_ALLOW_ORIGINS:-[]}
+    secrets:
+      - bbz_jwt_secret
+      - bbz_totp_encryption_key
+    expose:
+      - "8000"
+    depends_on:
+      postgres:
+        condition: service_started
+
+  # --- BBZ Web (static build served by the API image's sibling) -------------
+  web:
+    <<: *restart
+    image: ${BBZ_WEB_IMAGE:?set in .env}
+    expose:
+      - "8080"
+    depends_on:
+      - api
+
+  # --- edge: TLS termination, security headers, routing ---------------------
+  reverse-proxy:
+    <<: *restart
+    image: caddy:2-alpine
+    environment:
+      BBZ_PUBLIC_NAME: ${BBZ_PUBLIC_NAME:?set in .env}
+    volumes:
+      - ./reverse-proxy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    ports:
+      - "443:443"
+      - "80:80"
+    depends_on:
+      - api
+      - web
+
+volumes:
+  etcd_data:
+  postgres_data:
+  caddy_data:
+  caddy_config:
