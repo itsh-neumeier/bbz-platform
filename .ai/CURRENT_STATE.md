@@ -225,7 +225,7 @@ dispatcher, singleton runner), `infra/outbox.py`, `infra/inbox.py`,
 (code carries `TODO(E04-03)`); the code comments point at #66/E04-10 — do it
 alongside E23 hardening.
 
-### Epic 05 – EPK Workflow Engine: **in progress (6/9)**
+### Epic 05 – EPK Workflow Engine: **in progress (7/9)**
 #68 (E05-01) `bbz_rule_dsl.evaluate()` implemented — total, side-effect-free,
 deterministic predicate over a typed `Context`. Operators
 `eq/ne/in/not_in/lt/lte/gt/gte/and/or/not/exists`; type mismatch / bad arity /
@@ -278,9 +278,22 @@ capability exists; a cycle needs a connector with `props.reentry`. 100 % branch
 coverage. `AuditAction.WORKFLOW_TEMPLATE_VALIDATED` added (wired with the
 lifecycle API, E05-07/08).
 
-**Next:** #74 (E05-07) template-version lifecycle & immutability service
-(draft→validated→published→deprecated transitions, publish snapshots + freezes,
-`workflows.manage_templates`). See `.ai/ROADMAP.md` Epic 05.
+#74 (E05-07) template-version lifecycle service + API —
+`bbz_core.infra.repositories.workflow_lifecycle.WorkflowLifecycleService`:
+`create_draft_version` / `edit_draft` (draft only, else 409) / `validate`
+(runs `validate_publishable`; issues → returned, stays draft; clean →
+lifecycle `validated` + `rebuild_graph_index` + `WORKFLOW_TEMPLATE_VALIDATED`)
+/ `publish` (needs `validated` + a changelog, else 409/422; stamps
+`published_at/by`, `WORKFLOW_TEMPLATE_PUBLISHED`) / `deprecate` (published
+only, `WORKFLOW_TEMPLATE_DEPRECATED`). Each method commits its own TX and
+audits in it. `bbz_core.api.v1.workflows` router (`workflow-templates`,
+`workflow-template-versions/{id}/validate|publish|deprecate`, PATCH edit),
+all gated `workflows.view` / `workflows.manage_templates`; `_translate()`
+maps the trigger's "published definition is immutable" `DBAPIError` → 409.
+All 3 workflow actions added to `CRITICAL_ACTIONS`.
+
+**Next:** #75 (E05-08) engine AND-split/join + token semantics
+(`ACTION_STEP_COMPLETED` audit). See `.ai/ROADMAP.md` Epic 05.
 
 ## Existing reference
 A functional HTML mockup defines important UX/feature behavior. **It is not yet in
