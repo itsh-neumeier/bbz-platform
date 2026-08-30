@@ -225,7 +225,7 @@ dispatcher, singleton runner), `infra/outbox.py`, `infra/inbox.py`,
 (code carries `TODO(E04-03)`); the code comments point at #66/E04-10 — do it
 alongside E23 hardening.
 
-### Epic 05 – EPK Workflow Engine: **in progress (9/13)**
+### Epic 05 – EPK Workflow Engine: **in progress (10/13)**
 #68 (E05-01) `bbz_rule_dsl.evaluate()` implemented — total, side-effect-free,
 deterministic predicate over a typed `Context`. Operators
 `eq/ne/in/not_in/lt/lte/gt/gte/and/or/not/exists`; type mismatch / bad arity /
@@ -328,9 +328,21 @@ connector. The condition context is built from the pinned event
 `step_completed_count`. `WORKFLOW_DECISION_MADE` joins `CRITICAL_ACTIONS`. The
 `workflows.execute` gate for `decide` lands with the operator API (E05-10 ff.).
 
-**Next:** #77 (E05-10) task-kind runtime — manual / confirmation /
-documentation / timer, plus integration_action / notification / event_update.
-See `.ai/ROADMAP.md` Epic 05 (13 issues, #68–#80).
+#77 (E05-10) task-kind runtime. `bbz_core.domain.workflow.tasks` classifies
+function `kind`s; `WorkflowEngineService._settle()` runs after every advance:
+`manual`/`confirmation`/`documentation` keep the token parked until an
+operator `complete_step`; `timer` stamps `workflow_tokens.resume_at`
+(migration 0021) and `WorkflowEngineService.fire_due_timers()` (a worker)
+resumes it once due — persisted, so it survives a restart;
+`integration_action`/`notification`/`event_update` enqueue exactly one
+`external_action_outbox` row (`dedupe_key = workflow-step:<instance>:<node>:
+attempt-0`, action_type `integration`/`notify`/`event_update`) and the token
+moves on, the side effect running exactly-once via the dispatcher. Each auto
+/ timer step writes an `ACTION_STEP_COMPLETED` audit row. No arbitrary
+scripts — only typed outbox actions (§29/§33).
+
+**Next:** #78 (E05-11) instance pinning & start from an event
+(`workflows.execute`). See `.ai/ROADMAP.md` Epic 05 (13 issues, #68–#80).
 
 ## Existing reference
 A functional HTML mockup defines important UX/feature behavior. **It is not yet in

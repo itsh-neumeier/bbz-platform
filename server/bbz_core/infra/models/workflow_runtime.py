@@ -77,6 +77,9 @@ class WorkflowToken(Base):
     #: an AND join tell its incoming branches apart (E05-08).
     inbound_edge_key: Mapped[str | None] = mapped_column(String(64))
     state: Mapped[str] = mapped_column(String(16), server_default=WorkflowTokenState.ACTIVE.value)
+    #: when a parked ``timer`` task is due to resume (persisted so it still
+    #: fires after a server restart, E05-10).
+    resume_at: Mapped[_dt.datetime | None] = mapped_column(index=True)
     entered_at: Mapped[_dt.datetime] = mapped_column(server_default=text("now()"))
     left_at: Mapped[_dt.datetime | None] = mapped_column()
 
