@@ -381,7 +381,7 @@ if an instance is pinned) / `simulate_version` / `version_diff`, each audited
 
 **Epic 05 COMPLETE (13/13).**
 
-### Epic 06 – HA Cluster: **in progress (4/14)**
+### Epic 06 – HA Cluster: **in progress (5/14)**
 #81 (E06-01) per-node deployment topology. `deploy/node/` — the full stack for
 one BBZ server (`name: bbz-node`): api / web / PostgreSQL+Patroni (Spilo) /
 an etcd member / Caddy reverse proxy, with `.env.example`, file-based
@@ -435,8 +435,18 @@ receive/replay LSN gap, always representing this node. `last_event_seq` =
 gated `require("system.cluster.view")` (401/403), and adds a `leaders` field.
 No secrets in the body.
 
-**Next:** #86 (E06-05) `/health/ready` gated on cluster/data state. See
-`.ai/ROADMAP.md` Epic 06 (14 issues: #81, #82, #84–#95).
+#86 (E06-05) `/health/ready` gated on the HA state. `_collect_checks()` now
+runs, **in order** (~2 s each): (1) `database` (existing `check_database`),
+(2) `cluster` — `cluster_status.local_node_ready()` delegates to this node's
+local Patroni `/readiness` (`patroni_local_rest_url` setting; 503 while
+creating a replica or lagging past `maximum_lag_on_failover`). No local
+Patroni → the check passes (single-node dev). Any failing check → `503
+not_ready`. `deploy/node` sets `BBZ_PATRONI_LOCAL_REST_URL` +
+`BBZ_PATRONI_REST_ENDPOINTS`; the Caddyfile uses `/health/ready` as its
+upstream active health check.
+
+**Next:** #87 (E06-06) app leader-election usage docs + a second consumer.
+See `.ai/ROADMAP.md` Epic 06 (14 issues: #81, #82, #84–#95).
 
 ## Existing reference
 A functional HTML mockup defines important UX/feature behavior. **It is not yet in

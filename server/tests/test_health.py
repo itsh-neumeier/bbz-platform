@@ -27,6 +27,22 @@ def _db_check(monkeypatch: pytest.MonkeyPatch) -> Callable[[bool], None]:
     return set_ok
 
 
+@pytest.fixture(autouse=True)
+def _cluster_check(monkeypatch: pytest.MonkeyPatch) -> Callable[[bool, str], None]:
+    """The cluster readiness probe defaults to 'ready' (no local Patroni)."""
+    state = {"ok": True, "detail": "patroni not configured (single node)"}
+
+    async def fake_local_node_ready() -> tuple[bool, str]:
+        return state["ok"], state["detail"]
+
+    monkeypatch.setattr(health_mod, "local_node_ready", fake_local_node_ready)
+
+    def set_state(ok: bool, detail: str) -> None:
+        state["ok"], state["detail"] = ok, detail
+
+    return set_state
+
+
 async def test_live(client: httpx.AsyncClient) -> None:
     r = await client.get("/health/live")
     assert r.status_code == 200
@@ -49,7 +65,23 @@ async def test_ready_is_200_when_database_ok(
     _db_check(True)
     r = await client.get("/health/ready")
     assert r.status_code == 200
-    assert r.json()["status"] == "ready"
+    body = r.json()
+    assert body["status"] == "ready"
+    assert {c["name"] for c in body["checks"]} == {"database", "cluster"}
+
+
+async def test_ready_is_503_while_the_node_is_rejoining(
+    client: httpx.AsyncClient,
+    _db_check: Callable[[bool], None],
+    _cluster_check: Callable[[bool, str], None],
+) -> None:
+    _db_check(True)  # DB fine ...
+    _cluster_check(False, "patroni not ready (readiness 503) — rejoin/replay in progress")
+    r = await client.get("/health/ready")
+    assert r.status_code == 503
+    body = r.json()
+    assert body["status"] == "not_ready"
+    assert any(c["name"] == "cluster" and c["ok"] is False for c in body["checks"])
 
 
 async def test_details_includes_node_identity(client: httpx.AsyncClient) -> None:
