@@ -9,6 +9,7 @@ the stored response and never re-hits the provider — no double "answer".
 
 from __future__ import annotations
 
+import datetime as _dt
 import uuid
 from collections.abc import Awaitable, Callable
 
@@ -21,8 +22,9 @@ from bbz_core.api.deps import AuthContext, db_session
 from bbz_core.api.errors import ConflictError, NotFoundError
 from bbz_core.api.idempotency import CommandEnvelope, command_envelope
 from bbz_core.audit import AuditAction, AuditService
+from bbz_core.infra.event_log import append_event
 from bbz_core.infra.idempotency import idempotent, request_hash
-from bbz_core.infra.models.telephony import Call
+from bbz_core.infra.models.telephony import Call, CallCategory, CallDocumentation
 from bbz_core.integrations_host.providers import NoActiveProvider, active_telephony_provider
 
 router = APIRouter(prefix="/calls", tags=["calls"])
@@ -246,3 +248,107 @@ async def dial(
         out = DialOut(accepted=accepted, detail=detail)
         slot.set_result(status.HTTP_200_OK, out.model_dump(mode="json"))
         return out
+
+
+# --- call documentation (E11-09) -------------------------------------------
+
+
+class DocumentationIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    #: §13.10 categories; an unknown value is a 422. None = not categorised yet.
+    category: CallCategory | None = None
+    free_text: str | None = Field(default=None, max_length=20_000)
+
+
+class DocumentationOut(BaseModel):
+    call_id: uuid.UUID
+    category: str | None
+    free_text: str | None
+    documented_by: uuid.UUID | None
+    documented_at: _dt.datetime | None
+    mandatory_done: bool
+
+
+def _doc_out(call_id: uuid.UUID, doc: CallDocumentation) -> DocumentationOut:
+    return DocumentationOut(
+        call_id=call_id,
+        category=doc.category,
+        free_text=doc.free_text,
+        documented_by=doc.documented_by,
+        documented_at=doc.documented_at,
+        mandatory_done=doc.mandatory_done,
+    )
+
+
+@router.put("/{call_id}/documentation", response_model=DocumentationOut)
+async def put_documentation(
+    call_id: uuid.UUID,
+    body: DocumentationIn,
+    ctx: AuthContext = Depends(require("calls.document")),
+    session: AsyncSession = Depends(db_session),
+) -> DocumentationOut:
+    """Categorise / annotate a call — inline during or after the conversation.
+    Re-saving overwrites (last state wins). ``CALL_DOCUMENTED`` is emitted and
+    audited only once a category is set (§13.10)."""
+    free_text = (body.free_text or "").strip() or None
+    await session.rollback()
+    async with session.begin():
+        call = await session.get(Call, call_id)
+        if call is None:
+            raise NotFoundError("call not found")
+        bbz_call_id = call.bbz_call_id
+
+        doc = await session.get(CallDocumentation, call_id)
+        if doc is None:
+            doc = CallDocumentation(call_id=call_id)
+            session.add(doc)
+        doc.category = body.category.value if body.category is not None else None
+        doc.free_text = free_text
+        doc.mandatory_done = doc.category is not None
+        if doc.category is not None:
+            doc.documented_by = ctx.user_id
+            doc.documented_at = _dt.datetime.now(_dt.UTC)
+            seq = await append_event(
+                session,
+                aggregate_type="call",
+                aggregate_id=call_id,
+                event_type="CALL_DOCUMENTED",
+                payload={
+                    "bbz_call_id": bbz_call_id,
+                    "category": doc.category,
+                    "has_free_text": free_text is not None,
+                    "actor_id": str(ctx.user_id),
+                },
+                user_id=ctx.user_id,
+            )
+            await AuditService(session).write(
+                AuditAction.CALL_DOCUMENTED,
+                actor_user_id=ctx.user_id,
+                target_type="call",
+                target_id=str(call_id),
+                after={"category": doc.category, "has_free_text": free_text is not None},
+                event_seq_ref=seq,
+            )
+        await session.flush()
+        return _doc_out(call_id, doc)
+
+
+@router.get("/{call_id}/documentation", response_model=DocumentationOut)
+async def get_documentation(
+    call_id: uuid.UUID,
+    _: AuthContext = Depends(require("calls.view")),
+    session: AsyncSession = Depends(db_session),
+) -> DocumentationOut:
+    if await session.get(Call, call_id) is None:
+        raise NotFoundError("call not found")
+    doc = await session.get(CallDocumentation, call_id)
+    if doc is None:
+        return DocumentationOut(
+            call_id=call_id,
+            category=None,
+            free_text=None,
+            documented_by=None,
+            documented_at=None,
+            mandatory_done=False,
+        )
+    return _doc_out(call_id, doc)

@@ -668,7 +668,7 @@ All issues need Node/Electron; skipped like Epic 07.
 **Epic 10: 3/16 doable here (E10-01/02/14).** E10-03+ (enrollment, command bus,
 agent, UI) need the Go toolchain / identity lib.
 
-### Epic 11 – Telephony Core: **in progress (7/16)**
+### Epic 11 – Telephony Core: **in progress (8/16)**
 - **#197 (E11-01) telephony core schema** — migration 0026 + `telephony.py`:
   `lines` (provider+external_id unique, state CHECK), `calls` (`bbz_call_id`
   unique + **independent of** `source_call_id`; `direction`/`state` CHECK — the
@@ -740,9 +740,16 @@ agent, UI) need the Go toolchain / identity lib.
   catalog; not audited) on a real change only. `GET /api/v1/lines`
   (`calls.view`, optional `?provider=`). `test_line_status_api.py`.
 
+- **#213 (E11-09) mandatory call documentation** — `PUT /calls/{id}/documentation`
+  (`calls.document`) upserts `call_documentation` (one row per call, last-write
+  wins). `category` is the §13.10 `CallCategory` enum → 422 on an unknown value;
+  `free_text` optional. `CALL_DOCUMENTED` domain event + mandatory audit fire
+  only once a category is set (`mandatory_done`); free-text-only saves persist
+  silently. `GET /calls/{id}/documentation` (`calls.view`).
+  `test_call_documentation_api.py`.
+
 **Next:** E11-08 is **blocked** (caller resolution needs Epic 14 contacts).
-E11-09 (mandatory call documentation), E11-10 (hangup guard). Epic 07 / 08,
-#92,
+E11-10 (hangup guard — `ended_pending_documentation`). Epic 07 / 08, #92,
 the Go agents (09/10 impl) and the #429 browser E2E stay blocked on a
 Node / Go / multi-host session.
 
