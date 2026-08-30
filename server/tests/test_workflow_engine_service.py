@@ -445,3 +445,193 @@ async def test_decide_after_an_auto_resolution_is_a_no_op(db: object) -> None:
     await svc.decide(inst.id, "xs", ["c"])  # xs auto-resolved to b already -> no-op
     assert await _tokens_at(s, inst.id) == ["f1"]
     assert await _audit_count(s, "WORKFLOW_DECISION_MADE") == 1
+
+
+# --- task kinds (E05-10) -----------------------------------------------------
+
+_DOC: dict[str, Any] = {
+    "start": "e0",
+    "nodes": [
+        {"key": "e0", "type": "event"},
+        {"key": "doc", "type": "function", "kind": "documentation"},
+        {"key": "e1", "type": "event"},
+    ],
+    "edges": [
+        {"key": "a", "from": "e0", "to": "doc"},
+        {"key": "b", "from": "doc", "to": "e1"},
+    ],
+}
+
+_NOTIFY: dict[str, Any] = {
+    "start": "e0",
+    "nodes": [
+        {"key": "e0", "type": "event"},
+        {"key": "n", "type": "function", "kind": "notification", "props": {"channel": "ops"}},
+        {"key": "e1", "type": "event"},
+    ],
+    "edges": [
+        {"key": "a", "from": "e0", "to": "n"},
+        {"key": "b", "from": "n", "to": "e1"},
+    ],
+}
+
+_ACT_THEN_MANUAL: dict[str, Any] = {
+    "start": "e0",
+    "nodes": [
+        {"key": "e0", "type": "event"},
+        {
+            "key": "act",
+            "type": "function",
+            "kind": "integration_action",
+            "props": {"capability": "door.open"},
+        },
+        {"key": "m", "type": "function", "kind": "manual"},
+        {"key": "e1", "type": "event"},
+    ],
+    "edges": [
+        {"key": "a", "from": "e0", "to": "act"},
+        {"key": "b", "from": "act", "to": "m"},
+        {"key": "c", "from": "m", "to": "e1"},
+    ],
+}
+
+_TIMER: dict[str, Any] = {
+    "start": "e0",
+    "nodes": [
+        {"key": "e0", "type": "event"},
+        {"key": "w", "type": "function", "kind": "timer", "props": {"duration_seconds": 1}},
+        {"key": "e1", "type": "event"},
+    ],
+    "edges": [
+        {"key": "a", "from": "e0", "to": "w"},
+        {"key": "b", "from": "w", "to": "e1"},
+    ],
+}
+
+
+async def _outbox(s: AsyncSession) -> list[tuple[str, str]]:
+    return list(
+        (
+            await s.execute(
+                text(
+                    "SELECT action_type, dedupe_key FROM external_action_outbox ORDER BY dedupe_key"
+                )
+            )
+        ).all()
+    )
+
+
+async def test_documentation_task_blocks_until_the_operator_completes_it(db: object) -> None:
+    s = db  # type: ignore[assignment]
+    assert isinstance(s, AsyncSession)
+    event_id, version_id = await _published(s, _DOC)
+    svc = WorkflowEngineService(s)
+    inst = await svc.start_instance(event_id=event_id, template_version_id=version_id)
+
+    assert await _tokens_at(s, inst.id) == ["doc"]
+    assert await _status(s, inst.id) == "running"
+    assert await _outbox(s) == []
+
+    await svc.complete_step(inst.id, "doc", result={"text": "Lage dokumentiert"})
+    assert await _status(s, inst.id) == "completed"
+
+
+async def test_notification_task_enqueues_exactly_one_outbox_row(db: object) -> None:
+    s = db  # type: ignore[assignment]
+    assert isinstance(s, AsyncSession)
+    event_id, version_id = await _published(s, _NOTIFY)
+    svc = WorkflowEngineService(s)
+    inst = await svc.start_instance(event_id=event_id, template_version_id=version_id)
+
+    assert await _status(s, inst.id) == "completed"
+    assert await _outbox(s) == [("notify", f"workflow-step:{inst.id}:n:attempt-0")]
+    assert await _audit_count(s, "ACTION_STEP_COMPLETED") == 1
+
+
+async def test_integration_task_dispatches_once_then_blocks_on_the_manual_step(db: object) -> None:
+    s = db  # type: ignore[assignment]
+    assert isinstance(s, AsyncSession)
+    event_id, version_id = await _published(s, _ACT_THEN_MANUAL)
+    svc = WorkflowEngineService(s)
+    inst = await svc.start_instance(event_id=event_id, template_version_id=version_id)
+
+    assert await _tokens_at(s, inst.id) == ["m"]  # integration done, parked on manual
+    assert await _outbox(s) == [("integration", f"workflow-step:{inst.id}:act:attempt-0")]
+
+    # a blind re-drive (failover) must not enqueue the action a second time
+    await svc.advance_instance(inst.id)
+    assert len(await _outbox(s)) == 1
+
+    await svc.complete_step(inst.id, "m")
+    assert await _status(s, inst.id) == "completed"
+    assert len(await _outbox(s)) == 1
+
+
+async def test_timer_task_fires_after_its_deadline_across_a_restart(db: object) -> None:
+    s = db  # type: ignore[assignment]
+    assert isinstance(s, AsyncSession)
+    event_id, version_id = await _published(s, _TIMER)
+    svc = WorkflowEngineService(s)
+    inst = await svc.start_instance(event_id=event_id, template_version_id=version_id)
+
+    assert await _tokens_at(s, inst.id) == ["w"]
+    resume_at = (
+        await s.execute(
+            text("SELECT resume_at FROM workflow_tokens WHERE instance_id = :i AND node_key = 'w'"),
+            {"i": inst.id},
+        )
+    ).scalar_one()
+    assert resume_at is not None
+
+    # nothing is due yet
+    assert await WorkflowEngineService(s).fire_due_timers() == 0
+    assert await _status(s, inst.id) == "running"
+
+    # simulate the deadline passing (and a restart in between)
+    await s.execute(
+        text(
+            "UPDATE workflow_tokens SET resume_at = now() - interval '1 minute' "
+            "WHERE instance_id = :i AND node_key = 'w'"
+        ),
+        {"i": inst.id},
+    )
+    await s.commit()
+    assert await WorkflowEngineService(s).fire_due_timers() == 1
+    assert await _status(s, inst.id) == "completed"
+    assert await _audit_count(s, "ACTION_STEP_COMPLETED") == 1
+    # a second sweep has nothing to do
+    assert await WorkflowEngineService(s).fire_due_timers() == 0
+
+
+async def test_fire_due_timers_skips_stale_and_finished_rows(db: object) -> None:
+    s = db  # type: ignore[assignment]
+    assert isinstance(s, AsyncSession)
+    svc = WorkflowEngineService(s)
+    ev1, ver1 = await _published(s, _TIMER)
+    i1 = (await svc.start_instance(event_id=ev1, template_version_id=ver1)).id
+    ev2, ver2 = await _published(s, _TIMER)
+    i2 = (await svc.start_instance(event_id=ev2, template_version_id=ver2)).id
+
+    # i1: a due timer on an already-completed step -> skipped (idempotent)
+    await s.execute(
+        text(
+            "INSERT INTO workflow_task_results (instance_id, node_key, result) "
+            "VALUES (:i, 'w', '{}'::jsonb)"
+        ),
+        {"i": i1},
+    )
+    # i2: a due timer on a cancelled instance -> skipped
+    await s.execute(
+        text("UPDATE workflow_instances SET status = 'cancelled' WHERE id = :i"), {"i": i2}
+    )
+    await s.execute(
+        text(
+            "UPDATE workflow_tokens SET resume_at = now() - interval '1 min' "
+            "WHERE instance_id IN (:a, :b) AND node_key = 'w'"
+        ),
+        {"a": i1, "b": i2},
+    )
+    await s.commit()
+
+    assert await WorkflowEngineService(s).fire_due_timers() == 0
+    assert await _status(s, i1) == "running"

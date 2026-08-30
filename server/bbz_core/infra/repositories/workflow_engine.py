@@ -13,8 +13,15 @@ a ``workflow_decisions`` row (``auto = true``) and a ``WORKFLOW_DECISION_MADE``
 audit entry; when nothing resolves, the token parks and :meth:`decide` records
 the operator's choice (``auto = false``) and resumes.
 
-Task *execution* (integration actions, notifications, timers actually firing)
-is E05-10 — here a function node parks its token until :meth:`complete_step`.
+Task kinds (E05-10) are settled after every advance:
+
+* ``manual`` / ``confirmation`` / ``documentation`` — the token stays parked
+  until :meth:`complete_step` (an operator).
+* ``timer`` — ``resume_at`` is stamped on the token; :meth:`fire_due_timers`
+  (a worker) resumes it once due, so a restart never loses the deadline.
+* ``integration_action`` / ``notification`` / ``event_update`` — exactly one
+  ``external_action_outbox`` row is enqueued (stable ``dedupe_key``) and the
+  token moves on; the side effect runs exactly-once via the dispatcher.
 """
 
 from __future__ import annotations
@@ -37,6 +44,13 @@ from bbz_core.domain.workflow import (
     derive_index,
 )
 from bbz_core.domain.workflow.engine import StepNotWaitingError, advance, resume_function
+from bbz_core.domain.workflow.tasks import (
+    AUTO_KINDS,
+    TIMER_KINDS,
+    outbox_action,
+    step_dedupe_key,
+    timer_seconds,
+)
 from bbz_core.infra.models.events import Event
 from bbz_core.infra.models.workflow import WorkflowTemplateVersion
 from bbz_core.infra.models.workflow_runtime import (
@@ -47,6 +61,7 @@ from bbz_core.infra.models.workflow_runtime import (
     WorkflowToken,
     WorkflowTokenState,
 )
+from bbz_core.infra.outbox import enqueue
 
 _LIVE = (WorkflowTokenState.ACTIVE.value, WorkflowTokenState.WAITING.value)
 
@@ -152,14 +167,9 @@ class WorkflowEngineService:
                 completed_by=actor_id,
             )
         )
-        await AuditService(self._s).write(
-            AuditAction.ACTION_STEP_COMPLETED,
-            actor_user_id=actor_id,
-            target_type="workflow_instance",
-            target_id=str(instance_id),
-            after={"node_key": node_key, "instance_id": str(instance_id)},
-        )
+        await self._audit_step(instance_id, node_key, actor_id=actor_id)
         await self._apply(inst, outcome, actor_id=None)
+        await self._settle(inst, graph)
         await self._s.commit()
         return inst
 
@@ -246,6 +256,159 @@ class WorkflowEngineService:
             decisions=await self._decisions(inst.id),
         )
         await self._apply(inst, outcome, actor_id=actor_id)
+        await self._settle(inst, graph)
+
+    async def _settle(self, inst: WorkflowInstance, graph: DerivedGraph) -> None:
+        """Run the kind-specific handler for every freshly-parked function
+        token — arming timers, dispatching auto actions — until the instance
+        reaches a state that only an operator (or a due timer) can move on."""
+        for _ in range(len(graph.nodes) + 5):
+            rows = (
+                (
+                    await self._s.execute(
+                        select(WorkflowToken).where(
+                            WorkflowToken.instance_id == inst.id,
+                            WorkflowToken.state == WorkflowTokenState.WAITING.value,
+                        )
+                    )
+                )
+                .scalars()
+                .all()
+            )
+            auto_key: str | None = None
+            armed = False
+            for r in rows:
+                node = _graph_node(graph, r.node_key)
+                kind = node.function_kind if node is not None else None
+                if kind in TIMER_KINDS and r.resume_at is None:
+                    r.resume_at = _dt.datetime.now(_dt.UTC) + _dt.timedelta(
+                        seconds=timer_seconds(node.props if node else None)
+                    )
+                    armed = True
+                elif kind in AUTO_KINDS and auto_key is None:
+                    if not await self._step_done(inst.id, r.node_key):
+                        auto_key = r.node_key
+            if auto_key is not None:
+                await self._run_auto(inst, graph, auto_key)
+                continue
+            if armed:
+                await self._s.flush()
+            return
+        raise WorkflowEngineError("task settling did not converge")  # pragma: no cover
+
+    async def _run_auto(self, inst: WorkflowInstance, graph: DerivedGraph, node_key: str) -> None:
+        node = _graph_node(graph, node_key)
+        assert node is not None and node.function_kind is not None
+        await enqueue(
+            self._s,
+            dedupe_key=step_dedupe_key(inst.id, node_key),
+            action_type=outbox_action(node.function_kind),
+            payload={
+                "instance_id": str(inst.id),
+                "node_key": node_key,
+                "kind": node.function_kind,
+                "props": node.props,
+            },
+        )
+        self._s.add(
+            WorkflowTaskResult(
+                instance_id=inst.id,
+                node_key=node_key,
+                result={"dispatched": True, "kind": node.function_kind},
+                completed_by=None,
+            )
+        )
+        await self._audit_step(inst.id, node_key, actor_id=None, kind=node.function_kind)
+        outcome = resume_function(
+            graph,
+            await self._tokens(inst.id),
+            node_key,
+            context=await self._context(inst),
+            decisions=await self._decisions(inst.id),
+        )
+        await self._apply(inst, outcome, actor_id=None)
+
+    async def fire_due_timers(self, *, now: _dt.datetime | None = None) -> int:
+        """Resume every parked ``timer`` token whose ``resume_at`` has passed.
+
+        A worker calls this on a schedule; because ``resume_at`` is persisted,
+        a timer still fires at its deadline across a server restart. Commits."""
+        now = now or _dt.datetime.now(_dt.UTC)
+        rows = (
+            (
+                await self._s.execute(
+                    select(WorkflowToken)
+                    .where(
+                        WorkflowToken.state == WorkflowTokenState.WAITING.value,
+                        WorkflowToken.resume_at.is_not(None),
+                        WorkflowToken.resume_at <= now,
+                    )
+                    .with_for_update(skip_locked=True)
+                )
+            )
+            .scalars()
+            .all()
+        )
+        fired = 0
+        seen_instances: dict[uuid.UUID, tuple[WorkflowInstance, DerivedGraph]] = {}
+        for r in rows:
+            if r.instance_id not in seen_instances:
+                inst = await self._require(r.instance_id)
+                seen_instances[r.instance_id] = (inst, await self._graph(inst.template_version_id))
+            inst, graph = seen_instances[r.instance_id]
+            r.resume_at = None
+            if inst.status != WorkflowInstanceStatus.RUNNING.value:
+                continue
+            if await self._step_done(inst.id, r.node_key):
+                continue
+            self._s.add(
+                WorkflowTaskResult(
+                    instance_id=inst.id, node_key=r.node_key, result={"timer": "elapsed"}
+                )
+            )
+            await self._audit_step(inst.id, r.node_key, actor_id=None, kind="timer")
+            outcome = resume_function(
+                graph,
+                await self._tokens(inst.id),
+                r.node_key,
+                context=await self._context(inst),
+                decisions=await self._decisions(inst.id),
+            )
+            await self._apply(inst, outcome, actor_id=None)
+            await self._settle(inst, graph)
+            fired += 1
+        await self._s.commit()
+        return fired
+
+    async def _step_done(self, instance_id: uuid.UUID, node_key: str) -> bool:
+        row = (
+            await self._s.execute(
+                select(WorkflowTaskResult.id).where(
+                    WorkflowTaskResult.instance_id == instance_id,
+                    WorkflowTaskResult.node_key == node_key,
+                )
+            )
+        ).first()
+        return row is not None
+
+    async def _audit_step(
+        self,
+        instance_id: uuid.UUID,
+        node_key: str,
+        *,
+        actor_id: uuid.UUID | None,
+        kind: str | None = None,
+    ) -> None:
+        after: dict[str, Any] = {"node_key": node_key, "instance_id": str(instance_id)}
+        if kind is not None:
+            after |= {"kind": kind, "auto": True}
+        await AuditService(self._s).write(
+            AuditAction.ACTION_STEP_COMPLETED,
+            actor_user_id=actor_id,
+            target_type="workflow_instance",
+            target_id=str(instance_id),
+            after=after,
+        )
 
     async def _require(self, instance_id: uuid.UUID) -> WorkflowInstance:
         inst = await self._s.get(WorkflowInstance, instance_id)
