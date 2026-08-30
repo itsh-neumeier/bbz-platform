@@ -81,6 +81,11 @@ def create_app() -> FastAPI:
     app.include_router(ws_router)
     app.include_router(api_v1)
 
+    # normalized telephony events → call aggregate (E11-04)
+    from bbz_core.infra.repositories.call_lifecycle import register_call_dispatch
+
+    register_call_dispatch()
+
     instrument_app(app)
     return app
 

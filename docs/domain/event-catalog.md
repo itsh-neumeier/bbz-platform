@@ -36,6 +36,9 @@ sub-schema under `properties.<EVENT_TYPE>`).
 | EVENT_NOTE_ADDED | event | note_id, kind, body, actor_id | kind ∈ {work, postprocess}; also audited (E20-04) |
 | EVENT_NOTE_UPDATED | event | note_id, thread_id, version, kind, body, actor_id | note edit; new append-only version, old one kept; audited (E20-04) |
 | ACTION_STEP_COMPLETED | workflow_instance | _(schema pending Epic 05)_ | |
+| CALL_RINGING | call | bbz_call_id, direction, from, to | driven by a normalized provider event (E11-04); audited |
+| CALL_ANSWERED | call | bbz_call_id, direction, from, to | first connect only; audited |
+| CALL_ENDED | call | bbz_call_id, direction, from, to | call reached a terminal state; audited |
 
 ## Calls
 
