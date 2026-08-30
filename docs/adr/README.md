@@ -38,3 +38,4 @@ a provider contract, a security boundary, a technology choice. `.ai/RULES.md`:
 | 0016 | Canonical naming: Coda Video not "Cayuga" | Accepted |
 | 0017 | Time handling (UTC everywhere) | Proposed |
 | 0018 | Distributed config store (etcd) | Proposed |
+| 0020 | Audit / event-log immutability (append-only trigger) | Proposed |

@@ -15,8 +15,9 @@ from __future__ import annotations
 
 import datetime as _dt
 import uuid
+from typing import Any
 
-from sqlalchemy import DateTime, MetaData, text
+from sqlalchemy import DDL, DateTime, MetaData, event, text
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 NAMING_CONVENTION = {
@@ -47,3 +48,27 @@ class TimestampMixin:
     updated_at: Mapped[_dt.datetime] = mapped_column(
         server_default=text("now()"), onupdate=text("now()")
     )
+
+
+#: Append-only enforcement (ADR-0020). The migration 0016_audit_immutability
+#: creates the same objects for already-provisioned databases; this hook makes
+#: ``create_all`` (tests / fresh dev DB) consistent with it.
+APPEND_ONLY_FN = "bbz_forbid_row_mutation"
+
+_APPEND_ONLY_FN_DDL = DDL(  # type: ignore[no-untyped-call]
+    f"CREATE OR REPLACE FUNCTION {APPEND_ONLY_FN}() RETURNS trigger "
+    "LANGUAGE plpgsql AS $$ BEGIN "
+    "RAISE EXCEPTION 'append-only table: UPDATE and DELETE are not allowed'; "
+    "END; $$"
+)
+
+
+def make_append_only(table: Any) -> None:
+    """Attach a ``BEFORE UPDATE OR DELETE`` trigger that blocks all row mutation."""
+    trigger = f"{table.name}_append_only"
+    create_trigger = DDL(  # type: ignore[no-untyped-call]
+        f"CREATE TRIGGER {trigger} BEFORE UPDATE OR DELETE ON {table.name} "
+        f"FOR EACH ROW EXECUTE FUNCTION {APPEND_ONLY_FN}()"
+    )
+    event.listen(table, "after_create", _APPEND_ONLY_FN_DDL.execute_if(dialect="postgresql"))
+    event.listen(table, "after_create", create_trigger.execute_if(dialect="postgresql"))

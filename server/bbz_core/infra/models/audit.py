@@ -16,7 +16,7 @@ from sqlalchemy import BigInteger, String, Text, event, text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, Mapper, mapped_column
 
-from bbz_core.infra.models.base import Base, uuid_pk
+from bbz_core.infra.models.base import Base, make_append_only, uuid_pk
 
 
 class AuditImmutableError(RuntimeError):
@@ -52,3 +52,7 @@ def _block_audit_update(_mapper: Mapper[AuditEvent], _conn: object, _target: Aud
 @event.listens_for(AuditEvent, "before_delete")
 def _block_audit_delete(_mapper: Mapper[AuditEvent], _conn: object, _target: AuditEvent) -> None:
     raise AuditImmutableError("audit_events is append-only; DELETE is not allowed")
+
+
+# ADR-0020: enforce append-only in the database too (any client, not just the ORM).
+make_append_only(AuditEvent.__table__)
