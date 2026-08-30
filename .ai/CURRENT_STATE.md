@@ -569,7 +569,7 @@ and Node/npm is not available in this environment** — the frontend CI job is
 also `continue-on-error`. Those need a Node-equipped session. Backend work
 continues on Epic 20 in the meantime.
 
-### Epic 20 – Archive / Postprocessing: **in progress (4/8)**
+### Epic 20 – Archive / Postprocessing: **in progress (5/8)**
 - **#414 (E20-01) archive detail model** — decision documented in
   `docs/domain/archive.md`: **no `event_archive` table**; an archived event is an
   `events` row with `status=archived` and all history lives in the same
@@ -596,7 +596,17 @@ continues on Epic 20 in the meantime.
   `CRITICAL_ACTIONS`). `GET /events/{id}/notes` returns each thread's current
   version + ordered history; the plain detail shows only the current version.
   `test_postprocess_notes_api.py`.
-**Next:** #422 (E20-05, reactivation finalize). Live issues: #422, #424, #426, #429.
+- **#422 (E20-05) reactivation finalize** — two-step: new
+  `POST /events/{id}/reactivation-intent` (`events.reactivate`, 409 unless
+  archived) mints a stateless HMAC token bound to `event_id·user_id·version`
+  (`bbz_core/api/reactivation.py`, TTL `reactivation_token_ttl_seconds`=300).
+  `POST /events/{id}/reactivate` now also requires that `token` (422 on
+  mismatch/expiry) on top of `confirm`+`reason`. Accidental-series guard:
+  second reactivation of an event within `reactivation_cooldown_seconds`=60 →
+  **429** (`RateLimitedError`, `_apply_transition` gained a `precondition` hook).
+  Reactivated event re-enters `queue=active`. `test_reactivation_flow_api.py`,
+  `test_reactivation_token.py`.
+**Next:** #424 (E20-06, export bundle). Live issues: #424, #426, #429.
 
 ## Existing reference
 A functional HTML mockup defines important UX/feature behavior. **It is not yet in

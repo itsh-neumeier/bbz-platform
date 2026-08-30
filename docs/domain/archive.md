@@ -81,6 +81,26 @@ Notes are **append-only and versioned**:
 Add and edit each emit a domain event (`EVENT_NOTE_ADDED` / `EVENT_NOTE_UPDATED`)
 and an audit entry (both are `CRITICAL_ACTIONS`).
 
+## Reactivation — two-step, guarded (E20-05)
+
+Reactivating an archived event is deliberately two requests:
+
+1. `POST /api/v1/events/{id}/reactivation-intent` (`events.reactivate`) — returns
+   a short-lived, single-purpose **token** (stateless HMAC over
+   `event_id · user_id · version · expiry`, keyed with the app secret; TTL
+   `reactivation_token_ttl_seconds`, default 300). 409 if the event is not
+   archived. Not audited.
+2. `POST /api/v1/events/{id}/reactivate` — requires `confirm: true`, a non-empty
+   `reason`, **and** that `token`. The token is rejected (422) unless it was
+   minted for this event, this caller, and the current `version`
+   (`X-Expected-Version`). On success the event goes `archived → opened`, so it
+   is back in `queue=active`; `EVENT_REACTIVATED` is a mandatory audit with the
+   reason.
+
+**Accidental-series guard:** a second reactivation of the same event within
+`reactivation_cooldown_seconds` (default 60) is refused with **429**. Set the
+setting to `0` to disable.
+
 ## Invariant under test
 
 `server/tests/test_archive_detail.py` (the aggregator query) and

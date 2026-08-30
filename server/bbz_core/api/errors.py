@@ -69,6 +69,13 @@ class ValidationError(AppError):
     http_status = 422
 
 
+class RateLimitedError(AppError):
+    """The same action was attempted again too soon (a deliberate cool-down)."""
+
+    code = "rate_limited"
+    http_status = status.HTTP_429_TOO_MANY_REQUESTS
+
+
 class TotpRequiredError(AppError):
     """Password was correct but a valid TOTP / recovery code is required."""
 

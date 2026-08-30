@@ -97,6 +97,10 @@ class Settings(BaseSettings):
     login_max_failed_attempts: int = 5
     login_lockout_seconds: int = 900
 
+    # --- events: reactivation (E20-05) two-step confirm + accidental-series guard ---
+    reactivation_token_ttl_seconds: int = 300
+    reactivation_cooldown_seconds: int = 60
+
     @property
     def database_url_sync(self) -> str:
         """Sync DSN for Alembic (psycopg v3 driver)."""
