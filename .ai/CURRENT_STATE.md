@@ -129,7 +129,7 @@ accept/acknowledge/open · PATCH · assign · takeover · archive/reactivate ·
 notes · GET list/`?queue=active`/`{id}`/`{id}/export`/`priority-alert`/`stream`.
 WS at `/ws/events`.
 
-### Epic 04 – Audit / Domain Events: **in progress (7/11)**
+### Epic 04 – Audit / Domain Events: **in progress (8/11)**
 #57 (E04-01) `audit_events` schema review — added `event_seq_ref` BIGINT
 (nullable, no FK; migration 0013) linking an audit row to its domain event;
 ORM `before_update` / `before_delete` listeners raise `AuditImmutableError`
@@ -182,8 +182,19 @@ outbox_dispatcher.OutboxDispatcher` — handler registry (`noop`/`notify`),
 the provider has no stable id (key-order-insensitive). `mark_processed()`
 idempotent.
 
-**Next:** RBAC/user critical-action audit wiring (deferred from #59) and #64
-(E04-08) singleton worker via etcd lease. See `.ai/ROADMAP.md` Epic 04.
+#64 (E04-08) application leader election (ADR-0018) —
+`bbz_core.infra.leader`: `LeaderElection` ABC, `LocalLeaderElection` (always
+leader, single-node dev/tests), `EtcdLeaderElection` over etcd's v3 HTTP/JSON
+gateway (no gRPC dep — lease grant + `kv/txn` CAS on `/bbz/leader/<name>` +
+`lease/keepalive`, immediate step-down on any error). `leader_election_for(name)`
+picks the backend from `BBZ_WORKER_LEADER_BACKEND` (`""`→local, `"etcd"`).
+`bbz_core.workers.singleton.run_as_singleton(election, do_work, ttl, stop)` —
+campaign / work-while-leader / renew / step-down, audits `WORKER_LEADER_CHANGED`.
+New settings: `worker_leader_backend/_ttl_seconds/_prefix`.
+
+**Next:** RBAC/user critical-action audit wiring (deferred from #59), #65
+(E04-09) correlation-id propagation, #66 audit immutability DB grant, #67
+outbox/inbox metrics. See `.ai/ROADMAP.md` Epic 04.
 
 ## Existing reference
 A functional HTML mockup defines important UX/feature behavior. **It is not yet in
