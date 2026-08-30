@@ -770,10 +770,22 @@ agent, UI) need the Go toolchain / identity lib.
   until E23 (same as the event queries). `test_call_history_api.py`.
 
 **Next:** E11-08 is **blocked** (caller resolution needs Epic 14 contacts);
-E11-12 (ringing-call list) needs E11-08's priority. Pivot to **Epic 14
-(Contacts)** — schema + CRUD + matching are backend and unblock E11-08/E11-12.
-Epic 07 / 08, #92, the Go agents (09/10 impl) and the #429 browser E2E stay
-blocked on a Node / Go / multi-host session.
+E11-12 (ringing-call list) needs E11-08's priority. Epic 07 / 08, #92, the Go
+agents (09/10 impl) and the #429 browser E2E stay blocked on a Node / Go /
+multi-host session.
+
+### Epic 14 – Contacts / Call Priorities: **in progress (1/10)**
+- **#285 (E14-01) contacts schema** — migration 0027 + `contacts.py`:
+  `contacts` (name, org, notes, `quick_dial`, `bbz_id` scope — plain UUID like
+  `events.bbz_id`), `contact_numbers` (`e164` stored normalized — a CHECK
+  enforces `^\+[1-9][0-9]{1,14}$`; `unique(contact_id, e164)`; `is_primary`;
+  CASCADE), `contact_priorities` (PK = `contact_id` → one current row per
+  contact, `priority` `low|medium|high` CHECK, `set_by`→users SET NULL,
+  `set_at`; change history lives in `domain_events` via E14-03). Migration
+  up/down/up verified on real PG. `test_contacts_schema.py`.
+- Next: E14-02 (contacts CRUD API), E14-03 (priority + `CONTACT_PRIORITY_CHANGED`),
+  E14-04 (number→contact matching, unblocks E11-08), E14-05 (event/audit wiring),
+  E14-06 (quick-dial). E14-07..10 are frontend → blocked.
 
 ## Existing reference
 A functional HTML mockup defines important UX/feature behavior. **It is not yet in
