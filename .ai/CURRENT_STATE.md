@@ -652,10 +652,16 @@ All issues need Node/Electron; skipped like Epic 07.
   (token_hash unique — hashed only, single-use `used_at`, `expires_at`),
   `bku_agent_commands` (closed `type` CHECK — no arbitrary exec —, status
   CHECK, `expected_generation`, CASCADE from agent). `test_bku_agent_schema.py`.
-- E10-02 (app-catalog schema) + E10-14 (`db` seed) also doable here; E10-03+
-  need the Go identity lib / agent.
+- **#167 (E10-02) application-catalog schema** — migration 0025 +
+  `application_catalog.py`: `application_catalog` (name, url [CHECK
+  `~* '^https?://'` — the launch allow-list], `launch_mode` CHECK
+  window/app_window/tab, enabled, sort_order, version, icon,
+  target_monitor_hint) + `application_catalog_scopes` (app_id CASCADE, optional
+  role_key / bbz_id / workplace_id narrowing). `test_application_catalog_schema.py`.
+- E10-14 (BKU permission-seed guard test) also doable; E10-03+ need the Go
+  identity lib / agent.
 
-**Next:** E10-02 (application_catalog schema), then **Epic 11 Telephony Core**
+**Next:** E10-14 (bku permission-seed guard test), then **Epic 11 Telephony Core**
 (mostly backend Python, deps met). Epic 07 / 08, #92, the Go agents (09/10 impl)
 and the #429 browser E2E stay blocked on a Node / Go / multi-host session.
 
