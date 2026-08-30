@@ -24,6 +24,24 @@ the enforced model. **Enforcement is server-side, always.**
 | BKU | `bku.status.view` `bku.apps.launch` `bku.apps.close` `bku.session.logout` `bku.device.restart` `bku.catalog.view` `bku.catalog.manage` `bku.agent.manage` |
 | Door / technical | `door.view` `door.answer` `door.open` `door.configure` `technical_endpoints.view` `technical_endpoints.manage` |
 
+## BKU least-privilege defaults (E10-14)
+
+The eight `bku.*` keys are seeded by migration 0008 (generic catalog + built-in
+roles). The default role grants keep the high-impact actions with the senior
+roles:
+
+| Role | BKU grants |
+|---|---|
+| Administrator | all eight |
+| Sichtleiter | all eight |
+| Disponent | `bku.status.view`, `bku.apps.launch`, `bku.apps.close` only |
+| Nachbearbeitung | none |
+| Nur Lesen | at most `bku.status.view`, `bku.catalog.view` |
+
+`bku.session.logout` and `bku.device.restart` (end a user's session / reboot a
+workstation) are **Administrator / Sichtleiter only**. Enforced by
+`server/tests/test_bku_permissions_seed.py`.
+
 ## Example scoped permission
 
 `events.takeover` granted with scope `bbz` → user may take over events only
