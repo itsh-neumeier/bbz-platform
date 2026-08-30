@@ -569,7 +569,7 @@ and Node/npm is not available in this environment** — the frontend CI job is
 also `continue-on-error`. Those need a Node-equipped session. Backend work
 continues on Epic 20 in the meantime.
 
-### Epic 20 – Archive / Postprocessing: **in progress (7/8)**
+### Epic 20 – Archive / Postprocessing: **backend COMPLETE (8/8; 1 Playwright scaffold)**
 - **#414 (E20-01) archive detail model** — decision documented in
   `docs/domain/archive.md`: **no `event_archive` table**; an archived event is an
   `events` row with `status=archived` and all history lives in the same
@@ -624,7 +624,17 @@ continues on Epic 20 in the meantime.
   for the prunable classes (Epic 22 jobs). `test_no_hard_delete.py` contract
   test: no `bbz_core` delete path and no migration `upgrade()` delete against the
   5 protected tables, and the guard triggers stay defined.
-**Next:** #429 (E20-08, archive/postprocessing E2E). Live issue: #429.
+- **#429 (E20-08) archive/postprocessing E2E** — `test_e2e_archive_lifecycle.py`
+  walks the whole chain at the API level: work an event + workflow step →
+  archive → archive-detail (full depth) → postprocess note add + edit →
+  export bundle → two-step reactivation (422 without token) → back in
+  `queue=active`; asserts the ordered audit trail and that nothing is
+  hard-deleted (3 note rows kept, status history survives archive+reactivate).
+  The browser half is scaffolded (`apps/web/e2e/archive-lifecycle.spec.ts`,
+  `test.fixme`) pending E07-11/#113 + E07-12/#115. Merged as `Refs #429`.
+**Next:** Epic 20 done at the backend level. Pick the next backend epic in
+roadmap order (Epic 15 Technical Trigger Engine, or Epic 11 Telephony) —
+Epic 07 / #92 / #429-UI stay blocked on a Node-equipped / multi-host session.
 
 ## Existing reference
 A functional HTML mockup defines important UX/feature behavior. **It is not yet in
