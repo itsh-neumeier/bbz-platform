@@ -569,7 +569,7 @@ and Node/npm is not available in this environment** — the frontend CI job is
 also `continue-on-error`. Those need a Node-equipped session. Backend work
 continues on Epic 20 in the meantime.
 
-### Epic 20 – Archive / Postprocessing: **in progress (6/8)**
+### Epic 20 – Archive / Postprocessing: **in progress (7/8)**
 - **#414 (E20-01) archive detail model** — decision documented in
   `docs/domain/archive.md`: **no `event_archive` table**; an archived event is an
   `events` row with `status=archived` and all history lives in the same
@@ -615,7 +615,16 @@ continues on Epic 20 in the meantime.
   `bbz_core/api/pdf.py` when `export_pdf_enabled` (else 404). The old lean
   `EventQueryRepository.export()`/`EventExport` were removed.
   `test_event_export_bundle_api.py`.
-**Next:** #426 (E20-07, retention policy + no-hard-delete guard). Live issues: #426, #429.
+- **#426 (E20-07) retention policy + no-hard-delete guard** —
+  `docs/domain/retention-policy.md` (kept-forever tables vs. prunable derived
+  data + windows). Migration 0023 adds a `BEFORE DELETE` trigger
+  (`bbz_forbid_row_delete`) on `events` / `event_status_history` /
+  `event_notes` (audit/domain already blocked by 0016). Settings
+  `retention_completed_command_days`/`_completed_outbox_days`/`_processed_inbox_days`
+  for the prunable classes (Epic 22 jobs). `test_no_hard_delete.py` contract
+  test: no `bbz_core` delete path and no migration `upgrade()` delete against the
+  5 protected tables, and the guard triggers stay defined.
+**Next:** #429 (E20-08, archive/postprocessing E2E). Live issue: #429.
 
 ## Existing reference
 A functional HTML mockup defines important UX/feature behavior. **It is not yet in

@@ -104,6 +104,13 @@ class Settings(BaseSettings):
     # --- events: export (E20-06). JSON is always available; PDF is opt-in. ---
     export_pdf_enabled: bool = False
 
+    # --- retention (E20-07, docs/domain/retention-policy.md). Windows for
+    # *derived / non-essential* data only. Events, domain events, audit and the
+    # event history tables are NEVER pruned (0 would be meaningless there). ---
+    retention_completed_command_days: int = 30  # idempotency replay window
+    retention_completed_outbox_days: int = 90
+    retention_processed_inbox_days: int = 90
+
     @property
     def database_url_sync(self) -> str:
         """Sync DSN for Alembic (psycopg v3 driver)."""

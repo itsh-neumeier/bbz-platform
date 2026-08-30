@@ -120,6 +120,13 @@ row.
 dependency-free text writer) — only when `export_pdf_enabled` is set, otherwise
 **404**.
 
+## Retention
+
+An archived event and its history are **never hard-deleted** — that is the whole
+point of "archive = a status, not a move". The retention rules (what is kept
+forever vs. what derived data may be pruned) and the DB-level `DELETE` guards
+live in [`retention-policy.md`](retention-policy.md) (E20-07).
+
 ## Invariant under test
 
 `server/tests/test_archive_detail.py` (the aggregator query) and
