@@ -42,6 +42,24 @@ returns an `ArchiveDetail` regardless of the event's status:
 Exposed as `GET /api/v1/events/{event_id}/archive-detail` (`events.view`, no
 audit — it is a read). The UI lands in E07-11 (#113).
 
+## Listing the archive
+
+`GET /api/v1/events` (E03-12) is the chronological list *including* archived
+events — the backing query for the archive view. E20-02 adds filters, all
+optional and composable, without changing the keyset-cursor contract
+(`(created_at, id)` descending):
+
+| query param | meaning |
+|---|---|
+| `created_from`, `created_to` | creation-time bounds (ISO 8601; no offset ⇒ UTC, ADR-0017) |
+| `priority` (repeatable) | OR-set of `low`/`medium`/`high`/`critical` |
+| `bbz_id` | exact BBZ scope match |
+| `assignee_id` | the *active* responsible user |
+| `status` | exact status (e.g. `archived`) |
+
+`queue=active` still returns the live work queue and never contains archived
+events; it ignores these filters.
+
 ## Invariant under test
 
 `server/tests/test_archive_detail.py` archives an event and asserts the

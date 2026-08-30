@@ -237,6 +237,13 @@ def _to_out(agg: EventAggregate, version: int) -> EventOut:
     )
 
 
+def _as_utc(value: _dt.datetime | None) -> _dt.datetime | None:
+    """Query datetimes are interpreted as UTC when they carry no offset (ADR-0017)."""
+    if value is None:
+        return None
+    return value if value.tzinfo is not None else value.replace(tzinfo=_dt.UTC)
+
+
 @router.get("", response_model=EventPageOut)
 async def list_events(
     queue: Literal["active"] | None = Query(default=None),
@@ -244,9 +251,18 @@ async def list_events(
     limit: int = Query(default=50, ge=1, le=200),
     include_archived: bool = Query(default=True),
     status_filter: str | None = Query(default=None, alias="status"),
+    priority: list[EventPriority] | None = Query(default=None),
+    bbz_id: uuid.UUID | None = Query(default=None),
+    assignee_id: uuid.UUID | None = Query(default=None),
+    created_from: _dt.datetime | None = Query(default=None),
+    created_to: _dt.datetime | None = Query(default=None),
     _: AuthContext = Depends(require("events.view")),
     session: AsyncSession = Depends(db_session),
 ) -> EventPageOut:
+    """Chronological event list including archived — the backing query for the
+    archive view (E20-02). ``queue=active`` returns the live work queue instead
+    and ignores the archive filters; archived events never appear there.
+    """
     q = EventQueryRepository(session)
     if queue == "active":
         items = await q.work_queue(limit=limit)
@@ -256,6 +272,11 @@ async def list_events(
         cursor=cursor,
         include_archived=include_archived,
         status=status_filter,
+        priority=[p.value for p in priority] if priority else None,
+        bbz_id=bbz_id,
+        assignee_id=assignee_id,
+        created_from=_as_utc(created_from),
+        created_to=_as_utc(created_to),
     )
     return EventPageOut(items=[_item_out(i) for i in page.items], next_cursor=page.next_cursor)
 
