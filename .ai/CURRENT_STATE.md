@@ -225,7 +225,7 @@ dispatcher, singleton runner), `infra/outbox.py`, `infra/inbox.py`,
 (code carries `TODO(E04-03)`); the code comments point at #66/E04-10 — do it
 alongside E23 hardening.
 
-### Epic 05 – EPK Workflow Engine: **in progress (10/13)**
+### Epic 05 – EPK Workflow Engine: **in progress (11/13)**
 #68 (E05-01) `bbz_rule_dsl.evaluate()` implemented — total, side-effect-free,
 deterministic predicate over a typed `Context`. Operators
 `eq/ne/in/not_in/lt/lte/gt/gte/and/or/not/exists`; type mismatch / bad arity /
@@ -341,8 +341,19 @@ moves on, the side effect running exactly-once via the dispatcher. Each auto
 / timer step writes an `ACTION_STEP_COMPLETED` audit row. No arbitrary
 scripts — only typed outbox actions (§29/§33).
 
-**Next:** #78 (E05-11) instance pinning & start from an event
-(`workflows.execute`). See `.ai/ROADMAP.md` Epic 05 (13 issues, #68–#80).
+#78 (E05-11) instance pinning & start from an event.
+`POST /api/v1/events/{id}/workflow` (`{template_key}`, `require
+("workflows.execute")`) → `WorkflowEngineService.start_for_event` resolves the
+template's **current** PUBLISHED version (highest `version_no`), pins a new
+`WorkflowInstance` to it and runs. Idempotent — an existing running instance
+for the same event + version is returned unchanged. Start audits
+`WORKFLOW_INSTANCE_STARTED` (added to `CRITICAL_ACTIONS`). No published
+version → 409, unknown template / event → 404. A later publish never touches
+a running instance (the instance holds its `template_version_id`, and
+migration 0017's freeze trigger keeps that definition immutable — ADR-0005).
+
+**Next:** #79 (E05-12) instance API — current steps, complete step, make
+decision (`workflows.execute`). See `.ai/ROADMAP.md` Epic 05 (13 issues, #68–#80).
 
 ## Existing reference
 A functional HTML mockup defines important UX/feature behavior. **It is not yet in
