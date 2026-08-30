@@ -35,7 +35,7 @@ def test_context_rejects_unknown_keys() -> None:
         Context(values={"provider": "x", "danger": "y"})
 
 
-def test_evaluate_is_not_yet_implemented() -> None:
+def test_evaluate_runs_on_a_parsed_expression() -> None:
     expr = parse({"op": "exists", "args": [{"field": "provider"}]})
-    with pytest.raises(NotImplementedError):
-        evaluate(expr, Context(values={"provider": "coda_video"}))
+    assert evaluate(expr, Context(values={"provider": "coda_video"})) is True
+    assert evaluate(expr, Context(values={})) is False

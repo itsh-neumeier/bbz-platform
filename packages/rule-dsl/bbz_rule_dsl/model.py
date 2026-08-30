@@ -97,13 +97,117 @@ def parse(tree: dict[str, Any]) -> Expr:
     return Expr(op=op, args=tuple(parsed_args))
 
 
-def evaluate(expr: Expr, context: Context) -> bool:
-    """Not implemented in the foundation phase.
+_MAX_DEPTH: Final[int] = 64
 
-    Implemented with the trigger/workflow engines (Phase 1+), together with a
-    fuzz-test suite. Deliberately raises rather than returning a possibly-unsafe
-    default.
+_BINARY_CMP: Final[frozenset[str]] = frozenset({"eq", "ne", "lt", "lte", "gt", "gte"})
+_MEMBERSHIP: Final[frozenset[str]] = frozenset({"in", "not_in"})
+
+
+def _is_field_ref(arg: Any) -> bool:
+    return isinstance(arg, dict) and "field" in arg
+
+
+def _value(arg: Any, context: Context, depth: int) -> Any:
+    """Resolve an operand to a concrete value (field -> context, literal -> itself)."""
+    if isinstance(arg, Expr):
+        return _eval(arg, context, depth + 1)
+    if _is_field_ref(arg):
+        return context.get(str(arg["field"]))
+    if isinstance(arg, dict):
+        raise RuleDslError(f"unexpected operand shape: {sorted(arg)!r}")
+    return arg
+
+
+def _truthy(arg: Any, context: Context, depth: int) -> bool:
+    if isinstance(arg, Expr):
+        return _eval(arg, context, depth + 1)
+    if _is_field_ref(arg):
+        return bool(context.get(str(arg["field"])))
+    return bool(arg)
+
+
+def _require_arity(
+    op: str, args: tuple[Any, ...], *, n: int | None = None, at_least: int | None = None
+) -> None:
+    if n is not None and len(args) != n:
+        raise RuleDslError(f"{op!r} takes exactly {n} argument(s), got {len(args)}")
+    if at_least is not None and len(args) < at_least:
+        raise RuleDslError(f"{op!r} takes at least {at_least} argument(s), got {len(args)}")
+
+
+def _compare(op: str, left: Any, right: Any) -> bool:
+    if op == "eq":
+        return bool(left == right)
+    if op == "ne":
+        return bool(left != right)
+    try:
+        if op == "lt":
+            return bool(left < right)
+        if op == "lte":
+            return bool(left <= right)
+        if op == "gt":
+            return bool(left > right)
+        return bool(left >= right)  # gte
+    except TypeError as exc:
+        lt_name, rt_name = type(left).__name__, type(right).__name__
+        raise RuleDslError(
+            f"type mismatch: cannot apply {op!r} to {lt_name} and {rt_name}"
+        ) from exc
+
+
+def _eval(expr: Expr, context: Context, depth: int) -> bool:
+    if depth > _MAX_DEPTH:
+        raise RuleDslError("expression nesting exceeds the maximum depth")
+    op, args = expr.op, expr.args
+
+    if op == "and":
+        _require_arity(op, args, at_least=1)
+        return all(_truthy(a, context, depth) for a in args)
+    if op == "or":
+        _require_arity(op, args, at_least=1)
+        return any(_truthy(a, context, depth) for a in args)
+    if op == "not":
+        _require_arity(op, args, n=1)
+        return not _truthy(args[0], context, depth)
+
+    if op == "exists":
+        _require_arity(op, args, n=1)
+        if not _is_field_ref(args[0]):
+            raise RuleDslError("'exists' takes a single field reference")
+        return context.get(str(args[0]["field"])) is not None
+
+    if op in _BINARY_CMP:
+        _require_arity(op, args, n=2)
+        return _compare(op, _value(args[0], context, depth), _value(args[1], context, depth))
+
+    if op in _MEMBERSHIP:
+        _require_arity(op, args, n=2)
+        needle = _value(args[0], context, depth)
+        haystack = _value(args[1], context, depth)
+        if not isinstance(haystack, (list, tuple, set, frozenset, str)):
+            raise RuleDslError(
+                f"type mismatch: right operand of {op!r} must be a collection, "
+                f"got {type(haystack).__name__}"
+            )
+        try:
+            found = needle in haystack
+        except TypeError as exc:
+            raise RuleDslError(
+                f"type mismatch: {type(needle).__name__} not comparable with the "
+                f"{type(haystack).__name__} operand of {op!r}"
+            ) from exc
+        return found if op == "in" else not found
+
+    raise RuleDslError(f"operator not allowed: {op!r}")  # unreachable after parse()
+
+
+def evaluate(expr: Expr, context: Context) -> bool:
+    """Evaluate a parsed expression against a context — total, side-effect-free.
+
+    Deterministic: the same ``(expr, context)`` always yields the same boolean.
+    Any type mismatch, wrong arity, unknown field/operator or excessive nesting
+    raises :class:`RuleDslError` — it never silently returns ``True``.
     """
-    raise NotImplementedError(
-        "rule DSL evaluation arrives with the trigger/workflow engine (ADR-0010)"
-    )
+    if not isinstance(expr, Expr):
+        raise RuleDslError("evaluate() expects a parsed Expr (call parse() first)")
+    return _eval(expr, context, 0)
