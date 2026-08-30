@@ -12,6 +12,7 @@ from bbz_core.api.v1.rbac import router as rbac_router
 from bbz_core.api.v1.system import router as system_router
 from bbz_core.api.v1.totp import router as totp_router
 from bbz_core.api.v1.users import router as users_router
+from bbz_core.api.v1.workflows import router as workflows_router
 from bbz_core.integrations_host.registry import IntegrationRegistry
 from bbz_core.settings import get_settings
 
@@ -24,6 +25,7 @@ api_v1.include_router(rbac_router)
 api_v1.include_router(users_router)
 api_v1.include_router(presence_router)
 api_v1.include_router(totp_router)
+api_v1.include_router(workflows_router)
 
 
 class MetaResponse(BaseModel):
