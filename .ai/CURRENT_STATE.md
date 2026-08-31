@@ -864,7 +864,7 @@ API. `integrations/telephony_cucm/` stays a placeholder README.
 - **E14-07..10 are frontend → blocked.** Epic 14 backend is done bar the UI.
   **E11-08 is unblocked** (has `ContactMatcher`).
 
-### Epic 15 – Technical Endpoints / Trigger Engine: **in progress (8/15)**
+### Epic 15 – Technical Endpoints / Trigger Engine: **in progress (9/15)**
 - **#305 (E15-01) technical-endpoints schema** — migration 0030 +
   `technical_endpoints.py` (MASTER_PROMPT §29 — **not** modelled as contacts):
   `technical_endpoints` (name, site, `type` `door_station|bma|panic_button|
@@ -958,8 +958,38 @@ API. `integrations/telephony_cucm/` stays a placeholder README.
   processed, actions)`. A non-signal inbox row (no `signal_type`) is marked
   processed with 0 matches. Audit: `TRIGGER_EXECUTED` per action (via
   `TriggerActionService`). `test_trigger_engine.py`.
-- Next: E15-10 (admin API: endpoints CRUD, rules Draft→Validate→Publish→Retire),
-  E15-11..15. E15-07 (open_camera) needs Epic 16.
+- **#322 (E15-10) trigger-admin API** — two routers + two services, both
+  gated `technical_endpoints.view` (read) / `technical_endpoints.manage` (write),
+  everything audited (highly privileged — a published rule opens doors):
+  - `/api/v1/technical-endpoints` CRUD (`TechnicalEndpointService`): create /
+    list / get / patch / delete an endpoint + its telephony number patterns
+    (nested, replace-all on patch). A patch bumps `active_config_version`; a
+    no-op patch does not. Delete is hard (rules' `endpoint_id` is SET NULL,
+    numbers CASCADE). Audit `TECHNICAL_ENDPOINT_CREATED/UPDATED/DELETED`.
+  - `/api/v1/trigger-rules` + `/api/v1/trigger-rule-versions/{id}/…`
+    (`TriggerRuleAdminService`): rule CRUD (+ its v1 draft on create),
+    `POST /trigger-rules/{id}/versions` (new draft, `version_no` = max+1),
+    `PATCH`/`DELETE` a **draft** version, and the lifecycle
+    `draft→validated→published→retired`. `validate` runs the new
+    `bbz_core.domain.triggers.publish_blockers` (DSL conditions vs.
+    `TRIGGER_CONTEXT` + every action typed & currently-runnable + ≥1 action + a
+    `send_dtmf_profile` `code`/`dtmf` key rejected, ADR-0004); `publish` refuses
+    an un-validated version, retires the rule's prior published version and
+    mirrors `published` onto the parent rule (engine E15-09 reads that);
+    `retire` flips the rule back to `retired` when nothing published remains. A
+    published version is immutable — the service refuses the edit and the 0031
+    DB trigger is the backstop; a rule with a published version can't be deleted.
+    New `domain.triggers` exports `publish_blockers` / `validate_actions` /
+    `SUPPORTED_ACTION_TYPES`. Audit `TRIGGER_RULE_CREATED/UPDATED/VALIDATED/
+    PUBLISHED/RETIRED`. `test_technical_endpoints_api.py`,
+    `test_trigger_rules_api.py`.
+  - **Note:** `test_authz_dependency.test_every_api_v1_write_route_declares_a_
+    permission` went vacuous when FastAPI 0.141 made `include_router` lazy
+    (`_IncludedRouter` — `create_app().routes` no longer exposes flat
+    `APIRoute`s). Not fixed here; E15-10's own 403-without-permission tests cover
+    the new routes. Worth a `fix(tests)` pass to walk `original_router`.
+- Next: E15-11 (simulation mode), E15-12 (unmapped-source queue), E15-13..15.
+  E15-07 (open_camera) needs Epic 16.
 
 ## Existing reference
 A functional HTML mockup defines important UX/feature behavior. **It is not yet in

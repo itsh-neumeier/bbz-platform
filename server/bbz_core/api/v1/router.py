@@ -13,8 +13,10 @@ from bbz_core.api.v1.lines import router as lines_router
 from bbz_core.api.v1.presence import router as presence_router
 from bbz_core.api.v1.rbac import router as rbac_router
 from bbz_core.api.v1.system import router as system_router
+from bbz_core.api.v1.technical_endpoints import router as technical_endpoints_router
 from bbz_core.api.v1.telephony import router as telephony_router
 from bbz_core.api.v1.totp import router as totp_router
+from bbz_core.api.v1.trigger_rules import router as trigger_rules_router
 from bbz_core.api.v1.users import router as users_router
 from bbz_core.api.v1.workflows import router as workflows_router
 from bbz_core.integrations_host.registry import IntegrationRegistry
@@ -34,6 +36,8 @@ api_v1.include_router(presence_router)
 api_v1.include_router(totp_router)
 api_v1.include_router(telephony_router)
 api_v1.include_router(workflows_router)
+api_v1.include_router(technical_endpoints_router)
+api_v1.include_router(trigger_rules_router)
 
 
 class MetaResponse(BaseModel):

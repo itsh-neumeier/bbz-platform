@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from bbz_core.domain.triggers.actions import (
     OUTBOX_ACTION_TYPES,
+    SUPPORTED_ACTION_TYPES,
     TRANSACTIONAL_ACTION_TYPES,
     TriggerActionType,
     outbox_action_type,
@@ -16,9 +17,11 @@ from bbz_core.domain.triggers.actions import (
 from bbz_core.domain.triggers.rules import (
     CandidateRule,
     RuleConditionError,
+    publish_blockers,
     rule_matches,
     select_matching_rules,
     signal_to_context,
+    validate_actions,
     validate_conditions,
 )
 from bbz_core.domain.triggers.signals import (
@@ -30,6 +33,7 @@ from bbz_core.domain.triggers.signals import (
 
 __all__ = [
     "OUTBOX_ACTION_TYPES",
+    "SUPPORTED_ACTION_TYPES",
     "TRANSACTIONAL_ACTION_TYPES",
     "CandidateRule",
     "InboundSignalRejected",
@@ -38,9 +42,11 @@ __all__ = [
     "TriggerActionType",
     "from_telephony_event",
     "outbox_action_type",
+    "publish_blockers",
     "rule_matches",
     "select_matching_rules",
     "signal_to_context",
+    "validate_actions",
     "validate_conditions",
     "validate_inbound_signal",
 ]

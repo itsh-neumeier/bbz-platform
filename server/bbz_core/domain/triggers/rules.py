@@ -16,10 +16,12 @@ Empty conditions (``{}`` / ``None``) mean "always matches".
 from __future__ import annotations
 
 import uuid
-from collections.abc import Iterable, Mapping
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any
 
+from bbz_core.domain.events.state import EventPriority
+from bbz_core.domain.triggers.actions import SUPPORTED_ACTION_TYPES, TriggerActionType
 from bbz_rule_dsl import TRIGGER_CONTEXT, Context, RuleDslError, evaluate, parse
 
 #: ordinal for the signal's ``severity`` enum so ``gte`` etc. work numerically
@@ -42,6 +44,80 @@ def validate_conditions(conditions: Mapping[str, Any] | None) -> None:
         TRIGGER_CONTEXT.validate(dict(conditions))
     except RuleDslError as exc:
         raise RuleConditionError(str(exc)) from exc
+
+
+def validate_actions(actions: Sequence[Any]) -> list[str]:
+    """Structural check of a rule version's ``actions`` list (publish gate, E15-10).
+
+    Returns a list of human-readable problems (empty = OK). Each action must be
+    an object with a ``type`` the engine can run today, and carry the config
+    that type needs. A DTMF *code* in a ``send_dtmf_profile`` action is rejected
+    outright — the code is a secret held by the integration, never the rule
+    (ADR-0004, MASTER_PROMPT §30).
+    """
+    problems: list[str] = []
+    for index, raw in enumerate(actions):
+        if not isinstance(raw, Mapping):
+            problems.append(f"action {index}: must be an object")
+            continue
+        raw_type = str(raw.get("type", ""))
+        try:
+            action_type = TriggerActionType(raw_type)
+        except ValueError:
+            problems.append(f"action {index}: unknown type {raw_type!r}")
+            continue
+        if action_type not in SUPPORTED_ACTION_TYPES:
+            problems.append(f"action {index}: {raw_type} is not available yet")
+            continue
+        problems.extend(
+            f"action {index}: {msg}" for msg in _action_config_problems(action_type, raw)
+        )
+    return problems
+
+
+def _action_config_problems(action_type: TriggerActionType, action: Mapping[str, Any]) -> list[str]:
+    out: list[str] = []
+    if (
+        action_type is TriggerActionType.ATTACH_WORKFLOW
+        and not str(action.get("template_key", "")).strip()
+    ):
+        out.append("attach_workflow requires template_key")
+    if action_type is TriggerActionType.SHOW_CLIENT_POPUP and not _is_uuid(
+        action.get("workplace_id")
+    ):
+        out.append("show_client_popup requires a workplace_id (uuid)")
+    if action_type is TriggerActionType.CREATE_EVENT and "priority" in action:
+        try:
+            EventPriority(str(action["priority"]))
+        except ValueError:
+            out.append(f"invalid priority {action['priority']!r}")
+    if action_type is TriggerActionType.SEND_DTMF_PROFILE:
+        if not str(action.get("dtmf_profile_id", "")).strip():
+            out.append("send_dtmf_profile requires dtmf_profile_id")
+        if "code" in action or "dtmf" in action:
+            out.append("a DTMF code must never appear in a rule action")
+    return out
+
+
+def _is_uuid(value: Any) -> bool:
+    try:
+        uuid.UUID(str(value))
+    except (ValueError, TypeError):
+        return False
+    return True
+
+
+def publish_blockers(conditions: Mapping[str, Any] | None, actions: Sequence[Any]) -> list[str]:
+    """Everything that would stop this conditions+actions pair being published."""
+    blockers: list[str] = []
+    try:
+        validate_conditions(conditions)
+    except RuleConditionError as exc:
+        blockers.append(f"conditions: {exc}")
+    if not actions:
+        blockers.append("a rule version must have at least one action")
+    blockers.extend(validate_actions(actions))
+    return blockers
 
 
 def signal_to_context(signal: Mapping[str, Any]) -> Context:
