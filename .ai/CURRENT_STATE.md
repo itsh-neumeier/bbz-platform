@@ -864,7 +864,7 @@ API. `integrations/telephony_cucm/` stays a placeholder README.
 - **E14-07..10 are frontend → blocked.** Epic 14 backend is done bar the UI.
   **E11-08 is unblocked** (has `ContactMatcher`).
 
-### Epic 15 – Technical Endpoints / Trigger Engine: **in progress (3/15)**
+### Epic 15 – Technical Endpoints / Trigger Engine: **in progress (4/15)**
 - **#305 (E15-01) technical-endpoints schema** — migration 0030 +
   `technical_endpoints.py` (MASTER_PROMPT §29 — **not** modelled as contacts):
   `technical_endpoints` (name, site, `type` `door_station|bma|panic_button|
@@ -898,9 +898,19 @@ API. `integrations/telephony_cucm/` stays a placeholder README.
   launch_catalog_app) split into `TRANSACTIONAL_ACTION_TYPES` (create_event /
   attach_workflow) and `OUTBOX_ACTION_TYPES` (the rest); `outbox_action_type()`
   validates. `test_trigger_actions.py`, `test_client_popup_events_schema.py`.
-- Next: E15-04 (normalized inbound signal model), E15-05 (rule model + DSL
-  conditions), E15-06 (typed actions), E15-08..15. E15-07 (open_camera actions)
-  needs Epic 16.
+- **#311 (E15-04) normalized inbound signal** — `inbound_signal.v1.json`
+  (`additionalProperties:false` at every level — vendor isolation): `signal_type`
+  (`CALL_RINGING`/`ANSWERED`/`ENDED`, `TECHNICAL_ALARM_RAISED`,
+  `PANIC_ALARM_RAISED`, `DOORBELL_RINGING`, `BMA_ALARM_CALL`), `provider`,
+  timestamps, `source{ani,dnis,cti_route_point,technical_endpoint_id,
+  external_source_id,site,direction,call_state,alarm_subtype,severity}`. Pure
+  `bbz_core.domain.triggers.signals`: `from_telephony_event()` (allowlist-only
+  mapper, drops vendor fields), `validate_inbound_signal()`. Thin infra hook
+  `bbz_core.infra.inbound_signals.record_inbound_signal()` → E04-07 provider
+  inbox (dedupe before rule eval). `bbz_event_schemas.inbound_signal_schema()`.
+  `test_inbound_signals.py`, `test_inbound_signal_schema.py`.
+- Next: E15-05 (rule model + DSL conditions + context registry), E15-06 (typed
+  actions), E15-08..15. E15-07 (open_camera actions) needs Epic 16.
 
 ## Existing reference
 A functional HTML mockup defines important UX/feature behavior. **It is not yet in
