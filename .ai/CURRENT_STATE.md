@@ -1314,6 +1314,25 @@ API. `integrations/telephony_cucm/` stays a placeholder README.
   done end-to-end against the mocks; the real CUCM/SIP `send_dtmf` transport is
   E12-05 / E13-06 (blocked).
 
+### Epic 18 – DWD Weather: **in progress (1/10)**
+- **#375 (E18-01) `integrations/dwd` scaffold + manifest + config** — **ADR-0026**
+  (Accepted) pins the three public DWD Open Data services: warnings → CAP 1.2
+  feed `opendata.dwd.de/weather/alerts/cap/COMMUNEUNION_DWD_STAT/` +
+  `cap_warncellids.csv`; radar → GeoServer WMS `maps.dwd.de/geoserver/dwd/wms`
+  (`dwd:Niederschlagsradar`, rendered frames); observations → POI CSV
+  `opendata.dwd.de/weather/weather_reports/poi/`. Degradation contract: a
+  fetch/parse failure serves the last good cache + health `degraded`, never
+  raises. `integrations/dwd/` — manifest (`domain: weather`, 3 capability groups,
+  `mock: false`, `pending_vendor_documentation: []` — DWD is documented),
+  `config_schema.json` (`region`, `places[]` = `{name, warncell_id,
+  poi_station_id}`, per-service base-url/refresh, `enabled_capabilities`),
+  `DwdWeatherProvider` stub (lifecycle real; `get_warnings`/`get_radar_frames`/
+  `get_observations` raise `DwdNotImplementedError` until E18-02/03/04). Target
+  places Nürnberg / Fürth / Erlangen / Schwabach / Ansbach / Neustadt a.d. Aisch.
+  `test_dwd_scaffold.py`. Discovery + `/api/v1/meta` pick it up.
+- Next: **E18-05** (DB schema `weather_alerts` / `weather_observations`) then
+  **E18-02** (warnings adapter, deps E18-01 + E18-05).
+
 ## Existing reference
 A functional HTML mockup defines important UX/feature behavior. **It is not yet in
 the repository** — it must be committed under `docs/mockup/` before Phase 3 and is
@@ -1424,6 +1443,11 @@ the DTMF **sequence** (not a BBZ id) crosses the provider boundary because an
 integration can't resolve a BBZ id. SDK `send_dtmf(dtmf_profile_id=…)` renamed to
 `send_dtmf(dtmf=…)`. `DoorOpenService` decrypts transiently, drives the provider
 through a `door_open_commands` state machine, audits without the code.
+**0026 DWD Open Data endpoints (E18-01 / #375 — Accepted)** — the `dwd`
+integration uses CAP 1.2 warnings (`opendata.dwd.de/weather/alerts/cap/`), the
+DWD GeoServer WMS for radar, and POI CSV for observations; poll + cache, degrade
+to last-good on failure, region/place→id mapping vendored not runtime-fetched.
+Rejected the undocumented `app-prod-ws.warnwetter.de` app backend.
 
 ## Open external dependencies
 - exact Cisco CUCM version/SU and productive cluster/CTI configuration (§8.18)
