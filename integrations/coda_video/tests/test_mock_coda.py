@@ -6,16 +6,29 @@ from pathlib import Path
 import pytest
 
 from bbz_integration_sdk.manifest import ManifestError, validate_manifest
-from bbz_integration_sdk.providers import AlarmIngressProvider, VideoProvider
+from bbz_integration_sdk.providers import (
+    VIDEO_METHODS,
+    AlarmIngressProvider,
+    CameraNotFoundError,
+    CameraView,
+    ResolvedCamera,
+    VideoProvider,
+)
 from integrations.coda_video.adapter import MockCodaVideoProvider, build, normalize_alarm
 
 _MANIFEST = json.loads((Path(__file__).parents[1] / "manifest.json").read_text("utf-8"))
+
+_SOURCES = [
+    {"external_source_id": "SP-NBG", "name": "SP Nbg", "cameras": ["CAM-1", "CAM-2"]},
+]
 
 
 def test_satisfies_both_protocols() -> None:
     p = MockCodaVideoProvider()
     assert isinstance(p, VideoProvider)
     assert isinstance(p, AlarmIngressProvider)
+    for method in VIDEO_METHODS:
+        assert callable(getattr(p, method))
 
 
 def test_manifest_is_valid_with_two_independent_capability_groups() -> None:
@@ -50,6 +63,42 @@ def test_each_capability_group_activates_independently() -> None:
 def test_an_unknown_capability_group_is_rejected() -> None:
     with pytest.raises(ValueError, match="unknown capability group"):
         MockCodaVideoProvider(enabled_capability_groups=["nope"])
+
+
+async def test_video_interface_returns_typed_normalized_results() -> None:
+    p = MockCodaVideoProvider(simulated_sources=_SOURCES)
+
+    cam = await p.resolve_camera(external_id="CAM-1")
+    assert isinstance(cam, ResolvedCamera)
+    assert cam.camera_id == "CAM-1" and cam.group_ids == ["SP-NBG"]
+
+    opened = await p.open_camera(camera_id="CAM-1", workplace_id="wp-1", command_id="c1")
+    assert isinstance(opened, CameraView) and opened.action == "opened"
+
+    focused = await p.focus_camera(
+        camera_id="CAM-1", workplace_id="wp-1", command_id="c2", preset="entrance"
+    )
+    assert focused.action == "focused" and focused.preset == "entrance"
+
+    grp = await p.open_camera_group(
+        camera_ids=["CAM-1", "CAM-2"], workplace_id="wp-1", command_id="c3"
+    )
+    assert grp.camera_ids == ["CAM-1", "CAM-2"]
+
+    ctx = await p.open_alarm_context(alarm_ref="A-1", workplace_id="wp-1", command_id="c4")
+    assert ctx.camera_ids == ["CAM-1", "CAM-2"]
+
+
+async def test_resolve_camera_raises_camera_not_found_for_an_unknown_id() -> None:
+    p = MockCodaVideoProvider(simulated_sources=_SOURCES)
+    with pytest.raises(CameraNotFoundError):
+        await p.resolve_camera(external_id="CAM-NOPE")
+
+
+def test_no_vendor_object_id_fields_in_the_result_models() -> None:
+    # the interface never carries a Coda/Qognify object id — only our normalized handles
+    for field in ResolvedCamera.model_fields:
+        assert "vendor" not in field and "qognify" not in field and "coda_object" not in field
 
 
 def test_normalize_alarm_has_stable_identity() -> None:

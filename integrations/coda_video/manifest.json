@@ -9,6 +9,7 @@
   "capabilities": [
     "video.resolve_camera",
     "video.open_camera",
+    "video.focus_camera",
     "video.open_camera_group",
     "video.open_alarm_context",
     "alarm.subscribe",
@@ -19,6 +20,7 @@
     "video": [
       "video.resolve_camera",
       "video.open_camera",
+      "video.focus_camera",
       "video.open_camera_group",
       "video.open_alarm_context"
     ],

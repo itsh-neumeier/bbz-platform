@@ -33,6 +33,7 @@ class Capability(StrEnum):
     # video
     VIDEO_RESOLVE_CAMERA = "video.resolve_camera"
     VIDEO_OPEN_CAMERA = "video.open_camera"
+    VIDEO_FOCUS_CAMERA = "video.focus_camera"
     VIDEO_OPEN_CAMERA_GROUP = "video.open_camera_group"
     VIDEO_OPEN_ALARM_CONTEXT = "video.open_alarm_context"
 

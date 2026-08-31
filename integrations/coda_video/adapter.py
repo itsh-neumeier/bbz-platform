@@ -15,12 +15,20 @@ from typing import Any
 from bbz_integration_sdk.capabilities import Capability, CapabilitySet
 from bbz_integration_sdk.diagnostics import DiagnosticsReport, HealthState
 from bbz_integration_sdk.providers.base import ProviderInfo
+from bbz_integration_sdk.providers.video_types import (
+    AlarmContextView,
+    CameraGroupView,
+    CameraNotFoundError,
+    CameraView,
+    ResolvedCamera,
+)
 
 #: the two independent capability groups (E16-01) — see manifest.json
 _CAPABILITY_GROUPS: dict[str, tuple[Capability, ...]] = {
     "video": (
         Capability.VIDEO_RESOLVE_CAMERA,
         Capability.VIDEO_OPEN_CAMERA,
+        Capability.VIDEO_FOCUS_CAMERA,
         Capability.VIDEO_OPEN_CAMERA_GROUP,
         Capability.VIDEO_OPEN_ALARM_CONTEXT,
     ),
@@ -107,23 +115,63 @@ class MockCodaVideoProvider:
         return event
 
     # --- video ---
-    async def resolve_camera(self, *, external_id: str) -> dict[str, Any]:
-        return {"camera_id": external_id, "resolved": True}
+    def _all_camera_ids(self) -> set[str]:
+        ids: set[str] = set()
+        for src in self._sources.values():
+            ids.update(src.get("cameras", []))
+        return ids
+
+    async def resolve_camera(self, *, external_id: str) -> ResolvedCamera:
+        if external_id not in self._all_camera_ids():
+            raise CameraNotFoundError(external_id)
+        for src in self._sources.values():
+            if external_id in src.get("cameras", []):
+                return ResolvedCamera(
+                    camera_id=external_id,
+                    name=f"{src['name']} / {external_id}",
+                    site=src.get("site"),
+                    group_ids=[src["external_source_id"]],
+                )
+        raise CameraNotFoundError(external_id)  # pragma: no cover — unreachable
 
     async def open_camera(
         self, *, camera_id: str, workplace_id: str, command_id: str
-    ) -> dict[str, Any]:
-        return {"camera_id": camera_id, "workplace_id": workplace_id, "opened": True}
+    ) -> CameraView:
+        return CameraView(
+            camera_id=camera_id,
+            workplace_id=workplace_id,
+            command_id=command_id,
+            action="opened",
+        )
+
+    async def focus_camera(
+        self, *, camera_id: str, workplace_id: str, command_id: str, preset: str | None = None
+    ) -> CameraView:
+        return CameraView(
+            camera_id=camera_id,
+            workplace_id=workplace_id,
+            command_id=command_id,
+            action="focused",
+            preset=preset,
+        )
 
     async def open_camera_group(
         self, *, camera_ids: list[str], workplace_id: str, command_id: str
-    ) -> dict[str, Any]:
-        return {"camera_ids": camera_ids, "opened": True}
+    ) -> CameraGroupView:
+        return CameraGroupView(
+            camera_ids=list(camera_ids), workplace_id=workplace_id, command_id=command_id
+        )
 
     async def open_alarm_context(
         self, *, alarm_ref: str, workplace_id: str, command_id: str
-    ) -> dict[str, Any]:
-        return {"alarm_ref": alarm_ref, "opened": True}
+    ) -> AlarmContextView:
+        cams = sorted(self._all_camera_ids())
+        return AlarmContextView(
+            alarm_ref=alarm_ref,
+            workplace_id=workplace_id,
+            command_id=command_id,
+            camera_ids=cams,
+        )
 
     # --- alarm ingress ---
     async def subscribe_alarms(self) -> AsyncIterator[dict[str, Any]]:
