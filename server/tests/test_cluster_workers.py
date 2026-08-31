@@ -14,15 +14,15 @@ from bbz_core.workers.registry import SINGLETON_NAMES, Singleton, cluster_single
 def test_the_registry_lists_the_expected_singletons() -> None:
     names = [s.name for s in cluster_singletons()]
     assert names == list(SINGLETON_NAMES)
-    assert set(names) == {"outbox-dispatcher", "workflow-timer"}
+    assert set(names) == {"outbox-dispatcher", "workflow-timer", "trigger-engine"}
 
 
 async def test_the_real_ticks_run_against_the_database(db: object) -> None:
     s = db  # type: ignore[assignment]
     assert isinstance(s, AsyncSession)
-    # both ticks open their own sessions and are safe on an empty system
+    # every tick opens its own session and is safe on an empty system
     for spec in cluster_singletons():
-        assert isinstance(await spec.tick(), int)  # rows handled / timers fired
+        assert isinstance(await spec.tick(), int)  # rows handled / timers fired / signals drained
 
 
 async def test_cluster_workers_run_the_leader_and_stop_cleanly(

@@ -16,7 +16,7 @@ from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 
 #: leader-election names, also the keys under ``/bbz/leader/`` in etcd.
-SINGLETON_NAMES: tuple[str, ...] = ("outbox-dispatcher", "workflow-timer")
+SINGLETON_NAMES: tuple[str, ...] = ("outbox-dispatcher", "workflow-timer", "trigger-engine")
 
 
 @dataclass(frozen=True)
@@ -39,8 +39,20 @@ async def _workflow_timer_tick() -> object:
         return await WorkflowEngineService(session).fire_due_timers()
 
 
+async def _trigger_engine_tick() -> object:
+    """Drain the provider inbox: run every unprocessed inbound signal through the
+    trigger engine, exactly once (E15-15 / ADR-0024)."""
+    from bbz_core.infra.db import session_scope
+    from bbz_core.infra.repositories.trigger_engine import TriggerEngine
+
+    async with session_scope() as session:
+        results = await TriggerEngine(session).resume_unprocessed()
+        return len(results)
+
+
 def cluster_singletons() -> list[Singleton]:
     return [
         Singleton("outbox-dispatcher", _outbox_tick),
         Singleton("workflow-timer", _workflow_timer_tick),
+        Singleton("trigger-engine", _trigger_engine_tick),
     ]
