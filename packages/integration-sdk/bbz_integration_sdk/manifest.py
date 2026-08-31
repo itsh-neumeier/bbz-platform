@@ -29,6 +29,11 @@ class IntegrationManifest(BaseModel):
     config_schema_version: int = 1
     dependencies: list[str] = Field(default_factory=list)
     capabilities: list[str] = Field(default_factory=list)
+    #: named, independently-activatable groups of capabilities (E16-01). Every
+    #: capability in a group is also in ``capabilities``.
+    capability_groups: dict[str, list[str]] = Field(default_factory=dict)
+    #: a superseded product name kept for display only (e.g. Cayuga, ADR-0016)
+    legacy_display_alias: str | None = None
     # Foundation phase: only mock adapters are allowed to be "production" ready.
     mock: bool = False
     description: str = ""
@@ -50,4 +55,12 @@ def validate_manifest(raw: dict[str, Any]) -> IntegrationManifest:
         jsonschema.validate(instance=raw, schema=_schema())
     except jsonschema.ValidationError as exc:
         raise ManifestError(f"manifest schema violation: {exc.message}") from exc
-    return IntegrationManifest.model_validate(raw)
+    manifest = IntegrationManifest.model_validate(raw)
+    declared = set(manifest.capabilities)
+    for group, caps in manifest.capability_groups.items():
+        unknown = sorted(set(caps) - declared)
+        if unknown:
+            raise ManifestError(
+                f"capability_groups[{group!r}] lists capabilities not in `capabilities`: {unknown}"
+            )
+    return manifest

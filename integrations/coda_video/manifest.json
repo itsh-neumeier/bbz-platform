@@ -1,18 +1,34 @@
 {
   "id": "coda_video",
-  "name": "Coda Video (HxGN dC3 Video) — Mock",
-  "version": "0.0.0",
+  "name": "Coda Video (HxGN dC3 Video)",
+  "version": "0.1.0",
   "domain": "video",
   "adapter": "integrations.coda_video.adapter:MockCodaVideoProvider",
+  "minimum_core_version": "0.0.0",
   "config_schema_version": 1,
   "capabilities": [
     "video.resolve_camera",
     "video.open_camera",
     "video.open_camera_group",
+    "video.open_alarm_context",
     "alarm.subscribe",
     "alarm.resolve_source",
     "alarm.get_context"
   ],
+  "capability_groups": {
+    "video": [
+      "video.resolve_camera",
+      "video.open_camera",
+      "video.open_camera_group",
+      "video.open_alarm_context"
+    ],
+    "alarm_ingress": [
+      "alarm.subscribe",
+      "alarm.resolve_source",
+      "alarm.get_context"
+    ]
+  },
+  "legacy_display_alias": "Cayuga",
   "mock": true,
-  "description": "MOCK ONLY. Simulates Coda video + panic/duress alarm ingress. Contains NO vendor API — real integration is implemented strictly from official Coda/HxGN dC3 documentation (ADR-0006)."
+  "description": "Coda / HxGN dC3 Video. Two independent capability groups — video presentation/control and inbound alarm/event ingestion (ARCHITECTURE, ADR-0006) — each activatable on its own via config `enabled_capability_groups`. `coda_video` is the canonical id everywhere; \"Cayuga\" is a legacy display alias only (ADR-0016). MOCK adapter for now — no vendor API; the real integration is built strictly from official Coda / HxGN dC3 documentation (E16-13)."
 }

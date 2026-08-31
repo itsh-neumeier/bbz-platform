@@ -51,3 +51,23 @@ def test_missing_required_field_rejected() -> None:
     del raw["adapter"]
     with pytest.raises(ManifestError):
         validate_manifest(raw)
+
+
+def test_capability_groups_and_legacy_alias_parse() -> None:
+    raw = _valid() | {
+        "capabilities": ["call.answer", "call.hangup", "call.dial"],
+        "capability_groups": {"basic": ["call.answer", "call.hangup"], "outbound": ["call.dial"]},
+        "legacy_display_alias": "OldName",
+    }
+    m = validate_manifest(raw)
+    assert m.capability_groups == {
+        "basic": ["call.answer", "call.hangup"],
+        "outbound": ["call.dial"],
+    }
+    assert m.legacy_display_alias == "OldName"
+
+
+def test_capability_group_referencing_an_undeclared_capability_is_rejected() -> None:
+    raw = _valid() | {"capability_groups": {"basic": ["call.transfer"]}}  # not in capabilities
+    with pytest.raises(ManifestError, match="not in `capabilities`"):
+        validate_manifest(raw)

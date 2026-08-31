@@ -16,6 +16,21 @@ from bbz_integration_sdk.capabilities import Capability, CapabilitySet
 from bbz_integration_sdk.diagnostics import DiagnosticsReport, HealthState
 from bbz_integration_sdk.providers.base import ProviderInfo
 
+#: the two independent capability groups (E16-01) — see manifest.json
+_CAPABILITY_GROUPS: dict[str, tuple[Capability, ...]] = {
+    "video": (
+        Capability.VIDEO_RESOLVE_CAMERA,
+        Capability.VIDEO_OPEN_CAMERA,
+        Capability.VIDEO_OPEN_CAMERA_GROUP,
+        Capability.VIDEO_OPEN_ALARM_CONTEXT,
+    ),
+    "alarm_ingress": (
+        Capability.ALARM_SUBSCRIBE,
+        Capability.ALARM_RESOLVE_SOURCE,
+        Capability.ALARM_GET_CONTEXT,
+    ),
+}
+
 
 def normalize_alarm(raw: dict[str, Any], *, instance_id: str) -> dict[str, Any]:
     """Translate a simulated raw alarm into the BBZ normalized provider event.
@@ -45,9 +60,15 @@ class MockCodaVideoProvider:
         self,
         *,
         instance_id: str = "coda-mock-1",
+        enabled_capability_groups: list[str] | None = None,
         simulated_sources: list[dict[str, Any]] | None = None,
     ) -> None:
         self._instance_id = instance_id
+        groups = enabled_capability_groups or list(_CAPABILITY_GROUPS)
+        unknown = sorted(set(groups) - set(_CAPABILITY_GROUPS))
+        if unknown:
+            raise ValueError(f"unknown capability group(s): {unknown}")
+        self._groups = tuple(g for g in _CAPABILITY_GROUPS if g in groups)
         self._sources = {s["external_source_id"]: s for s in (simulated_sources or [])}
         self._pending: list[dict[str, Any]] = []
 
@@ -63,16 +84,10 @@ class MockCodaVideoProvider:
         )
 
     def capabilities(self) -> CapabilitySet:
-        return CapabilitySet(
-            [
-                Capability.VIDEO_RESOLVE_CAMERA,
-                Capability.VIDEO_OPEN_CAMERA,
-                Capability.VIDEO_OPEN_CAMERA_GROUP,
-                Capability.ALARM_SUBSCRIBE,
-                Capability.ALARM_RESOLVE_SOURCE,
-                Capability.ALARM_GET_CONTEXT,
-            ]
-        )
+        return CapabilitySet([cap for group in self._groups for cap in _CAPABILITY_GROUPS[group]])
+
+    def enabled_capability_groups(self) -> tuple[str, ...]:
+        return self._groups
 
     async def health(self) -> DiagnosticsReport:
         return DiagnosticsReport(
@@ -123,3 +138,13 @@ class MockCodaVideoProvider:
 
     async def get_associated_cameras(self, *, provider_event_id: str) -> list[str]:
         return []
+
+
+def build(config: dict[str, Any] | None = None) -> MockCodaVideoProvider:
+    """Construct the mock provider from validated ``config_schema.json`` config."""
+    cfg = config or {}
+    return MockCodaVideoProvider(
+        instance_id=cfg.get("instance_id", "coda-mock-1"),
+        enabled_capability_groups=cfg.get("enabled_capability_groups"),
+        simulated_sources=cfg.get("simulated_sources"),
+    )

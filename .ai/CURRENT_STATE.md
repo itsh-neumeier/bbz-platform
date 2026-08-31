@@ -864,7 +864,7 @@ API. `integrations/telephony_cucm/` stays a placeholder README.
 - **E14-07..10 are frontend → blocked.** Epic 14 backend is done bar the UI.
   **E11-08 is unblocked** (has `ContactMatcher`).
 
-### Epic 15 – Technical Endpoints / Trigger Engine: **14/15 (E15-07 → Epic 16; E15-14 frontend → Epic 07)**
+### Epic 15 – Technical Endpoints / Trigger Engine: **15/15 backend done** (E15-07 `open_camera` → Epic 16; E15-14 frontend → Epic 07)
 - **#305 (E15-01) technical-endpoints schema** — migration 0030 +
   `technical_endpoints.py` (MASTER_PROMPT §29 — **not** modelled as contacts):
   `technical_endpoints` (name, site, `type` `door_station|bma|panic_button|
@@ -1065,6 +1065,22 @@ API. `integrations/telephony_cucm/` stays a placeholder README.
   block it).
 - **Epic 15 done bar:** E15-07 (`open_camera` action) → needs Epic 16; E15-14
   **frontend** (popup UI, keyboard, Playwright) → needs Epic 07.
+
+### Epic 16 – Coda Video / HxGN dC3 Video: **in progress (1/13)**
+- **#335 (E16-01) `coda_video` scaffold formalised** — the manifest schema gains
+  optional `capability_groups` (named, independently-activatable capability sets;
+  every grouped capability must also be in `capabilities` — checked in
+  `validate_manifest`) and `legacy_display_alias` (display-only superseded name).
+  `integrations/coda_video/manifest.json` → v0.1.0, two groups **`video`** +
+  **`alarm_ingress`**, `legacy_display_alias: "Cayuga"` (ADR-0016 — `coda_video`
+  is the canonical id everywhere). `config_schema.json` gains
+  `enabled_capability_groups` (default both). `MockCodaVideoProvider` +
+  `build(config)`: `capabilities()` now returns only the enabled groups' caps.
+  Still `mock: true` — no vendor API (E16-13). `test_mock_coda.py`,
+  `test_manifest_schema.py`.
+- Blocked: E16-02+ largely need the vendor interface work; **E16-13** is the
+  gated "real Coda/HxGN dC3 doc" milestone. Doable next: E16-02 (normalized
+  video capability interface — SDK-level, no vendor calls).
 
 ## Existing reference
 A functional HTML mockup defines important UX/feature behavior. **It is not yet in
