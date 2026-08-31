@@ -774,7 +774,7 @@ E11-12 (ringing-call list) needs E11-08's priority. Epic 07 / 08, #92, the Go
 agents (09/10 impl) and the #429 browser E2E stay blocked on a Node / Go /
 multi-host session.
 
-### Epic 14 – Contacts / Call Priorities: **in progress (4/10)**
+### Epic 14 – Contacts / Call Priorities: **in progress (5/10)**
 - **#285 (E14-01) contacts schema** — migration 0027 + `contacts.py`:
   `contacts` (name, org, notes, `quick_dial`, `bbz_id` scope — plain UUID like
   `events.bbz_id`), `contact_numbers` (`e164` stored normalized — a CHECK
@@ -812,8 +812,15 @@ multi-host session.
   (`clear_matcher_cache()` wired into the conftest reset). No endpoint / audit /
   permission — E11-08 (caller resolution) is the consumer.
   `test_phone_number_normalization.py` (31-case matrix), `test_contact_matching.py`.
-- Next: E14-05 (event/audit wiring), E14-06 (quick-dial). E14-07..10 are
-  frontend → blocked. **E11-08 is now unblocked** (has `ContactMatcher`).
+- **#293 (E14-05) contact events + audit wiring** — every contact CUD now emits
+  one domain event **and** one audit row, linked by `event_seq_ref`:
+  `CONTACT_CREATED` (POST), `CONTACT_UPDATED` (PATCH + each number op, payload
+  `changes = {field: {from, to}}` / `{numbers: {…}}`), `CONTACT_DELETED`
+  (DELETE). New payload sub-schemas + event-catalog rows. A no-op PATCH (no
+  effective field change) emits nothing. `test_contact_events.py` is the
+  contract test.
+- Next: E14-06 (quick-dial list). E14-07..10 are frontend → blocked. **E11-08
+  is unblocked** (has `ContactMatcher`).
 
 ## Existing reference
 A functional HTML mockup defines important UX/feature behavior. **It is not yet in
