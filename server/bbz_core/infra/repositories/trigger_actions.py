@@ -30,6 +30,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from bbz_core.audit import AuditAction, AuditService
 from bbz_core.domain.events import EventAggregate, EventPriority
 from bbz_core.domain.triggers import TriggerActionType
+from bbz_core.infra.event_log import append_event
 from bbz_core.infra.event_stream import notify_event_appended
 from bbz_core.infra.models.client_popup_events import ClientPopupEvent
 from bbz_core.infra.models.trigger_rules import (
@@ -47,6 +48,12 @@ from bbz_core.infra.repositories.workflow_engine import (
 
 _DEFAULT_POPUP_TTL_SECONDS = 120
 _KNOWN_FAILURES = (TemplateNotFoundError, NoPublishedVersionError)
+
+#: atomic actions that write to the append-only domain-event log — SSE / WS
+#: clients get a shortened poll wait after these commit
+_APPENDS_DOMAIN_EVENT = frozenset(
+    {TriggerActionType.CREATE_EVENT.value, TriggerActionType.SHOW_CLIENT_POPUP.value}
+)
 
 
 class TriggerActionError(ValueError):
@@ -128,7 +135,7 @@ class TriggerActionService:
                 await self._audit(state, index, action_type, succeeded, result)
         except TriggerActionError as exc:
             return await self._record_failure(state, index, action_type, str(exc))
-        if action_type == TriggerActionType.CREATE_EVENT.value:
+        if action_type in _APPENDS_DOMAIN_EVENT:
             await notify_event_appended()
         return ActionOutcome(index, action_type, succeeded, result)
 
@@ -309,14 +316,31 @@ class TriggerActionService:
         if workplace_id is None:
             raise TriggerActionError("show_client_popup requires workplace_id")
         ttl = int(action.get("ttl_seconds", _DEFAULT_POPUP_TTL_SECONDS))
+        expires_at = _dt.datetime.now(_dt.UTC) + _dt.timedelta(seconds=ttl)
+        kind = str(action.get("kind", "trigger"))
         popup = ClientPopupEvent(
             workplace_id=workplace_id,
-            kind=str(action.get("kind", "trigger")),
+            kind=kind,
             payload=dict(action.get("payload") or {}),
-            expires_at=_dt.datetime.now(_dt.UTC) + _dt.timedelta(seconds=ttl),
+            expires_at=expires_at,
         )
         self._s.add(popup)
         await self._s.flush()
+        # deliver over the event stream to the bound workplace (E15-14)
+        await append_event(
+            self._s,
+            aggregate_type="client_popup",
+            aggregate_id=popup.id,
+            event_type="CLIENT_POPUP_RAISED",
+            payload={
+                "popup_id": str(popup.id),
+                "workplace_id": str(workplace_id),
+                "kind": kind,
+                "expires_at": expires_at.isoformat(),
+                "actor_id": str(state.actor_id) if state.actor_id else None,
+            },
+            user_id=state.actor_id,
+        )
         return {"popup_id": str(popup.id), "workplace_id": str(workplace_id)}
 
     async def _notify(self, state: _RunState, index: int, action: dict[str, Any]) -> dict[str, Any]:
