@@ -103,7 +103,11 @@ class ContactMatcher:
             return cached[1]
 
         result = await self._match(parts.e164)
-        _cache[parts.e164] = (time.monotonic() + _CACHE_TTL, result)
+        # Only positive matches are cached: a "no match" is exactly the case
+        # where the phone book may still gain the contact (e.g. added mid-call),
+        # so it must stay cheap to re-check.
+        if result.matched or result.ambiguous:
+            _cache[parts.e164] = (time.monotonic() + _CACHE_TTL, result)
         return result
 
     async def _match(self, e164: str) -> CallerMatch:

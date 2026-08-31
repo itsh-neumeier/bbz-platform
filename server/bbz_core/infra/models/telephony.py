@@ -104,6 +104,10 @@ class Call(Base, TimestampMixin):
     __table_args__ = (
         _in("direction", CallDirection, "call_direction"),
         _in("state", CallState, "call_state"),
+        CheckConstraint(
+            "caller_priority IS NULL OR caller_priority IN ('low', 'medium', 'high')",
+            name="call_caller_priority",
+        ),
     )
 
     id: Mapped[uuid.UUID] = uuid_pk()
@@ -122,6 +126,12 @@ class Call(Base, TimestampMixin):
     workplace_id: Mapped[uuid.UUID | None] = mapped_column(index=True)
     started_at: Mapped[_dt.datetime | None] = mapped_column()
     ended_at: Mapped[_dt.datetime | None] = mapped_column()
+    #: caller resolution (E11-08) — snapshotted at call time. NULL contact = the
+    #: number did not resolve to a single contact ("unknown").
+    caller_contact_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("contacts.id", ondelete="SET NULL"), index=True
+    )
+    caller_priority: Mapped[str | None] = mapped_column(String(16))
 
 
 class CallParticipant(Base):
