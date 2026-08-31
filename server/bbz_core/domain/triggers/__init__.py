@@ -14,6 +14,12 @@ from bbz_core.domain.triggers.actions import (
     TriggerActionType,
     outbox_action_type,
 )
+from bbz_core.domain.triggers.alarms import (
+    DERIVED_ID_PREFIX,
+    AlarmEventRejected,
+    alarm_event_dedupe_key,
+    normalize_alarm_event,
+)
 from bbz_core.domain.triggers.rules import (
     CandidateRule,
     RuleConditionError,
@@ -32,15 +38,19 @@ from bbz_core.domain.triggers.signals import (
 )
 
 __all__ = [
+    "DERIVED_ID_PREFIX",
     "OUTBOX_ACTION_TYPES",
     "SUPPORTED_ACTION_TYPES",
     "TRANSACTIONAL_ACTION_TYPES",
+    "AlarmEventRejected",
     "CandidateRule",
     "InboundSignalRejected",
     "InboundSignalType",
     "RuleConditionError",
     "TriggerActionType",
+    "alarm_event_dedupe_key",
     "from_telephony_event",
+    "normalize_alarm_event",
     "outbox_action_type",
     "publish_blockers",
     "rule_matches",

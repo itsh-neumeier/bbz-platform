@@ -1066,7 +1066,7 @@ API. `integrations/telephony_cucm/` stays a placeholder README.
 - **Epic 15 done bar:** E15-07 (`open_camera` action) → needs Epic 16; E15-14
   **frontend** (popup UI, keyboard, Playwright) → needs Epic 07.
 
-### Epic 16 – Coda Video / HxGN dC3 Video: **in progress (3/13)**
+### Epic 16 – Coda Video / HxGN dC3 Video: **in progress (4/13)**
 - **#335 (E16-01) `coda_video` scaffold formalised** — the manifest schema gains
   optional `capability_groups` (named, independently-activatable capability sets;
   every grouped capability must also be in `capabilities` — checked in
@@ -1089,7 +1089,7 @@ API. `integrations/telephony_cucm/` stays a placeholder README.
   conforms (returns the typed models, `resolve_camera` raises `CameraNotFoundError`
   for an unknown id). `coda_video` manifest gains `video.focus_camera` in the
   `video` group. `test_mock_coda.py`.
-- **#338 (E16-03) normalized alarm-ingress capability interface** — SDK-level, no
+- **#339 (E16-03) normalized alarm-ingress capability interface** — SDK-level, no
   vendor calls. `bbz_integration_sdk.providers.alarm_types`: frozen typed models
   `IncomingAlarm` (the alarm as the provider hands it over — identifiers + the
   opaque `raw` dict kept diagnostics-only for the E16-04 hash, never parsed by
@@ -1105,10 +1105,23 @@ API. `integrations/telephony_cucm/` stays a placeholder README.
   conforms (`simulate_alarm` builds an `IncomingAlarm`, `resolve_source` returns
   `AlarmSource | None`). `coda_video` manifest gains `alarm.get_associated_cameras`
   in the `alarm_ingress` group. `test_mock_coda.py`.
+- **#341 (E16-04) alarm normalisation → immutable provider event + inbox dedupe** —
+  pure mapper + thin infra hook, mirrors E15-04 telephony. New schema
+  `provider_alarm_event.v1.json` (`bbz_event_schemas.provider_alarm_event_schema()`),
+  `additionalProperties:false` at every level so a stray vendor key is a
+  rejection. `bbz_core.domain.triggers.alarms`: `normalize_alarm_event(dict) → dict`
+  allowlist-copies an `IncomingAlarm.model_dump()` into the immutable shape,
+  hashes `raw` into `raw_hash` (bare sha256 hex) and **drops the payload**;
+  `provider_event_id` is the provider's own id or a deterministic `derived:<sha256>`
+  of `source+type+subtype+occurred_at` when it has none; `alarm_event_dedupe_key`.
+  `bbz_core.infra.alarm_ingest.ingest_alarm_event(session, dict) → IngestResult`
+  runs it through the E04-07 provider inbox — a replayed / dual-node panic alarm
+  is stored once (ADR-0006 exactly-once base). **Not** wired to the trigger engine
+  yet (E16-07). `test_coda_alarm_normalization.py`, `test_provider_alarm_event_schema.py`.
 - Blocked: **E16-13** is the gated "real Coda/HxGN dC3 doc" milestone; the
-  runtime flows (E16-04/07/08) need the DB schema (E16-05) which is doable.
-  Next doable: E16-04 (alarm normalisation → immutable provider event + inbox
-  dedupe) once E16-05 (DB schema) lands; E16-05 is doable now.
+  runtime flows (E16-07/08) build on E16-04 + need the DB schema (E16-05).
+  Next doable: **E16-05** (DB schema `integration_camera_mappings`, dep E15-01
+  only) then **E16-06** (admin config per alarm source).
 
 ## Existing reference
 A functional HTML mockup defines important UX/feature behavior. **It is not yet in

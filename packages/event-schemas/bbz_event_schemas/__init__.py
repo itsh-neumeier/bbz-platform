@@ -15,6 +15,7 @@ from bbz_event_schemas.loader import (
     known_event_types,
     list_schemas,
     load_schema,
+    provider_alarm_event_schema,
 )
 
 __all__ = [
@@ -24,5 +25,6 @@ __all__ = [
     "known_event_types",
     "list_schemas",
     "load_schema",
+    "provider_alarm_event_schema",
 ]
 __version__ = "0.0.0"
