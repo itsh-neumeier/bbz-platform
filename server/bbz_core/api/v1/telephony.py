@@ -18,6 +18,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from bbz_core.api.authz import require
 from bbz_core.api.deps import AuthContext, db_session
 from bbz_core.api.errors import ValidationError
+from bbz_core.infra.event_stream import notify_event_appended
 from bbz_core.infra.telephony_ingest import (
     TelephonyEventRejected,
     ingest_telephony_event,
@@ -43,4 +44,8 @@ async def ingest_event(
             result = await ingest_telephony_event(session, event)
     except TelephonyEventRejected as exc:
         raise ValidationError(f"invalid telephony event: {exc}") from exc
+    if result.outcome.value == "new":
+        # wake the event stream so the ringing-queue view refreshes promptly
+        # (E11-12); the call transition is already a domain event on the log.
+        await notify_event_appended()
     return IngestOut(outcome=result.outcome.value, dedupe_key=result.dedupe_key)

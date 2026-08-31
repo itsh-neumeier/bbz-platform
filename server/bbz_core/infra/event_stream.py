@@ -26,17 +26,35 @@ _CATCHUP_BATCH = 500
 
 
 class EventBroker:
+    """A latency hint for the stream poll, never the source of truth.
+
+    Loop-aware: an :class:`asyncio.Condition` is pinned to the loop it is first
+    awaited on, so the broker makes a fresh one whenever the running loop
+    changes. In production the loop never changes (one uvicorn loop); this only
+    matters for per-test loop isolation and for any worker that swaps loops.
+    """
+
     def __init__(self) -> None:
+        self._loop: asyncio.AbstractEventLoop | None = None
         self._cond = asyncio.Condition()
 
+    def _condition(self) -> asyncio.Condition:
+        loop = asyncio.get_running_loop()
+        if loop is not self._loop:
+            self._loop = loop
+            self._cond = asyncio.Condition()
+        return self._cond
+
     async def notify(self) -> None:
-        async with self._cond:
-            self._cond.notify_all()
+        cond = self._condition()
+        async with cond:
+            cond.notify_all()
 
     async def wait(self, *, timeout: float) -> None:
-        async with self._cond:
+        cond = self._condition()
+        async with cond:
             with contextlib.suppress(TimeoutError):
-                await asyncio.wait_for(self._cond.wait(), timeout=timeout)
+                await asyncio.wait_for(cond.wait(), timeout=timeout)
 
 
 _broker = EventBroker()

@@ -668,7 +668,7 @@ All issues need Node/Electron; skipped like Epic 07.
 **Epic 10: 3/16 doable here (E10-01/02/14).** E10-03+ (enrollment, command bus,
 agent, UI) need the Go toolchain / identity lib.
 
-### Epic 11 – Telephony Core: **in progress (11/16)**
+### Epic 11 – Telephony Core: **in progress (12/16)**
 - **#197 (E11-01) telephony core schema** — migration 0026 + `telephony.py`:
   `lines` (provider+external_id unique, state CHECK), `calls` (`bbz_call_id`
   unique + **independent of** `source_call_id`; `direction`/`state` CHECK — the
@@ -777,10 +777,19 @@ agent, UI) need the Go toolchain / identity lib.
   NULL contact = "unknown". Outbound calls are not caller-resolved. Silent — no
   audit, no domain event. `test_caller_resolution.py` (integration via the
   ingest path).
+- **#219 (E11-12) waiting-call queue** — `GET /api/v1/calls/ringing`
+  (`calls.view`) returns calls in `offered`/`ringing` ordered by caller
+  priority (`_PRIORITY_RANK` case: high→medium→low→unknown) then waiting time
+  (`coalesce(started_at, created_at)` asc). Unpaginated. `CallHistoryItem` /
+  `CallHistoryItemOut` gained `caller_contact_id` + `caller_priority` (also
+  surfaced in the history list). The telephony ingest endpoint now calls
+  `notify_event_appended()` on a *new* event so `GET /events/stream` wakes and
+  a client re-fetches the queue promptly (the call transition is already a
+  domain event on the log). `test_call_queue_api.py`.
 
-**Next:** E11-12 (ringing-call list, sorts on `calls.caller_priority`) is now
-unblocked. Epic 07 / 08, #92, the Go agents (09/10 impl) and the #429 browser
-E2E stay blocked on a Node / Go / multi-host session.
+**Next:** Epic 11 backend is done — **E11-13/14/15 (UI), E11-16 (Playwright)**
+are frontend/E2E → blocked. Epic 07 / 08, #92, the Go agents (09/10 impl) and
+the #429 browser E2E stay blocked on a Node / Go / multi-host session.
 
 ### Epic 14 – Contacts / Call Priorities: **in progress (6/10)**
 - **#285 (E14-01) contacts schema** — migration 0027 + `contacts.py`:

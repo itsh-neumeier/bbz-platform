@@ -32,7 +32,7 @@ from bbz_core.infra.models.telephony import (
     CallDocumentation,
     CallState,
 )
-from bbz_core.infra.repositories.call_queries import CallQueryRepository
+from bbz_core.infra.repositories.call_queries import CallHistoryItem, CallQueryRepository
 from bbz_core.integrations_host.providers import NoActiveProvider, active_telephony_provider
 
 router = APIRouter(prefix="/calls", tags=["calls"])
@@ -467,7 +467,7 @@ async def pending_documentation(
     )
 
 
-# --- call history (E11-11) -----------------------------------------------
+# --- call history (E11-11) + waiting-call queue (E11-12) ----------------
 
 
 class HistoryParticipant(BaseModel):
@@ -489,12 +489,52 @@ class CallHistoryItemOut(BaseModel):
     created_at: _dt.datetime
     category: str | None
     has_free_text: bool
+    caller_contact_id: uuid.UUID | None
+    caller_priority: str | None
     participants: list[HistoryParticipant]
 
 
 class CallHistoryOut(BaseModel):
     items: list[CallHistoryItemOut]
     next_cursor: str | None
+
+
+def _history_item_out(it: CallHistoryItem) -> CallHistoryItemOut:
+    return CallHistoryItemOut(
+        id=it.id,
+        bbz_call_id=it.bbz_call_id,
+        provider=it.provider,
+        direction=it.direction,
+        state=it.state,
+        line_id=it.line_id,
+        workplace_id=it.workplace_id,
+        started_at=it.started_at,
+        ended_at=it.ended_at,
+        created_at=it.created_at,
+        category=it.category,
+        has_free_text=it.has_free_text,
+        caller_contact_id=it.caller_contact_id,
+        caller_priority=it.caller_priority,
+        participants=[
+            HistoryParticipant(number=p.number, display_name=p.display_name, role=p.role)
+            for p in it.participants
+        ],
+    )
+
+
+@router.get("/ringing", response_model=CallHistoryOut)
+async def ringing_queue(
+    _: AuthContext = Depends(require("calls.view")),
+    session: AsyncSession = Depends(db_session),
+) -> CallHistoryOut:
+    """Die Warteschlange wartender Anrufe (§13.8/§13.9, E11-12): Anrufe im
+    Zustand ``offered`` / ``ringing``, sortiert nach Anrufer-Priorität
+    (hoch→niedrig, unbekannt zuletzt), dann Wartezeit (längste zuerst).
+    Unpaginiert — die Queue ist eine Handvoll Anrufe. Ein Client holt sie neu,
+    sobald ein ``CALL_*``-Frame über ``GET /api/v1/events/stream`` ankommt.
+    Read-only, kein Audit-Event."""
+    items = await CallQueryRepository(session).ringing_queue()
+    return CallHistoryOut(items=[_history_item_out(it) for it in items], next_cursor=None)
 
 
 @router.get("", response_model=CallHistoryOut)
@@ -531,26 +571,5 @@ async def list_calls(
         raise ValidationError("invalid cursor") from exc
 
     return CallHistoryOut(
-        items=[
-            CallHistoryItemOut(
-                id=it.id,
-                bbz_call_id=it.bbz_call_id,
-                provider=it.provider,
-                direction=it.direction,
-                state=it.state,
-                line_id=it.line_id,
-                workplace_id=it.workplace_id,
-                started_at=it.started_at,
-                ended_at=it.ended_at,
-                created_at=it.created_at,
-                category=it.category,
-                has_free_text=it.has_free_text,
-                participants=[
-                    HistoryParticipant(number=p.number, display_name=p.display_name, role=p.role)
-                    for p in it.participants
-                ],
-            )
-            for it in page.items
-        ],
-        next_cursor=page.next_cursor,
+        items=[_history_item_out(it) for it in page.items], next_cursor=page.next_cursor
     )
