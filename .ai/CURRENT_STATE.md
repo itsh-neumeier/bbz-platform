@@ -864,7 +864,7 @@ API. `integrations/telephony_cucm/` stays a placeholder README.
 - **E14-07..10 are frontend → blocked.** Epic 14 backend is done bar the UI.
   **E11-08 is unblocked** (has `ContactMatcher`).
 
-### Epic 15 – Technical Endpoints / Trigger Engine: **in progress (4/15)**
+### Epic 15 – Technical Endpoints / Trigger Engine: **in progress (5/15)**
 - **#305 (E15-01) technical-endpoints schema** — migration 0030 +
   `technical_endpoints.py` (MASTER_PROMPT §29 — **not** modelled as contacts):
   `technical_endpoints` (name, site, `type` `door_station|bma|panic_button|
@@ -909,8 +909,17 @@ API. `integrations/telephony_cucm/` stays a placeholder README.
   `bbz_core.infra.inbound_signals.record_inbound_signal()` → E04-07 provider
   inbox (dedupe before rule eval). `bbz_event_schemas.inbound_signal_schema()`.
   `test_inbound_signals.py`, `test_inbound_signal_schema.py`.
-- Next: E15-05 (rule model + DSL conditions + context registry), E15-06 (typed
-  actions), E15-08..15. E15-07 (open_camera actions) needs Epic 16.
+- **#313 (E15-05) trigger-rule conditions + selection** — `bbz_rule_dsl` already
+  ships `TRIGGER_CONTEXT` (E05-02 typed allowlist) + `parse`/`evaluate`. New
+  pure `bbz_core.domain.triggers.rules`: `validate_conditions()` is the publish
+  gate (`TRIGGER_CONTEXT.validate` → `RuleConditionError` on an unknown field or
+  type-incompatible operator), `signal_to_context()` flattens an inbound signal
+  to the DSL context (`ani`→`calling_number`, `severity` string→numeric rank),
+  `rule_matches()` / `select_matching_rules()` (matches ordered by
+  `(priority, rule_id)` — deterministic on multi-match). `test_trigger_rules_dsl.py`.
+- Next: E15-06 (typed actions: create_event / attach_workflow / show_client_popup
+  / notify), E15-08 (call actions), E15-09 (engine), E15-10..15. E15-07
+  (open_camera) needs Epic 16.
 
 ## Existing reference
 A functional HTML mockup defines important UX/feature behavior. **It is not yet in
