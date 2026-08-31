@@ -88,30 +88,32 @@ async def api(
 
 
 async def _events(s: AsyncSession, cid: str) -> list[str]:
-    await s.rollback()
-    return [
-        r.event_type
-        for r in (
-            await s.execute(
-                select(DomainEvent)
-                .where(DomainEvent.aggregate_id == cid)
-                .order_by(DomainEvent.event_seq.asc())
-            )
-        ).scalars()
-    ]
-
-
-async def _audit_rows(s: AsyncSession) -> list[AuditEvent]:
+    """Priority events only — POST /contacts also emits CONTACT_CREATED (E14-05)."""
     await s.rollback()
     return list(
         (
             await s.execute(
-                select(AuditEvent)
-                .where(AuditEvent.action == "CONTACT_PRIORITY_CHANGED")
-                .order_by(AuditEvent.occurred_at_utc.asc())
+                select(DomainEvent.event_type)
+                .where(
+                    DomainEvent.aggregate_id == cid,
+                    DomainEvent.event_type == "CONTACT_PRIORITY_CHANGED",
+                )
+                .order_by(DomainEvent.event_seq.asc())
             )
         ).scalars()
     )
+
+
+async def _audit_rows(s: AsyncSession) -> list[dict]:
+    await s.rollback()
+    rows = (
+        await s.execute(
+            select(AuditEvent.before, AuditEvent.after, AuditEvent.event_seq_ref)
+            .where(AuditEvent.action == "CONTACT_PRIORITY_CHANGED")
+            .order_by(AuditEvent.occurred_at_utc.asc())
+        )
+    ).all()
+    return [{"before": b, "after": a, "event_seq_ref": r} for b, a, r in rows]
 
 
 async def test_first_assignment_emits_one_event_and_audit_with_null_from(api: tuple) -> None:
@@ -123,9 +125,9 @@ async def test_first_assignment_emits_one_event_and_audit_with_null_from(api: tu
     assert await _events(s, cid) == ["CONTACT_PRIORITY_CHANGED"]
     rows = await _audit_rows(s)
     assert len(rows) == 1
-    assert rows[0].before == {"priority": None}
-    assert rows[0].after == {"priority": "high"}
-    assert rows[0].event_seq_ref is not None
+    assert rows[0]["before"] == {"priority": None}
+    assert rows[0]["after"] == {"priority": "high"}
+    assert rows[0]["event_seq_ref"] is not None
 
 
 async def test_changing_the_level_records_before_and_after(api: tuple) -> None:
@@ -136,7 +138,7 @@ async def test_changing_the_level_records_before_and_after(api: tuple) -> None:
 
     assert await _events(s, cid) == ["CONTACT_PRIORITY_CHANGED", "CONTACT_PRIORITY_CHANGED"]
     rows = await _audit_rows(s)
-    assert [(x.before["priority"], x.after["priority"]) for x in rows] == [
+    assert [(x["before"]["priority"], x["after"]["priority"]) for x in rows] == [
         (None, "low"),
         ("low", "high"),
     ]

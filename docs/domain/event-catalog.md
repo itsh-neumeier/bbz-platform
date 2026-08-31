@@ -43,6 +43,9 @@ sub-schema under `properties.<EVENT_TYPE>`).
 | LINE_OUT_OF_SERVICE | line | provider, external_id, state | line outage (E11-07); not audited |
 | CALL_DOCUMENTED | call | bbz_call_id, category, actor_id | mandatory call categorization set (E11-09); audited |
 | CONTACT_PRIORITY_CHANGED | contact | contact_id, from, to, actor_id | `from` null on first assignment; `to` ∈ {low, medium, high}; same-level is a no-op (no event); audited (E14-03) |
+| CONTACT_CREATED | contact | contact_id, name, actor_id | + org, quick_dial, number_count; on `POST /contacts` (E14-05); audited |
+| CONTACT_UPDATED | contact | contact_id, changes, actor_id | `changes` = `{field: {from, to}}` for a field edit, or `{numbers: {...}}` for a number add/edit/remove (E14-05); audited |
+| CONTACT_DELETED | contact | contact_id, name, actor_id | soft-delete of a contact (E14-05); audited |
 
 ## Calls
 
@@ -55,8 +58,8 @@ sub-schema under `properties.<EVENT_TYPE>`).
 
 | event_type | notes |
 |---|---|
+| CONTACT_CREATED / CONTACT_UPDATED / CONTACT_DELETED | contact CUD (E14-05); each is audited with a field diff |
 | CONTACT_PRIORITY_CHANGED | priority set/changed (§13.9); same-level = no-op; audited (E14-03) |
-| CONTACT_CREATED | contact added (E14-05) |
 | MONITOR_ROUTE_CHANGED | audited |
 | WEATHER_EVENT_CREATED | event created from a DWD warning |
 

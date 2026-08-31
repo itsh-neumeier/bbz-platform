@@ -15,7 +15,7 @@ from __future__ import annotations
 import contextlib
 import datetime as _dt
 import uuid
-from collections.abc import Iterator
+from collections.abc import Iterator, Mapping
 
 from fastapi import APIRouter, Depends, Query, Response, status
 from pydantic import BaseModel, ConfigDict, Field
@@ -26,7 +26,7 @@ from bbz_core.api.authz import require
 from bbz_core.api.deps import AuthContext, db_session
 from bbz_core.api.errors import ConflictError, NotFoundError, ValidationError
 from bbz_core.api.idempotency import CommandEnvelope, command_envelope
-from bbz_core.audit import AuditAction, AuditService
+from bbz_core.audit import AuditAction, AuditService, changed_fields
 from bbz_core.infra.event_log import append_event
 from bbz_core.infra.idempotency import (
     CommandConflictError,
@@ -47,6 +47,26 @@ from bbz_core.infra.repositories.contacts import (
 router = APIRouter(prefix="/contacts", tags=["contacts"])
 
 _E164 = r"^\+[1-9][0-9]{1,14}$"
+
+
+async def _contact_event(
+    session: AsyncSession,
+    *,
+    event_type: str,
+    contact_id: uuid.UUID,
+    actor_id: uuid.UUID | None,
+    payload: Mapping[str, object],
+) -> int:
+    """Append one contact domain event in the current transaction; return its
+    ``event_seq`` so the audit row can reference it (E14-05)."""
+    return await append_event(
+        session,
+        aggregate_type="contact",
+        aggregate_id=contact_id,
+        event_type=event_type,
+        payload={"contact_id": str(contact_id), "actor_id": str(actor_id), **payload},
+        user_id=actor_id,
+    )
 
 
 @contextlib.contextmanager
@@ -200,17 +220,26 @@ async def create_contact(
                         contact_id,
                         NumberInput(e164=n.e164, label=n.label, is_primary=n.is_primary),
                     )
+                after = {
+                    "name": body.name,
+                    "org": body.org,
+                    "quick_dial": body.quick_dial,
+                    "number_count": len(body.numbers),
+                }
+                seq = await _contact_event(
+                    session,
+                    event_type="CONTACT_CREATED",
+                    contact_id=contact_id,
+                    actor_id=ctx.user_id,
+                    payload=after,
+                )
                 await AuditService(session).write(
                     AuditAction.CONTACT_CREATED,
                     actor_user_id=ctx.user_id,
                     target_type="contact",
                     target_id=str(contact_id),
-                    after={
-                        "name": body.name,
-                        "org": body.org,
-                        "quick_dial": body.quick_dial,
-                        "number_count": len(body.numbers),
-                    },
+                    after=after,
+                    event_seq_ref=seq,
                 )
             out = _out(await repo.detail(contact_id))
             slot.set_result(status.HTTP_201_CREATED, out.model_dump(mode="json"))
@@ -246,16 +275,27 @@ async def update_contact(
     with _translate():
         async with session.begin():
             contact = await repo.get(contact_id)
-            before = {k: getattr(contact, k) for k in changes}
-            await repo.update(contact, changes)
-            await AuditService(session).write(
-                AuditAction.CONTACT_UPDATED,
-                actor_user_id=ctx.user_id,
-                target_type="contact",
-                target_id=str(contact_id),
-                before={k: _jsonable(v) for k, v in before.items()},
-                after={k: _jsonable(v) for k, v in changes.items()},
-            )
+            before = {k: _jsonable(getattr(contact, k)) for k in changes}
+            after = {k: _jsonable(v) for k, v in changes.items()}
+            diff = changed_fields(before, after)
+            if diff:
+                await repo.update(contact, changes)
+                seq = await _contact_event(
+                    session,
+                    event_type="CONTACT_UPDATED",
+                    contact_id=contact_id,
+                    actor_id=ctx.user_id,
+                    payload={"changes": diff},
+                )
+                await AuditService(session).write(
+                    AuditAction.CONTACT_UPDATED,
+                    actor_user_id=ctx.user_id,
+                    target_type="contact",
+                    target_id=str(contact_id),
+                    before={k: before[k] for k in diff},
+                    after={k: after[k] for k in diff},
+                    event_seq_ref=seq,
+                )
     return _out(await repo.detail(contact_id))
 
 
@@ -274,12 +314,20 @@ async def delete_contact(
             contact = await repo.get(contact_id)
             name = contact.name
             await repo.soft_delete(contact)
+            seq = await _contact_event(
+                session,
+                event_type="CONTACT_DELETED",
+                contact_id=contact_id,
+                actor_id=ctx.user_id,
+                payload={"name": name},
+            )
             await AuditService(session).write(
                 AuditAction.CONTACT_DELETED,
                 actor_user_id=ctx.user_id,
                 target_type="contact",
                 target_id=str(contact_id),
                 before={"name": name},
+                event_seq_ref=seq,
             )
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
@@ -323,12 +371,21 @@ async def add_number(
             num = NumberOut(
                 id=number.id, e164=number.e164, label=number.label, is_primary=number.is_primary
             )
+            change = {"numbers": {"added": body.e164}}
+            seq = await _contact_event(
+                session,
+                event_type="CONTACT_UPDATED",
+                contact_id=contact_id,
+                actor_id=ctx.user_id,
+                payload={"changes": change},
+            )
             await AuditService(session).write(
                 AuditAction.CONTACT_UPDATED,
                 actor_user_id=ctx.user_id,
                 target_type="contact",
                 target_id=str(contact_id),
-                after={"number_added": body.e164},
+                after=change,
+                event_seq_ref=seq,
             )
     return num
 
@@ -353,15 +410,26 @@ async def update_number(
             num = NumberOut(
                 id=number.id, e164=number.e164, label=number.label, is_primary=number.is_primary
             )
+            change = {
+                "numbers": {
+                    "updated": number.e164,
+                    **{k: _jsonable(v) for k, v in changes.items()},
+                }
+            }
+            seq = await _contact_event(
+                session,
+                event_type="CONTACT_UPDATED",
+                contact_id=contact_id,
+                actor_id=ctx.user_id,
+                payload={"changes": change},
+            )
             await AuditService(session).write(
                 AuditAction.CONTACT_UPDATED,
                 actor_user_id=ctx.user_id,
                 target_type="contact",
                 target_id=str(contact_id),
-                after={
-                    "number_updated": str(number_id),
-                    **{k: _jsonable(v) for k, v in changes.items()},
-                },
+                after=change,
+                event_seq_ref=seq,
             )
     return num
 
@@ -378,13 +446,23 @@ async def remove_number(
     with _translate():
         async with session.begin():
             number = await repo.get_number(contact_id, number_id)
+            removed_e164 = number.e164
             await repo.remove_number(number)
+            change = {"numbers": {"removed": removed_e164}}
+            seq = await _contact_event(
+                session,
+                event_type="CONTACT_UPDATED",
+                contact_id=contact_id,
+                actor_id=ctx.user_id,
+                payload={"changes": change},
+            )
             await AuditService(session).write(
                 AuditAction.CONTACT_UPDATED,
                 actor_user_id=ctx.user_id,
                 target_type="contact",
                 target_id=str(contact_id),
-                after={"number_removed": str(number_id)},
+                after=change,
+                event_seq_ref=seq,
             )
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 

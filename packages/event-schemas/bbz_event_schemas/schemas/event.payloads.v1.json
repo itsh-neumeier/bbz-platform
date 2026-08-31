@@ -125,6 +125,39 @@
         "to": { "enum": ["low", "medium", "high"] },
         "actor_id": { "type": "string" }
       }
+    },
+    "CONTACT_CREATED": {
+      "type": "object",
+      "required": ["contact_id", "name", "actor_id"],
+      "additionalProperties": true,
+      "properties": {
+        "contact_id": { "type": "string", "minLength": 1 },
+        "name": { "type": "string", "minLength": 1 },
+        "org": { "type": ["string", "null"] },
+        "quick_dial": { "type": "boolean" },
+        "number_count": { "type": "integer", "minimum": 0 },
+        "actor_id": { "type": "string" }
+      }
+    },
+    "CONTACT_UPDATED": {
+      "type": "object",
+      "required": ["contact_id", "changes", "actor_id"],
+      "additionalProperties": true,
+      "properties": {
+        "contact_id": { "type": "string", "minLength": 1 },
+        "changes": { "type": "object", "minProperties": 1 },
+        "actor_id": { "type": "string" }
+      }
+    },
+    "CONTACT_DELETED": {
+      "type": "object",
+      "required": ["contact_id", "name", "actor_id"],
+      "additionalProperties": true,
+      "properties": {
+        "contact_id": { "type": "string", "minLength": 1 },
+        "name": { "type": "string" },
+        "actor_id": { "type": "string" }
+      }
     }
   },
   "$defs": {
