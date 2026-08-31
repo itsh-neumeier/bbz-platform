@@ -1212,7 +1212,7 @@ API. `integrations/telephony_cucm/` stays a placeholder README.
 - **Epic 16 backend complete (12/13).** **E16-12** (camera-view UI) is the only
   open item — needs Epic 07 (E07-08); deferred to the frontend phase.
 
-### Epic 17 – Siedle: **in progress (2/7)**
+### Epic 17 – Siedle: **in progress (3/7)**
 - **#361 (E17-01) Siedle door-station endpoint profile** — migration
   `0035_door_station_fields` adds `technical_endpoints.dtmf_profile_id` (a
   reference id **only** — the code lives encrypted in `door_action_profiles`,
@@ -1239,8 +1239,18 @@ API. `integrations/telephony_cucm/` stays a placeholder README.
   `TechnicalEndpointService` now rejects an unknown `dtmf_profile_id` (422).
   New `ServiceUnavailableError` (503) → returned when the key is unset. Real
   `alembic up/down/up` verified. `test_door_action_profiles_api.py`.
-- Next: **E17-03** (`DOORBELL_RINGING` trigger; deps E11-03/E15-04/E15-09) then
-  **E17-04** (klingel popup + camera side-effect).
+- **#365 (E17-03) `DOORBELL_RINGING` trigger** — new
+  `bbz_core.infra.repositories.endpoint_matcher.match_technical_endpoint`
+  (exact match on `calling` / `called` pattern or `cti_route_point`, `enabled`
+  + optional `types` filter, lowest-id wins). `telephony_ingest._queue_signal`
+  now runs `_resolve_doorbell`: a `CALL_RINGING` signal with no pre-filled
+  endpoint whose ANI/DNIS/route matches an enabled `door_station` is re-typed
+  **`DOORBELL_RINGING`** with `source.technical_endpoint_id` set, then
+  re-validated. An unconfigured number stays `CALL_RINGING` → the engine's
+  unmapped-source queue (E15-12). Dedupe unchanged (`telephony_dedupe_key` +
+  `signal:` prefix → one signal per telephony event). `test_siedle_doorbell_trigger.py`.
+- Next: **E17-04** (klingel popup + camera side-effect, entkoppelt) then
+  **E17-05** (transactional door-open flow).
 
 ## Existing reference
 A functional HTML mockup defines important UX/feature behavior. **It is not yet in
