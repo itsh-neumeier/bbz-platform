@@ -24,6 +24,7 @@ from bbz_core.api.v1.totp import router as totp_router
 from bbz_core.api.v1.trigger_diagnostics import router as trigger_diagnostics_router
 from bbz_core.api.v1.trigger_rules import router as trigger_rules_router
 from bbz_core.api.v1.users import router as users_router
+from bbz_core.api.v1.weather import router as weather_router
 from bbz_core.api.v1.workflows import router as workflows_router
 from bbz_core.integrations_host.registry import IntegrationRegistry
 from bbz_core.settings import get_settings
@@ -50,6 +51,7 @@ api_v1.include_router(coda_alarm_sources_router)
 api_v1.include_router(integrations_router)
 api_v1.include_router(door_action_profiles_router)
 api_v1.include_router(doors_router)
+api_v1.include_router(weather_router)
 
 
 class MetaResponse(BaseModel):
