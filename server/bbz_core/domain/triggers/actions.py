@@ -43,6 +43,22 @@ OUTBOX_ACTION_TYPES: frozenset[TriggerActionType] = (
     frozenset(TriggerActionType) - TRANSACTIONAL_ACTION_TYPES
 )
 
+#: action types the engine (E15-06/08/09) can actually run today. The publish
+#: gate (E15-10) refuses a rule whose actions are not all in this set:
+#: ``open_camera`` / ``open_camera_group`` / ``integration_action`` need Epic 16,
+#: ``launch_catalog_app`` needs the E10 catalog policy.
+SUPPORTED_ACTION_TYPES: frozenset[TriggerActionType] = frozenset(
+    {
+        TriggerActionType.CREATE_EVENT,
+        TriggerActionType.ATTACH_WORKFLOW,
+        TriggerActionType.SHOW_CLIENT_POPUP,
+        TriggerActionType.NOTIFY,
+        TriggerActionType.ANSWER_CALL,
+        TriggerActionType.SEND_DTMF_PROFILE,
+        TriggerActionType.HANGUP_CALL,
+    }
+)
+
 
 class UnknownActionTypeError(ValueError):
     """A rule action carried a ``type`` outside :class:`TriggerActionType`."""
