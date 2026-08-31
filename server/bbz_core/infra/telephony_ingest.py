@@ -31,9 +31,10 @@ from typing import Any
 import jsonschema
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from bbz_core.domain.triggers import from_telephony_event
+from bbz_core.domain.triggers import from_telephony_event, validate_inbound_signal
 from bbz_core.infra.inbound_signals import record_inbound_signal
 from bbz_core.infra.inbox import IngestOutcome, IngestResult, ingest, mark_processed
+from bbz_core.infra.repositories.endpoint_matcher import match_technical_endpoint
 from bbz_core.logging import get_logger
 from bbz_event_schemas import load_schema
 
@@ -114,11 +115,17 @@ async def ingest_telephony_event(session: AsyncSession, raw: dict[str, Any]) -> 
     return result
 
 
+#: endpoint types whose ring is re-typed ``DOORBELL_RINGING`` (E17-03)
+_DOORBELL_TYPES = frozenset({"door_station"})
+
+
 async def _queue_signal(session: AsyncSession, raw: dict[str, Any]) -> None:
     """Queue the normalized inbound signal for the trigger engine (ADR-0024).
 
     Best-effort: a mapping failure is logged, not raised — the call was already
-    ingested and must not be undone by a trigger problem.
+    ingested and must not be undone by a trigger problem. A ring from a
+    configured Siedle door station is re-typed ``DOORBELL_RINGING`` with its
+    ``technical_endpoint_id`` filled in (E17-03).
     """
     try:
         signal = from_telephony_event(raw)
@@ -128,9 +135,31 @@ async def _queue_signal(session: AsyncSession, raw: dict[str, Any]) -> None:
         return
     if signal is None:
         return
+    await _resolve_doorbell(session, signal)
     await record_inbound_signal(
         session,
         signal=signal,
         provider_event_id=raw["telephony_event_id"],
         dedupe_key=f"signal:{telephony_dedupe_key(raw)}",
     )
+
+
+async def _resolve_doorbell(session: AsyncSession, signal: dict[str, Any]) -> None:
+    src = signal.get("source") or {}
+    if signal.get("signal_type") != "CALL_RINGING" or src.get("technical_endpoint_id"):
+        return
+    try:
+        endpoint_id = await match_technical_endpoint(
+            session,
+            calling=src.get("ani"),
+            called=src.get("dnis"),
+            cti_route_point=src.get("cti_route_point"),
+            types=_DOORBELL_TYPES,
+        )
+    except Exception:
+        _log.warning("doorbell_endpoint_match_failed", dnis=src.get("dnis"))
+        return
+    if endpoint_id is not None:
+        signal["signal_type"] = "DOORBELL_RINGING"
+        src["technical_endpoint_id"] = str(endpoint_id)
+        validate_inbound_signal(signal)  # re-check the mutated shape
