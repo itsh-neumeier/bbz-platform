@@ -1,0 +1,21 @@
+{
+  "id": "telephony_sip",
+  "name": "Telephony SIP",
+  "version": "0.0.0",
+  "domain": "telephony",
+  "adapter": "integrations.telephony_sip.adapter:SipTelephonyProvider",
+  "minimum_core_version": "0.0.0",
+  "config_schema_version": 1,
+  "capabilities": [
+    "call.answer",
+    "call.dial",
+    "call.hangup",
+    "call.hold",
+    "call.resume",
+    "call.transfer",
+    "call.send_dtmf",
+    "call.monitoring"
+  ],
+  "mock": false,
+  "description": "Vendor-neutral SIP telephony provider (Asterisk ARI / FreeSWITCH ESL). Independent of Cisco CUCM / JTAPI (ADR-0002 §8.17). Scaffold only until Epic 13."
+}

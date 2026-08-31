@@ -791,7 +791,27 @@ agent, UI) need the Go toolchain / identity lib.
 are frontend/E2E → blocked. Epic 07 / 08, #92, the Go agents (09/10 impl) and
 the #429 browser E2E stay blocked on a Node / Go / multi-host session.
 
-### Epic 14 – Contacts / Call Priorities: **in progress (6/10)**
+### Epic 12 – CUCM / JTAPI: **blocked**
+All 20 issues are the separate Java `services/cucm-cti-gateway` and hinge on
+`jtapi.jar` + real CUCM §8.18 data — no Java toolchain here, no invented Cisco
+API. `integrations/telephony_cucm/` stays a placeholder README.
+
+### Epic 13 – SIP Telephony: **1/8 (rest needs a SIP stack / test PBX)**
+- **#269 (E13-01) `telephony_sip` scaffold** — `integrations/telephony_sip/`:
+  `manifest.json` (domain `telephony`, capabilities answer/dial/hangup/hold/
+  resume/transfer/send_dtmf/monitoring, `mock:false`), `config_schema.json`
+  (gateway `asterisk_ari|freeswitch_esl`, `credentials_secret_ref`,
+  `dtmf_transport`), and `adapter.py` — a `SipTelephonyProvider` that satisfies
+  the full `TelephonyProvider` protocol: lifecycle + read queries give safe
+  empty/unknown values (health = `unknown`), every control command raises
+  `SipNotConfiguredError` until E13-03+. New import-linter contract
+  *"telephony_sip is independent of Cisco CUCM / JTAPI"* (`root_packages` gained
+  `integrations`). `integrations/telephony_sip/tests/test_sip_scaffold.py`.
+- Next: E13-02 (ADR-0023 Asterisk vs FreeSWITCH + test gateway), E13-03..08
+  (SIP adapter, events, control, DTMF, secrets, PBX integration tests) — need a
+  SIP stack / containerized test PBX.
+
+### Epic 14 – Contacts / Call Priorities: **backend COMPLETE (6/10; E14-07..10 frontend)**
 - **#285 (E14-01) contacts schema** — migration 0027 + `contacts.py`:
   `contacts` (name, org, notes, `quick_dial`, `bbz_id` scope — plain UUID like
   `events.bbz_id`), `contact_numbers` (`e164` stored normalized — a CHECK
