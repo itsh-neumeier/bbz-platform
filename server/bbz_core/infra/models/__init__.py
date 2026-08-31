@@ -78,6 +78,13 @@ from bbz_core.infra.models.telephony import (
     LineState,
     ParticipantRole,
 )
+from bbz_core.infra.models.trigger_rules import (
+    TriggerExecution,
+    TriggerExecutionStatus,
+    TriggerLifecycle,
+    TriggerRule,
+    TriggerRuleVersion,
+)
 from bbz_core.infra.models.workflow import (
     WorkflowGraphEdge,
     WorkflowGraphNode,
@@ -147,6 +154,11 @@ __all__ = [
     "TechnicalEndpoint",
     "TechnicalEndpointNumber",
     "TechnicalEndpointType",
+    "TriggerExecution",
+    "TriggerExecutionStatus",
+    "TriggerLifecycle",
+    "TriggerRule",
+    "TriggerRuleVersion",
     "User",
     "UserGroup",
     "UserPresence",
