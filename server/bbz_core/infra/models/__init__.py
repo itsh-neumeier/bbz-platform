@@ -51,6 +51,7 @@ from bbz_core.infra.models.identity import (
     UserStatus,
 )
 from bbz_core.infra.models.inbox import ProviderEventInbox
+from bbz_core.infra.models.integration_camera_mappings import IntegrationCameraMapping
 from bbz_core.infra.models.outbox import ExternalActionOutbox, OutboxStatus
 from bbz_core.infra.models.rbac import (
     Group,
@@ -139,6 +140,7 @@ __all__ = [
     "ExternalActionOutbox",
     "Group",
     "GroupRole",
+    "IntegrationCameraMapping",
     "LaunchMode",
     "Line",
     "LineState",
