@@ -1,10 +1,15 @@
-"""Trigger-rule admin API (roadmap E15-10).
+"""Trigger-rule admin API (roadmap E15-10, E15-11).
 
 Rules + versions with a ``draft -> validated -> published -> retired``
 lifecycle. Publishing needs a prior ``validate`` (conditions checked against the
 typed ``TRIGGER_CONTEXT``, actions against the runnable action set); editing
 anything but a draft is refused — a change is a new version. Every transition is
 audited (``TRIGGER_RULE_*``).
+
+``POST /trigger-rules/simulate`` (E15-11) dry-runs a synthetic signal against
+the published rules: it reports the matching rules and the actions each would
+run, with **no** real effect (no inbox row, no ``trigger_executions``, no
+outbox, no event, no DTMF) — only a ``TRIGGER_SIMULATED`` audit row.
 
 Highly privileged — a published rule can open a door automatically — so reads
 need ``technical_endpoints.view`` and writes ``technical_endpoints.manage``.
@@ -25,7 +30,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from bbz_core.api.authz import require
 from bbz_core.api.deps import AuthContext, db_session
 from bbz_core.api.errors import AppError, ConflictError, NotFoundError, ValidationError
+from bbz_core.domain.triggers import InboundSignalRejected
 from bbz_core.infra.models.trigger_rules import TriggerRule, TriggerRuleVersion
+from bbz_core.infra.repositories.trigger_engine import SimulationReport, TriggerEngine
 from bbz_core.infra.repositories.trigger_rules import (
     EndpointNotFoundError,
     InvalidRuleTransitionError,
@@ -131,6 +138,28 @@ class ValidateOut(BaseModel):
     issues: list[str]
 
 
+class SimulateIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    #: a synthetic ``inbound_signal.v1`` object — validated by the engine
+    signal: dict[str, object]
+
+
+class SimulatedRuleOut(BaseModel):
+    rule_id: uuid.UUID
+    rule_name: str
+    priority: int
+    version_id: uuid.UUID
+    version_no: int
+    actions: list[dict[str, object]]
+
+
+class SimulationOut(BaseModel):
+    signal_type: str
+    executed: bool
+    matched: list[SimulatedRuleOut]
+    planned_action_count: int
+
+
 def _rule_out(rule: TriggerRule) -> RuleOut:
     return RuleOut(
         id=rule.id,
@@ -155,6 +184,43 @@ def _version_out(v: TriggerRuleVersion) -> VersionOut:
 
 def _svc(session: AsyncSession = Depends(db_session)) -> TriggerRuleAdminService:
     return TriggerRuleAdminService(session)
+
+
+def _simulation_out(report: SimulationReport) -> SimulationOut:
+    return SimulationOut(
+        signal_type=report.signal_type,
+        executed=report.executed,
+        planned_action_count=report.planned_action_count,
+        matched=[
+            SimulatedRuleOut(
+                rule_id=r.rule_id,
+                rule_name=r.rule_name,
+                priority=r.priority,
+                version_id=r.version_id,
+                version_no=r.version_no,
+                actions=r.actions,
+            )
+            for r in report.matched
+        ],
+    )
+
+
+# -- simulation (E15-11) ----------------------------------------------------
+
+
+@router.post("/trigger-rules/simulate", response_model=SimulationOut)
+async def simulate(
+    body: SimulateIn,
+    ctx: AuthContext = Depends(require("technical_endpoints.manage")),
+    session: AsyncSession = Depends(db_session),
+) -> SimulationOut:
+    """Dry-run a synthetic signal against the published rules — reports the
+    matching rules and their planned actions, with no real effect at all."""
+    try:
+        report = await TriggerEngine(session).simulate(dict(body.signal), actor_id=ctx.user_id)
+    except InboundSignalRejected as exc:
+        raise ValidationError(f"invalid signal: {exc}") from exc
+    return _simulation_out(report)
 
 
 # -- rules -------------------------------------------------------------------
