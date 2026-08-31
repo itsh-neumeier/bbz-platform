@@ -33,6 +33,7 @@ from bbz_core.domain.triggers.rules import (
 from bbz_core.domain.triggers.signals import (
     InboundSignalRejected,
     InboundSignalType,
+    from_incoming_alarm,
     from_telephony_event,
     validate_inbound_signal,
 )
@@ -49,6 +50,7 @@ __all__ = [
     "RuleConditionError",
     "TriggerActionType",
     "alarm_event_dedupe_key",
+    "from_incoming_alarm",
     "from_telephony_event",
     "normalize_alarm_event",
     "outbox_action_type",

@@ -93,3 +93,43 @@ def from_telephony_event(event: dict[str, Any]) -> dict[str, Any] | None:
     }
     validate_inbound_signal(signal)
     return signal
+
+
+#: BBZ severity words the inbound signal's ``source.severity`` enum accepts
+_SIGNAL_SEVERITIES = frozenset({"critical", "high", "medium", "low"})
+
+
+def from_incoming_alarm(alarm_event: dict[str, Any]) -> dict[str, Any]:
+    """Map a normalized ``provider_alarm_event.v1`` dict (E16-04) to an
+    ``inbound_signal.v1`` dict for the trigger engine (E16-07).
+
+    A ``panic_button`` subtype becomes ``PANIC_ALARM_RAISED``; every other alarm
+    becomes ``TECHNICAL_ALARM_RAISED``. Only allowlisted, rule-relevant fields
+    cross over — the raw provider payload is already gone by this point (E16-04).
+    ``severity_external`` is carried only when it is already one of the BBZ
+    severity words; the BBZ priority itself is decided by the matched rule /
+    admin config (E16-06), not here.
+    """
+    subtype = alarm_event.get("alarm_subtype")
+    signal_type = (
+        InboundSignalType.PANIC_ALARM_RAISED
+        if subtype == "panic_button"
+        else InboundSignalType.TECHNICAL_ALARM_RAISED
+    )
+    severity = str(alarm_event.get("severity_external") or "").lower()
+    signal: dict[str, Any] = {
+        "signal_type": signal_type.value,
+        "provider": alarm_event["provider"],
+        "occurred_at": alarm_event.get("occurred_at") or alarm_event["received_at"],
+        "received_at": alarm_event["received_at"],
+        "gateway_node": alarm_event["provider_instance_id"],
+        "correlation_id": None,
+        "source": {
+            "external_source_id": alarm_event.get("source_external_id"),
+            "site": alarm_event.get("site_external_id"),
+            "alarm_subtype": subtype,
+            "severity": severity if severity in _SIGNAL_SEVERITIES else None,
+        },
+    }
+    validate_inbound_signal(signal)
+    return signal
