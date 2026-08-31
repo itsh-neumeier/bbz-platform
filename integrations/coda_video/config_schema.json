@@ -1,10 +1,17 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "coda_video (mock) configuration",
+  "title": "coda_video configuration",
   "type": "object",
   "additionalProperties": false,
   "properties": {
     "instance_id": { "type": "string", "default": "coda-mock-1" },
+    "enabled_capability_groups": {
+      "type": "array",
+      "description": "Which capability groups this instance provides. Video and alarm ingress are independent — an instance may do only one.",
+      "items": { "enum": ["video", "alarm_ingress"] },
+      "uniqueItems": true,
+      "default": ["video", "alarm_ingress"]
+    },
     "simulated_sources": {
       "type": "array",
       "default": [],

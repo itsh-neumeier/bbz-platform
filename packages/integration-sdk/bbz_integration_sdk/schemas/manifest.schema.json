@@ -36,6 +36,20 @@
       "uniqueItems": true,
       "default": []
     },
+    "capability_groups": {
+      "type": "object",
+      "description": "Named, independently-activatable groups of capabilities (e.g. coda_video's `video` and `alarm_ingress`). Every listed capability must also appear in `capabilities`.",
+      "additionalProperties": {
+        "type": "array",
+        "items": { "type": "string" },
+        "uniqueItems": true
+      },
+      "default": {}
+    },
+    "legacy_display_alias": {
+      "type": "string",
+      "description": "A superseded product name kept for display only (e.g. Cayuga for coda_video, ADR-0016). Never used as an id."
+    },
     "mock": {
       "type": "boolean",
       "default": false,
