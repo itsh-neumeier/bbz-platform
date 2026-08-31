@@ -11,6 +11,7 @@ carries a ``schema_version``. Changes are additive within a major version.
 from bbz_event_schemas.loader import (
     UnknownEventTypeError,
     event_payload_schema,
+    inbound_signal_schema,
     known_event_types,
     list_schemas,
     load_schema,
@@ -19,6 +20,7 @@ from bbz_event_schemas.loader import (
 __all__ = [
     "UnknownEventTypeError",
     "event_payload_schema",
+    "inbound_signal_schema",
     "known_event_types",
     "list_schemas",
     "load_schema",

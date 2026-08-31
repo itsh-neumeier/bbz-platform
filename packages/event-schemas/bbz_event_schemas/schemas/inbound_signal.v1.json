@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://bbz-platform/schemas/inbound_signal.v1.json",
+  "title": "BBZ Normalized Inbound Signal",
+  "description": ".ai/TECHNICAL_TRIGGERS.md — the provider-neutral shape every inbound signal (telephony, video alarm, door, BMA, panic) is normalized to BEFORE trigger-rule evaluation. The core never inspects raw Cisco/Coda/Siedle payloads; only these allowlisted fields exist. additionalProperties:false at every level.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["signal_type", "provider", "occurred_at", "received_at", "gateway_node", "source"],
+  "properties": {
+    "signal_type": {
+      "type": "string",
+      "enum": [
+        "CALL_RINGING",
+        "CALL_ANSWERED",
+        "CALL_ENDED",
+        "TECHNICAL_ALARM_RAISED",
+        "PANIC_ALARM_RAISED",
+        "DOORBELL_RINGING",
+        "BMA_ALARM_CALL"
+      ]
+    },
+    "provider": { "type": "string", "minLength": 1 },
+    "occurred_at": { "type": "string", "format": "date-time" },
+    "received_at": { "type": "string", "format": "date-time" },
+    "gateway_node": { "type": "string", "minLength": 1 },
+    "correlation_id": { "type": ["string", "null"] },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Allowlisted normalized fields a trigger rule may condition on.",
+      "properties": {
+        "ani": { "type": ["string", "null"], "description": "calling number" },
+        "dnis": { "type": ["string", "null"], "description": "called number" },
+        "cti_route_point": { "type": ["string", "null"] },
+        "technical_endpoint_id": { "type": ["string", "null"] },
+        "external_source_id": { "type": ["string", "null"] },
+        "site": { "type": ["string", "null"] },
+        "direction": { "type": ["string", "null"], "enum": ["inbound", "outbound", null] },
+        "call_state": { "type": ["string", "null"] },
+        "alarm_subtype": { "type": ["string", "null"] },
+        "severity": {
+          "type": ["string", "null"],
+          "enum": ["critical", "high", "medium", "low", null]
+        }
+      }
+    }
+  }
+}

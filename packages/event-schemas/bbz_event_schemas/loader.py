@@ -41,6 +41,11 @@ def known_event_types(schema_version: int = 1) -> frozenset[str]:
     return frozenset(_payloads(schema_version))
 
 
+def inbound_signal_schema(schema_version: int = 1) -> dict[str, Any]:
+    """The JSON Schema for the normalized inbound signal (E15-04)."""
+    return load_schema(f"inbound_signal.v{schema_version}")
+
+
 def event_payload_schema(event_type: str, schema_version: int = 1) -> dict[str, Any]:
     """The JSON Schema for one ``event_type`` payload at ``schema_version``.
 
