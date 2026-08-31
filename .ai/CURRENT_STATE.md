@@ -774,7 +774,7 @@ E11-12 (ringing-call list) needs E11-08's priority. Epic 07 / 08, #92, the Go
 agents (09/10 impl) and the #429 browser E2E stay blocked on a Node / Go /
 multi-host session.
 
-### Epic 14 – Contacts / Call Priorities: **in progress (3/10)**
+### Epic 14 – Contacts / Call Priorities: **in progress (4/10)**
 - **#285 (E14-01) contacts schema** — migration 0027 + `contacts.py`:
   `contacts` (name, org, notes, `quick_dial`, `bbz_id` scope — plain UUID like
   `events.bbz_id`), `contact_numbers` (`e164` stored normalized — a CHECK
@@ -802,8 +802,18 @@ multi-host session.
   `from` [null on first assignment], `to`, `actor_id`; + event-catalog row) and
   one audit entry with before/after, `event_seq_ref` linked. New `AuditAction`
   in `CRITICAL_ACTIONS`. `test_contact_priority_api.py`.
-- Next: E14-04 (number→contact matching, unblocks E11-08), E14-05 (event/audit
-  wiring), E14-06 (quick-dial). E14-07..10 are frontend → blocked.
+- **#291 (E14-04) number→contact matching** — pure `bbz_core.domain.contacts`
+  (`normalize_number`): DE-centric E.164 rules (`+49…` / `0049…` / `0…` trunk;
+  a bare ≤6-digit block is a PBX extension; no country-code guessing, never
+  raises — no external phone-number lib). `ContactMatcher`
+  (`infra/repositories/contact_matching.py`): exact / base-plus-extension
+  (prefix) / digit-suffix match against live contacts' numbers, longest wins,
+  a tie across contacts → `ambiguous` (= unknown). 30 s per-process TTL cache
+  (`clear_matcher_cache()` wired into the conftest reset). No endpoint / audit /
+  permission — E11-08 (caller resolution) is the consumer.
+  `test_phone_number_normalization.py` (31-case matrix), `test_contact_matching.py`.
+- Next: E14-05 (event/audit wiring), E14-06 (quick-dial). E14-07..10 are
+  frontend → blocked. **E11-08 is now unblocked** (has `ContactMatcher`).
 
 ## Existing reference
 A functional HTML mockup defines important UX/feature behavior. **It is not yet in
