@@ -99,7 +99,25 @@ async def _login(client: httpx.AsyncClient, username: str) -> None:
 
 
 async def _inbox_count(s: AsyncSession) -> int:
-    return (await s.execute(select(func.count()).select_from(ProviderEventInbox))).scalar_one()
+    """Raw telephony rows only — a call event that maps to an inbound signal also
+    queues a ``signal:`` row for the trigger engine (E15-15 / ADR-0024)."""
+    return (
+        await s.execute(
+            select(func.count())
+            .select_from(ProviderEventInbox)
+            .where(~ProviderEventInbox.dedupe_key.like("signal:%"))
+        )
+    ).scalar_one()
+
+
+async def _signal_count(s: AsyncSession) -> int:
+    return (
+        await s.execute(
+            select(func.count())
+            .select_from(ProviderEventInbox)
+            .where(ProviderEventInbox.dedupe_key.like("signal:%"))
+        )
+    ).scalar_one()
 
 
 # --- unit: the dedupe key ---------------------------------------------------
@@ -141,6 +159,7 @@ async def test_new_event_is_ingested_and_dispatched_once(env: tuple) -> None:
     assert r.status_code == 200 and r.json()["outcome"] == "new"
     assert seen == ["CALL_ANSWERED"]
     assert await _inbox_count(s) == 1
+    assert await _signal_count(s) == 1  # queued for the trigger engine (E15-15)
 
 
 async def test_reconnect_replay_is_a_duplicate(env: tuple) -> None:

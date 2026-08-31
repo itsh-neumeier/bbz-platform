@@ -864,7 +864,7 @@ API. `integrations/telephony_cucm/` stays a placeholder README.
 - **E14-07..10 are frontend → blocked.** Epic 14 backend is done bar the UI.
   **E11-08 is unblocked** (has `ContactMatcher`).
 
-### Epic 15 – Technical Endpoints / Trigger Engine: **in progress (13/15, E15-14 backend only)**
+### Epic 15 – Technical Endpoints / Trigger Engine: **14/15 (E15-07 → Epic 16; E15-14 frontend → Epic 07)**
 - **#305 (E15-01) technical-endpoints schema** — migration 0030 +
   `technical_endpoints.py` (MASTER_PROMPT §29 — **not** modelled as contacts):
   `technical_endpoints` (name, site, `type` `door_station|bma|panic_button|
@@ -1047,8 +1047,24 @@ API. `integrations/telephony_cucm/` stays a placeholder README.
   only ever reaches its bound workplace — a mismatched `workplace_id` on an
   action is 403. New `AuditAction.CLIENT_POPUP_DELIVERED` in `CRITICAL_ACTIONS`.
   `test_client_popup_delivery.py`. No migration (`client_popup_events` is E15-03).
-- Next: E15-15 (E2E — needs compose orchestration). E15-07 (open_camera) needs
-  Epic 16. E15-14 frontend stays blocked on Epic 07.
+- **#333 (E15-15) trigger-engine E2E + ingest wiring** — **ADR-0024**: a
+  normalized inbound signal is queued as its **own** `provider_event_inbox` row
+  (`signal:` dedupe key) and executed by a new leader-elected singleton
+  **`trigger-engine`** (alongside `outbox-dispatcher` / `workflow-timer`) whose
+  tick runs `TriggerEngine.resume_unprocessed()`. `ingest_telephony_event`, on a
+  new event, maps it with `from_telephony_event` and — if it yields a signal —
+  queues that row (`_queue_signal`, best-effort: a mapping failure is logged, not
+  raised, so it never breaks call ingestion). `TriggerEngine.process_inbox_event`
+  already skips non-signal rows, so the raw telephony rows stay inert to it.
+  `test_e2e_trigger_engine.py` walks it end to end at the API level: `POST
+  /api/v1/telephony/events` (CALL_RINGING to the BMA number) → one `signal:` row,
+  unprocessed → `trigger-engine` tick → exactly one critical event + bound
+  workflow version + `EVENT_CREATED` + 2× `TRIGGER_EXECUTED`; a duplicate
+  provider event queues no second signal; a failover replay (row reset to
+  unprocessed) re-drains without duplicating (the `trigger_executions` claims
+  block it).
+- **Epic 15 done bar:** E15-07 (`open_camera` action) → needs Epic 16; E15-14
+  **frontend** (popup UI, keyboard, Playwright) → needs Epic 07.
 
 ## Existing reference
 A functional HTML mockup defines important UX/feature behavior. **It is not yet in
@@ -1149,6 +1165,11 @@ store (etcd).
 audit immutability (E04-10 / #66, Proposed), **0021 PostgreSQL replication mode
 (E06-02 / #82 — Accepted: synchronous + auto fallback)**, 0022 Electron load
 strategy (E08-07 / #143), 0023 SIP gateway (E13-02 / #271).
+
+**Added outside the roadmap schedule:** **0024 trigger execution via a
+leader-elected drain worker (E15-15 / #333 — Accepted)** — a normalized inbound
+signal is queued in the provider inbox and drained by the new `trigger-engine`
+singleton; ingestion stays fast and cannot be broken by a rule.
 
 ## Open external dependencies
 - exact Cisco CUCM version/SU and productive cluster/CTI configuration (§8.18)

@@ -15,6 +15,11 @@ CTI events (no ``source_call_id``) dedupe on the provider's own
 
 Hand-off to the call aggregate (E11-04) is a registered hook; until it is set,
 ingestion just validates + stores + dedupes.
+
+A new event that maps to a normalized inbound signal (``from_telephony_event``,
+E15-04) is also queued as its own unprocessed inbox row (``signal:`` dedupe key)
+for the trigger-engine drain worker (ADR-0024 / E15-15). A mapping failure there
+is logged and swallowed — it must never break call ingestion.
 """
 
 from __future__ import annotations
@@ -26,8 +31,13 @@ from typing import Any
 import jsonschema
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from bbz_core.domain.triggers import from_telephony_event
+from bbz_core.infra.inbound_signals import record_inbound_signal
 from bbz_core.infra.inbox import IngestOutcome, IngestResult, ingest, mark_processed
+from bbz_core.logging import get_logger
 from bbz_event_schemas import load_schema
+
+_log = get_logger(__name__)
 
 _SCHEMA = "telephony_event.v1"
 
@@ -100,4 +110,27 @@ async def ingest_telephony_event(session: AsyncSession, raw: dict[str, Any]) -> 
         if _dispatch is not None:
             await _dispatch(session, raw)
         await mark_processed(session, result.inbox_id)
+        await _queue_signal(session, raw)
     return result
+
+
+async def _queue_signal(session: AsyncSession, raw: dict[str, Any]) -> None:
+    """Queue the normalized inbound signal for the trigger engine (ADR-0024).
+
+    Best-effort: a mapping failure is logged, not raised — the call was already
+    ingested and must not be undone by a trigger problem.
+    """
+    try:
+        signal = from_telephony_event(raw)
+    except Exception:
+        # a bad mapping must not break call ingestion (ADR-0024)
+        _log.warning("telephony_signal_map_failed", event_id=raw.get("telephony_event_id"))
+        return
+    if signal is None:
+        return
+    await record_inbound_signal(
+        session,
+        signal=signal,
+        provider_event_id=raw["telephony_event_id"],
+        dedupe_key=f"signal:{telephony_dedupe_key(raw)}",
+    )
