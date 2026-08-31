@@ -95,10 +95,24 @@ def test_the_door_station_columns_exist_and_are_nullable() -> None:
         assert name in cols and cols[name].nullable
 
 
+async def _door_profile(s: AsyncSession) -> str:
+    """A door_action_profile the endpoint can reference (E17-02 FK). The
+    ciphertext content is irrelevant to this test — no key needed."""
+    from bbz_core.infra.models.door_action_profiles import DoorActionProfile
+
+    await s.rollback()
+    async with s.begin():
+        p = DoorActionProfile(name=f"p-{uuid.uuid4().hex[:6]}", dtmf_ciphertext="stub")
+        s.add(p)
+        await s.flush()
+        return str(p.id)
+
+
 async def test_a_door_station_profile_round_trips(env: tuple) -> None:
     client, s = env
     await _make_user(s, "dsa", _FULL)
     await _login(client, "dsa")
+    profile_id = await _door_profile(s)
 
     r = await client.post(
         "/api/v1/technical-endpoints",
@@ -106,7 +120,7 @@ async def test_a_door_station_profile_round_trips(env: tuple) -> None:
             "name": "Klingel Haupteingang",
             "type": "door_station",
             "site": "Nord",
-            "dtmf_profile_id": _PROFILE_ID,
+            "dtmf_profile_id": profile_id,
             "popup_text": "Klingeln: Haupteingang",
             "door_open_timeout_seconds": 20,
             "numbers": [{"called_pattern": "200", "cti_route_point": "RP_TUER"}],
@@ -114,12 +128,12 @@ async def test_a_door_station_profile_round_trips(env: tuple) -> None:
     )
     assert r.status_code == 201, r.text
     body = r.json()
-    assert body["dtmf_profile_id"] == _PROFILE_ID
+    assert body["dtmf_profile_id"] == profile_id
     assert body["popup_text"] == "Klingeln: Haupteingang"
     assert body["door_open_timeout_seconds"] == 20
 
     got = (await client.get(f"/api/v1/technical-endpoints/{body['id']}")).json()
-    assert got["dtmf_profile_id"] == _PROFILE_ID
+    assert got["dtmf_profile_id"] == profile_id
 
     patched = await client.patch(
         f"/api/v1/technical-endpoints/{body['id']}",

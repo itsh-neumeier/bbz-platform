@@ -1212,7 +1212,7 @@ API. `integrations/telephony_cucm/` stays a placeholder README.
 - **Epic 16 backend complete (12/13).** **E16-12** (camera-view UI) is the only
   open item — needs Epic 07 (E07-08); deferred to the frontend phase.
 
-### Epic 17 – Siedle: **in progress (1/7)**
+### Epic 17 – Siedle: **in progress (2/7)**
 - **#361 (E17-01) Siedle door-station endpoint profile** — migration
   `0035_door_station_fields` adds `technical_endpoints.dtmf_profile_id` (a
   reference id **only** — the code lives encrypted in `door_action_profiles`,
@@ -1225,9 +1225,22 @@ API. `integrations/telephony_cucm/` stays a placeholder README.
   Real `alembic up/down/up` verified. `test_siedle_endpoint_profile.py`;
   `test_technical_endpoints_api.py` / `test_trigger_unmapped_queue.py` gain
   `door.configure` where they create door stations.
-- Next: **E17-02** (`door_action_profiles` schema — DTMF ciphertext via the
-  Fernet secret-store pattern, id-only reference; deps E01-03/E02-01) then
-  **E17-03** (`DOORBELL_RINGING` trigger).
+- **#363 (E17-02) `door_action_profiles` schema — encrypted DTMF** — migration
+  `0036_door_action_profiles` + `door_action_profiles` (id, name UNIQUE,
+  `dtmf_ciphertext`, `post_dtmf_delay_ms` CHECK 0–10000, `auto_hangup`,
+  `created_by`) and the FK from `technical_endpoints.dtmf_profile_id` → it
+  (`ON DELETE SET NULL`, also wired into the ORM model). `bbz_core.infra.door_secrets`
+  (Fernet, `BBZ_DOOR_DTMF_ENCRYPTION_KEY`, mirrors `auth.totp`; real store is
+  ADR-0019 / Epic 23). `DoorActionProfileService` + `/api/v1/door-action-profiles`
+  CRUD (`door.configure`): the plaintext code enters once in a POST/PATCH body,
+  is encrypted immediately, and is **never** returned (`ProfileOut` has a
+  `configured: bool`, no code field), logged, or audited — the audit rows carry
+  field **names** only. `resolve_dtmf()` decrypts for the door-open flow (E17-05).
+  `TechnicalEndpointService` now rejects an unknown `dtmf_profile_id` (422).
+  New `ServiceUnavailableError` (503) → returned when the key is unset. Real
+  `alembic up/down/up` verified. `test_door_action_profiles_api.py`.
+- Next: **E17-03** (`DOORBELL_RINGING` trigger; deps E11-03/E15-04/E15-09) then
+  **E17-04** (klingel popup + camera side-effect).
 
 ## Existing reference
 A functional HTML mockup defines important UX/feature behavior. **It is not yet in

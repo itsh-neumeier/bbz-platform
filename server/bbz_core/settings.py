@@ -79,6 +79,11 @@ class Settings(BaseSettings):
     # --- MFA / TOTP (E02-13). Fernet key (urlsafe-base64, 32 bytes) for the
     # secret at rest; empty in dev disables enrolment. Real secret store: ADR-0019.
     totp_encryption_key: str = ""
+
+    # --- door control (E17-02). Fernet key for the door-open DTMF code at rest
+    # (MASTER_PROMPT §30). Empty in dev/CI disables door-action profiles. Real
+    # secret store: ADR-0019 / Epic 23.
+    door_dtmf_encryption_key: str = ""
     totp_issuer: str = "BBZ / 3-S-Zentrale"
 
     # --- auth: sessions / tokens (E02-05; secret via ADR-0015 in prod) ---

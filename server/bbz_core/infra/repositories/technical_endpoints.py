@@ -20,6 +20,7 @@ from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from bbz_core.audit import AuditAction, AuditService, changed_fields
+from bbz_core.infra.models.door_action_profiles import DoorActionProfile
 from bbz_core.infra.models.technical_endpoints import (
     TechnicalEndpoint,
     TechnicalEndpointNumber,
@@ -148,6 +149,7 @@ class TechnicalEndpointService:
         _validate_type(data.type)
         _validate_priority(data.default_priority)
         await self._s.rollback()
+        await self._validate_dtmf_profile(data.dtmf_profile_id)
         endpoint = TechnicalEndpoint(
             name=data.name,
             site=data.site,
@@ -192,6 +194,8 @@ class TechnicalEndpointService:
             _validate_priority(changes["default_priority"])
 
         await self._s.rollback()
+        if "dtmf_profile_id" in changes:
+            await self._validate_dtmf_profile(changes["dtmf_profile_id"])
         endpoint = await self._s.get(TechnicalEndpoint, endpoint_id)
         if endpoint is None:
             raise EndpointNotFoundError(str(endpoint_id))
@@ -238,6 +242,18 @@ class TechnicalEndpointService:
         await self._s.commit()
 
     # --- internals ----------------------------------------------------------
+
+    async def _validate_dtmf_profile(self, profile_id: uuid.UUID | str | None) -> None:
+        """A door-station endpoint may only reference an existing door_action_profile."""
+        if profile_id in (None, ""):
+            return
+        exists = (
+            await self._s.execute(
+                select(DoorActionProfile.id).where(DoorActionProfile.id == profile_id)
+            )
+        ).scalar_one_or_none()
+        if exists is None:
+            raise InvalidEndpointError(f"unknown dtmf_profile_id: {profile_id}")
 
     async def _numbers(self, endpoint_id: uuid.UUID) -> list[TechnicalEndpointNumber]:
         return list(
