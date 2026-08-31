@@ -127,7 +127,11 @@ class DoorOpenService:
         call_id: str,
         command_id: uuid.UUID,
         actor_id: uuid.UUID | None,
+        may_answer: bool = True,
     ) -> DoorOpenResult:
+        """``may_answer`` — whether the caller holds ``door.answer`` (the API
+        resolves it; a ringing call that needs answering without it →
+        ``answer_forbidden``). Defaults to ``True`` for direct/service callers."""
         rhash = request_hash({"endpoint_id": str(endpoint_id), "call_id": call_id})
         async with idempotent(
             self._s,
@@ -233,6 +237,7 @@ class DoorOpenService:
                         delay_ms=delay_ms,
                         auto_hangup=auto_hangup,
                         timeout_s=timeout_s,
+                        may_answer=may_answer,
                     )
                     detail = scrub(detail)  # mask before it spreads to the row / result
             del digits  # drop the plaintext as soon as the flow is done
@@ -280,6 +285,7 @@ class DoorOpenService:
         delay_ms: int,
         auto_hangup: bool,
         timeout_s: int,
+        may_answer: bool,
     ) -> tuple[str, str]:
         try:
             provider = await active_telephony_provider()
@@ -298,6 +304,11 @@ class DoorOpenService:
                 return DoorOpenOutcome.CALLER_GONE.value, "no active call for the given call_id"
 
             if str(snap.state) in _RINGING_STATES:
+                if not may_answer:
+                    return (
+                        DoorOpenOutcome.ANSWER_FORBIDDEN.value,
+                        "the doorbell call must be answered first — needs door.answer",
+                    )
                 await self._set_state(cmd_pk, DoorOpenState.ANSWERING)
                 await provider.answer(call_id=call_id, command_id=f"door:{command_id}:answer")
 

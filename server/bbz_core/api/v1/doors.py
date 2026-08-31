@@ -30,8 +30,10 @@ from bbz_core.api.errors import (
     ValidationError,
 )
 from bbz_core.api.idempotency import CommandEnvelope, command_envelope
+from bbz_core.authorization import PermissionService
 from bbz_core.infra.door_secrets import DoorSecretsNotConfigured
 from bbz_core.infra.idempotency import CommandConflictError, CommandInProgressError
+from bbz_core.infra.repositories.authorization import SqlAlchemyGrantStore
 from bbz_core.infra.repositories.door_open import DoorOpenError, DoorOpenService
 
 router = APIRouter(prefix="/doors", tags=["doors"])
@@ -48,7 +50,8 @@ class DoorOpenOut(BaseModel):
     command_id: uuid.UUID
     endpoint_id: uuid.UUID
     #: ``opened`` | ``caller_gone`` | ``media_timeout`` | ``no_dtmf_capability`` |
-    #: ``no_profile`` | ``provider_error`` | ``telephony_unavailable``
+    #: ``no_profile`` | ``provider_error`` | ``telephony_unavailable`` |
+    #: ``answer_forbidden`` (call still ringing, caller lacks ``door.answer``)
     outcome: str
     opened: bool
     detail: str
@@ -78,12 +81,18 @@ async def open_door(
     env: CommandEnvelope = Depends(command_envelope),
     session: AsyncSession = Depends(db_session),
 ) -> DoorOpenOut:
+    # answering a still-ringing doorbell call is a separate privilege
+    # (INTEGRATIONS_SIEDLE.md / §30.2 "door.answer falls Annahme nötig")
+    may_answer = await PermissionService(SqlAlchemyGrantStore(session)).authorize(
+        ctx.user_id, "door.answer"
+    )
     with _translate():
         result = await DoorOpenService(session).open(
             endpoint_id=endpoint_id,
             call_id=body.call_id,
             command_id=env.command_id,
             actor_id=ctx.user_id,
+            may_answer=may_answer,
         )
     return DoorOpenOut(
         command_id=result.command_id,
