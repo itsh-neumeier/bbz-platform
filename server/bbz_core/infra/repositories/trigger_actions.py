@@ -37,6 +37,7 @@ from bbz_core.domain.triggers import TriggerActionType
 from bbz_core.infra.event_log import append_event
 from bbz_core.infra.event_stream import notify_event_appended
 from bbz_core.infra.models.client_popup_events import ClientPopupEvent
+from bbz_core.infra.models.technical_endpoints import TechnicalEndpoint
 from bbz_core.infra.models.trigger_rules import (
     TriggerExecution,
     TriggerExecutionStatus,
@@ -384,10 +385,12 @@ class TriggerActionService:
         ttl = int(action.get("ttl_seconds", _DEFAULT_POPUP_TTL_SECONDS))
         expires_at = _dt.datetime.now(_dt.UTC) + _dt.timedelta(seconds=ttl)
         kind = str(action.get("kind", "trigger"))
+        payload = dict(action.get("payload") or {})
+        await self._fill_doorbell_text(state, payload)
         popup = ClientPopupEvent(
             workplace_id=workplace_id,
             kind=kind,
-            payload=dict(action.get("payload") or {}),
+            payload=payload,
             expires_at=expires_at,
         )
         self._s.add(popup)
@@ -408,6 +411,22 @@ class TriggerActionService:
             user_id=state.actor_id,
         )
         return {"popup_id": str(popup.id), "workplace_id": str(workplace_id)}
+
+    async def _fill_doorbell_text(self, state: _RunState, payload: dict[str, Any]) -> None:
+        """A ``DOORBELL_RINGING`` popup that carries no ``text`` shows the door
+        station's configured ``popup_text`` — e.g. "Klingeln: Haupteingang"
+        (E17-04). No secrets involved."""
+        src = state.signal.get("source") or {}
+        endpoint_id = src.get("technical_endpoint_id")
+        if (
+            state.signal.get("signal_type") != "DOORBELL_RINGING"
+            or payload.get("text")
+            or not endpoint_id
+        ):
+            return
+        endpoint = await self._s.get(TechnicalEndpoint, _as_uuid(endpoint_id))
+        if endpoint is not None and endpoint.popup_text:
+            payload["text"] = endpoint.popup_text
 
     async def _notify(self, state: _RunState, index: int, action: dict[str, Any]) -> dict[str, Any]:
         dedupe = f"trigger:{state.provider_event_id}:{state.rule_version_id}:{index}"
