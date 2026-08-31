@@ -864,7 +864,7 @@ API. `integrations/telephony_cucm/` stays a placeholder README.
 - **E14-07..10 are frontend → blocked.** Epic 14 backend is done bar the UI.
   **E11-08 is unblocked** (has `ContactMatcher`).
 
-### Epic 15 – Technical Endpoints / Trigger Engine: **in progress (10/15)**
+### Epic 15 – Technical Endpoints / Trigger Engine: **in progress (11/15)**
 - **#305 (E15-01) technical-endpoints schema** — migration 0030 +
   `technical_endpoints.py` (MASTER_PROMPT §29 — **not** modelled as contacts):
   `technical_endpoints` (name, site, `type` `door_station|bma|panic_button|
@@ -999,8 +999,25 @@ API. `integrations/telephony_cucm/` stays a placeholder README.
   (a published version can't carry them — E15-10 gate — but the report never
   echoes a secret). `SimulationReport(signal_type, matched[], planned_action_count,
   executed=False)`. `test_trigger_simulation_api.py`.
-- Next: E15-12 (unmapped-source queue + diagnostics), E15-13 (BMA flow), E15-14
-  (client-popup delivery), E15-15 (E2E). E15-07 (open_camera) needs Epic 16.
+- **#326 (E15-12) unmapped-source queue + diagnostics** — migration **0033**
+  `unmapped_signals` (dedupe_key UNIQUE, provider, signal_type, source JSONB,
+  sample JSONB, occurrences, first/last_seen_at, resolved_at/by/endpoint_id,
+  note). When the engine (E15-09) matches a **valid** signal to **no published
+  rule**, `record_unmapped()` upserts a row (bumps `occurrences` +
+  `last_seen_at`) — never an error, processing still completes and the inbox row
+  is marked processed. `bbz_core.infra.repositories.unmapped_signals`:
+  `unmapped_dedupe_key()` (provider + type + a fingerprint of the source
+  identifiers), `UnmappedSignalService.list_queue / resolve / diagnostics`. API
+  (`trigger_diagnostics.py`, prefix `/trigger`): `GET /api/v1/trigger/unmapped`
+  (`?include_resolved`), `POST /api/v1/trigger/unmapped/{id}/resolve`
+  (`{endpoint_id?, note?}` — binds the source to a technical endpoint or just
+  dismisses; audit `TECHNICAL_ENDPOINT_MAPPED`), `GET /api/v1/trigger/diagnostics`
+  (open / resolved / total_occurrences / open_by_signal_type). Reads
+  `technical_endpoints.view`, resolve `technical_endpoints.manage`. Migration
+  up/down/up verified on real PG. `test_trigger_unmapped_queue.py`.
+- Next: E15-13 (BMA flow: number match → one critical event + workflow +
+  duplicate protection), E15-14 (client-popup delivery — backend part),
+  E15-15 (E2E). E15-07 (open_camera) needs Epic 16.
 
 ## Existing reference
 A functional HTML mockup defines important UX/feature behavior. **It is not yet in

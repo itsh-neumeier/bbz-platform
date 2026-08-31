@@ -37,6 +37,7 @@ from bbz_core.infra.inbox import mark_processed
 from bbz_core.infra.models.inbox import ProviderEventInbox
 from bbz_core.infra.models.trigger_rules import TriggerLifecycle, TriggerRule, TriggerRuleVersion
 from bbz_core.infra.repositories.trigger_actions import ActionOutcome, TriggerActionService
+from bbz_core.infra.repositories.unmapped_signals import record_unmapped
 
 _PUBLISHED = TriggerLifecycle.PUBLISHED.value
 
@@ -96,6 +97,10 @@ class TriggerEngine:
             return EngineResult(inbox_id, None, 0, processed=True, actions=[])
 
         matched = select_matching_rules(await self._candidates(), signal)
+        if not matched:
+            # a valid signal nothing handles — a diagnostic for admin mapping
+            # (E15-12), never an error
+            await self._record_unmapped(signal)
         outcomes: list[ActionOutcome] = []
         for cand in matched:
             version = await self._published_version(cand.rule_id)
@@ -227,6 +232,11 @@ class TriggerEngine:
         await self._s.rollback()
         async with self._s.begin():
             await mark_processed(self._s, inbox_id)
+
+    async def _record_unmapped(self, signal: dict[str, Any]) -> None:
+        await self._s.rollback()
+        async with self._s.begin():
+            await record_unmapped(self._s, signal=signal)
 
 
 def _scrub(action: dict[str, Any]) -> dict[str, Any]:
