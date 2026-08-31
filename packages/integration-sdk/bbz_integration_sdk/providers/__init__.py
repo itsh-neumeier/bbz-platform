@@ -8,7 +8,21 @@ reference, alarm context, ...) are finalized alongside the first real provider i
 their respective phases, strictly from official vendor documentation.
 """
 
-from bbz_integration_sdk.providers.alarm_ingress import AlarmIngressProvider
+from bbz_integration_sdk.providers.alarm_ingress import (
+    ALARM_INGRESS_METHODS,
+    AlarmIngressProvider,
+    ExternalAckCapable,
+)
+from bbz_integration_sdk.providers.alarm_types import (
+    ALARM_INGRESS_CAPABILITIES,
+    AlarmContext,
+    AlarmProviderError,
+    AlarmSource,
+    AlarmSourceNotFoundError,
+    ExternalAckNotSupportedError,
+    ExternalAckResult,
+    IncomingAlarm,
+)
 from bbz_integration_sdk.providers.base import Provider, ProviderInfo
 from bbz_integration_sdk.providers.monitor import MonitorProvider
 from bbz_integration_sdk.providers.telephony import TELEPHONY_METHODS, TelephonyProvider
@@ -39,12 +53,18 @@ from bbz_integration_sdk.providers.video_types import (
 from bbz_integration_sdk.providers.weather import WeatherProvider
 
 __all__ = [
+    "ALARM_INGRESS_CAPABILITIES",
+    "ALARM_INGRESS_METHODS",
     "TELEPHONY_CAPABILITIES",
     "TELEPHONY_METHODS",
     "VIDEO_CAPABILITIES",
     "VIDEO_METHODS",
+    "AlarmContext",
     "AlarmContextView",
     "AlarmIngressProvider",
+    "AlarmProviderError",
+    "AlarmSource",
+    "AlarmSourceNotFoundError",
     "CallDirection",
     "CallEvent",
     "CallLifecycleState",
@@ -54,6 +74,10 @@ __all__ = [
     "CameraNotFoundError",
     "CameraView",
     "CommandAccepted",
+    "ExternalAckCapable",
+    "ExternalAckNotSupportedError",
+    "ExternalAckResult",
+    "IncomingAlarm",
     "LineInfo",
     "LineState",
     "MonitorProvider",

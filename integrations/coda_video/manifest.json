@@ -14,7 +14,8 @@
     "video.open_alarm_context",
     "alarm.subscribe",
     "alarm.resolve_source",
-    "alarm.get_context"
+    "alarm.get_context",
+    "alarm.get_associated_cameras"
   ],
   "capability_groups": {
     "video": [
@@ -27,7 +28,8 @@
     "alarm_ingress": [
       "alarm.subscribe",
       "alarm.resolve_source",
-      "alarm.get_context"
+      "alarm.get_context",
+      "alarm.get_associated_cameras"
     ]
   },
   "legacy_display_alias": "Cayuga",

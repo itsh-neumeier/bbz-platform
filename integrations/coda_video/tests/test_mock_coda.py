@@ -7,10 +7,15 @@ import pytest
 
 from bbz_integration_sdk.manifest import ManifestError, validate_manifest
 from bbz_integration_sdk.providers import (
+    ALARM_INGRESS_METHODS,
     VIDEO_METHODS,
+    AlarmContext,
     AlarmIngressProvider,
+    AlarmSource,
     CameraNotFoundError,
     CameraView,
+    ExternalAckCapable,
+    IncomingAlarm,
     ResolvedCamera,
     VideoProvider,
 )
@@ -123,10 +128,30 @@ async def test_simulate_and_consume_alarm() -> None:
             {"external_source_id": "CODA-ALARM-4711", "name": "SP Nbg", "cameras": ["CAM-1"]}
         ]
     )
-    p.simulate_alarm({"id": "e1", "source": "CODA-ALARM-4711", "subtype": "panic_button"})
+    p.simulate_alarm(
+        {"id": "e1", "source": "CODA-ALARM-4711", "subtype": "panic_button", "cameras": ["CAM-1"]}
+    )
     got = [e async for e in p.subscribe_alarms()]
     assert len(got) == 1
-    assert got[0]["provider_event_id"] == "e1"
+    assert isinstance(got[0], IncomingAlarm)
+    assert got[0].provider_event_id == "e1"
+    assert got[0].alarm_subtype == "panic_button"
+    assert got[0].raw["id"] == "e1"  # the vendor payload survives only here
 
     src = await p.resolve_source(external_source_id="CODA-ALARM-4711")
-    assert src is not None and src["name"] == "SP Nbg"
+    assert isinstance(src, AlarmSource) and src.name == "SP Nbg"
+    assert await p.resolve_source(external_source_id="UNKNOWN") is None
+
+
+async def test_alarm_ingress_interface_is_complete_and_typed() -> None:
+    p = MockCodaVideoProvider(simulated_sources=[])
+    for method in ALARM_INGRESS_METHODS:
+        assert callable(getattr(p, method))
+    ctx = await p.get_context(provider_event_id="e1")
+    assert isinstance(ctx, AlarmContext) and ctx.provider_event_id == "e1"
+
+
+def test_external_ack_is_opt_in_and_separate_from_the_bbz_event_ack() -> None:
+    # the mock does not declare alarm.acknowledge_external, so it is not ack-capable
+    assert not isinstance(MockCodaVideoProvider(), ExternalAckCapable)
+    assert "alarm.acknowledge_external" not in _MANIFEST["capabilities"]
