@@ -864,7 +864,7 @@ API. `integrations/telephony_cucm/` stays a placeholder README.
 - **E14-07..10 are frontend → blocked.** Epic 14 backend is done bar the UI.
   **E11-08 is unblocked** (has `ContactMatcher`).
 
-### Epic 15 – Technical Endpoints / Trigger Engine: **in progress (9/15)**
+### Epic 15 – Technical Endpoints / Trigger Engine: **in progress (10/15)**
 - **#305 (E15-01) technical-endpoints schema** — migration 0030 +
   `technical_endpoints.py` (MASTER_PROMPT §29 — **not** modelled as contacts):
   `technical_endpoints` (name, site, `type` `door_station|bma|panic_button|
@@ -988,8 +988,19 @@ API. `integrations/telephony_cucm/` stays a placeholder README.
     (`_IncludedRouter` — `create_app().routes` no longer exposes flat
     `APIRoute`s). Not fixed here; E15-10's own 403-without-permission tests cover
     the new routes. Worth a `fix(tests)` pass to walk `original_router`.
-- Next: E15-11 (simulation mode), E15-12 (unmapped-source queue), E15-13..15.
-  E15-07 (open_camera) needs Epic 16.
+- **#324 (E15-11) simulation / test mode** — `POST /api/v1/trigger-rules/simulate`
+  (`technical_endpoints.manage`, declared before the `{rule_id}` routes) →
+  `TriggerEngine.simulate(signal)`: validates the synthetic signal
+  (`inbound_signal.v1`), selects the matching **published** rules
+  (`select_matching_rules`, same path as the live engine) and reports each rule
+  + the actions it *would* run — **no real effect**: no inbox row, no
+  `trigger_executions`, no outbox, no event, no DTMF, only one `TRIGGER_SIMULATED`
+  audit row. Every reported action is scrubbed of `code`/`dtmf` keys defensively
+  (a published version can't carry them — E15-10 gate — but the report never
+  echoes a secret). `SimulationReport(signal_type, matched[], planned_action_count,
+  executed=False)`. `test_trigger_simulation_api.py`.
+- Next: E15-12 (unmapped-source queue + diagnostics), E15-13 (BMA flow), E15-14
+  (client-popup delivery), E15-15 (E2E). E15-07 (open_camera) needs Epic 16.
 
 ## Existing reference
 A functional HTML mockup defines important UX/feature behavior. **It is not yet in

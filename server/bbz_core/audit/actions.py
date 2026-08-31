@@ -58,6 +58,7 @@ class AuditAction(enum.StrEnum):
     TRIGGER_RULE_VALIDATED = "TRIGGER_RULE_VALIDATED"
     TRIGGER_RULE_PUBLISHED = "TRIGGER_RULE_PUBLISHED"
     TRIGGER_RULE_RETIRED = "TRIGGER_RULE_RETIRED"
+    TRIGGER_SIMULATED = "TRIGGER_SIMULATED"
 
 
 #: Actions that MUST be emitted from a write path (MASTER_PROMPT §17). A missing
@@ -104,5 +105,6 @@ CRITICAL_ACTIONS: frozenset[AuditAction] = frozenset(
         AuditAction.TRIGGER_RULE_VALIDATED,
         AuditAction.TRIGGER_RULE_PUBLISHED,
         AuditAction.TRIGGER_RULE_RETIRED,
+        AuditAction.TRIGGER_SIMULATED,
     }
 )

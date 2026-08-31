@@ -27,13 +27,22 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from bbz_core.domain.triggers import CandidateRule, select_matching_rules
+from bbz_core.audit import AuditAction, AuditService
+from bbz_core.domain.triggers import (
+    CandidateRule,
+    select_matching_rules,
+    validate_inbound_signal,
+)
 from bbz_core.infra.inbox import mark_processed
 from bbz_core.infra.models.inbox import ProviderEventInbox
 from bbz_core.infra.models.trigger_rules import TriggerLifecycle, TriggerRule, TriggerRuleVersion
 from bbz_core.infra.repositories.trigger_actions import ActionOutcome, TriggerActionService
 
 _PUBLISHED = TriggerLifecycle.PUBLISHED.value
+
+#: keys stripped from any action before it appears in a simulation report — a
+#: DTMF code is a secret and must never be echoed (ADR-0004, MASTER_PROMPT §30).
+_SECRET_ACTION_KEYS = ("code", "dtmf")
 
 
 @dataclass(frozen=True)
@@ -43,6 +52,27 @@ class EngineResult:
     matched_rules: int
     processed: bool
     actions: list[ActionOutcome] = field(default_factory=list)
+
+
+@dataclass(frozen=True)
+class SimulatedRule:
+    rule_id: uuid.UUID
+    rule_name: str
+    priority: int
+    version_id: uuid.UUID
+    version_no: int
+    actions: list[dict[str, Any]]
+
+
+@dataclass(frozen=True)
+class SimulationReport:
+    """The result of a dry-run (roadmap E15-11). ``executed`` is always ``False``:
+    no inbox row, no ``trigger_executions``, no outbox, no event, no DTMF."""
+
+    signal_type: str
+    matched: list[SimulatedRule]
+    planned_action_count: int
+    executed: bool = False
 
 
 class TriggerEngine:
@@ -104,6 +134,59 @@ class TriggerEngine:
         )
         return [await self.process_inbox_event(i, actor_id=actor_id) for i in ids]
 
+    async def simulate(
+        self, signal: dict[str, Any], *, actor_id: uuid.UUID | None = None
+    ) -> SimulationReport:
+        """Dry-run a synthetic signal against the **published** rules (E15-11).
+
+        Selects the matching rules and lists the actions each would run — with no
+        real effect whatsoever: nothing is written to the inbox, the
+        ``trigger_executions`` ledger, the outbox, or the event store, and no
+        DTMF is sent. Only one ``TRIGGER_SIMULATED`` audit row is written, so a
+        test against a live door station leaves a trace but opens nothing.
+
+        Raises :class:`bbz_core.domain.triggers.InboundSignalRejected` if the
+        signal does not validate against ``inbound_signal.v1``.
+        """
+        await self._s.rollback()
+        validate_inbound_signal(signal)  # -> InboundSignalRejected on a bad signal
+        signal_type = str(signal.get("signal_type", ""))
+
+        matched: list[SimulatedRule] = []
+        for cand in select_matching_rules(await self._candidates(), signal):
+            version = await self._published_version(cand.rule_id)
+            rule = await self._s.get(TriggerRule, cand.rule_id)
+            if version is None or rule is None:
+                continue
+            matched.append(
+                SimulatedRule(
+                    rule_id=cand.rule_id,
+                    rule_name=rule.name,
+                    priority=cand.priority,
+                    version_id=version.id,
+                    version_no=version.version_no,
+                    actions=[_scrub(dict(a)) for a in (version.actions or [])],
+                )
+            )
+
+        planned = sum(len(r.actions) for r in matched)
+        await self._s.rollback()  # close the autobegun read tx before begin()
+        async with self._s.begin():
+            await AuditService(self._s).write(
+                AuditAction.TRIGGER_SIMULATED,
+                actor_user_id=actor_id,
+                target_type="trigger_simulation",
+                target_id=signal_type or "unknown",
+                after={
+                    "signal_type": signal_type,
+                    "matched_rule_ids": [str(r.rule_id) for r in matched],
+                    "planned_action_count": planned,
+                },
+            )
+        return SimulationReport(
+            signal_type=signal_type, matched=matched, planned_action_count=planned
+        )
+
     # --- internals -----------------------------------------------------
 
     async def _candidates(self) -> list[CandidateRule]:
@@ -144,6 +227,12 @@ class TriggerEngine:
         await self._s.rollback()
         async with self._s.begin():
             await mark_processed(self._s, inbox_id)
+
+
+def _scrub(action: dict[str, Any]) -> dict[str, Any]:
+    for key in _SECRET_ACTION_KEYS:
+        action.pop(key, None)
+    return action
 
 
 async def process_signal(
