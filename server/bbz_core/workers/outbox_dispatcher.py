@@ -51,6 +51,38 @@ async def _notify(payload: dict[str, Any]) -> dict[str, Any] | None:
 DEFAULT_HANDLERS: dict[str, Handler] = {"noop": _noop, "notify": _notify}
 
 
+async def _on_terminal_failure(session: AsyncSession, row: ExternalActionOutbox) -> None:
+    """A camera action that exhausted its retries is recorded on the triggering
+    event (E16-08) so an operator sees the view is unavailable — the event and
+    its popup are untouched. Best-effort: never re-raises into the dispatcher.
+    """
+    from bbz_core.workers.camera_handlers import CAMERA_ACTION_TYPES
+
+    event_id = row.payload.get("event_id")
+    if row.action_type not in CAMERA_ACTION_TYPES or not event_id:
+        return
+    from bbz_core.infra.event_log import append_event
+
+    refs = row.payload.get("camera_refs") or (
+        [row.payload["camera_ref"]] if row.payload.get("camera_ref") else []
+    )
+    try:
+        await append_event(
+            session,
+            aggregate_type="event",
+            aggregate_id=str(event_id),
+            event_type="CAMERA_ACTION_FAILED",
+            payload={
+                "action_type": row.action_type,
+                "camera_refs": [str(r) for r in refs],
+                "error": row.last_error,
+                "attempts": row.attempts,
+            },
+        )
+    except Exception:  # pragma: no cover - the failure note must never block the worker
+        _log.warning("camera_failure_note_failed", outbox_id=str(row.id))
+
+
 class OutboxDispatcher:
     def __init__(self, handlers: dict[str, Handler] | None = None) -> None:
         self._handlers = dict(DEFAULT_HANDLERS if handlers is None else handlers)
@@ -90,6 +122,7 @@ class OutboxDispatcher:
                     if row.attempts + 1 >= MAX_ATTEMPTS:
                         await repo.mark_failed(row, error=repr(exc))
                         await self._audit(session, row, ok=False)
+                        await _on_terminal_failure(session, row)
                     else:
                         await repo.mark_retry(row, error=repr(exc))
                     return

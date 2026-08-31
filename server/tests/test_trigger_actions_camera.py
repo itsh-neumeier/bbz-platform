@@ -98,14 +98,14 @@ async def test_camera_actions_enqueue_one_normalized_row_each_in_order(s: AsyncS
     rows = await _outbox(s)
     types = [r.action_type for r in rows]
     assert types == ["open_camera", "open_camera_group", "integration_action"]
-    assert rows[0].payload == {"camera_ref": "CAM-SP-NBG-01"}
+    assert rows[0].payload["camera_ref"] == "CAM-SP-NBG-01"
     assert rows[1].payload["camera_refs"] == ["CAM-SP-NBG-01", "CAM-SP-NBG-02"]
-    assert rows[2].payload == {
-        "capability": "video.focus_camera",
-        "params": {"preset": "entrance"},
-    }
-    # no vendor object id / handle leaks into the payload
+    assert rows[2].payload["capability"] == "video.focus_camera"
+    assert rows[2].payload["params"] == {"preset": "entrance"}
+    # every row carries a stable command_id (the trigger execution key) for the
+    # E16-08 outbox handler; no vendor object id / handle leaks into the payload
     for r in rows:
+        assert r.payload["command_id"].startswith("trigger:")
         assert "camera_id" not in r.payload and "object_id" not in r.payload
 
 

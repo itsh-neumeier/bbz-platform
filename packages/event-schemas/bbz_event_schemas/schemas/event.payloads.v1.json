@@ -174,6 +174,18 @@
         "expires_at": { "type": "string", "format": "date-time" },
         "actor_id": { "type": ["string", "null"] }
       }
+    },
+    "CAMERA_ACTION_FAILED": {
+      "type": "object",
+      "description": "A trigger open_camera / open_camera_group outbox action exhausted its retries (E16-08). Recorded on the triggering event so an operator sees the camera view is unavailable; the event and its popup are unaffected (MASTER_PROMPT §31/§36).",
+      "required": ["action_type", "camera_refs"],
+      "additionalProperties": true,
+      "properties": {
+        "action_type": { "enum": ["open_camera", "open_camera_group"] },
+        "camera_refs": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+        "error": { "type": ["string", "null"] },
+        "attempts": { "type": ["integer", "null"] }
+      }
     }
   },
   "$defs": {

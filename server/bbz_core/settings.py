@@ -107,6 +107,9 @@ class Settings(BaseSettings):
     # --- telephony (E11-06). Which telephony integration handles call control. ---
     telephony_integration_id: str = "telephony_mock"
 
+    # --- video (E16-08). Which video integration serves camera trigger actions. ---
+    video_integration_id: str = "coda_video"
+
     # --- retention (E20-07, docs/domain/retention-policy.md). Windows for
     # *derived / non-essential* data only. Events, domain events, audit and the
     # event history tables are NEVER pruned (0 would be meaningless there). ---

@@ -1078,7 +1078,7 @@ API. `integrations/telephony_cucm/` stays a placeholder README.
 - **Epic 15 done bar:** E15-14 **frontend** (popup UI, keyboard, Playwright) →
   needs Epic 07. (E15-07 camera/integration actions done — see #317 above.)
 
-### Epic 16 – Coda Video / HxGN dC3 Video: **in progress (7/13)**
+### Epic 16 – Coda Video / HxGN dC3 Video: **in progress (8/13)**
 - **#335 (E16-01) `coda_video` scaffold formalised** — the manifest schema gains
   optional `capability_groups` (named, independently-activatable capability sets;
   every grouped capability must also be in `capabilities` — checked in
@@ -1161,9 +1161,22 @@ API. `integrations/telephony_cucm/` stays a placeholder README.
   `show_client_popup` + `open_camera_group` (decoupled outbox). A duplicate /
   failover alarm dedupes at the inbox → no second event. `test_coda_panic_flow.py`;
   `test_coda_alarm_normalization.py` updated (alarm vs `signal:` rows).
+- **#349 (E16-08) camera open as a decoupled outbox side effect** —
+  `bbz_core.workers.camera_handlers` (`open_camera` / `open_camera_group`) reach
+  the active `video.*` provider (`integrations_host.providers.active_video_provider`,
+  new `video_integration_id` setting → `coda_video`). Registered in the
+  `outbox-dispatcher` tick. A provider error propagates → dispatcher retries with
+  backoff → at `MAX_ATTEMPTS` the row is `failed` (`EXTERNAL_ACTION_FAILED`) **and**
+  a `CAMERA_ACTION_FAILED` domain event is appended to the triggering event (new
+  `event.payloads.v1` sub-schema) — the event and its popup are untouched
+  (MASTER_PROMPT §31/§36). E15-07's camera-action payload gains `command_id` (the
+  trigger execution key, passed straight to the provider for idempotency) and
+  `event_id`. `test_coda_camera_sideeffect.py`; `test_trigger_actions_camera.py`
+  updated for the payload.
 - Blocked: **E16-13** is the gated "real Coda/HxGN dC3 doc" milestone.
-  Next doable: **E16-08** (`open_camera*` outbox **dispatch** handler → `video.*`
-  provider, retry/backoff; deps E16-02 + E15-07) then **E16-09** (full mock).
+  Next doable: **E16-09** (full `coda_video` mock — Panic/Intrusion/generic alarm,
+  1/n cameras, unmapped, duplicate, replay, camera failure; deps E16-02/03) then
+  **E16-10** (Coda diagnostics API; deps E16-04 + E16-08).
 
 ## Existing reference
 A functional HTML mockup defines important UX/feature behavior. **It is not yet in
