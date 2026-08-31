@@ -12,8 +12,12 @@ priority), ``attach_workflow`` (bind the template's published EPK version to tha
 event — idempotent), ``show_client_popup`` (one popup bound to a workplace),
 ``notify`` and the telephony actions ``answer_call`` / ``send_dtmf_profile`` /
 ``hangup_call`` (one ``external_action_outbox`` row each — ``send_dtmf_profile``
-carries the profile **id** only, never a code, ADR-0004). Camera actions are
-E15-07 (needs Epic 16); the engine that selects rules for a signal is E15-09.
+carries the profile **id** only, never a code, ADR-0004). ``open_camera`` /
+``open_camera_group`` / ``integration_action`` (E15-07) likewise enqueue exactly
+one outbox row carrying only normalized handles — a camera failure is a decoupled
+side effect that never blocks the event or the popup (MASTER_PROMPT §31/§36); the
+outbox handler that reaches the ``video.*`` provider is E16-08. The engine that
+selects rules for a signal is E15-09.
 """
 
 from __future__ import annotations
@@ -237,6 +241,14 @@ class TriggerActionService:
         }
     )
 
+    _INTEGRATION_ACTIONS = frozenset(
+        {
+            TriggerActionType.OPEN_CAMERA.value,
+            TriggerActionType.OPEN_CAMERA_GROUP.value,
+            TriggerActionType.INTEGRATION_ACTION.value,
+        }
+    )
+
     async def _dispatch(
         self, state: _RunState, index: int, action_type: str, action: dict[str, Any]
     ) -> dict[str, Any]:
@@ -248,6 +260,8 @@ class TriggerActionService:
             return await self._notify(state, index, action)
         if action_type in self._CALL_ACTIONS:
             return await self._call_action(state, index, action_type, action)
+        if action_type in self._INTEGRATION_ACTIONS:
+            return await self._integration_action(state, index, action_type, action)
         raise TriggerActionError(f"action type not supported here: {action_type!r}")
 
     async def _call_action(
@@ -278,6 +292,52 @@ class TriggerActionService:
             payload=payload,
         )
         return {"enqueued": enqueued, "call_id": str(call_id)}
+
+    async def _integration_action(
+        self, state: _RunState, index: int, action_type: str, action: dict[str, Any]
+    ) -> dict[str, Any]:
+        """Enqueue a camera / generic integration action (E15-07).
+
+        Delivered once by the outbox dispatcher (the ``video.*`` handler is
+        E16-08). The payload carries only normalized handles — never a vendor
+        object id. A camera failure is a decoupled side effect: it can never
+        block the event or the operator popup (MASTER_PROMPT §31/§36).
+        """
+        payload: dict[str, Any] = {}
+        if action_type == TriggerActionType.OPEN_CAMERA.value:
+            camera_ref = action.get("camera_ref") or action.get("camera_id")
+            if not camera_ref:
+                raise TriggerActionError("open_camera requires camera_ref")
+            payload["camera_ref"] = str(camera_ref)
+        elif action_type == TriggerActionType.OPEN_CAMERA_GROUP.value:
+            refs = [str(r) for r in (action.get("camera_refs") or []) if str(r).strip()]
+            group_ref = action.get("camera_group_ref")
+            if not refs and not group_ref:
+                raise TriggerActionError(
+                    "open_camera_group requires camera_refs or camera_group_ref"
+                )
+            if refs:
+                payload["camera_refs"] = refs
+            if group_ref:
+                payload["camera_group_ref"] = str(group_ref)
+        else:  # integration_action
+            capability = action.get("capability")
+            if not capability:
+                raise TriggerActionError("integration_action requires capability")
+            payload["capability"] = str(capability)
+            payload["params"] = dict(action.get("params") or {})
+
+        workplace_id = _as_uuid(action.get("workplace_id"))
+        if workplace_id is not None:
+            payload["workplace_id"] = str(workplace_id)
+
+        enqueued = await enqueue(
+            self._s,
+            dedupe_key=f"trigger:{state.provider_event_id}:{state.rule_version_id}:{index}",
+            action_type=action_type,
+            payload=payload,
+        )
+        return {"enqueued": enqueued, **payload}
 
     async def _create_event(self, state: _RunState, action: dict[str, Any]) -> dict[str, Any]:
         try:

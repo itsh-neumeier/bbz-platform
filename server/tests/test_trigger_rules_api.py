@@ -176,7 +176,7 @@ async def test_validation_reports_bad_conditions_and_actions(env: tuple) -> None
         conditions={"op": "eq", "args": [{"field": "not_a_field"}, "x"]},
         actions=[
             {"type": "send_dtmf_profile", "dtmf_profile_id": "gate", "code": "1234#"},
-            {"type": "open_camera", "camera_id": "c1"},
+            {"type": "launch_catalog_app", "app_id": "cam-viewer"},
         ],
     )
     r = await client.post(f"/api/v1/trigger-rule-versions/{vid}/validate")

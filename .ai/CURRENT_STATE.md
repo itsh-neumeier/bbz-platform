@@ -864,7 +864,7 @@ API. `integrations/telephony_cucm/` stays a placeholder README.
 - **E14-07..10 are frontend → blocked.** Epic 14 backend is done bar the UI.
   **E11-08 is unblocked** (has `ContactMatcher`).
 
-### Epic 15 – Technical Endpoints / Trigger Engine: **15/15 backend done** (E15-07 `open_camera` → Epic 16; E15-14 frontend → Epic 07)
+### Epic 15 – Technical Endpoints / Trigger Engine: **15/15 backend done** (E15-14 frontend → Epic 07)
 - **#305 (E15-01) technical-endpoints schema** — migration 0030 +
   `technical_endpoints.py` (MASTER_PROMPT §29 — **not** modelled as contacts):
   `technical_endpoints` (name, site, `type` `door_station|bma|panic_button|
@@ -941,6 +941,18 @@ API. `integrations/telephony_cucm/` stays a placeholder README.
   (ADR-0004 / §30). `call_id` comes from the action or the signal's
   `source.source_call_id` (added to `inbound_signal.v1.json` +
   `from_telephony_event`). `test_trigger_actions_call.py`.
+- **#317 (E15-07) camera / integration trigger actions** — `open_camera`
+  (`camera_ref`), `open_camera_group` (`camera_refs` or `camera_group_ref`) and
+  the generic `integration_action` (`capability` + `params`) handlers in
+  `TriggerActionService._integration_action`: each enqueues **one**
+  `external_action_outbox` row keyed by the same `trigger:{provider_event_id}:
+  {rule_version_id}:{index}` dedupe key (exactly-once, no double open). The
+  payload carries **only** normalized handles — no vendor object id. A missing /
+  malformed camera ref is recorded `failed` and **never** rolls back an earlier
+  `create_event` / popup (MASTER_PROMPT §31/§36). All three added to
+  `SUPPORTED_ACTION_TYPES` + `_action_config_problems` (publish gate). The outbox
+  **dispatch** handler that reaches the `video.*` provider is **E16-08**.
+  `test_trigger_actions_camera.py`.
 - **#320 (E15-09) rule-execution engine** — `bbz_core.infra.repositories.
   trigger_engine`: after the E04-07 inbox has deduplicated a normalized inbound
   signal, `TriggerEngine.process_inbox_event(inbox_id)` loads every **published**
@@ -1063,8 +1075,8 @@ API. `integrations/telephony_cucm/` stays a placeholder README.
   provider event queues no second signal; a failover replay (row reset to
   unprocessed) re-drains without duplicating (the `trigger_executions` claims
   block it).
-- **Epic 15 done bar:** E15-07 (`open_camera` action) → needs Epic 16; E15-14
-  **frontend** (popup UI, keyboard, Playwright) → needs Epic 07.
+- **Epic 15 done bar:** E15-14 **frontend** (popup UI, keyboard, Playwright) →
+  needs Epic 07. (E15-07 camera/integration actions done — see #317 above.)
 
 ### Epic 16 – Coda Video / HxGN dC3 Video: **in progress (4/13)**
 - **#335 (E16-01) `coda_video` scaffold formalised** — the manifest schema gains

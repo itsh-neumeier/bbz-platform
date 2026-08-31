@@ -96,6 +96,21 @@ def _action_config_problems(action_type: TriggerActionType, action: Mapping[str,
             out.append("send_dtmf_profile requires dtmf_profile_id")
         if "code" in action or "dtmf" in action:
             out.append("a DTMF code must never appear in a rule action")
+    if (
+        action_type is TriggerActionType.OPEN_CAMERA
+        and not str(action.get("camera_ref") or action.get("camera_id") or "").strip()
+    ):
+        out.append("open_camera requires camera_ref")
+    if action_type is TriggerActionType.OPEN_CAMERA_GROUP:
+        refs = action.get("camera_refs")
+        has_list = isinstance(refs, list) and any(str(r).strip() for r in refs)
+        if not has_list and not str(action.get("camera_group_ref") or "").strip():
+            out.append("open_camera_group requires camera_refs or camera_group_ref")
+    if (
+        action_type is TriggerActionType.INTEGRATION_ACTION
+        and not str(action.get("capability") or "").strip()
+    ):
+        out.append("integration_action requires capability")
     return out
 
 
