@@ -30,6 +30,7 @@ from bbz_core.infra.models.contacts import (
     ContactPriorityLevel,
 )
 from bbz_core.infra.models.domain_events import DomainEvent
+from bbz_core.infra.models.door_action_profiles import DoorActionProfile
 from bbz_core.infra.models.events import (
     Event,
     EventAssignment,
@@ -130,6 +131,7 @@ __all__ = [
     "ContactPriority",
     "ContactPriorityLevel",
     "DomainEvent",
+    "DoorActionProfile",
     "Event",
     "EventAssignment",
     "EventNote",

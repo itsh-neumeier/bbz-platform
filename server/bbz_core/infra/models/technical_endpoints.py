@@ -87,8 +87,11 @@ class TechnicalEndpoint(Base, TimestampMixin):
     # --- door station (Siedle, E17-01). INTEGRATIONS_SIEDLE.md §"Technical
     # endpoint model". The DTMF *code* is never stored here — only the id of a
     # ``door_action_profiles`` row (E17-02) that holds it encrypted (§30). ---
-    #: reference to the encrypted door-open DTMF profile (no code, ever)
-    dtmf_profile_id: Mapped[uuid.UUID | None] = mapped_column()
+    #: reference to the encrypted door-open DTMF profile (no code, ever). The FK
+    #: to ``door_action_profiles`` is wired in migration 0036 (E17-02).
+    dtmf_profile_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("door_action_profiles.id", ondelete="SET NULL")
+    )
     #: operator popup text, e.g. "Klingel XYZ"
     popup_text: Mapped[str | None] = mapped_column(String(200))
     #: seconds to wait for the open side effect before giving up

@@ -83,6 +83,13 @@ class TotpRequiredError(AppError):
     http_status = status.HTTP_401_UNAUTHORIZED
 
 
+class ServiceUnavailableError(AppError):
+    """A feature is unavailable on this deployment (e.g. a secret key is unset)."""
+
+    code = "service_unavailable"
+    http_status = status.HTTP_503_SERVICE_UNAVAILABLE
+
+
 def _render(request: Request, exc: AppError) -> JSONResponse:
     from bbz_core.logging import correlation_id
 
