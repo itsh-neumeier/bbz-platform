@@ -18,6 +18,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from bbz_core.infra.models.outbox import ExternalActionOutbox, OutboxStatus
 from bbz_core.logging import correlation_id
+from bbz_core.redaction import scrub
 
 _BASE_BACKOFF = _dt.timedelta(seconds=5)
 _MAX_BACKOFF = _dt.timedelta(minutes=30)
@@ -57,7 +58,7 @@ async def enqueue(
         .values(
             dedupe_key=dedupe_key,
             action_type=action_type,
-            payload=payload,
+            payload=scrub(payload),  # redaction net (E17-06)
             correlation_id=correlation_id.get(),
         )
         .on_conflict_do_nothing(index_elements=["dedupe_key"])
@@ -96,16 +97,16 @@ class OutboxRepository:
     ) -> None:
         row.status = OutboxStatus.DISPATCHED.value
         row.attempts += 1
-        row.result = result
+        row.result = scrub(result)
         row.last_error = None
         row.dispatched_at = _now()
 
     async def mark_retry(self, row: ExternalActionOutbox, *, error: str) -> None:
         row.attempts += 1
-        row.last_error = error
+        row.last_error = scrub(error)
         row.next_attempt_at = _backoff(row.attempts)
 
     async def mark_failed(self, row: ExternalActionOutbox, *, error: str) -> None:
         row.status = OutboxStatus.FAILED.value
         row.attempts += 1
-        row.last_error = error
+        row.last_error = scrub(error)
