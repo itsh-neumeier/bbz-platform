@@ -13,6 +13,14 @@ from bbz_core.domain.triggers.actions import (
     TriggerActionType,
     outbox_action_type,
 )
+from bbz_core.domain.triggers.rules import (
+    CandidateRule,
+    RuleConditionError,
+    rule_matches,
+    select_matching_rules,
+    signal_to_context,
+    validate_conditions,
+)
 from bbz_core.domain.triggers.signals import (
     InboundSignalRejected,
     InboundSignalType,
@@ -23,10 +31,16 @@ from bbz_core.domain.triggers.signals import (
 __all__ = [
     "OUTBOX_ACTION_TYPES",
     "TRANSACTIONAL_ACTION_TYPES",
+    "CandidateRule",
     "InboundSignalRejected",
     "InboundSignalType",
+    "RuleConditionError",
     "TriggerActionType",
     "from_telephony_event",
     "outbox_action_type",
+    "rule_matches",
+    "select_matching_rules",
+    "signal_to_context",
+    "validate_conditions",
     "validate_inbound_signal",
 ]
