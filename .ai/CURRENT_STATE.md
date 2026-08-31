@@ -864,7 +864,7 @@ API. `integrations/telephony_cucm/` stays a placeholder README.
 - **E14-07..10 are frontend → blocked.** Epic 14 backend is done bar the UI.
   **E11-08 is unblocked** (has `ContactMatcher`).
 
-### Epic 15 – Technical Endpoints / Trigger Engine: **in progress (11/15)**
+### Epic 15 – Technical Endpoints / Trigger Engine: **in progress (12/15)**
 - **#305 (E15-01) technical-endpoints schema** — migration 0030 +
   `technical_endpoints.py` (MASTER_PROMPT §29 — **not** modelled as contacts):
   `technical_endpoints` (name, site, `type` `door_station|bma|panic_button|
@@ -1015,9 +1015,25 @@ API. `integrations/telephony_cucm/` stays a placeholder README.
   (open / resolved / total_occurrences / open_by_signal_type). Reads
   `technical_endpoints.view`, resolve `technical_endpoints.manage`. Migration
   up/down/up verified on real PG. `test_trigger_unmapped_queue.py`.
-- Next: E15-13 (BMA flow: number match → one critical event + workflow +
-  duplicate protection), E15-14 (client-popup delivery — backend part),
-  E15-15 (E2E). E15-07 (open_camera) needs Epic 16.
+- **#329 (E15-13) BMA flow** — no new production code; `test_bma_flow.py` is the
+  automated §35-BMA scenario proving E15-04/06/09 + E03-15 + E05 compose: a
+  `BMA_ALARM_CALL` from the configured number (`called_number == "112"` rule
+  condition, endpoint type `bma`) → the rule's `create_event` (critical, status
+  `new`, `source="trigger"`) + `attach_workflow` → **exactly one** critical
+  event with the **current published** workflow version bound
+  (`WorkflowInstance.template_version_id`), one `EVENT_CREATED` in `domain_events`,
+  two `TRIGGER_EXECUTED` audit rows; the event raises `GET /events/priority-alert`
+  (`active:true`) until accepted; a duplicate provider event (`provider_event_id`)
+  produces no second event / instance; a call to an unconfigured number creates
+  nothing (and lands in the E15-12 unmapped queue).
+- **CI billing block (2026-08-31):** GitHub Actions fails every job instantly —
+  account payment / spending limit ([[ci-billing-block-2026-08]]). E15-12 (#617)
+  and later work are code-complete + locally verified (container runner +
+  `alembic up/down/up` on real PG) but **cannot merge** until the user fixes
+  Billing & plans. Stacked branches: `feature/326-…` (E15-12) →
+  `feature/329-bma-flow` (E15-13) → …
+- Next: E15-14 (client-popup delivery — backend part), E15-15 (E2E). E15-07
+  (open_camera) needs Epic 16.
 
 ## Existing reference
 A functional HTML mockup defines important UX/feature behavior. **It is not yet in
