@@ -1314,7 +1314,7 @@ API. `integrations/telephony_cucm/` stays a placeholder README.
   done end-to-end against the mocks; the real CUCM/SIP `send_dtmf` transport is
   E12-05 / E13-06 (blocked).
 
-### Epic 18 – DWD Weather: **in progress (1/10)**
+### Epic 18 – DWD Weather: **in progress (2/10)**
 - **#375 (E18-01) `integrations/dwd` scaffold + manifest + config** — **ADR-0026**
   (Accepted) pins the three public DWD Open Data services: warnings → CAP 1.2
   feed `opendata.dwd.de/weather/alerts/cap/COMMUNEUNION_DWD_STAT/` +
@@ -1330,8 +1330,17 @@ API. `integrations/telephony_cucm/` stays a placeholder README.
   `get_observations` raise `DwdNotImplementedError` until E18-02/03/04). Target
   places Nürnberg / Fürth / Erlangen / Schwabach / Ansbach / Neustadt a.d. Aisch.
   `test_dwd_scaffold.py`. Discovery + `/api/v1/meta` pick it up.
-- Next: **E18-05** (DB schema `weather_alerts` / `weather_observations`) then
-  **E18-02** (warnings adapter, deps E18-01 + E18-05).
+- **#383 (E18-05) DB schema `weather_alerts` / `weather_observations`** — migration
+  `0038_weather_schema` + `bbz_core.infra.models.weather`. `weather_alerts`
+  (region, type, level, valid_from/to, headline, description, source_ref,
+  received_at) UNIQUE `(source_ref, region)` — a CAP alert covers several
+  warncells, one row each; `weather_observations` (place, metric, value nullable,
+  unit, observed_at, station_ref) UNIQUE `(place, metric, observed_at)`. Both are
+  DWD-state snapshots — **no FK into BBZ records**, everything re-fetchable. All
+  `timestamptz` (ADR-0017). The refresh singleton (E18-06) upserts on those keys.
+  Real `alembic up/down/up` verified. `test_weather_schema.py`.
+- Next: **E18-06** (refresh singleton + cache + health TTL, deps E04-08 + E18-05)
+  then **E18-02/04** (warnings / observations adapters — need recorded fixtures).
 
 ## Existing reference
 A functional HTML mockup defines important UX/feature behavior. **It is not yet in
