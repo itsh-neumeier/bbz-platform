@@ -42,7 +42,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.drop_constraint("ck_calls_call_caller_priority", "calls", type_="check")
+    op.drop_constraint("call_caller_priority", "calls", type_="check")
     op.drop_index(op.f("ix_calls_caller_contact_id"), table_name="calls")
     op.drop_constraint(op.f("fk_calls_caller_contact_id_contacts"), "calls", type_="foreignkey")
     op.drop_column("calls", "caller_priority")
