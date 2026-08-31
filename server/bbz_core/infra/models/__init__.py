@@ -86,6 +86,7 @@ from bbz_core.infra.models.trigger_rules import (
     TriggerRule,
     TriggerRuleVersion,
 )
+from bbz_core.infra.models.unmapped_signals import UnmappedSignal
 from bbz_core.infra.models.workflow import (
     WorkflowGraphEdge,
     WorkflowGraphNode,
@@ -161,6 +162,7 @@ __all__ = [
     "TriggerLifecycle",
     "TriggerRule",
     "TriggerRuleVersion",
+    "UnmappedSignal",
     "User",
     "UserGroup",
     "UserPresence",
