@@ -1212,7 +1212,7 @@ API. `integrations/telephony_cucm/` stays a placeholder README.
 - **Epic 16 backend complete (12/13).** **E16-12** (camera-view UI) is the only
   open item — needs Epic 07 (E07-08); deferred to the frontend phase.
 
-### Epic 17 – Siedle: **in progress (3/7)**
+### Epic 17 – Siedle: **in progress (4/7)**
 - **#361 (E17-01) Siedle door-station endpoint profile** — migration
   `0035_door_station_fields` adds `technical_endpoints.dtmf_profile_id` (a
   reference id **only** — the code lives encrypted in `door_action_profiles`,
@@ -1249,8 +1249,18 @@ API. `integrations/telephony_cucm/` stays a placeholder README.
   re-validated. An unconfigured number stays `CALL_RINGING` → the engine's
   unmapped-source queue (E15-12). Dedupe unchanged (`telephony_dedupe_key` +
   `signal:` prefix → one signal per telephony event). `test_siedle_doorbell_trigger.py`.
-- Next: **E17-04** (klingel popup + camera side-effect, entkoppelt) then
-  **E17-05** (transactional door-open flow).
+- **#367 (E17-04) klingel popup + decoupled camera** — compose, minimal new code.
+  A published rule on `DOORBELL_RINGING` runs `show_client_popup` (bound to the
+  workplace, `kind: doorbell`, actions `["open","reject"]`) + `open_camera_group`
+  (decoupled outbox, E16-08 — a Coda outage never blocks the popup).
+  `TriggerActionService._show_client_popup` now auto-fills `payload.text` from the
+  matched door station's `popup_text` ("Klingeln: Haupteingang") when the action
+  omits it — no secrets, no schema change. The popup is visible only at its bound
+  workplace (`GET /api/v1/client/popups?workplace_id=`). `test_siedle_ring_popup_camera.py`.
+  (Playwright leg deferred to the frontend phase / Epic 07, like E15-14.)
+- Next: **E17-05** (transactional, idempotent door-open flow — `door.open` →
+  answer? → media → send DTMF profile → post-delay → auto-hangup → audited) then
+  **E17-06** (audit without plaintext DTMF).
 
 ## Existing reference
 A functional HTML mockup defines important UX/feature behavior. **It is not yet in
