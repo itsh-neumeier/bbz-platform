@@ -26,9 +26,10 @@ class Singleton:
 
 
 async def _outbox_tick() -> object:
-    from bbz_core.workers.outbox_dispatcher import OutboxDispatcher
+    from bbz_core.workers.camera_handlers import CAMERA_HANDLERS
+    from bbz_core.workers.outbox_dispatcher import DEFAULT_HANDLERS, OutboxDispatcher
 
-    return await OutboxDispatcher().run_once()
+    return await OutboxDispatcher({**DEFAULT_HANDLERS, **CAMERA_HANDLERS}).run_once()
 
 
 async def _workflow_timer_tick() -> object:

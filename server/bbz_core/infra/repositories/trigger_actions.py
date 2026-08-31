@@ -331,11 +331,17 @@ class TriggerActionService:
         if workplace_id is not None:
             payload["workplace_id"] = str(workplace_id)
 
+        dedupe = f"trigger:{state.provider_event_id}:{state.rule_version_id}:{index}"
+        # the outbox handler (E16-08) needs a stable command id to stay idempotent
+        # on retries, and the event id so a terminal camera failure is visible on
+        # the triggering event.
+        payload["command_id"] = dedupe
+        event_id = state.last_event_id()
+        if event_id is not None:
+            payload["event_id"] = str(event_id)
+
         enqueued = await enqueue(
-            self._s,
-            dedupe_key=f"trigger:{state.provider_event_id}:{state.rule_version_id}:{index}",
-            action_type=action_type,
-            payload=payload,
+            self._s, dedupe_key=dedupe, action_type=action_type, payload=payload
         )
         return {"enqueued": enqueued, **payload}
 
