@@ -7,11 +7,13 @@ UNIQUE key from E15-02) — a replayed signal, or both HA nodes, run every actio
 at most once. A later action failing never un-does an earlier one (each is its
 own transaction).
 
-Core actions here (E15-06): ``create_event`` (transactional — one event with the
-configured priority), ``attach_workflow`` (bind the template's published EPK
-version to that event — idempotent), ``show_client_popup`` (one popup bound to a
-workplace), ``notify`` (one ``external_action_outbox`` row). Camera / call
-actions are E15-07/08; the engine that selects rules for a signal is E15-09.
+Actions: ``create_event`` (transactional — one event with the configured
+priority), ``attach_workflow`` (bind the template's published EPK version to that
+event — idempotent), ``show_client_popup`` (one popup bound to a workplace),
+``notify`` and the telephony actions ``answer_call`` / ``send_dtmf_profile`` /
+``hangup_call`` (one ``external_action_outbox`` row each — ``send_dtmf_profile``
+carries the profile **id** only, never a code, ADR-0004). Camera actions are
+E15-07 (needs Epic 16); the engine that selects rules for a signal is E15-09.
 """
 
 from __future__ import annotations
@@ -220,6 +222,14 @@ class TriggerActionService:
 
     # --- action handlers -------------------------------------------------
 
+    _CALL_ACTIONS = frozenset(
+        {
+            TriggerActionType.ANSWER_CALL.value,
+            TriggerActionType.SEND_DTMF_PROFILE.value,
+            TriggerActionType.HANGUP_CALL.value,
+        }
+    )
+
     async def _dispatch(
         self, state: _RunState, index: int, action_type: str, action: dict[str, Any]
     ) -> dict[str, Any]:
@@ -229,7 +239,38 @@ class TriggerActionService:
             return await self._show_client_popup(state, action)
         if action_type == TriggerActionType.NOTIFY.value:
             return await self._notify(state, index, action)
+        if action_type in self._CALL_ACTIONS:
+            return await self._call_action(state, index, action_type, action)
         raise TriggerActionError(f"action type not supported here: {action_type!r}")
+
+    async def _call_action(
+        self, state: _RunState, index: int, action_type: str, action: dict[str, Any]
+    ) -> dict[str, Any]:
+        """Enqueue a telephony action against the active provider (E15-08).
+
+        Delivered once by the outbox dispatcher. ``send_dtmf_profile`` carries
+        the profile **id** only — the actual DTMF code is a secret held by the
+        integration / config store and is never in the payload or the audit
+        (ADR-0004, MASTER_PROMPT §30).
+        """
+        call_id = action.get("call_id") or (state.signal.get("source") or {}).get("source_call_id")
+        if not call_id:
+            raise TriggerActionError(f"{action_type} needs a call_id / source_call_id")
+        payload: dict[str, Any] = {"call_id": str(call_id)}
+        if action_type == TriggerActionType.SEND_DTMF_PROFILE.value:
+            profile_id = action.get("dtmf_profile_id")
+            if not profile_id:
+                raise TriggerActionError("send_dtmf_profile requires dtmf_profile_id")
+            if "code" in action or "dtmf" in action:
+                raise TriggerActionError("a DTMF code must not appear in a rule action")
+            payload["dtmf_profile_id"] = str(profile_id)
+        enqueued = await enqueue(
+            self._s,
+            dedupe_key=f"trigger:{state.provider_event_id}:{state.rule_version_id}:{index}",
+            action_type=action_type,
+            payload=payload,
+        )
+        return {"enqueued": enqueued, "call_id": str(call_id)}
 
     async def _create_event(self, state: _RunState, action: dict[str, Any]) -> dict[str, Any]:
         try:

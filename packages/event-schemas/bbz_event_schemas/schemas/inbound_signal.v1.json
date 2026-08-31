@@ -31,6 +31,10 @@
       "properties": {
         "ani": { "type": ["string", "null"], "description": "calling number" },
         "dnis": { "type": ["string", "null"], "description": "called number" },
+        "source_call_id": {
+          "type": ["string", "null"],
+          "description": "the provider's call id — carried for call actions (E15-08), not a condition field"
+        },
         "cti_route_point": { "type": ["string", "null"] },
         "technical_endpoint_id": { "type": ["string", "null"] },
         "external_source_id": { "type": ["string", "null"] },
