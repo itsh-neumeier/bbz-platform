@@ -128,8 +128,9 @@ class SipTelephonyProvider:
     async def conference(self, *, call_ids: list[str], command_id: str) -> Any:
         raise SipNotConfiguredError("conference")
 
-    async def send_dtmf(self, *, call_id: str, dtmf_profile_id: str, command_id: str) -> Any:
-        # only the profile id would ever be handled here — never the code (ADR-0004)
+    async def send_dtmf(self, *, call_id: str, dtmf: str, command_id: str) -> Any:
+        # `dtmf` is the resolved secret sequence (ADR-0025) — a real adapter emits
+        # it via SIP INFO / RFC 2833 and must never log or echo it (ADR-0004)
         raise SipNotConfiguredError("send_dtmf")
 
 

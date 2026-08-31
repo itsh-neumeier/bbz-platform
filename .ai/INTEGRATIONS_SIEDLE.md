@@ -8,6 +8,8 @@ Siedle Access Professional supports door-opener control using configurable DTMF/
 
 Cisco Unified JTAPI supports DTMF generation on a MediaTerminalConnection, so the CUCM telephony provider can expose a normalized `send_dtmf()` capability when the controlled call/media connection supports it.
 
+**ADR-0025** settles where the code lives: BBZ's `door_action_profiles` table (Fernet-encrypted at rest, E17-02) is the config store. The door-open flow decrypts it transiently and passes the **sequence** — not a BBZ reference — to `send_dtmf(dtmf=…)`, because an integration cannot resolve a BBZ id (import boundary). The sequence is never persisted, logged, or put in an audit / event payload.
+
 ## Technical endpoint model
 
 Each door station is a `technical_endpoint`, not a normal telephone-book contact.
@@ -40,12 +42,14 @@ When user presses `Öffnen`:
 2. create idempotent door-open command
 3. answer call if still ringing and provider/profile requires an active call
 4. wait for CONNECTED/media-ready state
-5. call telephony provider `send_dtmf(dtmf_profile_id)`
+5. resolve the `door_action_profiles` row → decrypt transiently → call `send_dtmf(dtmf=<sequence>)` **exactly once** (derived `command_id`)
 6. wait configured post-DTMF delay
-7. automatically hang up
-8. record audited result
+7. automatically hang up (if the profile says so)
+8. record audited result — `DOOR_OPEN_REQUESTED` / `DOOR_OPEN_RESULT`, carrying `door_action_profile_id`
 
 The raw DTMF code must not be included in ordinary audit/event payloads.
+
+Implemented by `DoorOpenService` + `POST /api/v1/doors/{endpoint_id}/open` (E17-05), idempotent on `X-Command-Id`, with a `door_open_commands` state machine. The real JTAPI/SIP `send_dtmf` transport is E12-05 / E13-06.
 
 ## Failure states
 

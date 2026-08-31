@@ -1212,7 +1212,7 @@ API. `integrations/telephony_cucm/` stays a placeholder README.
 - **Epic 16 backend complete (12/13).** **E16-12** (camera-view UI) is the only
   open item — needs Epic 07 (E07-08); deferred to the frontend phase.
 
-### Epic 17 – Siedle: **in progress (4/7)**
+### Epic 17 – Siedle: **in progress (5/7)**
 - **#361 (E17-01) Siedle door-station endpoint profile** — migration
   `0035_door_station_fields` adds `technical_endpoints.dtmf_profile_id` (a
   reference id **only** — the code lives encrypted in `door_action_profiles`,
@@ -1258,9 +1258,29 @@ API. `integrations/telephony_cucm/` stays a placeholder README.
   omits it — no secrets, no schema change. The popup is visible only at its bound
   workplace (`GET /api/v1/client/popups?workplace_id=`). `test_siedle_ring_popup_camera.py`.
   (Playwright leg deferred to the frontend phase / Epic 07, like E15-14.)
-- Next: **E17-05** (transactional, idempotent door-open flow — `door.open` →
-  answer? → media → send DTMF profile → post-delay → auto-hangup → audited) then
-  **E17-06** (audit without plaintext DTMF).
+- **#369 (E17-05) transactional, idempotent door-open flow** — **ADR-0025**
+  (Accepted): BBZ's `door_action_profiles` **is** "the config store" the
+  `send_dtmf` protocol note meant; the DTMF **sequence** (not a BBZ id) crosses
+  the provider boundary, because an integration can't resolve a BBZ id.
+  SDK rename `send_dtmf(dtmf_profile_id=…)` → `send_dtmf(dtmf=…)` (protocol + mock
+  + SIP scaffold + tests); the mock no longer echoes the argument.
+  `DoorOpenService` + `POST /api/v1/doors/{endpoint_id}/open` (`door.open`,
+  idempotent on `X-Command-Id` → replay, **no 2nd open**): loads the door station,
+  resolves the profile → digits **transiently** (`resolve_dtmf()`, a local only —
+  never persisted / logged / audited), then drives the active telephony provider
+  through a persisted `door_open_commands` state machine (`requested → answering
+  → connecting → dtmf_sent → completing → done|failed|timed_out`): answer if
+  ringing → await CONNECTED (bounded by `door_open_timeout_seconds`) → `send_dtmf`
+  **once** (derived `command_id` `door:<cmd>:dtmf` + `dtmf_sent_at` guard) →
+  `post_dtmf_delay_ms` → auto-hangup. Every attempt audits `DOOR_OPEN_REQUESTED`
+  + `DOOR_OPEN_RESULT` (both critical) with `door_action_profile_id` + outcome,
+  never the code. Outcome always reported (HTTP 200): `opened` / `caller_gone` /
+  `media_timeout` / `no_dtmf_capability` / `no_profile` / `provider_error` /
+  `telephony_unavailable`. Migration `0037_door_open_commands`. Tested against
+  `telephony_mock` (real JTAPI/SIP transport is E12-05 / E13-06 — blocked).
+  `test_siedle_door_open_flow.py`.
+- Next: **E17-06** (redaction contract test — the DTMF code in no sink) then
+  **E17-07** (Siedle failure matrix + `door.*` permissions seed + §35 E2E).
 
 ## Existing reference
 A functional HTML mockup defines important UX/feature behavior. **It is not yet in
@@ -1366,6 +1386,12 @@ strategy (E08-07 / #143), 0023 SIP gateway (E13-02 / #271).
 leader-elected drain worker (E15-15 / #333 — Accepted)** — a normalized inbound
 signal is queued in the provider inbox and drained by the new `trigger-engine`
 singleton; ingestion stays fast and cannot be broken by a rule.
+**0025 door-open DTMF flow (E17-05 / #369 — Accepted)** — BBZ's
+`door_action_profiles` is "the config store" the `send_dtmf` protocol note meant;
+the DTMF **sequence** (not a BBZ id) crosses the provider boundary because an
+integration can't resolve a BBZ id. SDK `send_dtmf(dtmf_profile_id=…)` renamed to
+`send_dtmf(dtmf=…)`. `DoorOpenService` decrypts transiently, drives the provider
+through a `door_open_commands` state machine, audits without the code.
 
 ## Open external dependencies
 - exact Cisco CUCM version/SU and productive cluster/CTI configuration (§8.18)

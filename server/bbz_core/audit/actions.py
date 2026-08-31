@@ -66,6 +66,8 @@ class AuditAction(enum.StrEnum):
     DOOR_PROFILE_CREATED = "DOOR_PROFILE_CREATED"
     DOOR_PROFILE_UPDATED = "DOOR_PROFILE_UPDATED"
     DOOR_PROFILE_DELETED = "DOOR_PROFILE_DELETED"
+    DOOR_OPEN_REQUESTED = "DOOR_OPEN_REQUESTED"
+    DOOR_OPEN_RESULT = "DOOR_OPEN_RESULT"
 
 
 #: Actions that MUST be emitted from a write path (MASTER_PROMPT §17). A missing
@@ -120,5 +122,7 @@ CRITICAL_ACTIONS: frozenset[AuditAction] = frozenset(
         AuditAction.DOOR_PROFILE_CREATED,
         AuditAction.DOOR_PROFILE_UPDATED,
         AuditAction.DOOR_PROFILE_DELETED,
+        AuditAction.DOOR_OPEN_REQUESTED,
+        AuditAction.DOOR_OPEN_RESULT,
     }
 )

@@ -106,6 +106,9 @@ class MockTelephonyProvider:
         self._events: asyncio.Queue[CallEvent] = asyncio.Queue()
         self._backlog: list[CallEvent] = []
         self._seen: dict[str, CommandAccepted] = {}
+        #: command ids of DTMF sequences actually emitted (a repeated command_id
+        #: is deduped and not re-counted) — test observability, never the code
+        self._dtmf_sends: list[str] = []
         self._in_service = True
         self._initialized = False
 
@@ -240,14 +243,15 @@ class MockTelephonyProvider:
                 )
         return self._ack(command_id, call_ids[0] if call_ids else None)
 
-    async def send_dtmf(
-        self, *, call_id: str, dtmf_profile_id: str, command_id: str
-    ) -> CommandAccepted:
+    async def send_dtmf(self, *, call_id: str, dtmf: str, command_id: str) -> CommandAccepted:
         if command_id in self._seen:
             return self._seen[command_id]
         self._require(call_id)
-        # record only the profile id — never the code (ADR-0004)
-        return self._ack(command_id, call_id, detail=f"dtmf profile {dtmf_profile_id}")
+        if not dtmf:
+            raise ValueError("send_dtmf requires a non-empty sequence")
+        # `dtmf` is a secret sequence (ADR-0025) — count it, never echo it back
+        self._dtmf_sends.append(command_id)
+        return self._ack(command_id, call_id, detail="dtmf sent")
 
     async def resolve_caller(self, *, number: str) -> CallerResolution:
         name = self._directory.get(number)

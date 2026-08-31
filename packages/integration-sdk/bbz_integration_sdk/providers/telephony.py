@@ -78,12 +78,11 @@ class TelephonyProvider(Provider, Protocol):
 
     async def conference(self, *, call_ids: list[str], command_id: str) -> CommandAccepted: ...
 
-    async def send_dtmf(
-        self, *, call_id: str, dtmf_profile_id: str, command_id: str
-    ) -> CommandAccepted:
-        """Send a **configured** DTMF profile. The raw code is a secret held by
-        the integration/config store and must never be logged or echoed
-        (SECURITY.md, ADR-0004)."""
+    async def send_dtmf(self, *, call_id: str, dtmf: str, command_id: str) -> CommandAccepted:
+        """Emit a DTMF sequence on the connected call. ``dtmf`` is the resolved
+        sequence, not a reference — the caller (BBZ ``DoorOpenService``) holds the
+        secret and decrypts it transiently (ADR-0025). It is a secret: never log,
+        echo, or put it in ``CommandAccepted.detail`` (SECURITY.md, ADR-0004)."""
 
     async def resolve_caller(self, *, number: str) -> CallerResolution: ...
 
