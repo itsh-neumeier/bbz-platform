@@ -25,18 +25,34 @@ from bbz_integration_sdk.providers.telephony_types import (
     PartyRef,
     ReconcileResult,
 )
-from bbz_integration_sdk.providers.video import VideoProvider
+from bbz_integration_sdk.providers.video import VIDEO_METHODS, VideoProvider
+from bbz_integration_sdk.providers.video_types import (
+    VIDEO_CAPABILITIES,
+    AlarmContextView,
+    CameraGroupView,
+    CameraNotFoundError,
+    CameraView,
+    ResolvedCamera,
+    VideoProviderError,
+    VideoTimeoutError,
+)
 from bbz_integration_sdk.providers.weather import WeatherProvider
 
 __all__ = [
     "TELEPHONY_CAPABILITIES",
     "TELEPHONY_METHODS",
+    "VIDEO_CAPABILITIES",
+    "VIDEO_METHODS",
+    "AlarmContextView",
     "AlarmIngressProvider",
     "CallDirection",
     "CallEvent",
     "CallLifecycleState",
     "CallSnapshot",
     "CallerResolution",
+    "CameraGroupView",
+    "CameraNotFoundError",
+    "CameraView",
     "CommandAccepted",
     "LineInfo",
     "LineState",
@@ -45,7 +61,10 @@ __all__ = [
     "Provider",
     "ProviderInfo",
     "ReconcileResult",
+    "ResolvedCamera",
     "TelephonyProvider",
     "VideoProvider",
+    "VideoProviderError",
+    "VideoTimeoutError",
     "WeatherProvider",
 ]

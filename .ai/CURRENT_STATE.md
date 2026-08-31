@@ -1066,7 +1066,7 @@ API. `integrations/telephony_cucm/` stays a placeholder README.
 - **Epic 15 done bar:** E15-07 (`open_camera` action) → needs Epic 16; E15-14
   **frontend** (popup UI, keyboard, Playwright) → needs Epic 07.
 
-### Epic 16 – Coda Video / HxGN dC3 Video: **in progress (1/13)**
+### Epic 16 – Coda Video / HxGN dC3 Video: **in progress (2/13)**
 - **#335 (E16-01) `coda_video` scaffold formalised** — the manifest schema gains
   optional `capability_groups` (named, independently-activatable capability sets;
   every grouped capability must also be in `capabilities` — checked in
@@ -1078,9 +1078,20 @@ API. `integrations/telephony_cucm/` stays a placeholder README.
   `build(config)`: `capabilities()` now returns only the enabled groups' caps.
   Still `mock: true` — no vendor API (E16-13). `test_mock_coda.py`,
   `test_manifest_schema.py`.
-- Blocked: E16-02+ largely need the vendor interface work; **E16-13** is the
-  gated "real Coda/HxGN dC3 doc" milestone. Doable next: E16-02 (normalized
-  video capability interface — SDK-level, no vendor calls).
+- **#337 (E16-02) normalized video capability interface** — SDK-level, no vendor
+  calls. `bbz_integration_sdk.providers.video_types`: frozen typed result models
+  `ResolvedCamera` / `CameraView` / `CameraGroupView` / `AlarmContextView` (only
+  normalized `camera_id` handles — no vendor object ids cross the boundary) + the
+  error hierarchy `VideoProviderError` → `CameraNotFoundError` / `VideoTimeoutError`.
+  `VideoProvider` protocol now fully typed and gains **`focus_camera`**
+  (`camera_id, workplace_id, command_id, preset?`); `VIDEO_METHODS`,
+  `VIDEO_CAPABILITIES`, new `Capability.VIDEO_FOCUS_CAMERA`. `MockCodaVideoProvider`
+  conforms (returns the typed models, `resolve_camera` raises `CameraNotFoundError`
+  for an unknown id). `coda_video` manifest gains `video.focus_camera` in the
+  `video` group. `test_mock_coda.py`.
+- Blocked: **E16-13** is the gated "real Coda/HxGN dC3 doc" milestone; the
+  runtime flows (E16-04/07/08) need the DB schema (E16-05) which is doable.
+  Next doable: E16-03 (normalized alarm-ingress interface — SDK-level).
 
 ## Existing reference
 A functional HTML mockup defines important UX/feature behavior. **It is not yet in
