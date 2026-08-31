@@ -41,6 +41,8 @@ class DoorOpenOutcome(enum.StrEnum):
     NO_PROFILE = "no_profile"
     PROVIDER_ERROR = "provider_error"
     TELEPHONY_UNAVAILABLE = "telephony_unavailable"
+    #: the doorbell call still had to be answered but the operator lacks door.answer
+    ANSWER_FORBIDDEN = "answer_forbidden"
 
 
 class DoorOpenCommand(Base, TimestampMixin):

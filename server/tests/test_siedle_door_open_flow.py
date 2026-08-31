@@ -147,7 +147,7 @@ async def _audits(s: AsyncSession, action: str) -> list[AuditEvent]:
 
 async def test_a_ring_is_opened_answer_dtmf_once_then_hangup(env: tuple) -> None:
     client, s = env
-    await _make_user(s, "op", ["door.open"])
+    await _make_user(s, "op", ["door.open", "door.answer"])
     endpoint_id = await _door(s)
     call_id = await _ringing_call()
     provider = await active_telephony_provider()
@@ -186,7 +186,7 @@ async def test_a_ring_is_opened_answer_dtmf_once_then_hangup(env: tuple) -> None
 
 async def test_same_command_id_replays_and_never_opens_twice(env: tuple) -> None:
     client, s = env
-    await _make_user(s, "op", ["door.open"])
+    await _make_user(s, "op", ["door.open", "door.answer"])
     endpoint_id = await _door(s)
     call_id = await _ringing_call()
     provider = await active_telephony_provider()
@@ -209,7 +209,7 @@ async def test_same_command_id_replays_and_never_opens_twice(env: tuple) -> None
 
 async def test_a_call_that_is_already_gone_yields_caller_gone_and_no_dtmf(env: tuple) -> None:
     client, s = env
-    await _make_user(s, "op", ["door.open"])
+    await _make_user(s, "op", ["door.open", "door.answer"])
     endpoint_id = await _door(s)
     provider = await active_telephony_provider()
 
@@ -227,7 +227,7 @@ async def test_a_call_that_is_already_gone_yields_caller_gone_and_no_dtmf(env: t
 
 async def test_a_call_that_never_reaches_media_times_out_without_dtmf(env: tuple) -> None:
     client, s = env
-    await _make_user(s, "op", ["door.open"])
+    await _make_user(s, "op", ["door.open", "door.answer"])
     endpoint_id = await _door(s, timeout=1)
     provider = await active_telephony_provider()
     call_id = provider.simulate_incoming(from_number=_FROM, to_line="1001")  # type: ignore[attr-defined]
@@ -257,9 +257,26 @@ async def test_door_open_requires_the_permission(env: tuple) -> None:
     assert (await s.execute(select(func.count()).select_from(DoorOpenCommand))).scalar_one() == 0
 
 
+async def test_opening_a_still_ringing_call_needs_door_answer(env: tuple) -> None:
+    client, s = env
+    await _make_user(s, "halfop", ["door.open"])  # no door.answer
+    endpoint_id = await _door(s)
+    call_id = await _ringing_call()
+    provider = await active_telephony_provider()
+
+    await _login(client, "halfop")
+    r = await client.post(
+        f"/api/v1/doors/{endpoint_id}/open", json={"call_id": call_id}, headers=_cmd()
+    )
+    assert r.status_code == 200, r.text
+    assert r.json()["outcome"] == "answer_forbidden" and r.json()["opened"] is False
+    assert provider._dtmf_sends == []  # type: ignore[attr-defined]
+    assert (await _rows(s))[0].state == "failed"
+
+
 async def test_a_door_station_without_a_profile_yields_no_profile(env: tuple) -> None:
     client, s = env
-    await _make_user(s, "op", ["door.open"])
+    await _make_user(s, "op", ["door.open", "door.answer"])
     await s.rollback()
     async with s.begin():
         ep = TechnicalEndpoint(name="Klingel ohne Profil", type="door_station")
@@ -285,7 +302,7 @@ async def test_a_door_station_without_a_profile_yields_no_profile(env: tuple) ->
 
 async def test_a_non_door_endpoint_is_404(env: tuple) -> None:
     client, s = env
-    await _make_user(s, "op", ["door.open"])
+    await _make_user(s, "op", ["door.open", "door.answer"])
     await s.rollback()
     async with s.begin():
         ep = TechnicalEndpoint(name="BMA Nord", type="bma")
@@ -302,7 +319,7 @@ async def test_a_non_door_endpoint_is_404(env: tuple) -> None:
 
 async def test_the_dtmf_code_is_nowhere_in_persisted_state(env: tuple) -> None:
     client, s = env
-    await _make_user(s, "op", ["door.open"])
+    await _make_user(s, "op", ["door.open", "door.answer"])
     endpoint_id = await _door(s)
     call_id = await _ringing_call()
 

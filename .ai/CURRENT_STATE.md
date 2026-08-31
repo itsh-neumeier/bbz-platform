@@ -1294,7 +1294,25 @@ API. `integrations/telephony_cucm/` stays a placeholder README.
   against a **code-echoing** provider → the sentinel appears in no `audit_events`
   / `domain_events` / `external_action_outbox` row, `door_action_profile_id`
   still present in `DOOR_OPEN_RESULT`.
-- Next: **E17-07** (Siedle failure matrix + `door.*` permissions seed + §35 E2E).
+- **#373 (E17-07) Siedle failure matrix + permissions-seed + §35 E2E** — the
+  `door.*` / `technical_endpoints.*` catalog was already seeded by `0008` (it
+  iterates `CATALOG` / `BUILTIN_ROLES`); `test_siedle_door_permissions_seed.py`
+  locks the policy (open is an operator action, `door.configure` /
+  `technical_endpoints.manage` senior-only, read-only can at most look, the seed
+  actually wrote the grants). New: **answering a still-ringing doorbell call
+  needs `door.answer`** — the API resolves it imperatively and passes
+  `may_answer` to `DoorOpenService`; a ringing call without it →
+  `answer_forbidden` (HTTP 200, no DTMF). Failure matrix now: `caller_gone` /
+  `media_timeout` / `no_dtmf_capability` / `no_profile` / `provider_error` /
+  `telephony_unavailable` / `answer_forbidden` — every one a clear result, no
+  silent retry (`send_dtmf` fires once via the derived `command_id` +
+  `dtmf_sent_at` guard). `test_e2e_siedle_doorbell.py` — the §35 10-step flow
+  end-to-end (call → `DOORBELL_RINGING` → camera + popup → open → answer → DTMF
+  once → auto-hangup → audit sans code → duplicate event / repeated command open
+  once) + a Coda-outage variant (camera row `failed`, the open still succeeds).
+- **Epic 17 complete (7/7).** Siedle door communication over telephony/DTMF is
+  done end-to-end against the mocks; the real CUCM/SIP `send_dtmf` transport is
+  E12-05 / E13-06 (blocked).
 
 ## Existing reference
 A functional HTML mockup defines important UX/feature behavior. **It is not yet in
