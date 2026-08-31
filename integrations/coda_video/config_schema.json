@@ -25,6 +25,13 @@
           "cameras": { "type": "array", "items": { "type": "string" }, "default": [] }
         }
       }
+    },
+    "camera_failures": {
+      "type": "array",
+      "description": "Camera refs whose open / focus operations fail — drives the camera side-effect failure path (E16-08 / E16-11).",
+      "items": { "type": "string" },
+      "uniqueItems": true,
+      "default": []
     }
   }
 }

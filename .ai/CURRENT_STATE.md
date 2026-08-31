@@ -1078,7 +1078,7 @@ API. `integrations/telephony_cucm/` stays a placeholder README.
 - **Epic 15 done bar:** E15-14 **frontend** (popup UI, keyboard, Playwright) →
   needs Epic 07. (E15-07 camera/integration actions done — see #317 above.)
 
-### Epic 16 – Coda Video / HxGN dC3 Video: **in progress (8/13)**
+### Epic 16 – Coda Video / HxGN dC3 Video: **in progress (9/13)**
 - **#335 (E16-01) `coda_video` scaffold formalised** — the manifest schema gains
   optional `capability_groups` (named, independently-activatable capability sets;
   every grouped capability must also be in `capabilities` — checked in
@@ -1173,10 +1173,17 @@ API. `integrations/telephony_cucm/` stays a placeholder README.
   trigger execution key, passed straight to the provider for idempotency) and
   `event_id`. `test_coda_camera_sideeffect.py`; `test_trigger_actions_camera.py`
   updated for the payload.
+- **#351 (E16-09) full `coda_video` mock simulation** — `MockCodaVideoProvider`
+  now covers the INTEGRATIONS_CODA_VIDEO.md "Testing" list deterministically:
+  panic / intrusion / generic `alarm_type`; `get_associated_cameras` returns the
+  alarm's real cameras (`get_context` bundles them); an unmapped source →
+  `resolve_source` `None`; a duplicated `provider_event_id`; `reconnect()` replays
+  the delivered backlog; `camera_failures` / `fail_cameras()` make a camera's
+  open/focus/group raise the new SDK `CameraOpenFailed(VideoProviderError)`.
+  `build(config)` + `config_schema.json` gain `camera_failures`. `test_mock_coda.py`.
 - Blocked: **E16-13** is the gated "real Coda/HxGN dC3 doc" milestone.
-  Next doable: **E16-09** (full `coda_video` mock — Panic/Intrusion/generic alarm,
-  1/n cameras, unmapped, duplicate, replay, camera failure; deps E16-02/03) then
-  **E16-10** (Coda diagnostics API; deps E16-04 + E16-08).
+  Next doable: **E16-10** (Coda diagnostics API `GET /integrations/coda_video/
+  diagnostics`; deps E16-04 + E16-08) then **E16-11** (Coda-Alarm-E2E §36.1).
 
 ## Existing reference
 A functional HTML mockup defines important UX/feature behavior. **It is not yet in
