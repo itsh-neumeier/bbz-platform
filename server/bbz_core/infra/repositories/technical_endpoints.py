@@ -40,6 +40,9 @@ _MUTABLE_FIELDS = frozenset(
         "escalation_profile",
         "workflow_selection_policy",
         "enabled",
+        "dtmf_profile_id",
+        "popup_text",
+        "door_open_timeout_seconds",
     }
 )
 
@@ -76,6 +79,10 @@ class EndpointInput:
     workflow_selection_policy: dict[str, Any] | None = None
     enabled: bool = True
     numbers: list[NumberPattern] = field(default_factory=list)
+    #: door-station config (E17-01). ``dtmf_profile_id`` is an id only.
+    dtmf_profile_id: uuid.UUID | None = None
+    popup_text: str | None = None
+    door_open_timeout_seconds: int | None = None
 
 
 @dataclass(frozen=True)
@@ -152,6 +159,9 @@ class TechnicalEndpointService:
             escalation_profile=data.escalation_profile,
             workflow_selection_policy=data.workflow_selection_policy,
             enabled=data.enabled,
+            dtmf_profile_id=data.dtmf_profile_id,
+            popup_text=data.popup_text,
+            door_open_timeout_seconds=data.door_open_timeout_seconds,
         )
         self._s.add(endpoint)
         await self._s.flush()

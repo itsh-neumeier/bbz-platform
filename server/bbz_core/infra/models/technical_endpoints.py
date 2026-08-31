@@ -84,6 +84,16 @@ class TechnicalEndpoint(Base, TimestampMixin):
     #: bumped whenever the endpoint's trigger config changes (E15-10)
     active_config_version: Mapped[int] = mapped_column(Integer, server_default=text("1"))
 
+    # --- door station (Siedle, E17-01). INTEGRATIONS_SIEDLE.md §"Technical
+    # endpoint model". The DTMF *code* is never stored here — only the id of a
+    # ``door_action_profiles`` row (E17-02) that holds it encrypted (§30). ---
+    #: reference to the encrypted door-open DTMF profile (no code, ever)
+    dtmf_profile_id: Mapped[uuid.UUID | None] = mapped_column()
+    #: operator popup text, e.g. "Klingel XYZ"
+    popup_text: Mapped[str | None] = mapped_column(String(200))
+    #: seconds to wait for the open side effect before giving up
+    door_open_timeout_seconds: Mapped[int | None] = mapped_column(Integer)
+
 
 class TechnicalEndpointNumber(Base, TimestampMixin):
     """Telephony addressing for an endpoint: ANI / DNIS patterns + route point."""

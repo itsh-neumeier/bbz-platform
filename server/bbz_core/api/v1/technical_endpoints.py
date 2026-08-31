@@ -22,7 +22,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from bbz_core.api.authz import require
 from bbz_core.api.deps import AuthContext, db_session
-from bbz_core.api.errors import NotFoundError, ValidationError
+from bbz_core.api.errors import ForbiddenError, NotFoundError, ValidationError
+from bbz_core.authorization import PermissionService
+from bbz_core.infra.repositories.authorization import SqlAlchemyGrantStore
 from bbz_core.infra.repositories.technical_endpoints import (
     EndpointInput,
     EndpointNotFoundError,
@@ -55,7 +57,16 @@ class NumberIn(BaseModel):
     cti_route_point: str | None = Field(default=None, max_length=64)
 
 
-class EndpointIn(BaseModel):
+class DoorStationFields(BaseModel):
+    """Siedle door-station config (E17-01). ``dtmf_profile_id`` is an id only —
+    ``extra="forbid"`` rejects any attempt to pass a raw code (§30, ADR-0004)."""
+
+    dtmf_profile_id: uuid.UUID | None = None
+    popup_text: str | None = Field(default=None, max_length=200)
+    door_open_timeout_seconds: int | None = Field(default=None, ge=1, le=600)
+
+
+class EndpointIn(DoorStationFields):
     model_config = ConfigDict(extra="forbid")
     name: str = Field(min_length=1, max_length=200)
     type: str = Field(pattern="^(" + "|".join(_TYPES) + ")$")
@@ -70,7 +81,7 @@ class EndpointIn(BaseModel):
     numbers: list[NumberIn] = Field(default_factory=list, max_length=50)
 
 
-class EndpointPatch(BaseModel):
+class EndpointPatch(DoorStationFields):
     model_config = ConfigDict(extra="forbid")
     name: str | None = Field(default=None, min_length=1, max_length=200)
     type: str | None = Field(default=None, pattern="^(" + "|".join(_TYPES) + ")$")
@@ -105,6 +116,9 @@ class EndpointOut(BaseModel):
     workflow_selection_policy: dict[str, object] | None
     enabled: bool
     active_config_version: int
+    dtmf_profile_id: uuid.UUID | None
+    popup_text: str | None
+    door_open_timeout_seconds: int | None
     created_at: _dt.datetime
     updated_at: _dt.datetime
     numbers: list[NumberOut]
@@ -125,6 +139,9 @@ def _out(view: EndpointView) -> EndpointOut:
         workflow_selection_policy=e.workflow_selection_policy,
         enabled=e.enabled,
         active_config_version=e.active_config_version,
+        dtmf_profile_id=e.dtmf_profile_id,
+        popup_text=e.popup_text,
+        door_open_timeout_seconds=e.door_open_timeout_seconds,
         created_at=e.created_at,
         updated_at=e.updated_at,
         numbers=[
@@ -154,6 +171,25 @@ def _svc(session: AsyncSession = Depends(db_session)) -> TechnicalEndpointServic
     return TechnicalEndpointService(session)
 
 
+#: door-station-only fields — touching any of these (or the ``door_station`` type)
+#: additionally needs ``door.configure`` (E17-01; MASTER_PROMPT §30).
+_DOOR_FIELDS = ("dtmf_profile_id", "popup_text", "door_open_timeout_seconds")
+
+
+async def _guard_door_config(
+    session: AsyncSession, ctx: AuthContext, body: EndpointIn | EndpointPatch
+) -> None:
+    set_fields = body.model_fields_set
+    touches_door = body.type == "door_station" or any(f in set_fields for f in _DOOR_FIELDS)
+    if not touches_door:
+        return
+    allowed = await PermissionService(SqlAlchemyGrantStore(session)).authorize(
+        ctx.user_id, "door.configure"
+    )
+    if not allowed:
+        raise ForbiddenError("missing permission: door.configure")
+
+
 @router.get("", response_model=list[EndpointOut])
 async def list_endpoints(
     _: AuthContext = Depends(require("technical_endpoints.view")),
@@ -166,8 +202,10 @@ async def list_endpoints(
 async def create_endpoint(
     body: EndpointIn,
     ctx: AuthContext = Depends(require("technical_endpoints.manage")),
+    session: AsyncSession = Depends(db_session),
     svc: TechnicalEndpointService = Depends(_svc),
 ) -> EndpointOut:
+    await _guard_door_config(session, ctx, body)
     with _translate():
         view = await svc.create(
             EndpointInput(
@@ -182,6 +220,9 @@ async def create_endpoint(
                 workflow_selection_policy=body.workflow_selection_policy,
                 enabled=body.enabled,
                 numbers=_patterns(body.numbers),
+                dtmf_profile_id=body.dtmf_profile_id,
+                popup_text=body.popup_text,
+                door_open_timeout_seconds=body.door_open_timeout_seconds,
             ),
             actor_id=ctx.user_id,
         )
@@ -203,8 +244,10 @@ async def update_endpoint(
     endpoint_id: uuid.UUID,
     body: EndpointPatch,
     ctx: AuthContext = Depends(require("technical_endpoints.manage")),
+    session: AsyncSession = Depends(db_session),
     svc: TechnicalEndpointService = Depends(_svc),
 ) -> EndpointOut:
+    await _guard_door_config(session, ctx, body)
     fields = body.model_dump(exclude_unset=True)
     fields.pop("numbers", None)
     numbers_set = "numbers" in body.model_fields_set

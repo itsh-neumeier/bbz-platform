@@ -19,7 +19,7 @@ from bbz_core.infra.models.trigger_rules import TriggerRule, TriggerRuleVersion
 from bbz_core.infra.models.unmapped_signals import UnmappedSignal
 from bbz_core.infra.repositories.trigger_engine import process_signal
 
-_MANAGE = ["technical_endpoints.view", "technical_endpoints.manage"]
+_MANAGE = ["technical_endpoints.view", "technical_endpoints.manage", "door.configure"]
 
 _DOORBELL: dict[str, Any] = {
     "signal_type": "DOORBELL_RINGING",
