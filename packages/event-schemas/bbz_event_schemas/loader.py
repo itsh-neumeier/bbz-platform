@@ -46,6 +46,11 @@ def inbound_signal_schema(schema_version: int = 1) -> dict[str, Any]:
     return load_schema(f"inbound_signal.v{schema_version}")
 
 
+def provider_alarm_event_schema(schema_version: int = 1) -> dict[str, Any]:
+    """The JSON Schema for the immutable normalized provider alarm event (E16-04)."""
+    return load_schema(f"provider_alarm_event.v{schema_version}")
+
+
 def event_payload_schema(event_type: str, schema_version: int = 1) -> dict[str, Any]:
     """The JSON Schema for one ``event_type`` payload at ``schema_version``.
 

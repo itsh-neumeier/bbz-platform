@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://bbz-platform/schemas/provider_alarm_event.v1.json",
+  "title": "BBZ Normalized Provider Alarm Event",
+  "description": ".ai/INTEGRATIONS_CODA_VIDEO.md `Alarm normalization` — the immutable, vendor-neutral form every inbound technical/panic alarm is normalized to BEFORE trigger evaluation (E16-04). Persisted once in the E04-07 provider inbox and deduplicated (ADR-0006). The raw vendor payload is NEVER stored here — only its SHA-256 in raw_hash. additionalProperties:false at every level so a vendor field is a rejection, not a silent pass.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "provider",
+    "provider_event_id",
+    "provider_instance_id",
+    "alarm_type",
+    "source_external_id",
+    "received_at",
+    "raw_hash"
+  ],
+  "properties": {
+    "provider": {
+      "type": "string",
+      "minLength": 1,
+      "description": "normalized integration id, e.g. coda_video"
+    },
+    "provider_event_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "the provider's stable event id, or a deterministic id derived from documented stable fields (prefixed derived:) when the provider has none"
+    },
+    "provider_alarm_id": {
+      "type": ["string", "null"],
+      "description": "the provider's alarm-object id when it differs from provider_event_id"
+    },
+    "provider_instance_id": { "type": "string", "minLength": 1 },
+    "alarm_type": { "type": "string", "minLength": 1 },
+    "alarm_subtype": {
+      "type": ["string", "null"],
+      "description": "normalized subtype, e.g. panic_button; vendor names are mapped in provider config"
+    },
+    "source_external_id": { "type": "string", "minLength": 1 },
+    "source_name": { "type": ["string", "null"] },
+    "site_external_id": { "type": ["string", "null"] },
+    "occurred_at": { "type": ["string", "null"], "format": "date-time" },
+    "received_at": { "type": "string", "format": "date-time" },
+    "severity_external": {
+      "type": ["string", "null"],
+      "description": "the provider's own severity string, unmapped — the BBZ priority is decided by admin config (E16-06), not here"
+    },
+    "state_external": { "type": ["string", "null"] },
+    "associated_camera_ids": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "uniqueItems": true,
+      "description": "normalized camera handles the provider links to this alarm — no vendor object ids"
+    },
+    "raw_hash": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$",
+      "description": "SHA-256 (hex) of the canonical raw vendor payload — the payload itself is kept only in provider-side diagnostics, never here"
+    }
+  }
+}
