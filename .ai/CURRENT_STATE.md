@@ -1314,7 +1314,7 @@ API. `integrations/telephony_cucm/` stays a placeholder README.
   done end-to-end against the mocks; the real CUCM/SIP `send_dtmf` transport is
   E12-05 / E13-06 (blocked).
 
-### Epic 18 – DWD Weather: **in progress (2/10)**
+### Epic 18 – DWD Weather: **in progress (3/10)**
 - **#375 (E18-01) `integrations/dwd` scaffold + manifest + config** — **ADR-0026**
   (Accepted) pins the three public DWD Open Data services: warnings → CAP 1.2
   feed `opendata.dwd.de/weather/alerts/cap/COMMUNEUNION_DWD_STAT/` +
@@ -1339,8 +1339,24 @@ API. `integrations/telephony_cucm/` stays a placeholder README.
   DWD-state snapshots — **no FK into BBZ records**, everything re-fetchable. All
   `timestamptz` (ADR-0017). The refresh singleton (E18-06) upserts on those keys.
   Real `alembic up/down/up` verified. `test_weather_schema.py`.
-- Next: **E18-06** (refresh singleton + cache + health TTL, deps E04-08 + E18-05)
-  then **E18-02/04** (warnings / observations adapters — need recorded fixtures).
+- **#385 (E18-06) weather refresh singleton + health** — new `weather-refresh`
+  cluster singleton (4th, ADR-0018) ticks `WeatherRefreshService.refresh()`:
+  polls the active weather integration (`active_weather_provider()`, setting
+  `weather_integration_id` = `dwd`) for each advertised capability, upserts
+  normalized warnings → `weather_alerts` (a full fetch is authoritative — drops
+  what DWD stopped publishing) and observations → `weather_observations`, counts
+  radar frames (frame cache is E18-03), and records per-kind outcome in
+  `weather_refresh_state` (migration `0039`). **Never raises** — a fetch/parse
+  failure is logged + recorded, last-good data stays. `health()` →
+  `ok` / `stale` (last success older than `weather_stale_after_seconds`) /
+  `degraded` (last attempt failed after a success) / `down` (never succeeded);
+  overall = worst kind. The adapters (E18-02/04) own producing the normalized
+  item contract from CAP XML / POI CSV; against the shipped `dwd` stub every kind
+  is `down`. `test_weather_refresh.py`. `test_cluster_workers.py` gains the 4th
+  singleton.
+- Next: **E18-07** (`GET /weather/{alerts,observations,radar,regions}`,
+  `weather.view`, health in the body) then **E18-08** (create BBZ event from a
+  warning). E18-02/03/04 (adapters) need recorded DWD fixtures; E18-09 UI → Epic 07.
 
 ## Existing reference
 A functional HTML mockup defines important UX/feature behavior. **It is not yet in

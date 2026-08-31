@@ -14,7 +14,12 @@ from bbz_core.workers.registry import SINGLETON_NAMES, Singleton, cluster_single
 def test_the_registry_lists_the_expected_singletons() -> None:
     names = [s.name for s in cluster_singletons()]
     assert names == list(SINGLETON_NAMES)
-    assert set(names) == {"outbox-dispatcher", "workflow-timer", "trigger-engine"}
+    assert set(names) == {
+        "outbox-dispatcher",
+        "workflow-timer",
+        "trigger-engine",
+        "weather-refresh",
+    }
 
 
 async def test_the_real_ticks_run_against_the_database(db: object) -> None:
