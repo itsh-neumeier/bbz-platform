@@ -1078,7 +1078,7 @@ API. `integrations/telephony_cucm/` stays a placeholder README.
 - **Epic 15 done bar:** E15-14 **frontend** (popup UI, keyboard, Playwright) →
   needs Epic 07. (E15-07 camera/integration actions done — see #317 above.)
 
-### Epic 16 – Coda Video / HxGN dC3 Video: **in progress (11/13)**
+### Epic 16 – Coda Video / HxGN dC3 Video: **backend complete (12/13)** — E16-12 (camera UI) → Epic 07
 - **#335 (E16-01) `coda_video` scaffold formalised** — the manifest schema gains
   optional `capability_groups` (named, independently-activatable capability sets;
   every grouped capability must also be in `capabilities` — checked in
@@ -1201,8 +1201,16 @@ API. `integrations/telephony_cucm/` stays a placeholder README.
   `CAMERA_ACTION_FAILED` on the event, event stays `new`; a duplicate alarm and an
   SRV01-crash replay (`signal:` inbox row reset to unprocessed, re-ticked) → no
   second event / instance / popup. Audit assertions throughout.
-- **E16-12** (camera UI) needs Epic 07 (E07-08) — deferred.
-  Next: **E16-13** (blocker doc — no deps) → Epic 16 backend complete (12/13).
+- **#359 (E16-13) vendor-integration blocker** —
+  [`docs/integrations/coda-video-pending.md`](../docs/integrations/coda-video-pending.md):
+  a referenceable "Do NOT invent" list (endpoint URLs, auth, event payloads,
+  alarm ack, camera object model, display-agent commands, SDK classes,
+  licensing) against writing the real adapter from guesswork (ADR-0006). The
+  manifest schema gains an optional `pending_vendor_documentation: list[str]`
+  marker; `integrations/coda_video/manifest.json` declares it while `mock: true`.
+  `.ai/INTEGRATIONS_CODA_VIDEO.md` links the blocker. `test_manifest_schema.py`.
+- **Epic 16 backend complete (12/13).** **E16-12** (camera-view UI) is the only
+  open item — needs Epic 07 (E07-08); deferred to the frontend phase.
 
 ## Existing reference
 A functional HTML mockup defines important UX/feature behavior. **It is not yet in

@@ -55,6 +55,13 @@
       "default": false,
       "description": "True for mock/simulation adapters that carry no vendor API."
     },
+    "pending_vendor_documentation": {
+      "type": "array",
+      "items": { "type": "string" },
+      "uniqueItems": true,
+      "default": [],
+      "description": "Non-empty while the real integration is blocked on official vendor documentation (ADR-0006). Each entry names an area that must NOT be written from guesswork — see the integration's docs/integrations/*-pending.md blocker."
+    },
     "description": { "type": "string", "default": "" }
   }
 }

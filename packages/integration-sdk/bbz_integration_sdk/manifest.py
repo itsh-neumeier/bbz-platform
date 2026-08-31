@@ -36,6 +36,9 @@ class IntegrationManifest(BaseModel):
     legacy_display_alias: str | None = None
     # Foundation phase: only mock adapters are allowed to be "production" ready.
     mock: bool = False
+    #: non-empty while the real integration is blocked on official vendor docs
+    #: (ADR-0006). Each entry names an area not to write from guesswork.
+    pending_vendor_documentation: list[str] = Field(default_factory=list)
     description: str = ""
 
 

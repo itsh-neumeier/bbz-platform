@@ -71,3 +71,24 @@ def test_capability_group_referencing_an_undeclared_capability_is_rejected() -> 
     raw = _valid() | {"capability_groups": {"basic": ["call.transfer"]}}  # not in capabilities
     with pytest.raises(ManifestError, match="not in `capabilities`"):
         validate_manifest(raw)
+
+
+def test_pending_vendor_documentation_marker_parses() -> None:
+    assert validate_manifest(_valid()).pending_vendor_documentation == []  # default
+
+    m2 = validate_manifest(_valid() | {"pending_vendor_documentation": ["api-endpoints", "auth"]})
+    assert m2.pending_vendor_documentation == ["api-endpoints", "auth"]
+
+
+def test_coda_video_manifest_carries_the_blocker_marker_while_mock() -> None:
+    """E16-13: the shipped coda_video manifest declares the vendor-docs blocker
+    for as long as it is a mock (ADR-0006)."""
+    import json
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[3]
+    raw = json.loads((root / "integrations" / "coda_video" / "manifest.json").read_text("utf-8"))
+    m = validate_manifest(raw)
+    assert m.mock is True
+    assert m.pending_vendor_documentation, "coda_video must declare pending_vendor_documentation"
+    assert {"api-endpoints", "authentication", "sdk-classes"} <= set(m.pending_vendor_documentation)
