@@ -42,6 +42,7 @@ sub-schema under `properties.<EVENT_TYPE>`).
 | LINE_IN_SERVICE | line | provider, external_id, state | line status change (E11-07); not audited |
 | LINE_OUT_OF_SERVICE | line | provider, external_id, state | line outage (E11-07); not audited |
 | CALL_DOCUMENTED | call | bbz_call_id, category, actor_id | mandatory call categorization set (E11-09); audited |
+| CONTACT_PRIORITY_CHANGED | contact | contact_id, from, to, actor_id | `from` null on first assignment; `to` ∈ {low, medium, high}; same-level is a no-op (no event); audited (E14-03) |
 
 ## Calls
 
@@ -54,7 +55,8 @@ sub-schema under `properties.<EVENT_TYPE>`).
 
 | event_type | notes |
 |---|---|
-| CONTACT_CREATED / CONTACT_PRIORITY_CHANGED | |
+| CONTACT_PRIORITY_CHANGED | priority set/changed (§13.9); same-level = no-op; audited (E14-03) |
+| CONTACT_CREATED | contact added (E14-05) |
 | MONITOR_ROUTE_CHANGED | audited |
 | WEATHER_EVENT_CREATED | event created from a DWD warning |
 

@@ -27,12 +27,14 @@ from bbz_core.api.deps import AuthContext, db_session
 from bbz_core.api.errors import ConflictError, NotFoundError, ValidationError
 from bbz_core.api.idempotency import CommandEnvelope, command_envelope
 from bbz_core.audit import AuditAction, AuditService
+from bbz_core.infra.event_log import append_event
 from bbz_core.infra.idempotency import (
     CommandConflictError,
     CommandInProgressError,
     idempotent,
     request_hash,
 )
+from bbz_core.infra.models.contacts import ContactPriorityLevel
 from bbz_core.infra.repositories.contacts import (
     ContactInput,
     ContactNotFoundError,
@@ -385,6 +387,65 @@ async def remove_number(
                 after={"number_removed": str(number_id)},
             )
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+# --- priority (E14-03) --------------------------------------------------
+
+
+class PriorityIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    priority: ContactPriorityLevel
+
+
+class PriorityOut(BaseModel):
+    contact_id: uuid.UUID
+    priority: str
+    #: false when the contact already had this level — no event was emitted
+    changed: bool
+
+
+@router.put("/{contact_id}/priority", response_model=PriorityOut)
+async def set_priority(
+    contact_id: uuid.UUID,
+    body: PriorityIn,
+    ctx: AuthContext = Depends(require("contacts.assign_priority")),
+    session: AsyncSession = Depends(db_session),
+) -> PriorityOut:
+    """Assign a call priority (§13.9). Assigning the level the contact already
+    has is a no-op — no ``CONTACT_PRIORITY_CHANGED`` event, no audit row. Any
+    real change emits exactly one event + one audit entry with before/after.
+    """
+    level = body.priority.value
+    await session.rollback()
+    repo = ContactRepository(session)
+    with _translate():
+        async with session.begin():
+            await repo.get(contact_id)  # 404 for missing / soft-deleted
+            change = await repo.set_priority(contact_id, level, actor_id=ctx.user_id)
+            if change.changed:
+                seq = await append_event(
+                    session,
+                    aggregate_type="contact",
+                    aggregate_id=contact_id,
+                    event_type="CONTACT_PRIORITY_CHANGED",
+                    payload={
+                        "contact_id": str(contact_id),
+                        "from": change.previous,
+                        "to": change.current,
+                        "actor_id": str(ctx.user_id),
+                    },
+                    user_id=ctx.user_id,
+                )
+                await AuditService(session).write(
+                    AuditAction.CONTACT_PRIORITY_CHANGED,
+                    actor_user_id=ctx.user_id,
+                    target_type="contact",
+                    target_id=str(contact_id),
+                    before={"priority": change.previous},
+                    after={"priority": change.current},
+                    event_seq_ref=seq,
+                )
+    return PriorityOut(contact_id=contact_id, priority=level, changed=change.changed)
 
 
 def _jsonable(value: object) -> object:

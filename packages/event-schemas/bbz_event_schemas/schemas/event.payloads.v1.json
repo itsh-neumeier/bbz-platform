@@ -114,6 +114,17 @@
         "has_free_text": { "type": "boolean" },
         "actor_id": { "type": "string" }
       }
+    },
+    "CONTACT_PRIORITY_CHANGED": {
+      "type": "object",
+      "required": ["contact_id", "from", "to", "actor_id"],
+      "additionalProperties": true,
+      "properties": {
+        "contact_id": { "type": "string", "minLength": 1 },
+        "from": { "type": ["string", "null"], "enum": ["low", "medium", "high", null] },
+        "to": { "enum": ["low", "medium", "high"] },
+        "actor_id": { "type": "string" }
+      }
     }
   },
   "$defs": {

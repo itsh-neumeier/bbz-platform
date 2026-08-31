@@ -78,6 +78,13 @@ class ContactPage:
     next_cursor: str | None
 
 
+@dataclass(frozen=True)
+class PriorityChange:
+    changed: bool
+    previous: str | None
+    current: str
+
+
 def _encode_cursor(name: str, cid: uuid.UUID) -> str:
     raw = json.dumps([name, str(cid)], separators=(",", ":")).encode()
     return base64.urlsafe_b64encode(raw).decode()
@@ -130,6 +137,26 @@ class ContactRepository:
     async def soft_delete(self, contact: Contact) -> None:
         contact.deleted_at = _dt.datetime.now(_dt.UTC)
         await self._s.flush()
+
+    # --- priority (E14-03) ---------------------------------------------
+
+    async def set_priority(
+        self, contact_id: uuid.UUID, level: str, *, actor_id: uuid.UUID | None
+    ) -> PriorityChange:
+        """Upsert the contact's current priority. Same level = no-op (the caller
+        emits no event); returns ``changed`` so the caller knows."""
+        row = await self._s.get(ContactPriority, contact_id)
+        previous = row.priority if row is not None else None
+        if previous == level:
+            return PriorityChange(changed=False, previous=previous, current=level)
+        if row is None:
+            self._s.add(ContactPriority(contact_id=contact_id, priority=level, set_by=actor_id))
+        else:
+            row.priority = level
+            row.set_by = actor_id
+            row.set_at = _dt.datetime.now(_dt.UTC)
+        await self._s.flush()
+        return PriorityChange(changed=True, previous=previous, current=level)
 
     # --- numbers ---------------------------------------------------------
 
