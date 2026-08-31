@@ -49,7 +49,7 @@ show_missing = true
 fail_under = 70
 
 [tool.importlinter]
-root_packages = ["bbz_core"]
+root_packages = ["bbz_core", "integrations"]
 include_external_packages = true
 
 [[tool.importlinter.contracts]]
@@ -83,3 +83,11 @@ name = "Authorization layer is storage- and transport-agnostic"
 type = "forbidden"
 source_modules = ["bbz_core.authorization"]
 forbidden_modules = ["bbz_core.infra", "bbz_core.api", "bbz_integration_sdk"]
+
+[[tool.importlinter.contracts]]
+name = "telephony_sip is independent of Cisco CUCM / JTAPI"
+type = "forbidden"
+source_modules = ["integrations.telephony_sip"]
+forbidden_modules = ["integrations.telephony_cucm"]
+# ADR-0002 §8.17: the SIP provider must not depend on the CUCM adapter or any
+# JTAPI binding (no jtapi Python package exists — this guards the adapter link).
