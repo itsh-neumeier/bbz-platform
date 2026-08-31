@@ -41,6 +41,7 @@ class Capability(StrEnum):
     ALARM_SUBSCRIBE = "alarm.subscribe"
     ALARM_RESOLVE_SOURCE = "alarm.resolve_source"
     ALARM_GET_CONTEXT = "alarm.get_context"
+    ALARM_GET_ASSOCIATED_CAMERAS = "alarm.get_associated_cameras"
     ALARM_ACKNOWLEDGE_EXTERNAL = "alarm.acknowledge_external"
 
     # weather

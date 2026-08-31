@@ -14,6 +14,7 @@ from typing import Any
 
 from bbz_integration_sdk.capabilities import Capability, CapabilitySet
 from bbz_integration_sdk.diagnostics import DiagnosticsReport, HealthState
+from bbz_integration_sdk.providers.alarm_types import AlarmContext, AlarmSource, IncomingAlarm
 from bbz_integration_sdk.providers.base import ProviderInfo
 from bbz_integration_sdk.providers.video_types import (
     AlarmContextView,
@@ -36,6 +37,7 @@ _CAPABILITY_GROUPS: dict[str, tuple[Capability, ...]] = {
         Capability.ALARM_SUBSCRIBE,
         Capability.ALARM_RESOLVE_SOURCE,
         Capability.ALARM_GET_CONTEXT,
+        Capability.ALARM_GET_ASSOCIATED_CAMERAS,
     ),
 }
 
@@ -78,7 +80,7 @@ class MockCodaVideoProvider:
             raise ValueError(f"unknown capability group(s): {unknown}")
         self._groups = tuple(g for g in _CAPABILITY_GROUPS if g in groups)
         self._sources = {s["external_source_id"]: s for s in (simulated_sources or [])}
-        self._pending: list[dict[str, Any]] = []
+        self._pending: list[IncomingAlarm] = []
 
     async def initialize(self) -> None:
         return None
@@ -109,10 +111,25 @@ class MockCodaVideoProvider:
         self._pending.clear()
 
     # --- test/simulation helper (not part of the provider protocol) ---
-    def simulate_alarm(self, raw: dict[str, Any]) -> dict[str, Any]:
-        event = normalize_alarm(raw, instance_id=self._instance_id)
-        self._pending.append(event)
-        return event
+    def simulate_alarm(self, raw: dict[str, Any]) -> IncomingAlarm:
+        alarm = IncomingAlarm(
+            provider="coda_video",
+            provider_instance_id=self._instance_id,
+            provider_event_id=raw.get("id"),
+            alarm_type=raw.get("type", "technical_alarm"),
+            alarm_subtype=raw.get("subtype"),
+            source_external_id=raw["source"],
+            source_name=raw.get("source_name"),
+            site_external_id=raw.get("site"),
+            occurred_at=raw.get("occurred_at"),
+            received_at=datetime.now(UTC),
+            severity_external=raw.get("severity"),
+            state_external=raw.get("state"),
+            associated_camera_ids=list(raw.get("cameras", [])),
+            raw=dict(raw),
+        )
+        self._pending.append(alarm)
+        return alarm
 
     # --- video ---
     def _all_camera_ids(self) -> set[str]:
@@ -174,15 +191,28 @@ class MockCodaVideoProvider:
         )
 
     # --- alarm ingress ---
-    async def subscribe_alarms(self) -> AsyncIterator[dict[str, Any]]:
+    async def subscribe_alarms(self) -> AsyncIterator[IncomingAlarm]:
         while self._pending:
             yield self._pending.pop(0)
 
-    async def resolve_source(self, *, external_source_id: str) -> dict[str, Any] | None:
-        return self._sources.get(external_source_id)
+    async def resolve_source(self, *, external_source_id: str) -> AlarmSource | None:
+        src = self._sources.get(external_source_id)
+        if src is None:
+            return None
+        return AlarmSource(
+            external_source_id=external_source_id,
+            name=src.get("name"),
+            site_external_id=src.get("site"),
+            associated_camera_ids=list(src.get("cameras", [])),
+        )
 
-    async def get_context(self, *, provider_event_id: str) -> dict[str, Any]:
-        return {"provider_event_id": provider_event_id}
+    async def get_context(self, *, provider_event_id: str) -> AlarmContext:
+        return AlarmContext(
+            provider_event_id=provider_event_id,
+            associated_camera_ids=await self.get_associated_cameras(
+                provider_event_id=provider_event_id
+            ),
+        )
 
     async def get_associated_cameras(self, *, provider_event_id: str) -> list[str]:
         return []

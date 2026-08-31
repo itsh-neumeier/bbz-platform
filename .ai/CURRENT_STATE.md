@@ -1066,7 +1066,7 @@ API. `integrations/telephony_cucm/` stays a placeholder README.
 - **Epic 15 done bar:** E15-07 (`open_camera` action) → needs Epic 16; E15-14
   **frontend** (popup UI, keyboard, Playwright) → needs Epic 07.
 
-### Epic 16 – Coda Video / HxGN dC3 Video: **in progress (2/13)**
+### Epic 16 – Coda Video / HxGN dC3 Video: **in progress (3/13)**
 - **#335 (E16-01) `coda_video` scaffold formalised** — the manifest schema gains
   optional `capability_groups` (named, independently-activatable capability sets;
   every grouped capability must also be in `capabilities` — checked in
@@ -1089,9 +1089,26 @@ API. `integrations/telephony_cucm/` stays a placeholder README.
   conforms (returns the typed models, `resolve_camera` raises `CameraNotFoundError`
   for an unknown id). `coda_video` manifest gains `video.focus_camera` in the
   `video` group. `test_mock_coda.py`.
+- **#338 (E16-03) normalized alarm-ingress capability interface** — SDK-level, no
+  vendor calls. `bbz_integration_sdk.providers.alarm_types`: frozen typed models
+  `IncomingAlarm` (the alarm as the provider hands it over — identifiers + the
+  opaque `raw` dict kept diagnostics-only for the E16-04 hash, never parsed by
+  rules) / `AlarmSource` / `AlarmContext` / `ExternalAckResult`; error hierarchy
+  `AlarmProviderError` → `AlarmSourceNotFoundError` / `ExternalAckNotSupportedError`;
+  `ALARM_INGRESS_CAPABILITIES`. `AlarmIngressProvider` protocol now fully typed
+  (`subscribe_alarms → AsyncIterator[IncomingAlarm]`, `resolve_source`,
+  `get_context`, `get_associated_cameras`); `ALARM_INGRESS_METHODS`, new
+  `Capability.ALARM_GET_ASSOCIATED_CAMERAS`. **External ack is opt-in and a
+  separate domain action from the BBZ event ack** — split into its own
+  `@runtime_checkable ExternalAckCapable` protocol, present only when the manifest
+  declares `alarm.acknowledge_external` (the mock does not). `MockCodaVideoProvider`
+  conforms (`simulate_alarm` builds an `IncomingAlarm`, `resolve_source` returns
+  `AlarmSource | None`). `coda_video` manifest gains `alarm.get_associated_cameras`
+  in the `alarm_ingress` group. `test_mock_coda.py`.
 - Blocked: **E16-13** is the gated "real Coda/HxGN dC3 doc" milestone; the
   runtime flows (E16-04/07/08) need the DB schema (E16-05) which is doable.
-  Next doable: E16-03 (normalized alarm-ingress interface — SDK-level).
+  Next doable: E16-04 (alarm normalisation → immutable provider event + inbox
+  dedupe) once E16-05 (DB schema) lands; E16-05 is doable now.
 
 ## Existing reference
 A functional HTML mockup defines important UX/feature behavior. **It is not yet in
