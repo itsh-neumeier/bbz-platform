@@ -1,11 +1,19 @@
-"""Call history read model (roadmap E11-11).
+"""Call read models (roadmap E11-11, E11-12).
 
-Read-only. ``GET /calls`` — filter by time / direction / number / category /
-state, keyset-paginated on ``(created_at, id)`` descending so a new call never
-shifts a page. Scope filtering (a user only sees permitted BBZ/workplaces) is a
-no-op hook until user placement exists (E23), same as the event queries.
+Read-only. Two shapes:
 
-Numbers and free text are personally identifiable — ``calls.view_history`` and
+* :meth:`CallQueryRepository.history` — ``GET /calls``: filter by time /
+  direction / number / category / state, keyset-paginated on ``(created_at,
+  id)`` descending so a new call never shifts a page;
+* :meth:`CallQueryRepository.ringing_queue` — ``GET /calls?queue=ringing``: the
+  waiting calls (``offered`` / ``ringing``) ordered by caller priority
+  (high→low, unknown last) then waiting time (longest-waiting first). Small,
+  unpaginated. A client re-fetches it on any ``CALL_*`` frame from the event
+  stream (E11-12).
+
+Scope filtering (a user only sees permitted BBZ/workplaces) is a no-op hook
+until user placement exists (E23), same as the event queries. Numbers and free
+text are personally identifiable — ``calls.view_history`` / ``calls.view`` and
 scope gate this.
 """
 
@@ -15,10 +23,19 @@ import datetime as _dt
 import uuid
 from dataclasses import dataclass, field
 
-from sqlalchemy import Select, and_, or_, select
+from sqlalchemy import Select, and_, case, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from bbz_core.infra.models.telephony import Call, CallDocumentation, CallParticipant
+from bbz_core.infra.models.telephony import Call, CallDocumentation, CallParticipant, CallState
+
+#: waiting-queue sort key: known priority first (high→low), unknown last.
+_PRIORITY_RANK = case(
+    (Call.caller_priority == "high", 0),
+    (Call.caller_priority == "medium", 1),
+    (Call.caller_priority == "low", 2),
+    else_=3,
+)
+_WAITING_STATES = (CallState.OFFERED.value, CallState.RINGING.value)
 
 
 @dataclass(frozen=True)
@@ -42,6 +59,8 @@ class CallHistoryItem:
     created_at: _dt.datetime
     category: str | None
     has_free_text: bool
+    caller_contact_id: uuid.UUID | None = None
+    caller_priority: str | None = None
     participants: list[ParticipantItem] = field(default_factory=list)
 
 
@@ -115,30 +134,48 @@ class CallQueryRepository:
             calls = calls[:limit]
             nxt = _cursor(calls[-1].created_at, calls[-1].id)
 
+        return CallHistoryPage(items=await self._build_items(calls), next_cursor=nxt)
+
+    async def ringing_queue(self) -> list[CallHistoryItem]:
+        """The waiting-call queue (E11-12): ``offered`` / ``ringing`` calls,
+        highest caller priority first, then longest-waiting first. Unpaginated —
+        the queue is a handful of calls."""
+        stmt = (
+            select(Call)
+            .where(Call.state.in_(_WAITING_STATES))
+            .order_by(
+                _PRIORITY_RANK.asc(),
+                func.coalesce(Call.started_at, Call.created_at).asc(),
+                Call.id.asc(),
+            )
+        )
+        calls = list((await self._s.execute(self._scope_filter(stmt))).scalars().all())
+        return await self._build_items(calls)
+
+    async def _build_items(self, calls: list[Call]) -> list[CallHistoryItem]:
         call_ids = [c.id for c in calls]
         parts = await self._participants(call_ids)
         docs = await self._docs(call_ids)
-        return CallHistoryPage(
-            items=[
-                CallHistoryItem(
-                    id=c.id,
-                    bbz_call_id=c.bbz_call_id,
-                    provider=c.provider,
-                    direction=c.direction,
-                    state=c.state,
-                    line_id=c.line_id,
-                    workplace_id=c.workplace_id,
-                    started_at=c.started_at,
-                    ended_at=c.ended_at,
-                    created_at=c.created_at,
-                    category=docs.get(c.id, (None, False))[0],
-                    has_free_text=docs.get(c.id, (None, False))[1],
-                    participants=parts.get(c.id, []),
-                )
-                for c in calls
-            ],
-            next_cursor=nxt,
-        )
+        return [
+            CallHistoryItem(
+                id=c.id,
+                bbz_call_id=c.bbz_call_id,
+                provider=c.provider,
+                direction=c.direction,
+                state=c.state,
+                line_id=c.line_id,
+                workplace_id=c.workplace_id,
+                started_at=c.started_at,
+                ended_at=c.ended_at,
+                created_at=c.created_at,
+                category=docs.get(c.id, (None, False))[0],
+                has_free_text=docs.get(c.id, (None, False))[1],
+                caller_contact_id=c.caller_contact_id,
+                caller_priority=c.caller_priority,
+                participants=parts.get(c.id, []),
+            )
+            for c in calls
+        ]
 
     async def _participants(
         self, call_ids: list[uuid.UUID]
