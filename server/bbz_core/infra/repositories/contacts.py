@@ -239,7 +239,12 @@ class ContactRepository:
         return _view(contact, numbers, priority.priority if priority else None)
 
     async def search(
-        self, *, q: str | None = None, limit: int = 50, cursor: str | None = None
+        self,
+        *,
+        q: str | None = None,
+        quick_dial: bool | None = None,
+        limit: int = 50,
+        cursor: str | None = None,
     ) -> ContactPage:
         stmt = self._scope_filter(self._live(select(Contact)))
         if q:
@@ -253,6 +258,8 @@ class ContactRepository:
                     ),
                 )
             )
+        if quick_dial is not None:
+            stmt = stmt.where(Contact.quick_dial.is_(quick_dial))
         stmt = stmt.order_by(func.lower(Contact.name), Contact.id)
         if cursor is not None:
             c_name, c_id = _decode_cursor(cursor)

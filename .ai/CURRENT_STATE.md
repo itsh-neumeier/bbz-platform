@@ -774,7 +774,7 @@ E11-12 (ringing-call list) needs E11-08's priority. Epic 07 / 08, #92, the Go
 agents (09/10 impl) and the #429 browser E2E stay blocked on a Node / Go /
 multi-host session.
 
-### Epic 14 – Contacts / Call Priorities: **in progress (5/10)**
+### Epic 14 – Contacts / Call Priorities: **in progress (6/10)**
 - **#285 (E14-01) contacts schema** — migration 0027 + `contacts.py`:
   `contacts` (name, org, notes, `quick_dial`, `bbz_id` scope — plain UUID like
   `events.bbz_id`), `contact_numbers` (`e164` stored normalized — a CHECK
@@ -819,8 +819,13 @@ multi-host session.
   (DELETE). New payload sub-schemas + event-catalog rows. A no-op PATCH (no
   effective field change) emits nothing. `test_contact_events.py` is the
   contract test.
-- Next: E14-06 (quick-dial list). E14-07..10 are frontend → blocked. **E11-08
-  is unblocked** (has `ContactMatcher`).
+- **#295 (E14-06) quick-dial list** — `GET /api/v1/contacts?quick_dial=true`
+  (`contacts.view`) filters the phone-book search to `quick_dial` contacts only;
+  `?quick_dial=false` the complement, omitted = all. Same alphabetical keyset
+  order (stable). The flag itself is set via `PATCH /contacts/{id}` (E14-02).
+  `test_contact_quickdial_api.py`.
+- **E14-07..10 are frontend → blocked.** Epic 14 backend is done bar the UI.
+  **E11-08 is unblocked** (has `ContactMatcher`).
 
 ## Existing reference
 A functional HTML mockup defines important UX/feature behavior. **It is not yet in

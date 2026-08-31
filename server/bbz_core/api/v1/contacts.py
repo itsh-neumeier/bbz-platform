@@ -164,17 +164,22 @@ def _out(view: ContactView) -> ContactOut:
 @router.get("", response_model=ContactPageOut)
 async def search_contacts(
     q: str | None = Query(default=None, max_length=200),
+    quick_dial: bool | None = Query(default=None),
     limit: int = Query(default=50, ge=1, le=200),
     cursor: str | None = Query(default=None),
     _: AuthContext = Depends(require("contacts.view")),
     session: AsyncSession = Depends(db_session),
 ) -> ContactPageOut:
     """Phone-book search (§13.9). ``q`` matches name / org (substring,
-    case-insensitive) and any number. Alphabetical by name, keyset-paginated —
-    pass ``next_cursor`` back as ``cursor``. Soft-deleted contacts are excluded.
+    case-insensitive) and any number. ``quick_dial=true`` returns the speed-dial
+    list (§13.11) — only marked, scope-visible contacts. Alphabetical by name,
+    keyset-paginated — pass ``next_cursor`` back as ``cursor``. Soft-deleted
+    contacts are excluded.
     """
     try:
-        page = await ContactRepository(session).search(q=q, limit=limit, cursor=cursor)
+        page = await ContactRepository(session).search(
+            q=q, quick_dial=quick_dial, limit=limit, cursor=cursor
+        )
     except ValueError as exc:
         raise ValidationError("invalid cursor") from exc
     return ContactPageOut(items=[_out(v) for v in page.items], next_cursor=page.next_cursor)
