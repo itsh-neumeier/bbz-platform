@@ -864,7 +864,7 @@ API. `integrations/telephony_cucm/` stays a placeholder README.
 - **E14-07..10 are frontend → blocked.** Epic 14 backend is done bar the UI.
   **E11-08 is unblocked** (has `ContactMatcher`).
 
-### Epic 15 – Technical Endpoints / Trigger Engine: **in progress (12/15)**
+### Epic 15 – Technical Endpoints / Trigger Engine: **in progress (13/15, E15-14 backend only)**
 - **#305 (E15-01) technical-endpoints schema** — migration 0030 +
   `technical_endpoints.py` (MASTER_PROMPT §29 — **not** modelled as contacts):
   `technical_endpoints` (name, site, `type` `door_station|bma|panic_button|
@@ -1032,8 +1032,23 @@ API. `integrations/telephony_cucm/` stays a placeholder README.
   `alembic up/down/up` on real PG) but **cannot merge** until the user fixes
   Billing & plans. Stacked branches: `feature/326-…` (E15-12) →
   `feature/329-bma-flow` (E15-13) → …
-- Next: E15-14 (client-popup delivery — backend part), E15-15 (E2E). E15-07
-  (open_camera) needs Epic 16.
+- **#331 (E15-14) client-popup delivery — BACKEND SLICE ONLY** (UI + keyboard +
+  Playwright = Epic 07, still blocked). `_show_client_popup` (E15-06) now also
+  `append_event`s a **`CLIENT_POPUP_RAISED`** domain event (new sub-schema in
+  `event.payloads.v1.json`: `popup_id, workplace_id, kind, expires_at`,
+  no secrets) inside the same atomic tx, and `_run_atomic` fires
+  `notify_event_appended()` for it — so a connected client catches it on the SSE
+  stream (E03-13) + catch-up. New `bbz_core.infra.repositories.client_popups`
+  `ClientPopupService.pending_for / mark_delivered / dismiss`. API
+  (`client_popups.py`, prefix `/client`, all `events.view`):
+  `GET /api/v1/client/popups?workplace_id=…` (live = unexpired + undismissed),
+  `POST /api/v1/client/popups/{id}/delivered?workplace_id=…` (idempotent, audit
+  `CLIENT_POPUP_DELIVERED` once), `POST .../{id}/dismiss?workplace_id=…`. A popup
+  only ever reaches its bound workplace — a mismatched `workplace_id` on an
+  action is 403. New `AuditAction.CLIENT_POPUP_DELIVERED` in `CRITICAL_ACTIONS`.
+  `test_client_popup_delivery.py`. No migration (`client_popup_events` is E15-03).
+- Next: E15-15 (E2E — needs compose orchestration). E15-07 (open_camera) needs
+  Epic 16. E15-14 frontend stays blocked on Epic 07.
 
 ## Existing reference
 A functional HTML mockup defines important UX/feature behavior. **It is not yet in
