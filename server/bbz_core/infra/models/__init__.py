@@ -94,6 +94,7 @@ from bbz_core.infra.models.trigger_rules import (
     TriggerRuleVersion,
 )
 from bbz_core.infra.models.unmapped_signals import UnmappedSignal
+from bbz_core.infra.models.weather import WeatherAlert, WeatherObservation
 from bbz_core.infra.models.workflow import (
     WorkflowGraphEdge,
     WorkflowGraphNode,
@@ -180,6 +181,8 @@ __all__ = [
     "UserPresence",
     "UserRole",
     "UserStatus",
+    "WeatherAlert",
+    "WeatherObservation",
     "WorkflowDecision",
     "WorkflowGraphEdge",
     "WorkflowGraphNode",
