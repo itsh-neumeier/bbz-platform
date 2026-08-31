@@ -864,7 +864,7 @@ API. `integrations/telephony_cucm/` stays a placeholder README.
 - **E14-07..10 are frontend → blocked.** Epic 14 backend is done bar the UI.
   **E11-08 is unblocked** (has `ContactMatcher`).
 
-### Epic 15 – Technical Endpoints / Trigger Engine: **in progress (7/15)**
+### Epic 15 – Technical Endpoints / Trigger Engine: **in progress (8/15)**
 - **#305 (E15-01) technical-endpoints schema** — migration 0030 +
   `technical_endpoints.py` (MASTER_PROMPT §29 — **not** modelled as contacts):
   `technical_endpoints` (name, site, `type` `door_station|bma|panic_button|
@@ -941,8 +941,25 @@ API. `integrations/telephony_cucm/` stays a placeholder README.
   (ADR-0004 / §30). `call_id` comes from the action or the signal's
   `source.source_call_id` (added to `inbound_signal.v1.json` +
   `from_telephony_event`). `test_trigger_actions_call.py`.
-- Next: E15-09 (engine: inbox event → select rules → run actions), E15-10
-  (admin API), E15-11..15. E15-07 (open_camera) needs Epic 16.
+- **#320 (E15-09) rule-execution engine** — `bbz_core.infra.repositories.
+  trigger_engine`: after the E04-07 inbox has deduplicated a normalized inbound
+  signal, `TriggerEngine.process_inbox_event(inbox_id)` loads every **published**
+  rule + its highest published version, `select_matching_rules` orders the
+  matches deterministically by `(priority, rule_id)` (E15-05), and each rule
+  version's actions run through `TriggerActionService` (E15-06/08) where every
+  `(provider_event_id, rule_version_id, action_index)` is claimed once — then the
+  inbox row is marked processed. **Exactly-once, active/active**: a
+  double-delivered provider event is a duplicate at the inbox (row already
+  processed → no-op); a crash mid-sequence leaves the row unprocessed and
+  `resume_unprocessed()` re-runs it — every already-done action is a claimed
+  no-op, so nothing duplicates. Module fn `process_signal(session, *, signal,
+  provider_event_id, dedupe_key)` = record (dedupe) + process, the convenience an
+  integration edge calls. `EngineResult(inbox_id, signal_type, matched_rules,
+  processed, actions)`. A non-signal inbox row (no `signal_type`) is marked
+  processed with 0 matches. Audit: `TRIGGER_EXECUTED` per action (via
+  `TriggerActionService`). `test_trigger_engine.py`.
+- Next: E15-10 (admin API: endpoints CRUD, rules Draft→Validate→Publish→Retire),
+  E15-11..15. E15-07 (open_camera) needs Epic 16.
 
 ## Existing reference
 A functional HTML mockup defines important UX/feature behavior. **It is not yet in
