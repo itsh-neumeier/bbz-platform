@@ -161,6 +161,19 @@
         "name": { "type": "string" },
         "actor_id": { "type": "string" }
       }
+    },
+    "CLIENT_POPUP_RAISED": {
+      "type": "object",
+      "description": "A trigger show_client_popup action created a client_popup_events row (E15-14). Delivered to the bound workplace over the event stream; the payload carries no secrets.",
+      "required": ["popup_id", "workplace_id", "kind", "expires_at"],
+      "additionalProperties": true,
+      "properties": {
+        "popup_id": { "type": "string", "minLength": 1 },
+        "workplace_id": { "type": "string", "minLength": 1 },
+        "kind": { "type": "string", "minLength": 1 },
+        "expires_at": { "type": "string", "format": "date-time" },
+        "actor_id": { "type": ["string", "null"] }
+      }
     }
   },
   "$defs": {
