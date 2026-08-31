@@ -14,7 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from bbz_core.infra.models.audit import AuditEvent
 from bbz_core.infra.models.technical_endpoints import TechnicalEndpoint, TechnicalEndpointNumber
 
-_MANAGE = ["technical_endpoints.view", "technical_endpoints.manage"]
+_MANAGE = ["technical_endpoints.view", "technical_endpoints.manage", "door.configure"]
 
 
 @pytest.fixture(autouse=True)

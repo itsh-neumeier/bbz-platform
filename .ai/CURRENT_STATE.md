@@ -1204,6 +1204,23 @@ API. `integrations/telephony_cucm/` stays a placeholder README.
 - **E16-12** (camera UI) needs Epic 07 (E07-08) — deferred.
   Next: **E16-13** (blocker doc — no deps) → Epic 16 backend complete (12/13).
 
+### Epic 17 – Siedle: **in progress (1/7)**
+- **#361 (E17-01) Siedle door-station endpoint profile** — migration
+  `0035_door_station_fields` adds `technical_endpoints.dtmf_profile_id` (a
+  reference id **only** — the code lives encrypted in `door_action_profiles`,
+  E17-02, never here), `popup_text` and `door_open_timeout_seconds` (1–600).
+  `TechnicalEndpointService` / the `/api/v1/technical-endpoints` admin API carry
+  them; the request models are `extra="forbid"` so a raw `dtmf_code` / `code` /
+  `dtmf` key is a 422. Touching a door field, or `type == "door_station"`,
+  additionally needs `door.configure` (checked imperatively in the handler, on
+  top of `technical_endpoints.manage`; other endpoint types are unaffected).
+  Real `alembic up/down/up` verified. `test_siedle_endpoint_profile.py`;
+  `test_technical_endpoints_api.py` / `test_trigger_unmapped_queue.py` gain
+  `door.configure` where they create door stations.
+- Next: **E17-02** (`door_action_profiles` schema — DTMF ciphertext via the
+  Fernet secret-store pattern, id-only reference; deps E01-03/E02-01) then
+  **E17-03** (`DOORBELL_RINGING` trigger).
+
 ## Existing reference
 A functional HTML mockup defines important UX/feature behavior. **It is not yet in
 the repository** — it must be committed under `docs/mockup/` before Phase 3 and is
