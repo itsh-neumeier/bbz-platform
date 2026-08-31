@@ -88,7 +88,7 @@ class EventRepository:
         self,
         agg: EventAggregate,
         *,
-        actor_id: uuid.UUID,
+        actor_id: uuid.UUID | None,
         command_id: uuid.UUID | None = None,
     ) -> int:
         """Persist a freshly created aggregate (status ``new``, version 1)."""
@@ -102,6 +102,7 @@ class EventRepository:
                 status=agg.status.value,
                 bbz_id=agg.bbz_id,
                 workplace_id=agg.workplace_id,
+                source=agg.source,
                 version=1,
             )
         )
@@ -179,7 +180,7 @@ class EventRepository:
         self,
         agg: EventAggregate,
         *,
-        actor_id: uuid.UUID,
+        actor_id: uuid.UUID | None,
         command_id: uuid.UUID | None,
     ) -> None:
         for ev in agg.collect_events():

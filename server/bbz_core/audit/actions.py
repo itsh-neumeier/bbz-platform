@@ -49,6 +49,7 @@ class AuditAction(enum.StrEnum):
     CONTACT_UPDATED = "CONTACT_UPDATED"
     CONTACT_DELETED = "CONTACT_DELETED"
     CONTACT_PRIORITY_CHANGED = "CONTACT_PRIORITY_CHANGED"
+    TRIGGER_EXECUTED = "TRIGGER_EXECUTED"
 
 
 #: Actions that MUST be emitted from a write path (MASTER_PROMPT §17). A missing
@@ -86,5 +87,6 @@ CRITICAL_ACTIONS: frozenset[AuditAction] = frozenset(
         AuditAction.CONTACT_UPDATED,
         AuditAction.CONTACT_DELETED,
         AuditAction.CONTACT_PRIORITY_CHANGED,
+        AuditAction.TRIGGER_EXECUTED,
     }
 )
