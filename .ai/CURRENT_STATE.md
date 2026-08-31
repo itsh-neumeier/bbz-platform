@@ -1066,7 +1066,7 @@ API. `integrations/telephony_cucm/` stays a placeholder README.
 - **Epic 15 done bar:** E15-07 (`open_camera` action) → needs Epic 16; E15-14
   **frontend** (popup UI, keyboard, Playwright) → needs Epic 07.
 
-### Epic 16 – Coda Video / HxGN dC3 Video: **in progress (4/13)**
+### Epic 16 – Coda Video / HxGN dC3 Video: **in progress (5/13)**
 - **#335 (E16-01) `coda_video` scaffold formalised** — the manifest schema gains
   optional `capability_groups` (named, independently-activatable capability sets;
   every grouped capability must also be in `capabilities` — checked in
@@ -1118,10 +1118,18 @@ API. `integrations/telephony_cucm/` stays a placeholder README.
   runs it through the E04-07 provider inbox — a replayed / dual-node panic alarm
   is stored once (ADR-0006 exactly-once base). **Not** wired to the trigger engine
   yet (E16-07). `test_coda_alarm_normalization.py`, `test_provider_alarm_event_schema.py`.
+- **#343 (E16-05) DB schema `integration_camera_mappings`** — migration
+  `0034_camera_mappings` + `integration_camera_mappings.py`. A row maps a camera
+  to a **technical endpoint** (`endpoint_id`, cascade) OR to an **external alarm
+  source** (`alarm_source_external_id`) — CHECK `anchor` needs at least one; both
+  at once is allowed. `camera_external_ref` is a normalized handle (no vendor
+  object id), `ordinal` orders multi-camera opens, `provider_instance_id` scopes
+  it. Admin API is E16-06; the runtime that opens the cameras is E16-07/08.
+  Real `alembic up/down/up` verified. `test_integration_camera_mappings_schema.py`.
 - Blocked: **E16-13** is the gated "real Coda/HxGN dC3 doc" milestone; the
-  runtime flows (E16-07/08) build on E16-04 + need the DB schema (E16-05).
-  Next doable: **E16-05** (DB schema `integration_camera_mappings`, dep E15-01
-  only) then **E16-06** (admin config per alarm source).
+  runtime flows (E16-07/08) build on E16-04 + need the DB schema (E16-05, done).
+  Next doable: **E16-06** (admin config per alarm source, deps E15-10 + E16-05)
+  then **E16-07** (panic runtime flow, deps E16-04 + E15-06/07/09).
 
 ## Existing reference
 A functional HTML mockup defines important UX/feature behavior. **It is not yet in
