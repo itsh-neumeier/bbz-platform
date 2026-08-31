@@ -864,6 +864,22 @@ API. `integrations/telephony_cucm/` stays a placeholder README.
 - **E14-07..10 are frontend → blocked.** Epic 14 backend is done bar the UI.
   **E11-08 is unblocked** (has `ContactMatcher`).
 
+### Epic 15 – Technical Endpoints / Trigger Engine: **in progress (1/15)**
+- **#305 (E15-01) technical-endpoints schema** — migration 0030 +
+  `technical_endpoints.py` (MASTER_PROMPT §29 — **not** modelled as contacts):
+  `technical_endpoints` (name, site, `type` `door_station|bma|panic_button|
+  video_alarm|alarm_dialer|custom` CHECK, `provider_id`, `external_source_ids`
+  JSONB, `default_priority` `critical|high|medium|low` CHECK nullable,
+  `popup_profile`, `escalation_profile`, `workflow_selection_policy` JSONB,
+  `enabled`, `active_config_version`), `technical_endpoint_numbers` (endpoint_id
+  CASCADE, `calling_pattern` / `called_pattern` / `cti_route_point`). No FK to
+  `contacts`. Migration up/down/up verified on real PG.
+  `test_technical_endpoints_schema.py`.
+- Next: E15-02 (trigger_rules/versions/executions schema), E15-03 (outbox
+  extension + client_popup_events), E15-04 (normalized inbound signal model),
+  E15-05 (rule model + DSL conditions), E15-06 (typed actions), E15-08..15.
+  E15-07 (open_camera actions) needs Epic 16 (video).
+
 ## Existing reference
 A functional HTML mockup defines important UX/feature behavior. **It is not yet in
 the repository** — it must be committed under `docs/mockup/` before Phase 3 and is

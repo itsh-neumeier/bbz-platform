@@ -62,6 +62,11 @@ from bbz_core.infra.models.rbac import (
     UserRole,
 )
 from bbz_core.infra.models.session import Session
+from bbz_core.infra.models.technical_endpoints import (
+    TechnicalEndpoint,
+    TechnicalEndpointNumber,
+    TechnicalEndpointType,
+)
 from bbz_core.infra.models.telephony import (
     Call,
     CallCategory,
@@ -139,6 +144,9 @@ __all__ = [
     "RolePermission",
     "Scope",
     "Session",
+    "TechnicalEndpoint",
+    "TechnicalEndpointNumber",
+    "TechnicalEndpointType",
     "User",
     "UserGroup",
     "UserPresence",
