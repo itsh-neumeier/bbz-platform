@@ -8,6 +8,7 @@ from bbz_core.api.v1.audit import router as audit_router
 from bbz_core.api.v1.auth import router as auth_router
 from bbz_core.api.v1.calls import router as calls_router
 from bbz_core.api.v1.client_popups import router as client_popups_router
+from bbz_core.api.v1.coda_alarm_sources import router as coda_alarm_sources_router
 from bbz_core.api.v1.contacts import router as contacts_router
 from bbz_core.api.v1.events import router as events_router
 from bbz_core.api.v1.lines import router as lines_router
@@ -42,6 +43,7 @@ api_v1.include_router(technical_endpoints_router)
 api_v1.include_router(trigger_rules_router)
 api_v1.include_router(trigger_diagnostics_router)
 api_v1.include_router(client_popups_router)
+api_v1.include_router(coda_alarm_sources_router)
 
 
 class MetaResponse(BaseModel):

@@ -1078,7 +1078,7 @@ API. `integrations/telephony_cucm/` stays a placeholder README.
 - **Epic 15 done bar:** E15-14 **frontend** (popup UI, keyboard, Playwright) →
   needs Epic 07. (E15-07 camera/integration actions done — see #317 above.)
 
-### Epic 16 – Coda Video / HxGN dC3 Video: **in progress (5/13)**
+### Epic 16 – Coda Video / HxGN dC3 Video: **in progress (6/13)**
 - **#335 (E16-01) `coda_video` scaffold formalised** — the manifest schema gains
   optional `capability_groups` (named, independently-activatable capability sets;
   every grouped capability must also be in `capabilities` — checked in
@@ -1138,10 +1138,20 @@ API. `integrations/telephony_cucm/` stays a placeholder README.
   object id), `ordinal` orders multi-camera opens, `provider_instance_id` scopes
   it. Admin API is E16-06; the runtime that opens the cameras is E16-07/08.
   Real `alembic up/down/up` verified. `test_integration_camera_mappings_schema.py`.
-- Blocked: **E16-13** is the gated "real Coda/HxGN dC3 doc" milestone; the
-  runtime flows (E16-07/08) build on E16-04 + need the DB schema (E16-05, done).
-  Next doable: **E16-06** (admin config per alarm source, deps E15-10 + E16-05)
-  then **E16-07** (panic runtime flow, deps E16-04 + E15-06/07/09).
+- **#345 (E16-06) admin config per Coda alarm source** —
+  `AlarmSourceConfigService` + `PUT/GET/DELETE /api/v1/coda-alarm-sources/
+  {external_source_id}`. A **facade** over E15-10 + E16-05 (no new table): one
+  idempotent upsert sets a `provider_id="coda_video"` technical endpoint (name,
+  type, site, `default_priority`, popup/EPK/escalation profile, `enabled`) and
+  **replaces** the `integration_camera_mappings` rows keyed by that
+  `alarm_source_external_id`. `panic_button` → `default_priority` `critical`
+  unless the caller overrides (§36). Writes need **both**
+  `technical_endpoints.manage` and `integrations.configure`; audited
+  `CODA_ALARM_SOURCE_CONFIGURED` / `_REMOVED` (both in `CRITICAL_ACTIONS`).
+  `test_coda_alarm_source_admin_api.py`.
+- Blocked: **E16-13** is the gated "real Coda/HxGN dC3 doc" milestone.
+  Next doable: **E16-07** (panic runtime flow: E16-04 → E15-09 → E15-06/07;
+  deps E16-04 + E15-06/07/09 — all done) then **E16-08** (camera outbox handler).
 
 ## Existing reference
 A functional HTML mockup defines important UX/feature behavior. **It is not yet in
