@@ -54,6 +54,20 @@ async def s(db: object) -> AsyncIterator[AsyncSession]:
     yield db
 
 
+async def _alarm_rows(s: AsyncSession) -> list[ProviderEventInbox]:
+    """Inbox rows for the immutable alarm event — not the queued ``signal:`` row
+    the trigger engine drains (E16-07)."""
+    await s.rollback()
+    rows = (await s.execute(select(ProviderEventInbox))).scalars().all()
+    return [r for r in rows if not r.dedupe_key.startswith("signal:")]
+
+
+async def _signal_rows(s: AsyncSession) -> list[ProviderEventInbox]:
+    await s.rollback()
+    rows = (await s.execute(select(ProviderEventInbox))).scalars().all()
+    return [r for r in rows if r.dedupe_key.startswith("signal:")]
+
+
 # --- pure normalization ------------------------------------------------
 
 
@@ -113,13 +127,15 @@ async def test_a_duplicated_alarm_is_ingested_once(s: AsyncSession) -> None:
     assert second.outcome.value == "duplicate"
     assert first.inbox_id == second.inbox_id
 
-    rows = (await s.execute(select(ProviderEventInbox))).scalars().all()
+    rows = await _alarm_rows(s)
     assert len(rows) == 1
     row = rows[0]
     assert row.normalized["provider_event_id"] == "CODA-EVT-4711"
     assert row.raw_hash == row.normalized["raw_hash"]
     assert "raw" not in row.normalized
     assert "vendor_secret" not in str(row.normalized)
+    # exactly one inbound signal is queued for the trigger engine (E16-07)
+    assert len(await _signal_rows(s)) == 1
 
 
 async def test_two_distinct_alarms_are_two_rows(s: AsyncSession) -> None:
@@ -127,8 +143,8 @@ async def test_two_distinct_alarms_are_two_rows(s: AsyncSession) -> None:
         await ingest_alarm_event(s, _incoming(provider_event_id="E-1"))
     async with s.begin():
         await ingest_alarm_event(s, _incoming(provider_event_id="E-2"))
-    rows = (await s.execute(select(ProviderEventInbox))).scalars().all()
-    assert len(rows) == 2
+    assert len(await _alarm_rows(s)) == 2
+    assert len(await _signal_rows(s)) == 2
 
 
 async def test_replay_without_a_stable_id_still_dedupes(s: AsyncSession) -> None:
@@ -140,9 +156,10 @@ async def test_replay_without_a_stable_id_still_dedupes(s: AsyncSession) -> None
     assert first.outcome.value == "new"
     assert second.outcome.value == "duplicate"
     # the provider had no stable id -> the inbox column is NULL, the dedupe_key carries it
-    row = (await s.execute(select(ProviderEventInbox))).scalar_one()
-    assert row.provider_event_id is None
-    assert row.dedupe_key.startswith("coda_video:derived:")
+    rows = await _alarm_rows(s)
+    assert len(rows) == 1
+    assert rows[0].provider_event_id is None
+    assert rows[0].dedupe_key.startswith("coda_video:derived:")
 
 
 async def test_a_vendor_field_makes_no_row_difference(s: AsyncSession) -> None:
@@ -170,7 +187,8 @@ async def test_the_e16_03_mock_alarm_flows_through(s: AsyncSession) -> None:
         result = await ingest_alarm_event(s, alarms[0].model_dump(mode="json"))
 
     assert result.outcome.value == "new"
-    row = (await s.execute(select(ProviderEventInbox))).scalar_one()
-    assert row.normalized["alarm_subtype"] == "panic_button"
-    assert row.normalized["source_external_id"] == "CODA-ALARM-4711"
-    assert row.provider == "coda_video"
+    rows = await _alarm_rows(s)
+    assert len(rows) == 1
+    assert rows[0].normalized["alarm_subtype"] == "panic_button"
+    assert rows[0].normalized["source_external_id"] == "CODA-ALARM-4711"
+    assert rows[0].provider == "coda_video"

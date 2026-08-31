@@ -1078,7 +1078,7 @@ API. `integrations/telephony_cucm/` stays a placeholder README.
 - **Epic 15 done bar:** E15-14 **frontend** (popup UI, keyboard, Playwright) →
   needs Epic 07. (E15-07 camera/integration actions done — see #317 above.)
 
-### Epic 16 – Coda Video / HxGN dC3 Video: **in progress (6/13)**
+### Epic 16 – Coda Video / HxGN dC3 Video: **in progress (7/13)**
 - **#335 (E16-01) `coda_video` scaffold formalised** — the manifest schema gains
   optional `capability_groups` (named, independently-activatable capability sets;
   every grouped capability must also be in `capabilities` — checked in
@@ -1149,9 +1149,21 @@ API. `integrations/telephony_cucm/` stays a placeholder README.
   `technical_endpoints.manage` and `integrations.configure`; audited
   `CODA_ALARM_SOURCE_CONFIGURED` / `_REMOVED` (both in `CRITICAL_ACTIONS`).
   `test_coda_alarm_source_admin_api.py`.
+- **#347 (E16-07) Coda panic/duress runtime flow (§36.1)** — compose, minimal new
+  code. `bbz_core.domain.triggers.from_incoming_alarm(alarm_event) → inbound_signal`
+  maps a normalized `provider_alarm_event.v1` (E16-04) to a `PANIC_ALARM_RAISED`
+  (subtype `panic_button`) / `TECHNICAL_ALARM_RAISED` signal — allowlisted fields
+  only (`external_source_id`, `site`, `alarm_subtype`, `severity` if a BBZ word).
+  `alarm_ingest.ingest_alarm_event` now, on a **new** alarm, also queues that
+  signal as its own `signal:` provider-inbox row; the `trigger-engine` drain
+  worker (ADR-0024) runs it through `TriggerEngine` → matched published rule →
+  `create_event`(critical) + `attach_workflow`(published EPK version) +
+  `show_client_popup` + `open_camera_group` (decoupled outbox). A duplicate /
+  failover alarm dedupes at the inbox → no second event. `test_coda_panic_flow.py`;
+  `test_coda_alarm_normalization.py` updated (alarm vs `signal:` rows).
 - Blocked: **E16-13** is the gated "real Coda/HxGN dC3 doc" milestone.
-  Next doable: **E16-07** (panic runtime flow: E16-04 → E15-09 → E15-06/07;
-  deps E16-04 + E15-06/07/09 — all done) then **E16-08** (camera outbox handler).
+  Next doable: **E16-08** (`open_camera*` outbox **dispatch** handler → `video.*`
+  provider, retry/backoff; deps E16-02 + E15-07) then **E16-09** (full mock).
 
 ## Existing reference
 A functional HTML mockup defines important UX/feature behavior. **It is not yet in
