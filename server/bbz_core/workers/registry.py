@@ -16,7 +16,12 @@ from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 
 #: leader-election names, also the keys under ``/bbz/leader/`` in etcd.
-SINGLETON_NAMES: tuple[str, ...] = ("outbox-dispatcher", "workflow-timer", "trigger-engine")
+SINGLETON_NAMES: tuple[str, ...] = (
+    "outbox-dispatcher",
+    "workflow-timer",
+    "trigger-engine",
+    "weather-refresh",
+)
 
 
 @dataclass(frozen=True)
@@ -51,9 +56,21 @@ async def _trigger_engine_tick() -> object:
         return len(results)
 
 
+async def _weather_refresh_tick() -> object:
+    """Poll the active weather integration and refresh the DWD snapshot / health
+    (E18-06). Returns the number of items ingested; safe on an unconfigured
+    system (returns 0)."""
+    from bbz_core.infra.db import session_scope
+    from bbz_core.infra.repositories.weather_refresh import WeatherRefreshService
+
+    async with session_scope() as session:
+        return await WeatherRefreshService(session).refresh()
+
+
 def cluster_singletons() -> list[Singleton]:
     return [
         Singleton("outbox-dispatcher", _outbox_tick),
         Singleton("workflow-timer", _workflow_timer_tick),
         Singleton("trigger-engine", _trigger_engine_tick),
+        Singleton("weather-refresh", _weather_refresh_tick),
     ]

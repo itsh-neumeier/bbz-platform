@@ -115,6 +115,13 @@ class Settings(BaseSettings):
     # --- video (E16-08). Which video integration serves camera trigger actions. ---
     video_integration_id: str = "coda_video"
 
+    # --- weather (E18-06). Which weather integration the refresh singleton polls,
+    # how often it ticks, and how long a data kind may go without a successful
+    # refresh before its health is `stale`. ---
+    weather_integration_id: str = "dwd"
+    weather_refresh_seconds: int = 300
+    weather_stale_after_seconds: int = 1800
+
     # --- retention (E20-07, docs/domain/retention-policy.md). Windows for
     # *derived / non-essential* data only. Events, domain events, audit and the
     # event history tables are NEVER pruned (0 would be meaningless there). ---
