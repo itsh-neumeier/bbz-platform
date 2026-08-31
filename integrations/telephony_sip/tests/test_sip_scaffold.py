@@ -88,7 +88,7 @@ async def test_lifecycle_and_read_queries_are_safe_defaults() -> None:
         lambda p: p.resume(call_id="x", command_id="c"),
         lambda p: p.transfer(call_id="x", destination="9", command_id="c"),
         lambda p: p.conference(call_ids=["x"], command_id="c"),
-        lambda p: p.send_dtmf(call_id="x", dtmf_profile_id="door", command_id="c"),
+        lambda p: p.send_dtmf(call_id="x", dtmf="12#", command_id="c"),
     ],
 )
 async def test_control_commands_are_gated_until_the_sip_stack_lands(call: object) -> None:

@@ -69,7 +69,7 @@ class _MiniTelephony:
     async def conference(self, *, call_ids: list[str], command_id: str) -> object:
         return {}
 
-    async def send_dtmf(self, *, call_id: str, dtmf_profile_id: str, command_id: str) -> object:
+    async def send_dtmf(self, *, call_id: str, dtmf: str, command_id: str) -> object:
         return {}
 
     async def resolve_caller(self, *, number: str) -> object:

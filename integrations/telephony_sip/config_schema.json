@@ -33,7 +33,7 @@
     "dtmf_transport": {
       "enum": ["rfc2833", "sip_info"],
       "default": "rfc2833",
-      "description": "How send_dtmf delivers a configured profile (E13-06). The raw code stays in the secret store."
+      "description": "On-the-wire transport for send_dtmf (E13-06). The DTMF sequence is resolved and held by BBZ (ADR-0025); this adapter only emits it."
     }
   }
 }

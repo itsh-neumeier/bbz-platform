@@ -107,10 +107,14 @@ async def test_send_dtmf_never_leaks_the_code() -> None:
     p = MockTelephonyProvider(lines=["2001"])
     cid = p.simulate_incoming(from_number="1", to_line="2001")
     await p.answer(call_id=cid, command_id="c0")
-    ack = await p.send_dtmf(call_id=cid, dtmf_profile_id="door-1", command_id="c1")
-    assert "door-1" in (ack.detail or "")
+    ack = await p.send_dtmf(call_id=cid, dtmf="1234#", command_id="c1")
     dump = ack.model_dump_json()
-    assert "code" not in dump and "1234" not in dump
+    assert "1234" not in dump and "#" not in dump
+    assert p._dtmf_sends == ["c1"]
+
+    # a repeated command_id is deduped, not re-emitted
+    await p.send_dtmf(call_id=cid, dtmf="1234#", command_id="c1")
+    assert p._dtmf_sends == ["c1"]
 
 
 async def test_resolve_caller_known_and_unknown() -> None:
