@@ -1314,7 +1314,7 @@ API. `integrations/telephony_cucm/` stays a placeholder README.
   done end-to-end against the mocks; the real CUCM/SIP `send_dtmf` transport is
   E12-05 / E13-06 (blocked).
 
-### Epic 18 – DWD Weather: **in progress (4/10)**
+### Epic 18 – DWD Weather: **in progress (5/10)**
 - **#375 (E18-01) `integrations/dwd` scaffold + manifest + config** — **ADR-0026**
   (Accepted) pins the three public DWD Open Data services: warnings → CAP 1.2
   feed `opendata.dwd.de/weather/alerts/cap/COMMUNEUNION_DWD_STAT/` +
@@ -1363,9 +1363,19 @@ API. `integrations/telephony_cucm/` stays a placeholder README.
   ("Deutscher Wetterdienst", ADR-0026) + the `health` block from
   `WeatherRefreshService.health()` (overall + per-kind status / last_success /
   age). UTC times. `test_weather_api.py`.
-- Next: **E18-08** (`POST /weather/alerts/{id}/create-event` — BBZ event from a
-  warning, `weather.create_event`, idempotent, `WEATHER_EVENT_CREATED`).
-  E18-02/03/04 (adapters) need recorded DWD fixtures; E18-09 UI → Epic 07.
+- **#389 (E18-08) create BBZ event from a warning** — `POST /api/v1/weather/
+  alerts/{alert_id}/create-event` (`weather.create_event`, idempotent on
+  `X-Command-Id`). `WeatherEventService.create_from_alert`: loads the alert,
+  builds an event (`source = "weather"`, title from the headline, description =
+  DWD text + the operator's "— Bewertung —" block), `EventRepository.add` emits
+  `EVENT_CREATED`, links it via the new `weather_alert_events` table (migration
+  `0040`; `event_id` UNIQUE, `weather_alert_id` SET NULL so the link + its
+  `source_ref` survive a refresh dropping the alert), and audits
+  `WEATHER_EVENT_CREATED` (critical) with `weather_alert_id` / `source_ref` /
+  `region` / `priority`. **Never automatic** — there is no operator-less path
+  (§10). `test_weather_create_event_api.py`.
+- Next: **E18-02 / E18-04 / E18-03** (the DWD adapters — need recorded fixtures)
+  then **E18-10** (fixture test suite). E18-09 (UI) → Epic 07 (frontend, blocked).
 
 ## Existing reference
 A functional HTML mockup defines important UX/feature behavior. **It is not yet in
