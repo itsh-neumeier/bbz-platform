@@ -668,7 +668,7 @@ All issues need Node/Electron; skipped like Epic 07.
 **Epic 10: 3/16 doable here (E10-01/02/14).** E10-03+ (enrollment, command bus,
 agent, UI) need the Go toolchain / identity lib.
 
-### Epic 11 – Telephony Core: **in progress (10/16)**
+### Epic 11 – Telephony Core: **in progress (11/16)**
 - **#197 (E11-01) telephony core schema** — migration 0026 + `telephony.py`:
   `lines` (provider+external_id unique, state CHECK), `calls` (`bbz_call_id`
   unique + **independent of** `source_call_id`; `direction`/`state` CHECK — the
@@ -768,11 +768,19 @@ agent, UI) need the Go toolchain / identity lib.
   inclusive). Each item carries participants + `category` + `has_free_text`.
   Read-only — no audit event, no schema change. Scope-filter is a no-op hook
   until E23 (same as the event queries). `test_call_history_api.py`.
+- **#211 (E11-08) caller resolution** — migration 0029 adds
+  `calls.caller_contact_id` (FK→contacts SET NULL) + `calls.caller_priority`
+  (CHECK low|medium|high). `CallLifecycleService._resolve_caller` snapshots the
+  calling party's contact + priority via `ContactMatcher` (E14-04) on every
+  inbound event while still unresolved — a contact added mid-call is picked up
+  on a later event (so `ContactMatcher` no longer caches *negative* results).
+  NULL contact = "unknown". Outbound calls are not caller-resolved. Silent — no
+  audit, no domain event. `test_caller_resolution.py` (integration via the
+  ingest path).
 
-**Next:** E11-08 is **blocked** (caller resolution needs Epic 14 contacts);
-E11-12 (ringing-call list) needs E11-08's priority. Epic 07 / 08, #92, the Go
-agents (09/10 impl) and the #429 browser E2E stay blocked on a Node / Go /
-multi-host session.
+**Next:** E11-12 (ringing-call list, sorts on `calls.caller_priority`) is now
+unblocked. Epic 07 / 08, #92, the Go agents (09/10 impl) and the #429 browser
+E2E stay blocked on a Node / Go / multi-host session.
 
 ### Epic 14 – Contacts / Call Priorities: **in progress (6/10)**
 - **#285 (E14-01) contacts schema** — migration 0027 + `contacts.py`:

@@ -25,6 +25,7 @@ from bbz_core.domain.telephony import TERMINAL, CallAggregate, CallDirection, Ca
 from bbz_core.infra import telephony_ingest
 from bbz_core.infra.event_log import append_event
 from bbz_core.infra.models.telephony import Call, CallParticipant, Line
+from bbz_core.infra.repositories.contact_matching import ContactMatcher
 
 #: business call event -> its audit action. Explicit (not ``AuditAction[...]``)
 #: so the "critical action must be wired to an audit write" contract test sees
@@ -89,6 +90,7 @@ class CallLifecycleService:
                 call.ended_at = now
 
         await self._record_participants(call.id, event)
+        await self._resolve_caller(call, event)
 
         for de in agg.collect_events():
             seq = await append_event(
@@ -131,6 +133,25 @@ class CallLifecycleService:
                 )
             )
         ).scalar_one_or_none()
+
+    async def _resolve_caller(self, call: Call, event: dict[str, Any]) -> None:
+        """Snapshot the calling party's contact + priority on the call (E11-08).
+
+        Inbound only; the number is normalized and longest-matched against the
+        phone book (``ContactMatcher``). A number that resolves to no single
+        contact leaves ``caller_contact_id`` NULL — that *is* the "unknown"
+        state. Re-attempted on each event while still unresolved, so a contact
+        created mid-call is picked up.
+        """
+        if call.caller_contact_id is not None:
+            return
+        number = event.get("calling_number")
+        if not number or call.direction != CallDirection.INBOUND.value:
+            return
+        match = await ContactMatcher(self._s).resolve(number)
+        if match.matched:
+            call.caller_contact_id = match.contact_id
+            call.caller_priority = match.priority
 
     async def _record_participants(self, call_id: Any, event: dict[str, Any]) -> None:
         existing = {
