@@ -1078,7 +1078,7 @@ API. `integrations/telephony_cucm/` stays a placeholder README.
 - **Epic 15 done bar:** E15-14 **frontend** (popup UI, keyboard, Playwright) →
   needs Epic 07. (E15-07 camera/integration actions done — see #317 above.)
 
-### Epic 16 – Coda Video / HxGN dC3 Video: **in progress (10/13)**
+### Epic 16 – Coda Video / HxGN dC3 Video: **in progress (11/13)**
 - **#335 (E16-01) `coda_video` scaffold formalised** — the manifest schema gains
   optional `capability_groups` (named, independently-activatable capability sets;
   every grouped capability must also be in `capabilities` — checked in
@@ -1192,10 +1192,17 @@ API. `integrations/telephony_cucm/` stays a placeholder README.
   No secrets in the body. New `api/v1/integrations.py` router.
   `test_coda_diagnostics_api.py`. (Exact duplicate-hit counter omitted — no
   truthful source; `dedupe_key` is UNIQUE with no hit metric.)
-- Blocked: **E16-13** is the gated "real Coda/HxGN dC3 doc" milestone (doable —
-  it is a doc). **E16-12** (camera UI) needs Epic 07 (E07-08).
-  Next: **E16-11** (Coda-Alarm-E2E §36.1 — 10 steps incl. SRV failover replay;
-  deps E16-07/08/09) then **E16-13** (blocker doc).
+- **#355 (E16-11) Coda-Alarm §36.1 E2E** — `test_e2e_coda_panic.py`, test-only.
+  Drives the full stack through the real worker ticks (`cluster_singletons()`
+  `trigger-engine` + `outbox-dispatcher`): E16-09 mock panic alarm →
+  `ingest_alarm_event` (persist + dedupe) → engine → exactly one critical event +
+  current published EPK version + popup + priority-alert (API) → `open_camera_group`
+  dispatched against the mock; a monkeypatched failing provider → row `failed` +
+  `CAMERA_ACTION_FAILED` on the event, event stays `new`; a duplicate alarm and an
+  SRV01-crash replay (`signal:` inbox row reset to unprocessed, re-ticked) → no
+  second event / instance / popup. Audit assertions throughout.
+- **E16-12** (camera UI) needs Epic 07 (E07-08) — deferred.
+  Next: **E16-13** (blocker doc — no deps) → Epic 16 backend complete (12/13).
 
 ## Existing reference
 A functional HTML mockup defines important UX/feature behavior. **It is not yet in
