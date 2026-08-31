@@ -14,6 +14,8 @@ from typing import Any, cast
 import structlog
 from structlog.types import EventDict, WrappedLogger
 
+from bbz_core.redaction import scrub
+
 correlation_id: ContextVar[str | None] = ContextVar("correlation_id", default=None)
 
 
@@ -26,6 +28,11 @@ def _add_correlation_id(
     return event_dict
 
 
+def _redact(_logger: WrappedLogger, _method_name: str, event_dict: EventDict) -> EventDict:
+    """Mask any transient registered secret (E17-06) in the rendered log line."""
+    return scrub(event_dict)
+
+
 def configure_logging(*, level: str = "INFO", json: bool = True) -> None:
     renderer: Any = structlog.processors.JSONRenderer() if json else structlog.dev.ConsoleRenderer()
     structlog.configure(
@@ -36,6 +43,7 @@ def configure_logging(*, level: str = "INFO", json: bool = True) -> None:
             structlog.processors.TimeStamper(fmt="iso", utc=True),
             structlog.processors.StackInfoRenderer(),
             structlog.processors.format_exc_info,
+            _redact,
             renderer,
         ],
         wrapper_class=structlog.make_filtering_bound_logger(

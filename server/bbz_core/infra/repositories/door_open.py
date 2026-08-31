@@ -53,6 +53,7 @@ from bbz_core.infra.repositories.door_action_profiles import (
 )
 from bbz_core.integrations_host.providers import NoActiveProvider, active_telephony_provider
 from bbz_core.logging import get_logger
+from bbz_core.redaction import redacting, scrub
 
 _log = get_logger(__name__)
 
@@ -220,15 +221,20 @@ class DoorOpenService:
                     "the door station has no usable DTMF profile",
                 )
             else:
-                outcome, detail = await self._drive(
-                    cmd_pk,
-                    command_id=command_id,
-                    call_id=call_id,
-                    digits=digits,
-                    delay_ms=delay_ms,
-                    auto_hangup=auto_hangup,
-                    timeout_s=timeout_s,
-                )
+                # E17-06: register the sequence so every sink (audit, event,
+                # outbox, structured log) masks it — a provider that echoes the
+                # code in an error can't leak it past this block.
+                with redacting(digits):
+                    outcome, detail = await self._drive(
+                        cmd_pk,
+                        command_id=command_id,
+                        call_id=call_id,
+                        digits=digits,
+                        delay_ms=delay_ms,
+                        auto_hangup=auto_hangup,
+                        timeout_s=timeout_s,
+                    )
+                    detail = scrub(detail)  # mask before it spreads to the row / result
             del digits  # drop the plaintext as soon as the flow is done
 
             await self._s.rollback()

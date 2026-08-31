@@ -21,6 +21,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from bbz_core.audit.actions import AuditAction
 from bbz_core.infra.models.audit import AuditEvent
 from bbz_core.logging import correlation_id
+from bbz_core.redaction import scrub
 from bbz_core.settings import get_settings
 
 #: Actions for which a human-readable ``reason`` is mandatory (MASTER_PROMPT §17).
@@ -79,6 +80,8 @@ class AuditService:
         reason = (reason or "").strip() or None
         if action in REASON_REQUIRED and reason is None:
             raise AuditReasonRequiredError(f"{action.value} requires a reason")
+        # Redaction net (E17-06): a registered transient secret (e.g. a door
+        # DTMF sequence) never reaches an audit row, whatever path put it here.
         self._s.add(
             AuditEvent(
                 node_id=get_settings().node_id,
@@ -88,9 +91,9 @@ class AuditService:
                 workplace_id=workplace_id,
                 target_type=target_type,
                 target_id=target_id,
-                before=dict(before) if before is not None else None,
-                after=dict(after) if after is not None else None,
-                reason=reason,
+                before=scrub(dict(before)) if before is not None else None,
+                after=scrub(dict(after)) if after is not None else None,
+                reason=scrub(reason),
                 correlation_id=correlation_id.get(),
                 event_seq_ref=event_seq_ref,
             )

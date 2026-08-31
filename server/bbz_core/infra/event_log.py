@@ -19,6 +19,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from bbz_core.infra.models.domain_events import DomainEvent
 from bbz_core.logging import correlation_id
+from bbz_core.redaction import scrub
 from bbz_core.settings import get_settings
 from bbz_event_schemas import UnknownEventTypeError as _SchemaUnknownEventType
 from bbz_event_schemas import event_payload_schema, load_schema
@@ -90,6 +91,7 @@ async def append_event(
         raise NotInTransactionError(
             "append_event must run inside the same transaction as the state change"
         )
+    payload = scrub(payload)  # redaction net (E17-06) — no registered secret in the log
     row = DomainEvent(
         aggregate_type=aggregate_type,
         aggregate_id=str(aggregate_id),

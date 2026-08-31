@@ -1212,7 +1212,7 @@ API. `integrations/telephony_cucm/` stays a placeholder README.
 - **Epic 16 backend complete (12/13).** **E16-12** (camera-view UI) is the only
   open item — needs Epic 07 (E07-08); deferred to the frontend phase.
 
-### Epic 17 – Siedle: **in progress (5/7)**
+### Epic 17 – Siedle: **in progress (6/7)**
 - **#361 (E17-01) Siedle door-station endpoint profile** — migration
   `0035_door_station_fields` adds `technical_endpoints.dtmf_profile_id` (a
   reference id **only** — the code lives encrypted in `door_action_profiles`,
@@ -1279,8 +1279,22 @@ API. `integrations/telephony_cucm/` stays a placeholder README.
   `telephony_unavailable`. Migration `0037_door_open_commands`. Tested against
   `telephony_mock` (real JTAPI/SIP transport is E12-05 / E13-06 — blocked).
   `test_siedle_door_open_flow.py`.
-- Next: **E17-06** (redaction contract test — the DTMF code in no sink) then
-  **E17-07** (Siedle failure matrix + `door.*` permissions seed + §35 E2E).
+- **#371 (E17-06) audit ohne Klartext-DTMF — redaction net** — new
+  `bbz_core.redaction` (stdlib-only leaf): `redacting(<secret>)` registers a
+  transient value on a `ContextVar`; `scrub(value)` masks every registered
+  substring (`[redacted]`) in str / dict / list / tuple leaves and is a
+  same-object no-op when nothing is registered. Wired into **every sink**:
+  `AuditService.write` (`before`/`after`/`reason`), `append_event` (`payload`),
+  `OutboxRepository.enqueue`/`mark_dispatched`/`mark_retry`/`mark_failed`
+  (`payload`/`result`/`error`), and a `_redact` structlog processor (before the
+  renderer). `DoorOpenService._drive` runs under `with redacting(digits)` and
+  scrubs the returned `detail` — so a telephony provider that echoes the DTMF in
+  an exception message cannot leak it to any row or log. `test_siedle_audit_no_dtmf.py`
+  (6): `scrub`/`redacting` behaviour, the log processor, and a full door-open
+  against a **code-echoing** provider → the sentinel appears in no `audit_events`
+  / `domain_events` / `external_action_outbox` row, `door_action_profile_id`
+  still present in `DOOR_OPEN_RESULT`.
+- Next: **E17-07** (Siedle failure matrix + `door.*` permissions seed + §35 E2E).
 
 ## Existing reference
 A functional HTML mockup defines important UX/feature behavior. **It is not yet in
