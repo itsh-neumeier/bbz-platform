@@ -1,0 +1,91 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "dwd configuration",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "instance_id": { "type": "string", "default": "dwd-1" },
+    "region": {
+      "type": "string",
+      "default": "mittelfranken",
+      "description": "Operational target region — free text, used for labelling and the radar clip."
+    },
+    "enabled_capabilities": {
+      "type": "array",
+      "description": "Which weather capabilities this instance serves. Each is fed by its own DWD service (ADR-0026) and can be activated on its own.",
+      "items": { "enum": ["weather.warnings", "weather.radar", "weather.observations"] },
+      "uniqueItems": true,
+      "default": ["weather.warnings", "weather.radar", "weather.observations"]
+    },
+    "places": {
+      "type": "array",
+      "description": "The places to report. `warncell_id` maps to the DWD CAP warncell (cap_warncellids.csv); `poi_station_id` to the DWD POI observation station. Both are looked up from the vendored DWD reference data — the ids here are the operational selection.",
+      "default": [],
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name"],
+        "properties": {
+          "name": { "type": "string", "minLength": 1 },
+          "warncell_id": {
+            "type": "string",
+            "description": "DWD CAP warncell id (e.g. a 9-digit Gemeinde code). Empty until E18-02 wires the lookup."
+          },
+          "poi_station_id": {
+            "type": "string",
+            "description": "DWD POI weather-report station id. Empty until E18-04 wires the lookup."
+          }
+        }
+      }
+    },
+    "warnings": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "base_url": {
+          "type": "string",
+          "format": "uri",
+          "default": "https://opendata.dwd.de/weather/alerts/cap/COMMUNEUNION_DWD_STAT/"
+        },
+        "refresh_seconds": { "type": "integer", "minimum": 60, "default": 300 }
+      },
+      "default": {}
+    },
+    "radar": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "wms_url": {
+          "type": "string",
+          "format": "uri",
+          "default": "https://maps.dwd.de/geoserver/dwd/wms"
+        },
+        "layer": { "type": "string", "default": "dwd:Niederschlagsradar" },
+        "bbox": {
+          "type": "array",
+          "description": "minLon, minLat, maxLon, maxLat (WGS84) — the Mittelfranken clip.",
+          "items": { "type": "number" },
+          "minItems": 4,
+          "maxItems": 4,
+          "default": [10.0, 48.9, 11.7, 49.8]
+        },
+        "frame_count": { "type": "integer", "minimum": 1, "maximum": 60, "default": 12 },
+        "refresh_seconds": { "type": "integer", "minimum": 60, "default": 300 }
+      },
+      "default": {}
+    },
+    "observations": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "base_url": {
+          "type": "string",
+          "format": "uri",
+          "default": "https://opendata.dwd.de/weather/weather_reports/poi/"
+        },
+        "refresh_seconds": { "type": "integer", "minimum": 300, "default": 900 }
+      },
+      "default": {}
+    }
+  }
+}
