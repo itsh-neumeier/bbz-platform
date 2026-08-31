@@ -864,7 +864,7 @@ API. `integrations/telephony_cucm/` stays a placeholder README.
 - **E14-07..10 are frontend → blocked.** Epic 14 backend is done bar the UI.
   **E11-08 is unblocked** (has `ContactMatcher`).
 
-### Epic 15 – Technical Endpoints / Trigger Engine: **in progress (1/15)**
+### Epic 15 – Technical Endpoints / Trigger Engine: **in progress (2/15)**
 - **#305 (E15-01) technical-endpoints schema** — migration 0030 +
   `technical_endpoints.py` (MASTER_PROMPT §29 — **not** modelled as contacts):
   `technical_endpoints` (name, site, `type` `door_station|bma|panic_button|
@@ -875,10 +875,21 @@ API. `integrations/telephony_cucm/` stays a placeholder README.
   CASCADE, `calling_pattern` / `called_pattern` / `cti_route_point`). No FK to
   `contacts`. Migration up/down/up verified on real PG.
   `test_technical_endpoints_schema.py`.
-- Next: E15-02 (trigger_rules/versions/executions schema), E15-03 (outbox
-  extension + client_popup_events), E15-04 (normalized inbound signal model),
-  E15-05 (rule model + DSL conditions), E15-06 (typed actions), E15-08..15.
-  E15-07 (open_camera actions) needs Epic 16 (video).
+- **#307 (E15-02) trigger-rules schema** — migration 0031 + `trigger_rules.py`:
+  `trigger_rules` (name, `endpoint_id`→technical_endpoints SET NULL, `lifecycle`
+  `draft|validated|published|retired` CHECK, `priority`),
+  `trigger_rule_versions` (rule_id CASCADE, `version_no` unique-per-rule,
+  `conditions` JSONB DSL, `actions` JSONB list, lifecycle, `published_at/by`) —
+  a **published** version is frozen by a `BEFORE UPDATE` trigger
+  (`bbz_forbid_published_trigger_change`, mirrors the workflow one) that blocks
+  `conditions`/`actions` changes but lets `lifecycle` move, `trigger_executions`
+  (`provider_event_id`→provider_event_inbox, `rule_version_id`, `action_index`,
+  `status` CHECK, `result` JSONB; **UNIQUE(provider_event_id, rule_version_id,
+  action_index)** = the engine's exactly-once key, E15-09). Migration up/down/up
+  verified on real PG. `test_trigger_rules_schema.py`.
+- Next: E15-03 (outbox action-type extension + client_popup_events), E15-04
+  (normalized inbound signal model), E15-05 (rule model + DSL conditions),
+  E15-06 (typed actions), E15-08..15. E15-07 (open_camera actions) needs Epic 16.
 
 ## Existing reference
 A functional HTML mockup defines important UX/feature behavior. **It is not yet in
