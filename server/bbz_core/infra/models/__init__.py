@@ -21,6 +21,7 @@ from bbz_core.infra.models.bku_agent import (
     BkuCommandStatus,
     BkuCommandType,
 )
+from bbz_core.infra.models.client_popup_events import ClientPopupEvent
 from bbz_core.infra.models.commands import Command
 from bbz_core.infra.models.contacts import (
     Contact,
@@ -120,6 +121,7 @@ __all__ = [
     "CallDocumentation",
     "CallParticipant",
     "CallState",
+    "ClientPopupEvent",
     "Command",
     "Contact",
     "ContactNumber",

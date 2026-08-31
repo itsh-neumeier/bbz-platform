@@ -864,7 +864,7 @@ API. `integrations/telephony_cucm/` stays a placeholder README.
 - **E14-07..10 are frontend → blocked.** Epic 14 backend is done bar the UI.
   **E11-08 is unblocked** (has `ContactMatcher`).
 
-### Epic 15 – Technical Endpoints / Trigger Engine: **in progress (2/15)**
+### Epic 15 – Technical Endpoints / Trigger Engine: **in progress (3/15)**
 - **#305 (E15-01) technical-endpoints schema** — migration 0030 +
   `technical_endpoints.py` (MASTER_PROMPT §29 — **not** modelled as contacts):
   `technical_endpoints` (name, site, `type` `door_station|bma|panic_button|
@@ -887,9 +887,20 @@ API. `integrations/telephony_cucm/` stays a placeholder README.
   `status` CHECK, `result` JSONB; **UNIQUE(provider_event_id, rule_version_id,
   action_index)** = the engine's exactly-once key, E15-09). Migration up/down/up
   verified on real PG. `test_trigger_rules_schema.py`.
-- Next: E15-03 (outbox action-type extension + client_popup_events), E15-04
-  (normalized inbound signal model), E15-05 (rule model + DSL conditions),
-  E15-06 (typed actions), E15-08..15. E15-07 (open_camera actions) needs Epic 16.
+- **#309 (E15-03) outbox action types + client_popup_events** — migration 0032
+  adds `client_popup_events` (workplace_id NOT NULL, `kind`, `payload` JSONB,
+  `expires_at` NOT NULL, `delivered_at`, `dismissed_at`) — a popup is bound to
+  one workplace, never broadcast (MASTER_PROMPT §34). The outbox `action_type`
+  vocabulary is a free string at the DB level, so the "extension" is a code
+  enum: `bbz_core.domain.triggers.TriggerActionType` (create_event,
+  attach_workflow, show_client_popup, notify, integration_action, open_camera,
+  open_camera_group, answer_call, send_dtmf_profile, hangup_call,
+  launch_catalog_app) split into `TRANSACTIONAL_ACTION_TYPES` (create_event /
+  attach_workflow) and `OUTBOX_ACTION_TYPES` (the rest); `outbox_action_type()`
+  validates. `test_trigger_actions.py`, `test_client_popup_events_schema.py`.
+- Next: E15-04 (normalized inbound signal model), E15-05 (rule model + DSL
+  conditions), E15-06 (typed actions), E15-08..15. E15-07 (open_camera actions)
+  needs Epic 16.
 
 ## Existing reference
 A functional HTML mockup defines important UX/feature behavior. **It is not yet in
