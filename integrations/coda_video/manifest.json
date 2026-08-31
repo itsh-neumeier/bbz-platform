@@ -34,5 +34,15 @@
   },
   "legacy_display_alias": "Cayuga",
   "mock": true,
-  "description": "Coda / HxGN dC3 Video. Two independent capability groups — video presentation/control and inbound alarm/event ingestion (ARCHITECTURE, ADR-0006) — each activatable on its own via config `enabled_capability_groups`. `coda_video` is the canonical id everywhere; \"Cayuga\" is a legacy display alias only (ADR-0016). MOCK adapter for now — no vendor API; the real integration is built strictly from official Coda / HxGN dC3 documentation (E16-13)."
+  "pending_vendor_documentation": [
+    "api-endpoints",
+    "authentication",
+    "event-payloads",
+    "alarm-acknowledgement",
+    "camera-object-model",
+    "display-agent-commands",
+    "sdk-classes",
+    "licensing"
+  ],
+  "description": "Coda / HxGN dC3 Video. Two independent capability groups — video presentation/control and inbound alarm/event ingestion (ARCHITECTURE, ADR-0006) — each activatable on its own via config `enabled_capability_groups`. `coda_video` is the canonical id everywhere; \"Cayuga\" is a legacy display alias only (ADR-0016). MOCK adapter for now — no vendor API. The real integration is BLOCKED on official Coda / HxGN dC3 documentation: see docs/integrations/coda-video-pending.md (E16-13)."
 }

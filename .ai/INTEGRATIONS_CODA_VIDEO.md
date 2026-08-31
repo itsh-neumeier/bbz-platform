@@ -38,6 +38,11 @@ Do NOT invent:
 
 Implement only after official project documentation is supplied.
 
+**Referenceable blocker (E16-13):**
+[`docs/integrations/coda-video-pending.md`](../docs/integrations/coda-video-pending.md).
+The `coda_video` manifest carries `"pending_vendor_documentation": [...]` for as
+long as this stands.
+
 ## Normalized BBZ capabilities
 
 The provider contract must support capability discovery. Possible normalized capabilities include:
