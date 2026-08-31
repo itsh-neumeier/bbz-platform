@@ -864,7 +864,7 @@ API. `integrations/telephony_cucm/` stays a placeholder README.
 - **E14-07..10 are frontend → blocked.** Epic 14 backend is done bar the UI.
   **E11-08 is unblocked** (has `ContactMatcher`).
 
-### Epic 15 – Technical Endpoints / Trigger Engine: **in progress (5/15)**
+### Epic 15 – Technical Endpoints / Trigger Engine: **in progress (6/15)**
 - **#305 (E15-01) technical-endpoints schema** — migration 0030 +
   `technical_endpoints.py` (MASTER_PROMPT §29 — **not** modelled as contacts):
   `technical_endpoints` (name, site, `type` `door_station|bma|panic_button|
@@ -917,9 +917,23 @@ API. `integrations/telephony_cucm/` stays a placeholder README.
   to the DSL context (`ani`→`calling_number`, `severity` string→numeric rank),
   `rule_matches()` / `select_matching_rules()` (matches ordered by
   `(priority, rule_id)` — deterministic on multi-match). `test_trigger_rules_dsl.py`.
-- Next: E15-06 (typed actions: create_event / attach_workflow / show_client_popup
-  / notify), E15-08 (call actions), E15-09 (engine), E15-10..15. E15-07
-  (open_camera) needs Epic 16.
+- **#315 (E15-06) core typed actions** — `TriggerActionService.run_rule_version`
+  runs a published rule version's ordered `actions` against a signal. **Exactly-
+  once**: each `(provider_event_id, rule_version_id, action_index)` is claimed in
+  `trigger_executions` before the action runs — a replay runs nothing. Handlers:
+  `create_event` (EventAggregate + EventRepository, `source="trigger"`),
+  `attach_workflow` (`WorkflowEngineService.start_for_event` — idempotent),
+  `show_client_popup` (one `ClientPopupEvent` bound to a workplace), `notify`
+  (one `external_action_outbox` row). Each action + its ledger row + its
+  `TRIGGER_EXECUTED` audit is one transaction; a later action failing doesn't
+  un-do an earlier one; a malformed / unknown-template action is recorded
+  `failed`. New `AuditAction.TRIGGER_EXECUTED` in `CRITICAL_ACTIONS`.
+  `EventAggregate` gained `source` (now persisted); `EventRepository.add` /
+  `EventAggregate.create` `actor_id` widened to `| None` (system-raised events);
+  `EVENT_CREATED.actor_id` payload accepts `null`. `test_trigger_actions_core.py`.
+- Next: E15-08 (call actions: answer_call / send_dtmf_profile / hangup_call),
+  E15-09 (engine: signal → select rules → run), E15-10..15. E15-07 (open_camera)
+  needs Epic 16.
 
 ## Existing reference
 A functional HTML mockup defines important UX/feature behavior. **It is not yet in

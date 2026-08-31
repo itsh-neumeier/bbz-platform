@@ -16,7 +16,10 @@
         "bbz_id": { "type": ["string", "null"] },
         "workplace_id": { "type": ["string", "null"] },
         "source": { "type": "string" },
-        "actor_id": { "type": "string" }
+        "actor_id": {
+          "type": ["string", "null"],
+          "description": "null when the event was raised by the system (e.g. a trigger rule, E15-06), not a person"
+        }
       }
     },
     "EVENT_ACCEPTED": { "$ref": "#/$defs/transition" },

@@ -74,6 +74,7 @@ class EventAggregate:
     description: str | None = None
     bbz_id: uuid.UUID | None = None
     workplace_id: uuid.UUID | None = None
+    source: str = "manual"
     assignee_id: uuid.UUID | None = None
     # Read-only here; the repository owns optimistic concurrency (E03-05).
     version: int = 1
@@ -87,7 +88,7 @@ class EventAggregate:
         event_id: uuid.UUID,
         title: str,
         priority: EventPriority,
-        actor_id: uuid.UUID,
+        actor_id: uuid.UUID | None,
         description: str | None = None,
         bbz_id: uuid.UUID | None = None,
         workplace_id: uuid.UUID | None = None,
@@ -101,6 +102,7 @@ class EventAggregate:
             description=_clean_description(description),
             bbz_id=bbz_id,
             workplace_id=workplace_id,
+            source=source,
         )
         agg._emit(
             "EVENT_CREATED",
