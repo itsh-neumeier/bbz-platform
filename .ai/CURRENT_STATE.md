@@ -1078,7 +1078,7 @@ API. `integrations/telephony_cucm/` stays a placeholder README.
 - **Epic 15 done bar:** E15-14 **frontend** (popup UI, keyboard, Playwright) →
   needs Epic 07. (E15-07 camera/integration actions done — see #317 above.)
 
-### Epic 16 – Coda Video / HxGN dC3 Video: **in progress (9/13)**
+### Epic 16 – Coda Video / HxGN dC3 Video: **in progress (10/13)**
 - **#335 (E16-01) `coda_video` scaffold formalised** — the manifest schema gains
   optional `capability_groups` (named, independently-activatable capability sets;
   every grouped capability must also be in `capabilities` — checked in
@@ -1181,9 +1181,21 @@ API. `integrations/telephony_cucm/` stays a placeholder README.
   the delivered backlog; `camera_failures` / `fail_cameras()` make a camera's
   open/focus/group raise the new SDK `CameraOpenFailed(VideoProviderError)`.
   `build(config)` + `config_schema.json` gain `camera_failures`. `test_mock_coda.py`.
-- Blocked: **E16-13** is the gated "real Coda/HxGN dC3 doc" milestone.
-  Next doable: **E16-10** (Coda diagnostics API `GET /integrations/coda_video/
-  diagnostics`; deps E16-04 + E16-08) then **E16-11** (Coda-Alarm-E2E §36.1).
+- **#353 (E16-10) Coda diagnostics API** — `GET /api/v1/integrations/coda_video/
+  diagnostics` (`integrations.diagnostics`). `CodaDiagnosticsService` aggregates
+  from the provider inbox / outbox: `events_total` / `signals_total`,
+  `last_event_at` + `last_event_processing_ms` (`received_at`→`processed_at`),
+  `unmapped_total` (`sum(occurrences)` where `provider=coda_video`),
+  `last_camera_action_at`, `camera_actions_failed` / `_pending`. The API layer
+  adds the provider's own `health()` + `capabilities()` — falling back to
+  `state:"unavailable"` when the integration is down, so diagnostics still work.
+  No secrets in the body. New `api/v1/integrations.py` router.
+  `test_coda_diagnostics_api.py`. (Exact duplicate-hit counter omitted — no
+  truthful source; `dedupe_key` is UNIQUE with no hit metric.)
+- Blocked: **E16-13** is the gated "real Coda/HxGN dC3 doc" milestone (doable —
+  it is a doc). **E16-12** (camera UI) needs Epic 07 (E07-08).
+  Next: **E16-11** (Coda-Alarm-E2E §36.1 — 10 steps incl. SRV failover replay;
+  deps E16-07/08/09) then **E16-13** (blocker doc).
 
 ## Existing reference
 A functional HTML mockup defines important UX/feature behavior. **It is not yet in
