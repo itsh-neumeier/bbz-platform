@@ -864,7 +864,7 @@ API. `integrations/telephony_cucm/` stays a placeholder README.
 - **E14-07..10 are frontend → blocked.** Epic 14 backend is done bar the UI.
   **E11-08 is unblocked** (has `ContactMatcher`).
 
-### Epic 15 – Technical Endpoints / Trigger Engine: **in progress (6/15)**
+### Epic 15 – Technical Endpoints / Trigger Engine: **in progress (7/15)**
 - **#305 (E15-01) technical-endpoints schema** — migration 0030 +
   `technical_endpoints.py` (MASTER_PROMPT §29 — **not** modelled as contacts):
   `technical_endpoints` (name, site, `type` `door_station|bma|panic_button|
@@ -931,9 +931,18 @@ API. `integrations/telephony_cucm/` stays a placeholder README.
   `EventAggregate` gained `source` (now persisted); `EventRepository.add` /
   `EventAggregate.create` `actor_id` widened to `| None` (system-raised events);
   `EVENT_CREATED.actor_id` payload accepts `null`. `test_trigger_actions_core.py`.
-- Next: E15-08 (call actions: answer_call / send_dtmf_profile / hangup_call),
-  E15-09 (engine: signal → select rules → run), E15-10..15. E15-07 (open_camera)
-  needs Epic 16.
+- **#319 (E15-08) telephony trigger actions** — `answer_call` /
+  `send_dtmf_profile` / `hangup_call` handlers in `TriggerActionService`: each
+  enqueues **one** `external_action_outbox` row (`action_type` = the value)
+  against the active provider, keyed by the `trigger_executions` claim +
+  the outbox `dedupe_key` (exactly-once per execution key). `send_dtmf_profile`
+  carries `dtmf_profile_id` **only** — a `code`/`dtmf` key in the action is
+  rejected outright, the raw code never touches the payload or the audit
+  (ADR-0004 / §30). `call_id` comes from the action or the signal's
+  `source.source_call_id` (added to `inbound_signal.v1.json` +
+  `from_telephony_event`). `test_trigger_actions_call.py`.
+- Next: E15-09 (engine: inbox event → select rules → run actions), E15-10
+  (admin API), E15-11..15. E15-07 (open_camera) needs Epic 16.
 
 ## Existing reference
 A functional HTML mockup defines important UX/feature behavior. **It is not yet in

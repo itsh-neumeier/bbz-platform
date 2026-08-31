@@ -85,6 +85,7 @@ def from_telephony_event(event: dict[str, Any]) -> dict[str, Any] | None:
         "source": {
             "ani": event.get("calling_number"),
             "dnis": event.get("called_number"),
+            "source_call_id": event.get("source_call_id"),
             "cti_route_point": meta.get("cti_route_point"),
             "technical_endpoint_id": meta.get("technical_endpoint_id"),
             "direction": direction,
