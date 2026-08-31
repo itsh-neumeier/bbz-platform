@@ -13,6 +13,7 @@ from bbz_integration_sdk.providers import (
     AlarmIngressProvider,
     AlarmSource,
     CameraNotFoundError,
+    CameraOpenFailed,
     CameraView,
     ExternalAckCapable,
     IncomingAlarm,
@@ -155,3 +156,109 @@ def test_external_ack_is_opt_in_and_separate_from_the_bbz_event_ack() -> None:
     # the mock does not declare alarm.acknowledge_external, so it is not ack-capable
     assert not isinstance(MockCodaVideoProvider(), ExternalAckCapable)
     assert "alarm.acknowledge_external" not in _MANIFEST["capabilities"]
+
+
+# --- E16-09: full simulation (.ai/INTEGRATIONS_CODA_VIDEO.md "Testing") ---
+
+_ALARM_SOURCES = [
+    {"external_source_id": "SP-NBG", "name": "SP Nbg", "cameras": ["CAM-1", "CAM-2"]},
+]
+
+
+@pytest.mark.parametrize(
+    ("raw", "expected_type", "expected_subtype"),
+    [
+        (
+            {"id": "a1", "source": "SP-NBG", "type": "panic", "subtype": "panic_button"},
+            "panic",
+            "panic_button",
+        ),
+        ({"id": "a2", "source": "SP-NBG", "type": "intrusion"}, "intrusion", None),
+        ({"id": "a3", "source": "SP-NBG"}, "technical_alarm", None),
+    ],
+)
+async def test_panic_intrusion_and_generic_alarms_all_flow_through(
+    raw: dict, expected_type: str, expected_subtype: str | None
+) -> None:
+    p = MockCodaVideoProvider(simulated_sources=_ALARM_SOURCES)
+    p.simulate_alarm(raw)
+    got = [a async for a in p.subscribe_alarms()]
+    assert len(got) == 1
+    assert got[0].alarm_type == expected_type
+    assert got[0].alarm_subtype == expected_subtype
+
+
+async def test_get_associated_cameras_returns_the_alarm_cameras() -> None:
+    p = MockCodaVideoProvider(simulated_sources=_ALARM_SOURCES)
+    p.simulate_alarm(
+        {"id": "a1", "source": "SP-NBG", "subtype": "panic_button", "cameras": ["CAM-1", "CAM-2"]}
+    )
+    p.simulate_alarm({"id": "a2", "source": "SP-NBG", "cameras": ["CAM-9"]})
+    assert await p.get_associated_cameras(provider_event_id="a1") == ["CAM-1", "CAM-2"]
+    assert await p.get_associated_cameras(provider_event_id="a2") == ["CAM-9"]
+    assert await p.get_associated_cameras(provider_event_id="unknown") == []
+    ctx = await p.get_context(provider_event_id="a1")
+    assert ctx.associated_camera_ids == ["CAM-1", "CAM-2"]
+
+
+async def test_an_unmapped_source_resolves_to_none() -> None:
+    p = MockCodaVideoProvider(simulated_sources=_ALARM_SOURCES)
+    p.simulate_alarm({"id": "a1", "source": "NOT-CONFIGURED"})
+    got = [a async for a in p.subscribe_alarms()]
+    assert got[0].source_external_id == "NOT-CONFIGURED"
+    assert await p.resolve_source(external_source_id="NOT-CONFIGURED") is None
+
+
+async def test_a_duplicated_alarm_keeps_its_identity() -> None:
+    p = MockCodaVideoProvider(simulated_sources=_ALARM_SOURCES)
+    p.simulate_alarm({"id": "dup", "source": "SP-NBG"})
+    p.simulate_alarm({"id": "dup", "source": "SP-NBG"})
+    got = [a async for a in p.subscribe_alarms()]
+    assert [a.provider_event_id for a in got] == ["dup", "dup"]
+
+
+async def test_a_reconnect_replays_the_backlog() -> None:
+    p = MockCodaVideoProvider(simulated_sources=_ALARM_SOURCES)
+    p.simulate_alarm({"id": "r1", "source": "SP-NBG", "subtype": "panic_button"})
+
+    first = [a async for a in p.subscribe_alarms()]
+    assert [a.provider_event_id for a in first] == ["r1"]
+    assert [a async for a in p.subscribe_alarms()] == []  # drained
+
+    p.reconnect()
+    replayed = [a async for a in p.subscribe_alarms()]
+    assert [a.provider_event_id for a in replayed] == ["r1"]  # same alarm, same id
+
+
+async def test_a_failing_camera_raises_on_open_and_focus_and_group() -> None:
+    p = MockCodaVideoProvider(simulated_sources=_ALARM_SOURCES)
+    p.fail_cameras("CAM-2")
+
+    with pytest.raises(CameraOpenFailed):
+        await p.open_camera(camera_id="CAM-2", workplace_id="wp", command_id="c1")
+    with pytest.raises(CameraOpenFailed):
+        await p.focus_camera(camera_id="CAM-2", workplace_id="wp", command_id="c2")
+    with pytest.raises(CameraOpenFailed):
+        await p.open_camera_group(camera_ids=["CAM-1", "CAM-2"], workplace_id="wp", command_id="c3")
+
+    # a group without the failing camera still succeeds
+    ok = await p.open_camera_group(camera_ids=["CAM-1"], workplace_id="wp", command_id="c4")
+    assert ok.camera_ids == ["CAM-1"]
+
+    p.clear_camera_failures()
+    view = await p.open_camera(camera_id="CAM-2", workplace_id="wp", command_id="c5")
+    assert view.action == "opened"
+
+
+async def test_camera_failures_are_configurable_via_build_and_shown_in_health() -> None:
+    p = build({"simulated_sources": _ALARM_SOURCES, "camera_failures": ["CAM-1"]})
+    with pytest.raises(CameraOpenFailed):
+        await p.open_camera(camera_id="CAM-1", workplace_id="wp", command_id="c1")
+    report = await p.health()
+    assert report.details["failing_cameras"] == "CAM-1"
+
+
+async def test_the_manifest_still_validates_with_the_new_config_field() -> None:
+    schema = json.loads((Path(__file__).parents[1] / "config_schema.json").read_text("utf-8"))
+    assert "camera_failures" in schema["properties"]
+    assert schema["additionalProperties"] is False

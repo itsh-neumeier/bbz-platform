@@ -42,6 +42,10 @@ class VideoTimeoutError(VideoProviderError):
     """The provider did not complete the operation within its deadline."""
 
 
+class CameraOpenFailed(VideoProviderError):
+    """A camera resolves but the open / focus operation failed at the provider."""
+
+
 class _Model(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid")
 

@@ -1,9 +1,19 @@
 """Mock Coda Video provider: video presentation + alarm ingress.
 
-Every simulated alarm is emitted with a stable ``provider_event_id`` so the
-(future) provider-event inbox can dedupe it — a duplicated panic alarm must never
-create two BBZ events (ADR-0006 HA rule). The mock itself does no deduplication;
-it just guarantees a stable identity.
+A deterministic simulation of the ``coda_video`` (HxGN dC3 Video) integration for
+tests and local dev (E16-09) — no vendor API is touched. It covers the
+``.ai/INTEGRATIONS_CODA_VIDEO.md`` "Testing" list:
+
+* panic / intrusion / generic technical alarms (``simulate_alarm``);
+* one or several associated cameras per alarm (``get_associated_cameras``);
+* an unmapped source (``resolve_source`` -> ``None``);
+* a duplicated alarm (same ``provider_event_id`` emitted twice);
+* a reconnect that replays the backlog (``reconnect``);
+* a camera whose open / focus operation fails (``camera_failures`` / ``fail_cameras``).
+
+Every simulated alarm carries a stable ``provider_event_id`` so the provider-event
+inbox can dedupe it — a duplicated panic alarm must never create two BBZ events
+(ADR-0006). The mock itself does no deduplication; it guarantees identity.
 """
 
 from __future__ import annotations
@@ -20,6 +30,7 @@ from bbz_integration_sdk.providers.video_types import (
     AlarmContextView,
     CameraGroupView,
     CameraNotFoundError,
+    CameraOpenFailed,
     CameraView,
     ResolvedCamera,
 )
@@ -72,6 +83,7 @@ class MockCodaVideoProvider:
         instance_id: str = "coda-mock-1",
         enabled_capability_groups: list[str] | None = None,
         simulated_sources: list[dict[str, Any]] | None = None,
+        camera_failures: list[str] | None = None,
     ) -> None:
         self._instance_id = instance_id
         groups = enabled_capability_groups or list(_CAPABILITY_GROUPS)
@@ -81,6 +93,12 @@ class MockCodaVideoProvider:
         self._groups = tuple(g for g in _CAPABILITY_GROUPS if g in groups)
         self._sources = {s["external_source_id"]: s for s in (simulated_sources or [])}
         self._pending: list[IncomingAlarm] = []
+        #: alarms already handed to a subscriber — replayed on reconnect()
+        self._delivered: list[IncomingAlarm] = []
+        #: provider_event_id -> the cameras the alarm is associated with
+        self._alarm_cameras: dict[str, list[str]] = {}
+        #: camera refs whose open / focus operations fail
+        self._camera_failures: set[str] = set(camera_failures or [])
 
     async def initialize(self) -> None:
         return None
@@ -104,13 +122,19 @@ class MockCodaVideoProvider:
             integration_id="coda_video",
             state=HealthState.HEALTHY,
             summary="mock",
-            details={"sources": len(self._sources), "pending_alarms": len(self._pending)},
+            details={
+                "sources": len(self._sources),
+                "pending_alarms": len(self._pending),
+                "delivered_alarms": len(self._delivered),
+                "failing_cameras": ", ".join(sorted(self._camera_failures)),
+            },
         )
 
     async def shutdown(self) -> None:
         self._pending.clear()
 
-    # --- test/simulation helper (not part of the provider protocol) ---
+    # --- test / simulation helpers (not part of the provider protocol) ---
+
     def simulate_alarm(self, raw: dict[str, Any]) -> IncomingAlarm:
         alarm = IncomingAlarm(
             provider="coda_video",
@@ -128,15 +152,36 @@ class MockCodaVideoProvider:
             associated_camera_ids=list(raw.get("cameras", [])),
             raw=dict(raw),
         )
+        key = alarm.provider_event_id or f"anon-{len(self._alarm_cameras)}"
+        self._alarm_cameras[key] = list(alarm.associated_camera_ids)
         self._pending.append(alarm)
         return alarm
 
+    def reconnect(self) -> None:
+        """Model a provider reconnect: the backlog it already delivered is
+        replayed to the next subscriber (an active/active reconnect must not
+        create duplicate events — the inbox dedupes, E16-04)."""
+        self._pending = [*self._delivered, *self._pending]
+        self._delivered.clear()
+
+    def fail_cameras(self, *camera_refs: str) -> None:
+        self._camera_failures.update(camera_refs)
+
+    def clear_camera_failures(self) -> None:
+        self._camera_failures.clear()
+
     # --- video ---
+
     def _all_camera_ids(self) -> set[str]:
         ids: set[str] = set()
         for src in self._sources.values():
             ids.update(src.get("cameras", []))
         return ids
+
+    def _guard_cameras(self, *camera_ids: str) -> None:
+        bad = sorted(c for c in camera_ids if c in self._camera_failures)
+        if bad:
+            raise CameraOpenFailed(f"camera operation failed for {bad}")
 
     async def resolve_camera(self, *, external_id: str) -> ResolvedCamera:
         if external_id not in self._all_camera_ids():
@@ -154,6 +199,7 @@ class MockCodaVideoProvider:
     async def open_camera(
         self, *, camera_id: str, workplace_id: str, command_id: str
     ) -> CameraView:
+        self._guard_cameras(camera_id)
         return CameraView(
             camera_id=camera_id,
             workplace_id=workplace_id,
@@ -164,6 +210,7 @@ class MockCodaVideoProvider:
     async def focus_camera(
         self, *, camera_id: str, workplace_id: str, command_id: str, preset: str | None = None
     ) -> CameraView:
+        self._guard_cameras(camera_id)
         return CameraView(
             camera_id=camera_id,
             workplace_id=workplace_id,
@@ -175,6 +222,7 @@ class MockCodaVideoProvider:
     async def open_camera_group(
         self, *, camera_ids: list[str], workplace_id: str, command_id: str
     ) -> CameraGroupView:
+        self._guard_cameras(*camera_ids)
         return CameraGroupView(
             camera_ids=list(camera_ids), workplace_id=workplace_id, command_id=command_id
         )
@@ -183,6 +231,7 @@ class MockCodaVideoProvider:
         self, *, alarm_ref: str, workplace_id: str, command_id: str
     ) -> AlarmContextView:
         cams = sorted(self._all_camera_ids())
+        self._guard_cameras(*cams)
         return AlarmContextView(
             alarm_ref=alarm_ref,
             workplace_id=workplace_id,
@@ -191,9 +240,12 @@ class MockCodaVideoProvider:
         )
 
     # --- alarm ingress ---
+
     async def subscribe_alarms(self) -> AsyncIterator[IncomingAlarm]:
         while self._pending:
-            yield self._pending.pop(0)
+            alarm = self._pending.pop(0)
+            self._delivered.append(alarm)
+            yield alarm
 
     async def resolve_source(self, *, external_source_id: str) -> AlarmSource | None:
         src = self._sources.get(external_source_id)
@@ -215,7 +267,7 @@ class MockCodaVideoProvider:
         )
 
     async def get_associated_cameras(self, *, provider_event_id: str) -> list[str]:
-        return []
+        return list(self._alarm_cameras.get(provider_event_id, []))
 
 
 def build(config: dict[str, Any] | None = None) -> MockCodaVideoProvider:
@@ -225,4 +277,5 @@ def build(config: dict[str, Any] | None = None) -> MockCodaVideoProvider:
         instance_id=cfg.get("instance_id", "coda-mock-1"),
         enabled_capability_groups=cfg.get("enabled_capability_groups"),
         simulated_sources=cfg.get("simulated_sources"),
+        camera_failures=cfg.get("camera_failures"),
     )
