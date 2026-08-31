@@ -1314,7 +1314,7 @@ API. `integrations/telephony_cucm/` stays a placeholder README.
   done end-to-end against the mocks; the real CUCM/SIP `send_dtmf` transport is
   E12-05 / E13-06 (blocked).
 
-### Epic 18 – DWD Weather: **in progress (3/10)**
+### Epic 18 – DWD Weather: **in progress (4/10)**
 - **#375 (E18-01) `integrations/dwd` scaffold + manifest + config** — **ADR-0026**
   (Accepted) pins the three public DWD Open Data services: warnings → CAP 1.2
   feed `opendata.dwd.de/weather/alerts/cap/COMMUNEUNION_DWD_STAT/` +
@@ -1354,9 +1354,18 @@ API. `integrations/telephony_cucm/` stays a placeholder README.
   item contract from CAP XML / POI CSV; against the shipped `dwd` stub every kind
   is `down`. `test_weather_refresh.py`. `test_cluster_workers.py` gains the 4th
   singleton.
-- Next: **E18-07** (`GET /weather/{alerts,observations,radar,regions}`,
-  `weather.view`, health in the body) then **E18-08** (create BBZ event from a
-  warning). E18-02/03/04 (adapters) need recorded DWD fixtures; E18-09 UI → Epic 07.
+- **#387 (E18-07) weather read API** — `bbz_core.api.v1.weather` +
+  `WeatherReadService`. `GET /api/v1/weather/{alerts,observations,radar,regions}`,
+  all `weather.view`. `alerts` (optional `?region=`), `observations` (latest per
+  place+metric, optional `?place=`), `radar` (frames from a per-node
+  `RADAR_CACHE` the E18-03 adapter fills — empty for now), `regions` (distinct
+  regions/places we hold data for). Every response carries `attribution`
+  ("Deutscher Wetterdienst", ADR-0026) + the `health` block from
+  `WeatherRefreshService.health()` (overall + per-kind status / last_success /
+  age). UTC times. `test_weather_api.py`.
+- Next: **E18-08** (`POST /weather/alerts/{id}/create-event` — BBZ event from a
+  warning, `weather.create_event`, idempotent, `WEATHER_EVENT_CREATED`).
+  E18-02/03/04 (adapters) need recorded DWD fixtures; E18-09 UI → Epic 07.
 
 ## Existing reference
 A functional HTML mockup defines important UX/feature behavior. **It is not yet in
