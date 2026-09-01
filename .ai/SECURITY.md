@@ -29,6 +29,20 @@ No credentials in repo.
 - Commands contain command_id, nonce/sequence, expiry and are replay protected.
 - Agent commands are routed through BBZ server authorization, not browser-to-agent direct trust.
 
+## Directory (LDAP/AD) authentication
+- Encrypted transport only: `ldaps://`, or `ldap://` with StartTLS negotiated
+  before the bind. A plaintext URL without StartTLS is refused (`LdapInsecureError`)
+  — the bind password never crosses the wire in the clear.
+- Server certificate verification on by default (`ldap_tls_verify`); keep it true
+  in production.
+- The service account binds with least privilege (search + read only); its
+  password is a secret (secrets store, never the manifest or a plain env var).
+- `/login` tries local auth first and only falls back to a directory bind on a
+  bad-credentials result; one generic failure is reported (no account-existence
+  or lockout-reason leak). A directory outage degrades to local logins only.
+- Directory logins audit `LOGIN_SUCCEEDED` / `LOGIN_FAILED` with `provider=ldap_ad`.
+- Config + open-dependency checklist: `docs/auth/ldap-directory.md`.
+
 ## Door control security
 - Door-open actions require a dedicated permission and complete audit trail.
 - DTMF door codes are secrets/configuration values and must not be written in plaintext audit logs.

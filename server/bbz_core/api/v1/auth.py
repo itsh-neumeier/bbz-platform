@@ -121,6 +121,27 @@ def _translate_oidc() -> Iterator[None]:
         raise ServiceUnavailableError("the identity provider is unavailable") from exc
 
 
+async def _try_ldap_login(
+    session: AsyncSession,
+    body: LoginRequest,
+    *,
+    client_id: str | None,
+    workplace_id: str | None,
+) -> User | None:
+    """Attempt a directory bind. Returns the BBZ user on success, ``None`` on any
+    LDAP failure (the caller then reports the generic ``invalid credentials``)."""
+    from bbz_core.auth.ldap import LdapError
+    from bbz_core.infra.repositories.ldap_login import LdapLoginService
+
+    try:
+        user_id = await LdapLoginService(session).authenticate(
+            body.username, body.password, client_id=client_id, workplace_id=workplace_id
+        )
+    except LdapError:
+        return None
+    return await _load_user(session, user_id)
+
+
 async def _issue_session(
     *,
     session: AsyncSession,
@@ -179,6 +200,29 @@ async def login(
 
     registry = AuthProviderRegistry.build(SqlAlchemyCredentialStore(session))
     outcome = await registry.default().authenticate_password(body.username, body.password)
+
+    if outcome.result is LocalAuthResult.BAD_CREDENTIALS and "ldap_ad" in registry.names():
+        # not a (valid) local account — fall back to the directory (E21-03)
+        ldap_user = await _try_ldap_login(
+            session, body, client_id=client_id, workplace_id=workplace_id
+        )
+        if ldap_user is not None:
+            csrf = await _issue_session(
+                session=session,
+                request=request,
+                response=response,
+                user=ldap_user,
+                client_id=client_id,
+                workplace_id=workplace_id,
+            )
+            return LoginResponse(
+                user=UserOut(
+                    id=ldap_user.id, display_name=ldap_user.display_name, status=ldap_user.status
+                ),
+                must_change_password=False,
+                csrf_token=csrf,
+            )
+
     if outcome.result is not LocalAuthResult.SUCCESS or outcome.user_id is None:
         await audit.record(
             AuditAction.ACCOUNT_LOCKED

@@ -1549,7 +1549,7 @@ API. `integrations/telephony_cucm/` stays a placeholder README.
   alternative, standard-layout button, profile save/load, locked lower-left) is
   left → Epic 07 (frontend, blocked).
 
-### Epic 21 – Enterprise Authentication: **in progress (2/8)**
+### Epic 21 – Enterprise Authentication: **in progress (3/8)**
 - **#431 (E21-01) Entra ID / OIDC provider** — `bbz_core.auth.oidc` (pure,
   framework-free): `pkce` (S256 only), `discovery` (fetch metadata, assert the
   issuer matches), `flow.start` (authorization-code URL with state / nonce /
@@ -1591,10 +1591,34 @@ API. `integrations/telephony_cucm/` stays a placeholder README.
   AC). `test_oidc_group_mapping.py` (7): reconcile add/remove, manual grant
   untouched, no-op idempotency, group-claim-drives-roles across two logins,
   JIT-user-gets-only-mapped, CRUD gated + audited.
-- Next: E21-03 (LDAP/AD provider), E21-04 (directory sync job), E21-05 (MFA
-  policy engine + step-up), E21-06 (WebAuthn/FIDO2), E21-07 (advanced RBAC —
-  conditions / time-bound grants / delegation). E21-08 (account linking + admin
-  UI) is partly frontend.
+- **#435 (E21-03) LDAP / Active Directory bind login** — `bbz_core.auth.ldap`: a
+  blocking `ldap3` client (new runtime deps `ldap3` + pinned `pyasn1<0.6.1`).
+  Service-account bind → user search → **user bind (the authentication)** →
+  optional group search. **Encrypted transport enforced** — `ldaps://` or
+  `ldap://` + StartTLS-before-bind; a plaintext URL with StartTLS off is refused
+  (`LdapInsecureError`). Two or more comma-separated URLs form an
+  `ldap3.ServerPool` (failover, per node). `LdapLoginService`
+  (`infra/repositories/ldap_login.py`) runs the client in a worker thread
+  (`asyncio.to_thread`), resolves the principal to a BBZ user, reconciles roles
+  through the **shared** `GroupMappingService` (E21-02), and audits
+  `LOGIN_SUCCEEDED` / `LOGIN_FAILED` (`provider=ldap_ad`). `/api/v1/auth/login`
+  tries local auth first and only falls back to a directory bind on a
+  `BAD_CREDENTIALS` result with `ldap_ad` in `BBZ_AUTH_PROVIDERS` — one generic
+  `invalid credentials` on failure; `LOCKED` locals never reach LDAP; a directory
+  outage degrades to **local logins only**. JIT off by default
+  (`ldap_jit_provisioning`). Settings `ldap_{url, bind_dn, bind_password,
+  user_search_base, user_filter, group_search_base, group_filter, uid_attr,
+  name_attr, mail_attr, start_tls, tls_verify, tls_ca_file}` — the bind password
+  is a secret; the real connection values are an open external dependency
+  (checklist in `docs/auth/ldap-directory.md`). No schema change (no migration).
+  `test_ldap_login.py` (12): bind + groups, wrong / unknown creds, plaintext
+  refused, StartTLS-before-bind, provisioned + JIT + reconcile, failure audited,
+  `/login` fallback happy + bad-password, **local login unaffected** — all
+  against a containerised OpenLDAP (skipped when unreachable).
+- Next: E21-04 (directory sync job — needs E21-03), E21-05 (MFA policy engine +
+  step-up), E21-06 (WebAuthn/FIDO2), E21-07 (advanced RBAC — conditions /
+  time-bound grants / delegation). E21-08 (account linking + admin UI) is partly
+  frontend.
 
 ## Existing reference
 A functional HTML mockup defines important UX/feature behavior. **It is not yet in
@@ -1720,7 +1744,10 @@ Rejected the undocumented `app-prod-ws.warnwetter.de` app backend.
 - Coda Video (HxGN dC3 Video) partner/API/SDK documentation for alarm ingress and
   camera/display control
 - Siedle Access DTMF door-open profile (secret/config; operating concept)
-- Entra ID / LDAP connection parameters
+- Entra ID OIDC connection parameters (issuer / client id / secret / redirect URI)
+- LDAP / AD connection parameters — directory hosts, service-account DN + password,
+  search bases, group filter, CA chain; client is built (E21-03), checklist in
+  `docs/auth/ldap-directory.md`
 
 CUCM/Coda/Weytec/Siedle integrations are built strictly from documented vendor
 interfaces. No customer-specific or vendor API is invented.
