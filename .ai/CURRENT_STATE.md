@@ -1438,7 +1438,7 @@ API. `integrations/telephony_cucm/` stays a placeholder README.
   no network.** `dwd` test count 43.
 - Only **E18-09** (Wetterlage UI) left → Epic 07 (frontend, blocked).
 
-### Epic 19 – Weytec Monitor Routing: **in progress (2/10)**
+### Epic 19 – Weytec Monitor Routing: **in progress (3/10)**
 - **#395 (E19-01) DB schema** — migration `0041_monitor_schema` +
   `bbz_core.infra.models.monitor`. Four tables (MASTER_PROMPT §9): `monitor_inputs`
   (`key` unique — BBZ-OS / BKU1-4 / Cayuga 1-2), `monitor_outputs` (`key` unique,
@@ -1466,9 +1466,16 @@ API. `integrations/telephony_cucm/` stays a placeholder README.
   removes only the seeded rows). Real `alembic up/down/up` + `alembic check`
   (no drift) verified; the seeded bottom-left route resolves to `bbz-os`.
   `test_monitor_domain.py` (10, pure unit).
-- Next: E19-03 (fixed rule: unten links = BBZ-OS, server-enforced), E19-04
-  (routing API + `MONITOR_ROUTE_CHANGED`), E19-05 (profiles), E19-06
-  (`monitor_mock`), E19-07 (`monitor_weytec` scaffold — no invented API), E19-09
+- **#398 (E19-03) fixed rule: lower-left is always BBZ-OS** — enforced in the
+  domain (`bbz_core.domain.monitor.layout`), so every write path is subject to it:
+  `FIXED_ASSIGNMENTS = {workplace4: "bbz-os"}`, `validate_assignment` raises
+  `FixedRouteViolation` (a `MonitorDomainError`) for any other input on a fixed
+  output, `validate_layout` inherits it, `is_fixed_output` / `fixed_input_for`
+  for the UI (E19-08). Pure — `test_monitor_domain.py` (14). The "via API direkt"
+  rejection is re-verified at the HTTP layer in E19-04.
+- Next (dependency order — **E19-04 needs E19-06**): E19-06 (`monitor_mock` full
+  provider), then E19-04 (routing API + `MONITOR_ROUTE_CHANGED`), E19-05
+  (profiles), E19-07 (`monitor_weytec` scaffold — no invented API), E19-09
   (permissions seed), E19-10 (E2E). E19-08 (dialog UI) → Epic 07 (blocked).
 
 ## Existing reference

@@ -1,5 +1,6 @@
-"""Monitor routing domain — the fixed catalog, the standard layout, and
-assignment validation (roadmap E19-02, MASTER_PROMPT §9). Pure unit tests."""
+"""Monitor routing domain — the fixed catalog, the standard layout, assignment
+validation (E19-02) and the server-enforced lower-left == BBZ-OS rule (E19-03).
+MASTER_PROMPT §9. Pure unit tests."""
 
 from __future__ import annotations
 
@@ -7,12 +8,16 @@ import pytest
 
 from bbz_core.domain.monitor import (
     BOTTOM_LEFT_OUTPUT_KEY,
+    FIXED_ASSIGNMENTS,
     INPUT_KEYS,
     INPUTS,
     OUTPUT_KEYS,
     OUTPUTS,
     STANDARD_LAYOUT,
+    FixedRouteViolation,
     MonitorDomainError,
+    fixed_input_for,
+    is_fixed_output,
     standard_layout,
     validate_assignment,
     validate_layout,
@@ -76,3 +81,36 @@ def test_validate_assignment_checks_both_keys() -> None:
         validate_assignment("nope", "bbz-os")
     with pytest.raises(MonitorDomainError):
         validate_assignment("workplace1", "nope")
+
+
+# --- the fixed lower-left == BBZ-OS rule (E19-03, MASTER_PROMPT §9) ---------
+
+
+def test_only_the_lower_left_output_is_fixed() -> None:
+    assert FIXED_ASSIGNMENTS == {BOTTOM_LEFT_OUTPUT_KEY: "bbz-os"}
+    assert is_fixed_output(BOTTOM_LEFT_OUTPUT_KEY)
+    assert fixed_input_for(BOTTOM_LEFT_OUTPUT_KEY) == "bbz-os"
+    for other in OUTPUT_KEYS - {BOTTOM_LEFT_OUTPUT_KEY}:
+        assert not is_fixed_output(other) and fixed_input_for(other) is None
+
+
+def test_routing_the_lower_left_output_away_from_bbz_os_is_refused() -> None:
+    validate_assignment(BOTTOM_LEFT_OUTPUT_KEY, "bbz-os")  # the only allowed value
+    with pytest.raises(FixedRouteViolation) as exc:
+        validate_assignment(BOTTOM_LEFT_OUTPUT_KEY, "bku1")
+    assert isinstance(exc.value, MonitorDomainError)  # generic handler still catches it
+
+
+def test_a_layout_that_reassigns_the_lower_left_output_is_refused() -> None:
+    layout = standard_layout()
+    layout[BOTTOM_LEFT_OUTPUT_KEY] = "coda1"
+    with pytest.raises(FixedRouteViolation):
+        validate_layout(layout)
+
+
+def test_the_standard_layout_and_a_reset_always_satisfy_the_fixed_rule() -> None:
+    # a reset to standard is just re-applying this layout — the rule holds
+    layout = standard_layout()
+    validate_layout(layout)
+    for output_key, fixed_input in FIXED_ASSIGNMENTS.items():
+        assert layout[output_key] == fixed_input
