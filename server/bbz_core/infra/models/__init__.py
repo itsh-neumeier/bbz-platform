@@ -30,6 +30,7 @@ from bbz_core.infra.models.contacts import (
     ContactPriority,
     ContactPriorityLevel,
 )
+from bbz_core.infra.models.directory_sync import DirectorySyncState
 from bbz_core.infra.models.domain_events import DomainEvent
 from bbz_core.infra.models.door_action_profiles import DoorActionProfile
 from bbz_core.infra.models.door_open_commands import (
@@ -148,6 +149,7 @@ __all__ = [
     "ContactNumber",
     "ContactPriority",
     "ContactPriorityLevel",
+    "DirectorySyncState",
     "DomainEvent",
     "DoorActionProfile",
     "DoorOpenCommand",

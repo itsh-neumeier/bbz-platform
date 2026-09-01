@@ -40,6 +40,8 @@ def config_from_settings() -> LdapConfig:
         bind_password=s.ldap_bind_password,
         user_search_base=s.ldap_user_search_base,
         user_filter=s.ldap_user_filter,
+        user_list_filter=s.ldap_user_list_filter,
+        page_size=s.ldap_page_size,
         group_search_base=s.ldap_group_search_base,
         group_filter=s.ldap_group_filter,
         uid_attr=s.ldap_uid_attr,

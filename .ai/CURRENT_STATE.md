@@ -1549,7 +1549,7 @@ API. `integrations/telephony_cucm/` stays a placeholder README.
   alternative, standard-layout button, profile save/load, locked lower-left) is
   left → Epic 07 (frontend, blocked).
 
-### Epic 21 – Enterprise Authentication: **in progress (3/8)**
+### Epic 21 – Enterprise Authentication: **in progress (4/8)**
 - **#431 (E21-01) Entra ID / OIDC provider** — `bbz_core.auth.oidc` (pure,
   framework-free): `pkce` (S256 only), `discovery` (fetch metadata, assert the
   issuer matches), `flow.start` (authorization-code URL with state / nonce /
@@ -1592,7 +1592,9 @@ API. `integrations/telephony_cucm/` stays a placeholder README.
   untouched, no-op idempotency, group-claim-drives-roles across two logins,
   JIT-user-gets-only-mapped, CRUD gated + audited.
 - **#435 (E21-03) LDAP / Active Directory bind login** — `bbz_core.auth.ldap`: a
-  blocking `ldap3` client (new runtime deps `ldap3` + pinned `pyasn1<0.6.1`).
+  blocking `ldap3` client (new runtime deps `ldap3` 2.9.1 + `pyasn1>=0.6.4` for
+  its CVE fixes; ldap3's deprecated `tagMap`/`typeMap` import is filtered in the
+  pytest config).
   Service-account bind → user search → **user bind (the authentication)** →
   optional group search. **Encrypted transport enforced** — `ldaps://` or
   `ldap://` + StartTLS-before-bind; a plaintext URL with StartTLS off is refused
@@ -1615,10 +1617,33 @@ API. `integrations/telephony_cucm/` stays a placeholder README.
   refused, StartTLS-before-bind, provisioned + JIT + reconcile, failure audited,
   `/login` fallback happy + bad-password, **local login unaffected** — all
   against a containerised OpenLDAP (skipped when unreachable).
-- Next: E21-04 (directory sync job — needs E21-03), E21-05 (MFA policy engine +
-  step-up), E21-06 (WebAuthn/FIDO2), E21-07 (advanced RBAC — conditions /
-  time-bound grants / delegation). E21-08 (account linking + admin UI) is partly
-  frontend.
+- **#437 (E21-04) directory sync job** — `directory-sync`, a leader-elected
+  singleton (added to `workers/registry.py`) that reconciles BBZ against the
+  directory once per `ldap_sync_interval_seconds`. `LdapClient.enumerate_principals`
+  paged-searches every account (`ldap_user_list_filter`) with its groups;
+  `DirectorySyncService` (`infra/repositories/directory_sync.py`) diffs against the
+  `ldap_ad` identities: **new** → provision (if `ldap_sync_provision`), **gone**
+  → **soft-deactivate** (`status=disabled` + revoke sessions, never a hard delete)
+  auditing `USER_DEACTIVATED`, **present** → refresh display name + reconcile
+  group-mapped roles via the shared `GroupMappingService` (E21-02). Safety: a run
+  that returns **zero** accounts, or would deactivate more than
+  `ldap_sync_max_deactivations` (default 20), aborts and changes nothing — a
+  directory outage must not mass-off-board. Admin API `POST /api/v1/auth/directory-sync`
+  `{dry_run, force}` + `GET …/state` (`users.manage`); **dry run writes nothing**
+  (computes the diff, returns it). Every real run audits
+  `DIRECTORY_SYNC_COMPLETED` (both critical actions) and upserts
+  `directory_sync_state` (migration `0046`; PK `source`). The manual admin
+  `POST /users/{id}/deactivate` now also audits `USER_DEACTIVATED` (closed a
+  stale TODO). Entra sync (MS Graph) is a separate future item — Entra users
+  arrive via OIDC JIT today. `test_directory_sync.py` (20): provision / disable /
+  JIT role, soft-deactivate + session revoke + audit + row kept, the cap aborts,
+  `force` overrides, empty result aborts, LDAP error recorded not raised, group
+  reconcile add+remove, display-name refresh, local user untouched, dry-run
+  writes nothing, completion audit + state row, the tick honours the interval,
+  and two real-OpenLDAP end-to-end tests + the gated admin API.
+- Next: E21-05 (MFA policy engine + step-up), E21-06 (WebAuthn/FIDO2), E21-07
+  (advanced RBAC — conditions / time-bound grants / delegation). E21-08 (account
+  linking + admin UI) is partly frontend.
 
 ## Existing reference
 A functional HTML mockup defines important UX/feature behavior. **It is not yet in

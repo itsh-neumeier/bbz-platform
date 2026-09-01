@@ -59,6 +59,37 @@ Source of truth: MASTER_PROMPT §11, roadmap E21-03, `.ai/SECURITY.md`
 | `ldap_tls_verify` | no | default `true` — **keep true in production** |
 | `ldap_tls_ca_file` | no | CA bundle for verification; empty ⇒ system store |
 | `ldap_jit_provisioning` | no | default `false` |
+| `ldap_sync_enabled` | no | default `false` — turn on the scheduled directory sync (E21-04) |
+| `ldap_sync_interval_seconds` | no | default `3600` |
+| `ldap_user_list_filter` | no | default `(objectClass=inetOrgPerson)`; AD `(&(objectClass=user)(!(objectClass=computer)))` |
+| `ldap_page_size` | no | default `500` — paged-search size for the sync |
+| `ldap_sync_provision` | no | default `true` — create a BBZ user for a new directory account |
+| `ldap_sync_max_deactivations` | no | default `20` — a run that would disable more aborts untouched |
+
+## Directory sync (E21-04)
+
+With `ldap_sync_enabled=true`, a leader-elected singleton (`directory-sync`)
+reconciles BBZ against the directory once per `ldap_sync_interval_seconds`:
+
+- **new** account → provision a BBZ user (`ldap_sync_provision`), granting
+  `oidc_jit_default_role`
+- **vanished** account → **soft-deactivate** the BBZ user (`status=disabled` +
+  revoke its sessions — never a hard delete), audit `USER_DEACTIVATED`
+- **present** account → refresh the display name, reconcile group-mapped roles
+  (shared with login, E21-02)
+
+Every real run audits `DIRECTORY_SYNC_COMPLETED` and records
+`directory_sync_state`. **Safety:** an enumeration that returns zero accounts, or
+that would deactivate more than `ldap_sync_max_deactivations` users, aborts and
+changes nothing (a directory error must not off-board everyone).
+
+Admin API (`users.manage`): `POST /api/v1/auth/directory-sync` `{dry_run, force}`
+runs a sync now — `dry_run` computes the diff and **writes nothing**, `force`
+overrides the deactivation cap for one run; `GET /api/v1/auth/directory-sync/state`
+returns the last run's report.
+
+Entra ID directory sync (MS Graph) is not built — Entra users arrive through
+OIDC JIT (E21-01/02). The sync today covers `ldap_ad` only.
 
 ## Unblocking checklist (when the customer supplies the directory)
 
@@ -78,7 +109,9 @@ Source of truth: MASTER_PROMPT §11, roadmap E21-03, `.ai/SECURITY.md`
 
 ## HA behaviour
 
-The pool is per node. A total directory outage degrades to **local logins only**
+The directory sync is a **singleton** — it runs on whichever node holds the
+`directory-sync` etcd lease, so a reconcile never runs twice. The login pool is
+per node. A total directory outage degrades to **local logins only**
 — `/login` swallows every `LdapError` and reports generic invalid-credentials for
 directory accounts; local accounts are unaffected. No directory dependency sits
 on the readiness probe.

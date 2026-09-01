@@ -107,6 +107,22 @@ class Settings(BaseSettings):
     #: allow JIT user creation on first LDAP login (shares the OIDC group mappings)
     ldap_jit_provisioning: bool = False
 
+    # --- auth: directory sync job (E21-04). A leader-elected singleton that
+    # reconciles BBZ users/roles against the directory. Off unless enabled AND
+    # ldap_url is set. Never hard-deletes; a run that would deactivate more than
+    # ldap_sync_max_deactivations users aborts (a directory error must not mass
+    # off-board). ---
+    ldap_sync_enabled: bool = False
+    ldap_sync_interval_seconds: int = 3600
+    #: filter for enumerating every directory account (no ``%s``); AD uses
+    #: ``(&(objectClass=user)(!(objectClass=computer)))``
+    ldap_user_list_filter: str = "(objectClass=inetOrgPerson)"
+    ldap_page_size: int = 500
+    #: create a BBZ user for a directory account seen for the first time
+    ldap_sync_provision: bool = True
+    #: safety cap — abort the run (deactivate nobody) if more than this vanish at once
+    ldap_sync_max_deactivations: int = 20
+
     # --- authorization (E02-07). Conditional grants stay deny until E05-01. ---
     rbac_conditions_enabled: bool = False
 

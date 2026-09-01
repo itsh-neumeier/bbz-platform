@@ -113,6 +113,42 @@ async def test_deactivate_blocks_login_and_revokes_sessions(admin_client: tuple)
         assert relogin.status_code == 401
 
 
+async def test_deactivate_audits_user_deactivated_once(admin_client: tuple) -> None:
+    client, s = admin_client
+    from sqlalchemy import select
+
+    from bbz_core.infra.models.audit import AuditEvent
+
+    await client.post(
+        "/api/v1/users",
+        json={
+            "display_name": "D",
+            "local_username": "dora",
+            "initial_password": "Wolke7-Bahnhof!x",
+        },
+    )
+    dora = next(u for u in (await client.get("/api/v1/users")).json() if u["display_name"] == "D")
+
+    assert (await client.post(f"/api/v1/users/{dora['id']}/deactivate")).status_code == 200
+    # a second deactivate of an already-disabled user must not re-audit
+    assert (await client.post(f"/api/v1/users/{dora['id']}/deactivate")).status_code == 200
+
+    await s.rollback()
+    rows = (
+        (
+            await s.execute(
+                select(AuditEvent).where(
+                    AuditEvent.action == "USER_DEACTIVATED", AuditEvent.target_id == dora["id"]
+                )
+            )
+        )
+        .scalars()
+        .all()
+    )
+    assert len(rows) == 1
+    assert rows[0].after["status"] == "disabled"
+
+
 async def test_last_admin_cannot_be_deactivated(admin_client: tuple) -> None:
     client, s = admin_client
     from sqlalchemy import select

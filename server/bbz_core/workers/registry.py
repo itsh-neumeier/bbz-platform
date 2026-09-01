@@ -21,6 +21,7 @@ SINGLETON_NAMES: tuple[str, ...] = (
     "workflow-timer",
     "trigger-engine",
     "weather-refresh",
+    "directory-sync",
 )
 
 
@@ -67,10 +68,43 @@ async def _weather_refresh_tick() -> object:
         return await WeatherRefreshService(session).refresh()
 
 
+async def _directory_sync_tick() -> object:
+    """Reconcile BBZ users/roles against the directory (E21-04) — but only once
+    per ``ldap_sync_interval_seconds``. Returns the number of changes applied
+    (created + deactivated + role reconciles). Safe on an unconfigured system
+    (returns 0)."""
+    import datetime as _dt
+
+    from sqlalchemy import select
+
+    from bbz_core.infra.db import session_scope
+    from bbz_core.infra.models.directory_sync import DirectorySyncState
+    from bbz_core.infra.repositories.directory_sync import DirectorySyncService
+    from bbz_core.settings import get_settings
+
+    settings = get_settings()
+    if not settings.ldap_sync_enabled or not settings.ldap_url:
+        return 0
+
+    async with session_scope() as session:
+        last = (
+            await session.execute(
+                select(DirectorySyncState.last_run_at).where(DirectorySyncState.source == "ldap_ad")
+            )
+        ).scalar_one_or_none()
+        if last is not None:
+            age = (_dt.datetime.now(_dt.UTC) - last).total_seconds()
+            if age < settings.ldap_sync_interval_seconds:
+                return 0
+        report = await DirectorySyncService(session).run()
+        return report.created + report.deactivated + report.role_reconciles
+
+
 def cluster_singletons() -> list[Singleton]:
     return [
         Singleton("outbox-dispatcher", _outbox_tick),
         Singleton("workflow-timer", _workflow_timer_tick),
         Singleton("trigger-engine", _trigger_engine_tick),
         Singleton("weather-refresh", _weather_refresh_tick),
+        Singleton("directory-sync", _directory_sync_tick),
     ]
