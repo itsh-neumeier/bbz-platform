@@ -124,3 +124,17 @@ Coverage:
   `redacting(...)`-registered secret come out masked after export.
 - **clean no-op** — `configure_tracing(Settings(otel_enabled=False))` is `False`
   and `current_trace_ids()` is `None`.
+
+## Prometheus metrics (E22-02)
+
+`server/tests/test_metrics.py` covers the full §23 set at
+`GET /api/v1/system/metrics`:
+
+- **gated** — 401 without a session, 403 without `system.cluster.view`.
+- **all §23 names present** — the E06-13 HA gauges + the E22-02 additions.
+- **latency label is the template** — a request to `/api/v1/events/<uuid>`
+  records under `route="/api/v1/events/{event_id}"`; the raw id never appears.
+- **gauges track state** — login bumps `bbz_connected_clients`; an in-flight
+  `commands` row bumps `bbz_commands_pending`; a `Line` / `Call` row moves
+  `bbz_call_lines{state}` / `bbz_calls_active` (a `disconnected` call does not);
+  a loaded mock provider shows `bbz_integration_health … 1.0`.

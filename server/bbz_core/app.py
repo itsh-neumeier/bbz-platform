@@ -14,6 +14,7 @@ from bbz_core import __version__
 from bbz_core.api.cluster import router as cluster_router
 from bbz_core.api.errors import install_error_handlers
 from bbz_core.api.health import router as health_router
+from bbz_core.api.request_metrics import RequestMetricsMiddleware
 from bbz_core.api.v1.router import api_v1
 from bbz_core.api.ws import router as ws_router
 from bbz_core.infra.db import dispose_engine
@@ -68,6 +69,7 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
     )
     app.add_middleware(CorrelationIdMiddleware)
+    app.add_middleware(RequestMetricsMiddleware)  # times requests (E22-02)
     if s.cors_allow_origins:
         app.add_middleware(
             CORSMiddleware,
