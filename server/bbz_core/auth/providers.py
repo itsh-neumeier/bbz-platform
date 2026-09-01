@@ -56,7 +56,13 @@ class LocalAuthProvider:
 
 
 class _ExternalStub:
-    """Shared body for the not-yet-implemented external providers (Epic 21)."""
+    """Shared capability body for the external providers (Epic 21).
+
+    The interactive *login* for ``entra_oidc`` runs through
+    :class:`bbz_core.infra.repositories.oidc_login.OidcLoginService` (E21-01), not
+    these methods — the registry object only exposes capability discovery. Group
+    mapping / JIT provisioning policy is E21-02; LDAP is E21-03.
+    """
 
     name = "external"
     _kind = CredentialKind.EXTERNAL_REDIRECT
@@ -69,12 +75,12 @@ class _ExternalStub:
         )
 
     async def get_identity(self, subject: str) -> AuthenticatedIdentity | None:
-        raise NotImplementedError(f"{self.name} auth provider is not implemented yet (Epic 21)")
+        raise NotImplementedError(f"{self.name}: identity resolution is E21-02 / E21-03")
 
     async def resolve(
         self, identity: AuthenticatedIdentity, *, provision: bool
     ) -> uuid.UUID | None:
-        raise NotImplementedError(f"{self.name} provisioning is not implemented yet (Epic 21)")
+        raise NotImplementedError(f"{self.name}: provisioning policy is E21-02 / E21-04")
 
 
 class EntraOidcAuthProvider(_ExternalStub):

@@ -1549,6 +1549,38 @@ API. `integrations/telephony_cucm/` stays a placeholder README.
   alternative, standard-layout button, profile save/load, locked lower-left) is
   left → Epic 07 (frontend, blocked).
 
+### Epic 21 – Enterprise Authentication: **in progress (1/8)**
+- **#431 (E21-01) Entra ID / OIDC provider** — `bbz_core.auth.oidc` (pure,
+  framework-free): `pkce` (S256 only), `discovery` (fetch metadata, assert the
+  issuer matches), `flow.start` (authorization-code URL with state / nonce /
+  `code_challenge`; `response_type=code`, never implicit) + `flow.exchange`
+  (token endpoint, `code_verifier`), `idtoken.validate_id_token` (JWKS `kid`
+  match, **RS/ES/PS only — `none` and HMAC rejected**, `iss`/`aud`/`exp`/`iat`
+  via PyJWT, then constant-time `nonce` compare), `http` (stdlib `urllib` in a
+  thread — no new runtime dep; HTTPS-only). `OidcLoginService`
+  (`infra/repositories/oidc_login.py`) holds the per-attempt secrets in
+  `oidc_login_flows` (migration `0044`; `state` PK, Fernet-encrypted
+  `code_verifier` derived from `jwt_secret`, TTL `oidc_login_flow_ttl_seconds`),
+  **single-use** (the row is deleted at the top of `complete()` — a replay finds
+  nothing), and audits `LOGIN_SUCCEEDED` / `LOGIN_FAILED` (provider + reason).
+  DB-backed so a post-failover callback on another node resolves. API:
+  `GET /api/v1/auth/oidc/{provider}/start` → `{authorization_url}`,
+  `POST /api/v1/auth/oidc/{provider}/callback` `{code, state}` → the same session
+  cookies as `/login` (session-minting refactored into `_issue_session`). JIT
+  provisioning is `oidc_jit_provisioning` (off by default — an unknown `sub` →
+  401; **policy is E21-02**). Settings `oidc_entra_{issuer,client_id,
+  client_secret,redirect_uri}` — real values are an open external dependency;
+  tests use a **mock IdP** (RSA keypair + canned discovery/JWKS/token, no running
+  server). `test_oidc_login.py` (19): PKCE, the auth URL, id-token validation
+  happy + bad-nonce / wrong-aud / wrong-iss / expired / `alg=none` / foreign-key
+  forgery, replayed & unknown & expired `state`, unprovisioned principal,
+  cross-node state, and **local password login still works**. Local logins are
+  unaffected (`local` stays the registry default).
+- Next: E21-02 (OIDC group→role mapping + JIT policy), E21-03 (LDAP/AD provider),
+  E21-04 (directory sync job), E21-05 (MFA policy engine + step-up), E21-06
+  (WebAuthn/FIDO2), E21-07 (advanced RBAC — conditions / time-bound grants /
+  delegation). E21-08 (account linking + admin UI) is partly frontend.
+
 ## Existing reference
 A functional HTML mockup defines important UX/feature behavior. **It is not yet in
 the repository** — it must be committed under `docs/mockup/` before Phase 3 and is
