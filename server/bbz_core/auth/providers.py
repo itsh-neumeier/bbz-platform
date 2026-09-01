@@ -58,10 +58,11 @@ class LocalAuthProvider:
 class _ExternalStub:
     """Shared capability body for the external providers (Epic 21).
 
-    The interactive *login* for ``entra_oidc`` runs through
-    :class:`bbz_core.infra.repositories.oidc_login.OidcLoginService` (E21-01), not
-    these methods — the registry object only exposes capability discovery. Group
-    mapping / JIT provisioning policy is E21-02; LDAP is E21-03.
+    The interactive *login* runs through a dedicated service, not these methods —
+    the registry object only exposes capability discovery + provider presence
+    (``registry.names()``). ``entra_oidc`` → ``OidcLoginService`` (E21-01),
+    ``ldap_ad`` → ``LdapLoginService`` (E21-03, tried by ``/login`` as the
+    fallback after a failed local bind). Group mapping is shared (E21-02).
     """
 
     name = "external"

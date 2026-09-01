@@ -23,7 +23,7 @@ plugins = ["pydantic.mypy"]
 exclude = ["(^|/)(\\.venv|alembic|node_modules|tests)/"]
 
 [[tool.mypy.overrides]]
-module = ["asyncpg.*"]
+module = ["asyncpg.*", "ldap3.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]
@@ -35,6 +35,11 @@ filterwarnings = [
   "error",
   # Starlette 1.6 nudges towards httpx2; we use httpx via ASGITransport deliberately.
   "ignore:Using `httpx` with `starlette.testclient`:DeprecationWarning",
+  # ldap3 2.9.1 (latest release) imports pyasn1's tagMap/typeMap, deprecated in
+  # pyasn1 0.6.1. We need pyasn1 >= 0.6.4 for its CVE fixes; the aliases still
+  # work and ldap3 upstream is effectively frozen. Third-party import noise only.
+  "ignore:tagMap is deprecated:DeprecationWarning",
+  "ignore:typeMap is deprecated:DeprecationWarning",
 ]
 
 [tool.coverage.run]

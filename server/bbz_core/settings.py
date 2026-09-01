@@ -87,6 +87,26 @@ class Settings(BaseSettings):
     #: role a JIT-created user gets before group mappings apply (empty ⇒ none)
     oidc_jit_default_role: str = ""
 
+    # --- auth: LDAP / Active Directory (E21-03). Empty url ⇒ the provider stays a
+    # stub. Only encrypted transport (ldaps:// or ldap:// + StartTLS). The bind
+    # password is a secret (secrets_dir). Real values: open external dependency. ---
+    ldap_url: str = ""  # comma-separated for a failover pool
+    ldap_bind_dn: str = ""
+    ldap_bind_password: str = ""
+    ldap_user_search_base: str = ""
+    ldap_user_filter: str = "(uid=%s)"
+    ldap_group_search_base: str = ""
+    ldap_group_filter: str = "(&(objectClass=groupOfNames)(member=%s))"
+    #: attribute mapping — AD typically uid=sAMAccountName, name=displayName
+    ldap_uid_attr: str = "uid"
+    ldap_name_attr: str = "cn"
+    ldap_mail_attr: str = "mail"
+    ldap_start_tls: bool = True
+    ldap_tls_verify: bool = True
+    ldap_tls_ca_file: str = ""
+    #: allow JIT user creation on first LDAP login (shares the OIDC group mappings)
+    ldap_jit_provisioning: bool = False
+
     # --- authorization (E02-07). Conditional grants stay deny until E05-01. ---
     rbac_conditions_enabled: bool = False
 
