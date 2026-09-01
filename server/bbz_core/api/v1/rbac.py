@@ -19,7 +19,7 @@ from fastapi import APIRouter, Depends, status
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from bbz_core.api.authz import require
+from bbz_core.api.authz import require, require_stepup
 from bbz_core.api.deps import AuthContext, db_session
 from bbz_core.api.errors import ConflictError, NotFoundError, ValidationError
 from bbz_core.authorization import SCOPES
@@ -147,7 +147,7 @@ async def get_role_permissions(
 async def set_role_permissions(
     role_id: uuid.UUID,
     body: list[PermAssignmentIn],
-    _: AuthContext = Depends(require("permissions.manage")),
+    _: AuthContext = Depends(require_stepup("permissions.manage")),
     repo: RbacAdminRepository = Depends(_repo),
 ) -> None:
     role = await repo.get_role(role_id)

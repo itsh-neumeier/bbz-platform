@@ -35,6 +35,7 @@ class SessionRecord:
     user_id: uuid.UUID
     expires_at: _dt.datetime
     revoked_at: _dt.datetime | None
+    mfa_verified_at: _dt.datetime | None = None
 
 
 @dataclass(frozen=True)
@@ -56,10 +57,12 @@ class SessionStore(Protocol):
         client_id: str | None,
         workplace_id: str | None,
         user_agent: str | None,
+        mfa_verified: bool = False,
     ) -> uuid.UUID: ...
     async def get_active_by_refresh(self, refresh_hash: str) -> SessionRecord | None: ...
     async def get_active(self, session_id: uuid.UUID) -> SessionRecord | None: ...
     async def touch(self, session_id: uuid.UUID) -> None: ...
+    async def mark_mfa_verified(self, session_id: uuid.UUID) -> None: ...
     async def revoke(self, session_id: uuid.UUID) -> None: ...
     async def revoke_by_refresh(self, refresh_hash: str) -> None: ...
     async def revoke_all_for_user(self, user_id: uuid.UUID) -> int: ...
@@ -81,7 +84,11 @@ class SessionService:
         client_id: str | None = None,
         workplace_id: str | None = None,
         user_agent: str | None = None,
+        mfa_verified: bool = False,
     ) -> IssuedTokens:
+        """``mfa_verified`` — the login that starts this session included a
+        satisfied TOTP/recovery challenge; stamps ``mfa_verified_at`` so a
+        step-up-gated action right after login doesn't ask again (E21-05)."""
         s = get_settings()
         refresh = new_refresh_token()
         expires_at = self._now() + _dt.timedelta(seconds=s.refresh_token_ttl_seconds)
@@ -92,6 +99,7 @@ class SessionService:
             client_id=client_id,
             workplace_id=workplace_id,
             user_agent=user_agent,
+            mfa_verified=mfa_verified,
         )
         return IssuedTokens(
             access_token=issue_access_token(user_id, session_id),
@@ -115,6 +123,14 @@ class SessionService:
     async def is_active(self, session_id: uuid.UUID) -> bool:
         record = await self._store.get_active(session_id)
         return record is not None and record.expires_at > self._now()
+
+    async def get(self, session_id: uuid.UUID) -> SessionRecord | None:
+        return await self._store.get_active(session_id)
+
+    async def mark_mfa_verified(self, session_id: uuid.UUID) -> None:
+        """Stamp ``mfa_verified_at`` on this session — a step-up challenge just
+        succeeded (E21-05)."""
+        await self._store.mark_mfa_verified(session_id)
 
     async def revoke(self, session_id: uuid.UUID) -> None:
         await self._store.revoke(session_id)

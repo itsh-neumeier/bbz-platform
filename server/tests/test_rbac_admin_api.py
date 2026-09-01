@@ -13,15 +13,20 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 @pytest.fixture(autouse=True)
 def _fast_auth() -> Iterator[None]:
+    from bbz_core import settings as settings_mod
     from bbz_core.auth import hashing
 
     os.environ["BBZ_ARGON2_MEMORY_COST_KIB"] = "512"
     os.environ["BBZ_ARGON2_TIME_COST"] = "1"
     os.environ["BBZ_JWT_SECRET"] = "rbac-admin-test-secret-at-least-32-bytes!!"
     os.environ["BBZ_SESSION_COOKIE_SECURE"] = "false"
+    os.environ["BBZ_MFA_STEPUP_PERMISSIONS"] = "[]"  # step-up is covered in test_mfa_policy
+    settings_mod.get_settings.cache_clear()
     hashing._hasher.cache_clear()
     hashing._dummy_hash.cache_clear()
     yield
+    os.environ.pop("BBZ_MFA_STEPUP_PERMISSIONS", None)
+    settings_mod.get_settings.cache_clear()
     hashing._hasher.cache_clear()
     hashing._dummy_hash.cache_clear()
 

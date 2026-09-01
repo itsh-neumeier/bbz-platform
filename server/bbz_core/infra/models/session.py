@@ -31,3 +31,6 @@ class Session(Base):
     client_id: Mapped[str | None] = mapped_column(String(64))
     workplace_id: Mapped[str | None] = mapped_column(String(64))
     user_agent: Mapped[str | None] = mapped_column(String(400))
+    #: when this session's login satisfied a TOTP/recovery challenge (E21-05) —
+    #: NULL if it never did. Read by the step-up dependency; a step-up bumps it.
+    mfa_verified_at: Mapped[_dt.datetime | None] = mapped_column()

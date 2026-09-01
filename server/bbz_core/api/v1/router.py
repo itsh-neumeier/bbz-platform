@@ -17,6 +17,7 @@ from bbz_core.api.v1.doors import router as doors_router
 from bbz_core.api.v1.events import router as events_router
 from bbz_core.api.v1.integrations import router as integrations_router
 from bbz_core.api.v1.lines import router as lines_router
+from bbz_core.api.v1.mfa_policies import router as mfa_policies_router
 from bbz_core.api.v1.monitor import router as monitor_router
 from bbz_core.api.v1.presence import router as presence_router
 from bbz_core.api.v1.rbac import router as rbac_router
@@ -36,6 +37,7 @@ api_v1 = APIRouter(prefix="/api/v1")
 api_v1.include_router(auth_router)
 api_v1.include_router(auth_mappings_router)
 api_v1.include_router(directory_sync_router)
+api_v1.include_router(mfa_policies_router)
 api_v1.include_router(audit_router)
 api_v1.include_router(events_router)
 api_v1.include_router(calls_router)

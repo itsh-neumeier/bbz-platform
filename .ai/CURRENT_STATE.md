@@ -1549,7 +1549,7 @@ API. `integrations/telephony_cucm/` stays a placeholder README.
   alternative, standard-layout button, profile save/load, locked lower-left) is
   left → Epic 07 (frontend, blocked).
 
-### Epic 21 – Enterprise Authentication: **in progress (4/8)**
+### Epic 21 – Enterprise Authentication: **in progress (5/8)**
 - **#431 (E21-01) Entra ID / OIDC provider** — `bbz_core.auth.oidc` (pure,
   framework-free): `pkce` (S256 only), `discovery` (fetch metadata, assert the
   issuer matches), `flow.start` (authorization-code URL with state / nonce /
@@ -1641,9 +1641,35 @@ API. `integrations/telephony_cucm/` stays a placeholder README.
   reconcile add+remove, display-name refresh, local user untouched, dry-run
   writes nothing, completion audit + state row, the tick honours the interval,
   and two real-OpenLDAP end-to-end tests + the gated admin API.
-- Next: E21-05 (MFA policy engine + step-up), E21-06 (WebAuthn/FIDO2), E21-07
-  (advanced RBAC — conditions / time-bound grants / delegation). E21-08 (account
-  linking + admin UI) is partly frontend.
+- **#439 (E21-05) MFA policy engine + step-up** — `mfa_policies` (migration
+  `0047`; PK `role_key`, `grace_period_days`) makes MFA a **role-based**
+  requirement: a user requires MFA iff they hold any policy'd role (direct or via
+  a group). `MfaPolicyService.evaluate(user_id)` → `MfaRequirement(required,
+  in_grace, grace_until)`; grace deadline = earliest `grant_time + grace_days`
+  across the user's policy'd roles. **Login enforcement** (`_enforce_mfa_policy`,
+  shared by local / OIDC-callback / LDAP-fallback): no factor + grace elapsed →
+  `401 mfa_required` + `LOGIN_FAILED`; still in grace → login succeeds with
+  `mfa_enrolment_required: true` + `mfa_grace_until` on the response (the client
+  nudges enrolment). A user who also enrolled a **local** TOTP satisfies the
+  requirement on any provider. External logins can be exempted with
+  `mfa_policy_enforce_external=false`. **Step-up**: `require_stepup(perm)`
+  (composes `require`) demands a *fresh* MFA verification for permissions in
+  `mfa_stepup_permissions` (default `["permissions.manage"]`) — `sessions.mfa_verified_at`
+  (new column) is stamped by a TOTP login and by `POST /api/v1/auth/mfa-policies/step-up`
+  `{totp}`, and must be within `mfa_stepup_max_age_seconds` (default 300); a
+  stale session gets `401 step_up_required` + `MFA_STEPUP_REQUIRED` audit. Wired
+  onto `PUT /roles/{id}/permissions` (RBAC) and the MFA-policy writes. Admin API
+  `GET/PUT/DELETE /api/v1/auth/mfa-policies[/{role_key}]` (`permissions.manage`,
+  `MFA_POLICY_CHANGED` audit; both new actions are critical). Session store
+  threaded `mfa_verified` through `SessionStore.create` +
+  `SessionStore.mark_mfa_verified`. `test_mfa_policy.py` (15): evaluate
+  direct/group/grace, `blocks()` logic, the external toggle, login blocked / in
+  grace / normal-with-TOTP, `mfa_verified_at` stamping, step-up block→step-up→
+  unblock, TOTP-login-counts-as-step-up, step-up expiry, admin CRUD gated +
+  audited. **Not built**: scope-based (only role-based) policies; Entra/OIDC
+  external factor verification (WebAuthn is E21-06).
+- Next: E21-06 (WebAuthn/FIDO2), E21-07 (advanced RBAC — conditions / time-bound
+  grants / delegation). E21-08 (account linking + admin UI) is partly frontend.
 
 ## Existing reference
 A functional HTML mockup defines important UX/feature behavior. **It is not yet in

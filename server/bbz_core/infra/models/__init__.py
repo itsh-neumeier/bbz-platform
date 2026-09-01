@@ -60,6 +60,7 @@ from bbz_core.infra.models.identity import (
 )
 from bbz_core.infra.models.inbox import ProviderEventInbox
 from bbz_core.infra.models.integration_camera_mappings import IntegrationCameraMapping
+from bbz_core.infra.models.mfa_policy import MfaPolicy
 from bbz_core.infra.models.monitor import (
     MonitorInput,
     MonitorOutput,
@@ -173,6 +174,7 @@ __all__ = [
     "LocalCredential",
     "LocalTotp",
     "LocalTotpRecoveryCode",
+    "MfaPolicy",
     "MonitorInput",
     "MonitorOutput",
     "MonitorProfile",

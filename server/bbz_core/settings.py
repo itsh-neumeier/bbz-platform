@@ -136,6 +136,20 @@ class Settings(BaseSettings):
     door_dtmf_encryption_key: str = ""
     totp_issuer: str = "BBZ / 3-S-Zentrale"
 
+    # --- MFA policy engine + step-up (E21-05). Whether a login needs MFA is
+    # role-based (`mfa_policies`); scope-based grants are a possible future
+    # extension. Step-up re-checks freshness for a small, explicit set of
+    # sensitive permissions. ---
+    #: also enforce the policy on external (OIDC/LDAP) logins — they have no
+    #: local TOTP today, so past the grace period they are blocked; off relaxes
+    #: enforcement to local logins only
+    mfa_policy_enforce_external: bool = True
+    #: a step-up-verified session is fresh for this long before it must re-verify
+    mfa_stepup_max_age_seconds: int = 300
+    #: permissions that require a fresh step-up in addition to the permission
+    #: itself (only routes guarded with ``require_stepup`` honour this)
+    mfa_stepup_permissions: list[str] = Field(default_factory=lambda: ["permissions.manage"])
+
     # --- auth: sessions / tokens (E02-05; secret via ADR-0015 in prod) ---
     jwt_secret: str = "dev-insecure-secret-change-me-min-32-bytes!!"
     access_token_ttl_seconds: int = 900
