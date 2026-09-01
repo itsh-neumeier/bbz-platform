@@ -1438,7 +1438,7 @@ API. `integrations/telephony_cucm/` stays a placeholder README.
   no network.** `dwd` test count 43.
 - Only **E18-09** (Wetterlage UI) left → Epic 07 (frontend, blocked).
 
-### Epic 19 – Weytec Monitor Routing: **in progress (7/10)**
+### Epic 19 – Weytec Monitor Routing: **in progress (8/10)**
 - **#395 (E19-01) DB schema** — migration `0041_monitor_schema` +
   `bbz_core.infra.models.monitor`. Four tables (MASTER_PROMPT §9): `monitor_inputs`
   (`key` unique — BBZ-OS / BKU1-4 / Cayuga 1-2), `monitor_outputs` (`key` unique,
@@ -1527,8 +1527,17 @@ API. `integrations/telephony_cucm/` stays a placeholder README.
   dependencies". The Weytec API is **not invented** (MASTER_PROMPT §9, RULES.md);
   `monitor_mock` (E19-06) is used for dev + all tests. `test_weytec_scaffold.py`
   (7).
-- Next: E19-09 (permissions seed), E19-10 (E2E). E19-08 (dialog UI) → Epic 07
-  (blocked).
+- **#410 (E19-09) permissions seed guard** — the four `monitor.*` keys are
+  already seeded by the generic 0008 migration (it iterates `CATALOG` /
+  `BUILTIN_ROLES` at run time), so like E10-14 this is a **policy-lock test** +
+  doc, no new migration. `test_monitor_permissions_seed.py` (11): all four keys
+  in `CATALOG["monitor"]`; `monitor.reset_standard` / `monitor.manage_profiles`
+  are Administrator/Sichtleiter only; Disponent = `view` + `route`; Nur Lesen ≤
+  `monitor.view`; Nachbearbeitung none; no role grants an unknown `monitor.*`
+  key; and a DB-backed check that `seed_rbac` actually wrote those grants.
+  `docs/domain/permission-catalog.md` gets the default-grants table.
+- Next: **E19-10** (routing E2E — API-level + a `test.fixme` Playwright scaffold
+  pending the UI). E19-08 (dialog UI) → Epic 07 (blocked).
 
 ## Existing reference
 A functional HTML mockup defines important UX/feature behavior. **It is not yet in
