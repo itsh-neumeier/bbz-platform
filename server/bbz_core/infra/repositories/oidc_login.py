@@ -37,6 +37,7 @@ from bbz_core.auth.oidc.http import OidcHttp, UrllibOidcHttp
 from bbz_core.auth.oidc.idtoken import IdTokenClaims
 from bbz_core.infra.models.identity import AuthIdentity, User
 from bbz_core.infra.models.oidc import OidcLoginFlow
+from bbz_core.infra.models.rbac import Role, UserRole
 from bbz_core.logging import get_logger
 from bbz_core.settings import get_settings
 
@@ -166,7 +167,19 @@ class OidcLoginService:
         tokens = await exchange(cfg, meta, code=code, code_verifier=verifier, http=self._http)
         jwks = await fetch_jwks(meta, self._http)
         claims = validate_id_token(tokens.id_token, cfg=cfg, meta=meta, jwks=jwks, nonce=flow.nonce)
-        return await self._resolve_user(provider, claims)
+        user_id = await self._resolve_user(provider, claims)
+        await self._sync_grants(provider, user_id, claims)
+        return user_id
+
+    async def _sync_grants(self, provider: str, user_id: uuid.UUID, claims: IdTokenClaims) -> None:
+        """Reconcile the user's mapping-granted roles from the ``groups`` claim
+        (E21-02). A failure fails the login closed rather than granting the wrong
+        roles."""
+        from bbz_core.infra.repositories.auth_group_mapping import GroupMappingService
+
+        await GroupMappingService(self._s).sync_user_roles(
+            user_id=user_id, provider=provider, external_groups=claims.groups
+        )
 
     async def _resolve_user(self, provider: str, claims: IdTokenClaims) -> uuid.UUID:
         await self._s.rollback()
@@ -183,12 +196,19 @@ class OidcLoginService:
         if not get_settings().oidc_jit_provisioning:
             raise OidcUserNotProvisioned(claims.subject)
 
+        default_role = get_settings().oidc_jit_default_role.strip()
         await self._s.rollback()  # close the read tx from the lookup above
         async with self._s.begin():
             user = User(display_name=claims.name or claims.preferred_username or claims.email or "")
             self._s.add(user)
             await self._s.flush()
             self._s.add(AuthIdentity(user_id=user.id, provider=provider, subject=claims.subject))
+            if default_role:
+                role_id = (
+                    await self._s.execute(select(Role.id).where(Role.key == default_role))
+                ).scalar_one_or_none()
+                if role_id is not None:
+                    self._s.add(UserRole(user_id=user.id, role_id=role_id, granted_by=None))
         return user.id
 
     # --- audit ---------------------------------------------------

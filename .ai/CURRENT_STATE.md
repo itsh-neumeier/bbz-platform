@@ -1549,7 +1549,7 @@ API. `integrations/telephony_cucm/` stays a placeholder README.
   alternative, standard-layout button, profile save/load, locked lower-left) is
   left → Epic 07 (frontend, blocked).
 
-### Epic 21 – Enterprise Authentication: **in progress (1/8)**
+### Epic 21 – Enterprise Authentication: **in progress (2/8)**
 - **#431 (E21-01) Entra ID / OIDC provider** — `bbz_core.auth.oidc` (pure,
   framework-free): `pkce` (S256 only), `discovery` (fetch metadata, assert the
   issuer matches), `flow.start` (authorization-code URL with state / nonce /
@@ -1576,10 +1576,25 @@ API. `integrations/telephony_cucm/` stays a placeholder README.
   forgery, replayed & unknown & expired `state`, unprovisioned principal,
   cross-node state, and **local password login still works**. Local logins are
   unaffected (`local` stays the registry default).
-- Next: E21-02 (OIDC group→role mapping + JIT policy), E21-03 (LDAP/AD provider),
-  E21-04 (directory sync job), E21-05 (MFA policy engine + step-up), E21-06
-  (WebAuthn/FIDO2), E21-07 (advanced RBAC — conditions / time-bound grants /
-  delegation). E21-08 (account linking + admin UI) is partly frontend.
+- **#433 (E21-02) OIDC group→role mapping + JIT policy** — `auth_group_mappings`
+  (admin config: "provider group X grants role Y"; migration `0045`) +
+  `external_role_assignments` (provenance — which `user_roles` rows the mapping
+  owns). `GroupMappingService.sync_user_roles` runs on **every** external login
+  (from `OidcLoginService._finish`): recomputes the mapped roles from the
+  `groups` claim, adds new ones, drops ones whose group is gone — **never
+  touching a manually-assigned role** (no provenance row) — auditing
+  `USER_ROLE_ASSIGNED` / `USER_ROLE_REVOKED` per change; a login with an
+  unchanged group set writes nothing. Admin API `GET/POST/DELETE
+  /api/v1/auth/group-mappings` (`roles.manage`, `AUTH_MAPPING_CHANGED` audit — a
+  critical action; duplicate rule → 409, unknown role → 422). JIT: setting
+  `oidc_jit_default_role` (empty ⇒ a JIT user has only its mapped roles — the
+  AC). `test_oidc_group_mapping.py` (7): reconcile add/remove, manual grant
+  untouched, no-op idempotency, group-claim-drives-roles across two logins,
+  JIT-user-gets-only-mapped, CRUD gated + audited.
+- Next: E21-03 (LDAP/AD provider), E21-04 (directory sync job), E21-05 (MFA
+  policy engine + step-up), E21-06 (WebAuthn/FIDO2), E21-07 (advanced RBAC —
+  conditions / time-bound grants / delegation). E21-08 (account linking + admin
+  UI) is partly frontend.
 
 ## Existing reference
 A functional HTML mockup defines important UX/feature behavior. **It is not yet in

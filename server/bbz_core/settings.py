@@ -82,8 +82,10 @@ class Settings(BaseSettings):
     oidc_entra_redirect_uri: str = ""
     #: how long an unfinished OIDC login attempt (the `state` row) stays valid
     oidc_login_flow_ttl_seconds: int = 600
-    #: allow just-in-time user creation on first external login (policy: E21-02)
+    #: allow just-in-time user creation on first external login (E21-02)
     oidc_jit_provisioning: bool = False
+    #: role a JIT-created user gets before group mappings apply (empty ⇒ none)
+    oidc_jit_default_role: str = ""
 
     # --- authorization (E02-07). Conditional grants stay deny until E05-01. ---
     rbac_conditions_enabled: bool = False

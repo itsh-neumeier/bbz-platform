@@ -15,6 +15,9 @@ class AuditAction(enum.StrEnum):
     MFA_DISABLED = "MFA_DISABLED"
     MFA_CHALLENGE_FAILED = "MFA_CHALLENGE_FAILED"
     MFA_RECOVERY_USED = "MFA_RECOVERY_USED"
+    AUTH_MAPPING_CHANGED = "AUTH_MAPPING_CHANGED"
+    USER_ROLE_ASSIGNED = "USER_ROLE_ASSIGNED"
+    USER_ROLE_REVOKED = "USER_ROLE_REVOKED"
     EVENT_ASSIGNED = "EVENT_ASSIGNED"
     EVENT_TAKEN_OVER = "EVENT_TAKEN_OVER"
     EVENT_ARCHIVED = "EVENT_ARCHIVED"
@@ -77,6 +80,7 @@ class AuditAction(enum.StrEnum):
 #: wiring is caught by the "critical action -> audit" contract test (E04-03).
 CRITICAL_ACTIONS: frozenset[AuditAction] = frozenset(
     {
+        AuditAction.AUTH_MAPPING_CHANGED,
         AuditAction.EVENT_ASSIGNED,
         AuditAction.EVENT_TAKEN_OVER,
         AuditAction.EVENT_ARCHIVED,
