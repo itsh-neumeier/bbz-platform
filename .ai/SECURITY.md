@@ -109,3 +109,15 @@ No credentials in repo.
 - DTMF door codes are secrets/configuration values and must not be written in plaintext audit logs.
 - Store secret values encrypted / via secret store; audit the action profile ID, not the code.
 - Duplicate/replayed telephony events must never cause duplicate door-open actions.
+
+## Tracing (E22-01, ADR-0028)
+- Span attributes carry HTTP method / route / status / peer, `db.system` /
+  `db.operation` / `db.statement`, and our `bbz.correlation_id`. `db.statement`
+  is the **parameterised** SQL — never bound values. Request/response headers
+  and bodies are **not** captured.
+- The span exporter runs `bbz_core.redaction.scrub` over every span and event
+  attribute (E17-06 doctrine), so a transient `redacting(...)` secret cannot
+  leave the process via a trace even if some instrumentation echoes it.
+- The OTLP exporter is **off** by default (`otel_traces_exporter=none`) — until
+  a collector is deployed (E22-07), spans never leave the process. Config is
+  `BBZ_`-prefixed only; there is no `OTEL_*` passthrough.

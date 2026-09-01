@@ -19,7 +19,7 @@ from bbz_core.api.ws import router as ws_router
 from bbz_core.infra.db import dispose_engine
 from bbz_core.logging import configure_logging, correlation_id, get_logger
 from bbz_core.settings import get_settings
-from bbz_core.telemetry import instrument_app
+from bbz_core.telemetry import instrument_app, record_correlation_id, shutdown_tracing
 from bbz_core.workers.manager import ClusterWorkers
 
 _log = get_logger(__name__)
@@ -29,6 +29,7 @@ class CorrelationIdMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
         cid = request.headers.get("x-correlation-id") or str(uuid.uuid4())
         token = correlation_id.set(cid)
+        record_correlation_id(cid)  # -> bbz.correlation_id span attribute (E22-01)
         try:
             response = await call_next(request)
         finally:
@@ -53,6 +54,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         if workers is not None:
             await workers.stop()
         await dispose_engine()
+        shutdown_tracing()
         _log.info("shutdown")
 
 

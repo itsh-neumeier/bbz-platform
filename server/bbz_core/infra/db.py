@@ -26,12 +26,17 @@ from bbz_core.settings import get_settings
 @lru_cache
 def get_engine() -> AsyncEngine:
     s = get_settings()
-    return create_async_engine(
+    engine = create_async_engine(
         s.database_url,
         pool_size=s.database_pool_size,
         pool_pre_ping=True,
         future=True,
     )
+    # OpenTelemetry statement tracing for this engine (E22-01); no-op when off.
+    from bbz_core.telemetry import instrument_engine
+
+    instrument_engine(engine)
+    return engine
 
 
 @lru_cache

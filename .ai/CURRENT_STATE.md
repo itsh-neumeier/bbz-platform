@@ -1739,6 +1739,31 @@ API. `integrations/telephony_cucm/` stays a placeholder README.
   link/unlink coverage → Epic 07** (blocked); backend is `test_account_linking.py`
   (12). **Epic 21 backend complete.**
 
+### Epic 22 – Monitoring / Observability: **in progress (1/7)**
+- **#447 (E22-01) OpenTelemetry wiring** (ADR-0028). The `bbz_core.telemetry`
+  no-op seam is now real tracing. New deps: `opentelemetry-{api,sdk}`,
+  `-exporter-otlp-proto-http` (`>=1.44`), `-instrumentation-{fastapi,sqlalchemy,
+  httpx}` (`>=0.65b0`). **Config is `BBZ_`-prefixed only** (no `OTEL_*`):
+  `otel_enabled` (default **on** — spans cost ~nothing without an exporter, so
+  `trace_id` is always in the logs), `otel_traces_exporter` (`none` | `otlp`,
+  default **none**), `otel_exporter_otlp_{endpoint,headers}`,
+  `otel_traces_sampler_ratio`. Turning the exporter on is config-only (AC).
+  **Instrumentation**: FastAPI per-app (`instrument_app`), httpx process-wide,
+  SQLAlchemy **per-engine** via `telemetry.instrument_engine(engine)` called
+  from `infra.db.get_engine` (the instrumentor's global `create_async_engine`
+  patch can't see `db.py`'s name binding). `ParentBased(TraceIdRatioBased)`
+  sampler + W3C `traceparent` in/out. **`correlation_id` ↔ `trace_id`**: the
+  correlation-id middleware stamps `bbz.correlation_id` on the server span;
+  `bbz_core.logging` adds `trace_id` / `span_id` to every in-request log line.
+  **Redaction** (E17-06 doctrine): only `bbz.correlation_id` is added by us
+  (scrubbed); no headers/bodies captured; `db.statement` is parameterised SQL;
+  and the exporter is wrapped so every span + event attribute passes through
+  `redaction.scrub` before leaving the process. Test suite runs with
+  `BBZ_OTEL_ENABLED=false`; `test_otel_tracing.py` (6) opts in — connected
+  API→DB→Outbox trace, `trace_id` in a log line, config-only exporter toggle,
+  secret-scrubbed span. `docs/observability/tracing.md`. **Not in scope**:
+  collector deployment + dashboards (E22-07); log-shipping pipeline (E22-03).
+
 ## Existing reference
 A functional HTML mockup defines important UX/feature behavior. **It is not yet in
 the repository** — it must be committed under `docs/mockup/` before Phase 3 and is
