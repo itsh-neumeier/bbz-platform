@@ -66,7 +66,7 @@
           "format": "uri",
           "default": "https://maps.dwd.de/geoserver/dwd/wms"
         },
-        "layer": { "type": "string", "default": "dwd:Niederschlagsradar" },
+        "layer": { "type": "string", "default": "Radar_rv_product_1x1km_ger" },
         "bbox": {
           "type": "array",
           "description": "minLon, minLat, maxLon, maxLat (WGS84) — the Mittelfranken clip.",

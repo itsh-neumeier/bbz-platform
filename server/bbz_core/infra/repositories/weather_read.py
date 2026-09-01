@@ -5,8 +5,9 @@ place + metric, the radar frame series, and the regions we hold data for. Every
 response also carries the refresh health (:class:`WeatherRefreshService.health`)
 so the UI can flag stale data.
 
-Radar frames live in a per-node in-memory cache filled by the radar adapter
-(E18-03); until then :meth:`radar_frames` returns an empty series.
+Radar frames live in a per-node in-memory cache the refresh singleton fills from
+the radar adapter (E18-03); :meth:`radar_frames` returns an empty series until the
+first successful refresh.
 """
 
 from __future__ import annotations
@@ -19,15 +20,16 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from bbz_core.infra.models.weather import WeatherAlert, WeatherObservation
 
-#: per-node radar frame cache: area -> ordered frames (E18-03 fills this)
+#: per-node radar frame cache: area -> ordered frames (the E18-06 refresh fills
+#: this from the E18-03 adapter; bounded to the adapter's frame_count per area)
 RADAR_CACHE: dict[str, list[RadarFrame]] = {}
 
 
 @dataclass(frozen=True)
 class RadarFrame:
     frame_time: _dt.datetime
-    #: opaque reference the client fetches the image by (a URL or a cache key) —
-    #: shape finalised by E18-03
+    #: a ready WMS GetMap URL the client fetches the image by (no server-side
+    #: proxy) — shape finalised by E18-03
     image_ref: str
 
 

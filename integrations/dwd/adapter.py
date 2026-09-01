@@ -29,6 +29,10 @@ from bbz_integration_sdk.diagnostics import DiagnosticsReport, HealthState
 from bbz_integration_sdk.providers.base import ProviderInfo
 from integrations.dwd.observations import DEFAULT_BASE_URL as _OBS_BASE_URL
 from integrations.dwd.observations import DwdObservationsClient
+from integrations.dwd.radar import DEFAULT_BBOX as _RADAR_BBOX
+from integrations.dwd.radar import DEFAULT_LAYER as _RADAR_LAYER
+from integrations.dwd.radar import DEFAULT_WMS_URL as _RADAR_WMS_URL
+from integrations.dwd.radar import DwdRadarClient
 from integrations.dwd.warnings import DEFAULT_BASE_URL, DwdWarningsClient
 
 #: DWD open-data capability → the SDK capability it maps to
@@ -49,10 +53,6 @@ DEFAULT_PLACES: tuple[str, ...] = (
 )
 
 ATTRIBUTION = "Deutscher Wetterdienst"
-
-
-class DwdNotImplementedError(RuntimeError):
-    """A DWD data method was called before its adapter epic (E18-03/04) landed."""
 
 
 @lru_cache
@@ -106,10 +106,12 @@ class DwdWeatherProvider:
         *,
         warnings_client: DwdWarningsClient | None = None,
         observations_client: DwdObservationsClient | None = None,
+        radar_client: DwdRadarClient | None = None,
     ) -> None:
         self._cfg = config or DwdConfig()
         self._warnings_client = warnings_client
         self._observations_client = observations_client
+        self._radar_client = radar_client
         self._initialized = False
 
     # --- lifecycle ------------------------------------------------------
@@ -128,14 +130,10 @@ class DwdWeatherProvider:
         )
 
     async def health(self) -> DiagnosticsReport:
-        pending = [k for k in ("weather.radar",) if k in self._cfg.enabled_capabilities]
         return DiagnosticsReport(
             integration_id="dwd",
             state=HealthState.HEALTHY if self._initialized else HealthState.DISABLED,
-            summary=(
-                "warnings + observations live (E18-02/04)"
-                + (f"; {', '.join(pending)} pending (E18-03)" if pending else "")
-            ),
+            summary="warnings + radar + observations live (E18-02/03/04)",
             checked_at=_dt.datetime.now(_dt.UTC),
             details={
                 "region": self._cfg.region,
@@ -173,8 +171,28 @@ class DwdWeatherProvider:
         targets = [(p.name, p.poi_station_id) for p in self._cfg.places if p.poi_station_id]
         return await asyncio.to_thread(_fetch_observations, client, targets)
 
-    async def get_radar_frames(self, *, area: str) -> list[Any]:
-        raise DwdNotImplementedError("get_radar_frames is E18-03 (DWD GeoServer WMS, ADR-0026)")
+    async def get_radar_frames(self, *, area: str) -> list[dict[str, object]]:
+        """The recent radar frame series as ``{frame_time, image_ref}`` — each
+        ``image_ref`` is a ready WMS GetMap URL the client fetches from DWD
+        directly (no server-side image proxy). ``area`` is a cache label only;
+        the clip bbox is config."""
+        rcfg = self._cfg.radar
+        client = self._radar_client or DwdRadarClient(rcfg.get("wms_url") or _RADAR_WMS_URL)
+        raw = rcfg.get("bbox") or _RADAR_BBOX
+        bbox: tuple[float, float, float, float] = (
+            float(raw[0]),
+            float(raw[1]),
+            float(raw[2]),
+            float(raw[3]),
+        )
+        frames = await asyncio.to_thread(
+            lambda: client.frames(
+                count=int(rcfg.get("frame_count", 12)),
+                layer=rcfg.get("layer") or _RADAR_LAYER,
+                bbox=bbox,
+            )
+        )
+        return [f.as_item() for f in frames]
 
 
 def _fetch_observations(

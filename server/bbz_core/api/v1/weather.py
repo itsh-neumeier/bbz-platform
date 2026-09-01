@@ -31,6 +31,7 @@ from bbz_core.infra.repositories.weather_events import (
 )
 from bbz_core.infra.repositories.weather_read import RadarFrame, WeatherReadService
 from bbz_core.infra.repositories.weather_refresh import WeatherRefreshService
+from bbz_core.settings import get_settings
 
 router = APIRouter(prefix="/weather", tags=["weather"])
 
@@ -185,10 +186,11 @@ async def list_observations(
 
 @router.get("/radar", response_model=RadarResponse)
 async def radar(
-    area: str = Query(default="mittelfranken", max_length=64),
+    area: str | None = Query(default=None, max_length=64),
     _: AuthContext = Depends(require("weather.view")),
     session: AsyncSession = Depends(db_session),
 ) -> RadarResponse:
+    area = area or get_settings().weather_radar_area
     svc = WeatherReadService(session)
     return RadarResponse(
         health=await _health(session),

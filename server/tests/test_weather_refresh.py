@@ -19,6 +19,7 @@ from bbz_core.infra.models.weather import WeatherAlert, WeatherObservation
 from bbz_core.infra.models.weather_refresh import WeatherRefreshState
 from bbz_core.infra.repositories import weather_refresh as mod
 from bbz_core.infra.repositories.weather_refresh import WeatherRefreshService
+from bbz_core.settings import get_settings
 
 _NOW = _dt.datetime(2026, 9, 1, 12, 0, tzinfo=_dt.UTC)
 
@@ -84,6 +85,16 @@ def _short_ttl(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
     settings_mod.get_settings.cache_clear()
 
 
+@pytest.fixture(autouse=True)
+def _clear_radar_cache() -> Iterator[None]:
+    """The radar frame cache is a per-node module global — keep tests hermetic."""
+    from bbz_core.infra.repositories.weather_read import RADAR_CACHE
+
+    RADAR_CACHE.clear()
+    yield
+    RADAR_CACHE.clear()
+
+
 def _use(monkeypatch: pytest.MonkeyPatch, provider: object) -> None:
     async def _active() -> object:
         return provider
@@ -117,23 +128,38 @@ def _obs(place: str, metric: str, value: float, unit: str) -> dict[str, Any]:
     }
 
 
+def _frame(minute: int) -> dict[str, Any]:
+    """A radar frame item as an adapter's ``get_radar_frames`` yields it."""
+    when = _dt.datetime(2026, 9, 1, 11, minute, tzinfo=_dt.UTC)
+    return {
+        "frame_time": when.isoformat(),
+        "image_ref": f"https://maps.dwd.de/geoserver/dwd/wms?request=GetMap&time={when:%H%M}",
+    }
+
+
 async def test_a_successful_refresh_stores_the_snapshot_and_is_ok(
     s: AsyncSession, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    from bbz_core.infra.repositories.weather_read import RADAR_CACHE
+
     _use(
         monkeypatch,
         _StubWeather(
             warnings=[_warning("cap-1"), _warning("cap-2", region="Fürth")],
             observations=[_obs("Erlangen", "temperature", 17.1, "°C")],
-            radar=["frame-a", "frame-b", "frame-c"],
+            radar=[_frame(50), _frame(55), _frame(45)],
         ),
     )
     total = await WeatherRefreshService(s).refresh()
-    assert total == 6  # 2 warnings + 1 observation stored + 3 radar frames seen
+    assert total == 6  # 2 warnings + 1 observation + 3 radar frames
 
     await s.rollback()
     assert (await s.execute(select(func.count()).select_from(WeatherAlert))).scalar_one() == 2
     assert (await s.execute(select(func.count()).select_from(WeatherObservation))).scalar_one() == 1
+
+    # radar frames land in the per-node cache, sorted oldest → newest
+    cached = RADAR_CACHE[get_settings().weather_radar_area]
+    assert [f.frame_time.minute for f in cached] == [45, 50, 55]
 
     health = await WeatherRefreshService(s).health()
     assert health.overall == "ok"
@@ -247,12 +273,23 @@ _POI = (
 )
 
 
+_WMS_CAPS = (
+    b'<?xml version="1.0"?><WMS_Capabilities version="1.3.0" '
+    b'xmlns="http://www.opengis.net/wms"><Capability><Layer>'
+    b"<Layer><Name>Radar_rv_product_1x1km_ger</Name>"
+    b'<Dimension name="time" units="ISO8601">'
+    b"2026-08-30T00:00:00.000Z/2026-09-01T06:00:00.000Z/PT5M</Dimension>"
+    b"</Layer></Layer></Capability></WMS_Capabilities>"
+)
+
+
 def _dwd_with_stubs() -> object:
     import io
     import zipfile
 
     from integrations.dwd.adapter import build as build_dwd
     from integrations.dwd.observations import DwdObservationsClient
+    from integrations.dwd.radar import DwdRadarClient
     from integrations.dwd.warnings import DwdWarningsClient
 
     class _StubCap(DwdWarningsClient):
@@ -272,21 +309,28 @@ def _dwd_with_stubs() -> object:
         def _get(self, station_id: str) -> bytes:
             return _POI.encode("latin-1")
 
+    class _StubRadar(DwdRadarClient):
+        def _get_capabilities(self) -> bytes:
+            return _WMS_CAPS
+
     provider = build_dwd({"places": [{"name": "Nürnberg", "poi_station_id": "10763"}]})
     provider._warnings_client = _StubCap()  # type: ignore[attr-defined]
     provider._observations_client = _StubObs()  # type: ignore[attr-defined]
+    provider._radar_client = _StubRadar()  # type: ignore[attr-defined]
     return provider
 
 
 async def test_the_dwd_adapter_flow_end_to_end(
     s: AsyncSession, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Real DwdWeatherProvider (stubbed CAP + POI transport) → refresh stores the
-    alert + the observations; only radar still raises → overall down."""
+    """Real DwdWeatherProvider (all transports stubbed) → refresh stores the
+    alert + observations + the radar frame series → every kind ok."""
+    from bbz_core.infra.repositories.weather_read import RADAR_CACHE
+
     _use(monkeypatch, _dwd_with_stubs())
 
     total = await WeatherRefreshService(s).refresh()
-    assert total == 3  # 1 warning + 2 observation metrics (radar contributes 0)
+    assert total == 3 + 12  # 1 warning + 2 observations + 12 radar frames
 
     await s.rollback()
     alert = (await s.execute(select(WeatherAlert))).scalar_one()
@@ -294,10 +338,12 @@ async def test_the_dwd_adapter_flow_end_to_end(
     obs = {o.metric: o for o in (await s.execute(select(WeatherObservation))).scalars()}
     assert obs["temperature"].value == 18.4 and obs["temperature"].place == "Nürnberg"
 
-    states = {st.data_kind: st for st in (await s.execute(select(WeatherRefreshState))).scalars()}
-    assert states["warnings"].last_success_at and states["observations"].last_success_at
-    assert states["radar"].last_error
+    frames = RADAR_CACHE["mittelfranken"]
+    assert len(frames) == 12 and frames[0].frame_time < frames[-1].frame_time
+    assert "GetMap" in frames[-1].image_ref
 
+    states = {st.data_kind: st for st in (await s.execute(select(WeatherRefreshState))).scalars()}
+    assert all(states[k].last_success_at for k in ("warnings", "observations", "radar"))
     health = await WeatherRefreshService(s).health()
-    assert health.overall == "down"  # radar is down
-    assert {k.status for k in health.kinds if k.data_kind != "radar"} == {"ok"}
+    assert health.overall == "ok"
+    assert {k.status for k in health.kinds} == {"ok"}

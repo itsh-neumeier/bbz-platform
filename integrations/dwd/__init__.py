@@ -1,10 +1,14 @@
 """DWD Weather integration (roadmap Epic 18).
 
-Scaffold (E18-01): manifest + config schema + a protocol-conformant
-:class:`~bbz_integration_sdk.providers.WeatherProvider` stub for Mittelfranken.
-The concrete DWD open-data clients are chosen by **ADR-0026** and wired per
-capability: warnings E18-02, radar E18-03, observations E18-04. Until then the
-``get_*`` methods raise ``DwdNotImplementedError``.
+A protocol-conformant :class:`~bbz_integration_sdk.providers.WeatherProvider` for
+Mittelfranken over DWD's public open-data services (**ADR-0026**):
 
-Only outbound HTTPS to DWD's public services; no credentials, no PII.
+* ``weather.warnings``     — CAP 1.2 DISTRICT feed (E18-02)
+* ``weather.radar``        — GeoServer WMS RV product frame series (E18-03)
+* ``weather.observations`` — POI current-weather CSV (E18-04)
+
+Only outbound HTTPS to ``opendata.dwd.de`` / ``maps.dwd.de``; no credentials, no
+PII; no new runtime dependency (stdlib ``urllib`` / ``zipfile`` / ``csv`` /
+``ElementTree``). Every DWD-derived value carries the "Deutscher Wetterdienst"
+attribution.
 """

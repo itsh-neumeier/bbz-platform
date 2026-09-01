@@ -33,6 +33,16 @@ def _fast_auth() -> Iterator[None]:
     hashing._dummy_hash.cache_clear()
 
 
+@pytest.fixture(autouse=True)
+def _clear_radar_cache() -> Iterator[None]:
+    """The radar frame cache is a per-node module global — keep tests hermetic."""
+    from bbz_core.infra.repositories.weather_read import RADAR_CACHE
+
+    RADAR_CACHE.clear()
+    yield
+    RADAR_CACHE.clear()
+
+
 async def _make_user(s: AsyncSession, username: str, perms: list[str]) -> uuid.UUID:
     from bbz_core.auth.hashing import hash_password
     from bbz_core.infra.models.identity import AuthIdentity, LocalCredential, User
@@ -152,13 +162,32 @@ async def test_observations_are_the_latest_per_place_and_metric(env: tuple) -> N
     assert obs[0]["place"] == "Erlangen" and obs[0]["value"] == 17.5
 
 
-async def test_radar_is_empty_until_the_adapter_lands_but_still_reports_health(env: tuple) -> None:
+async def test_radar_is_empty_before_the_first_refresh_but_still_reports_health(env: tuple) -> None:
     client, s = env
     await _make_user(s, "op", ["weather.view"])
     await _login(client, "op")
     body = (await client.get("/api/v1/weather/radar?area=mittelfranken")).json()
     assert body["area"] == "mittelfranken" and body["frames"] == []
     assert "overall" in body["health"]
+
+
+async def test_radar_serves_the_cached_frame_series(env: tuple) -> None:
+    client, s = env
+    from bbz_core.infra.repositories.weather_read import RADAR_CACHE, RadarFrame
+
+    await _make_user(s, "op", ["weather.view"])
+    await _login(client, "op")
+
+    t0 = _NOW - _dt.timedelta(minutes=10)
+    RADAR_CACHE["mittelfranken"] = [
+        RadarFrame(frame_time=t0, image_ref="https://maps.dwd.de/geoserver/dwd/wms?a=1"),
+        RadarFrame(frame_time=_NOW, image_ref="https://maps.dwd.de/geoserver/dwd/wms?a=2"),
+    ]
+    # the default area is the configured one, so ?area= is optional
+    body = (await client.get("/api/v1/weather/radar")).json()
+    assert body["area"] == "mittelfranken"
+    assert [f["image_ref"][-3:] for f in body["frames"]] == ["a=1", "a=2"]
+    assert body["frames"][0]["frame_time"].endswith(("Z", "+00:00"))
 
 
 async def test_regions_lists_what_we_hold_data_for(env: tuple) -> None:
