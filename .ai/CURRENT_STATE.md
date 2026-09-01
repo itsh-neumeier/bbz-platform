@@ -1438,7 +1438,7 @@ API. `integrations/telephony_cucm/` stays a placeholder README.
   no network.** `dwd` test count 43.
 - Only **E18-09** (Wetterlage UI) left → Epic 07 (frontend, blocked).
 
-### Epic 19 – Weytec Monitor Routing: **in progress (6/10)**
+### Epic 19 – Weytec Monitor Routing: **in progress (7/10)**
 - **#395 (E19-01) DB schema** — migration `0041_monitor_schema` +
   `bbz_core.infra.models.monitor`. Four tables (MASTER_PROMPT §9): `monitor_inputs`
   (`key` unique — BBZ-OS / BKU1-4 / Cayuga 1-2), `monitor_outputs` (`key` unique,
@@ -1516,8 +1516,19 @@ API. `integrations/telephony_cucm/` stays a placeholder README.
   fixed-rule enforcement + `MONITOR_ROUTE_CHANGED` per change, route rows stamped
   with `profile_id`) and then writes one `MONITOR_PROFILE_APPLIED` audit
   (`AuditAction` + `CRITICAL_ACTIONS`). `test_monitor_profiles_api.py` (9).
-- Next: E19-07 (`monitor_weytec` scaffold — no invented API), E19-09 (permissions
-  seed), E19-10 (E2E). E19-08 (dialog UI) → Epic 07 (blocked).
+- **#406 (E19-07) `monitor_weytec` scaffold** — `integrations/monitor_weytec/`:
+  `WeytecMonitorProvider` is protocol-shaped
+  (`bbz_integration_sdk.providers.MonitorProvider`) with an honest lifecycle
+  (`HealthState.DISABLED`, empty `capabilities()`); **every routing call raises
+  `WeytecNotConfiguredError`** (a `NotImplementedError`). `manifest.json`
+  `capabilities: []` + `pending_vendor_documentation: [...]`, `mock: false`.
+  `docs/integrations/weytec-monitor-pending.md` is the blocker (Do-NOT-invent
+  table + unblocking checklist), referenced from `README.md` + "Open external
+  dependencies". The Weytec API is **not invented** (MASTER_PROMPT §9, RULES.md);
+  `monitor_mock` (E19-06) is used for dev + all tests. `test_weytec_scaffold.py`
+  (7).
+- Next: E19-09 (permissions seed), E19-10 (E2E). E19-08 (dialog UI) → Epic 07
+  (blocked).
 
 ## Existing reference
 A functional HTML mockup defines important UX/feature behavior. **It is not yet in
@@ -1637,7 +1648,9 @@ Rejected the undocumented `app-prod-ws.warnwetter.de` app backend.
 
 ## Open external dependencies
 - exact Cisco CUCM version/SU and productive cluster/CTI configuration (§8.18)
-- Weytec API documentation
+- Weytec API documentation — `monitor_weytec` is an interface-only scaffold
+  (E19-07); blocker + unblocking checklist in
+  `docs/integrations/weytec-monitor-pending.md`
 - Coda Video (HxGN dC3 Video) partner/API/SDK documentation for alarm ingress and
   camera/display control
 - Siedle Access DTMF door-open profile (secret/config; operating concept)
