@@ -4,15 +4,36 @@
   "type": "object",
   "additionalProperties": false,
   "properties": {
+    "instance_id": { "type": "string", "default": "mock" },
     "inputs": {
       "type": "array",
       "items": { "type": "string" },
-      "default": ["BBZ-OS", "BKU1", "BKU2", "BKU3", "BKU4", "CODA1", "CODA2"]
+      "default": ["bbz-os", "bku1", "bku2", "bku3", "bku4", "coda1", "coda2"]
     },
     "outputs": {
       "type": "array",
       "items": { "type": "string" },
-      "default": ["AP1", "AP2", "AP3", "AP4", "AP5", "AP6", "GROSSBILD"]
+      "default": [
+        "workplace1",
+        "workplace2",
+        "workplace3",
+        "workplace4",
+        "workplace5",
+        "workplace6",
+        "large-display"
+      ]
+    },
+    "unreachable_outputs": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Outputs that reject every route — simulates a hardware fault.",
+      "default": []
+    },
+    "initial_routes": {
+      "type": "object",
+      "additionalProperties": { "type": "string" },
+      "description": "Seed routes (output_id -> input_id) the mock starts with.",
+      "default": {}
     }
   }
 }

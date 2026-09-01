@@ -1,11 +1,11 @@
 {
   "id": "monitor_mock",
   "name": "Monitor Routing Mock",
-  "version": "0.0.0",
+  "version": "1.0.0",
   "domain": "monitor",
   "adapter": "integrations.monitor_mock.adapter:MockMonitorProvider",
   "config_schema_version": 1,
   "capabilities": ["monitor.route", "monitor.layout_profiles"],
   "mock": true,
-  "description": "In-memory monitor/KVM routing model for development and tests."
+  "description": "Complete in-memory monitor/KVM routing provider (E19-06). Deterministic route + read-back, command_id idempotency, atomic apply_layout, and config-driven failure simulation (unreachable_outputs). Ports default to the bbz_core.domain.monitor catalog so it drives end-to-end tests unchanged. BBZ policy (the lower-left BBZ-OS rule) is enforced upstream in the domain, not here."
 }
