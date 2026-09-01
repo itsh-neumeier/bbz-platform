@@ -49,6 +49,24 @@ roles:
 workstation) are **Administrator / Sichtleiter only**. Enforced by
 `server/tests/test_bku_permissions_seed.py`.
 
+## Monitor least-privilege defaults (E19-09)
+
+The four `monitor.*` keys are seeded by migration 0008 (generic catalog +
+built-in roles — it reads `CATALOG` / `BUILTIN_ROLES` at run time). The default
+role grants:
+
+| Role | Monitor grants |
+|---|---|
+| Administrator | all four |
+| Sichtleiter | all four |
+| Disponent | `monitor.view`, `monitor.route` |
+| Nachbearbeitung | none |
+| Nur Lesen | at most `monitor.view` |
+
+`monitor.reset_standard` (switch the whole layout back) and
+`monitor.manage_profiles` (own / edit saved layout profiles) are **Administrator /
+Sichtleiter only**. Enforced by `server/tests/test_monitor_permissions_seed.py`.
+
 ## Example scoped permission
 
 `events.takeover` granted with scope `bbz` → user may take over events only
