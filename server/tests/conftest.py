@@ -9,6 +9,9 @@ import pytest
 os.environ.setdefault("BBZ_ENVIRONMENT", "ci")
 os.environ.setdefault("BBZ_NODE_ID", "BBZ-TEST")
 os.environ.setdefault("BBZ_LOG_JSON", "false")
+# Tracing is process-wide once armed; the suite that needs it (test_otel_tracing)
+# opts in explicitly. Everything else runs with it off.
+os.environ.setdefault("BBZ_OTEL_ENABLED", "false")
 # Point tests at a definitely-unreachable database. Tests that need DB behaviour
 # patch the probe (see test_health.py); nothing in the unit suite opens a real
 # connection, which also avoids asyncpg's event-loop binding across test loops.

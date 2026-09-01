@@ -208,6 +208,19 @@ class Settings(BaseSettings):
     retention_completed_outbox_days: int = 90
     retention_processed_inbox_days: int = 90
 
+    # --- observability: OpenTelemetry tracing (E22-01, ADR-0028). Tracing is on
+    # by default (spans cost ~nothing without an exporter); the OTLP/HTTP
+    # exporter is opt-in and toggled by config alone — never a code change. ---
+    otel_enabled: bool = True
+    #: "none" (default) keeps every span in-process; "otlp" ships over OTLP/HTTP
+    otel_traces_exporter: Literal["none", "otlp"] = "none"
+    #: collector base URL, e.g. http://otel-collector:4318 ("/v1/traces" is appended)
+    otel_exporter_otlp_endpoint: str = ""
+    #: extra OTLP headers as "key=value,key2=value2" (e.g. an auth token)
+    otel_exporter_otlp_headers: str = ""
+    #: head sampling ratio for traces without an inbound decision (0.0 to 1.0)
+    otel_traces_sampler_ratio: float = 1.0
+
     @property
     def database_url_sync(self) -> str:
         """Sync DSN for Alembic (psycopg v3 driver)."""

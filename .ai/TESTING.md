@@ -99,3 +99,28 @@ PR CI never touches `opendata.dwd.de` / `maps.dwd.de`.
   `stale`; the next good refresh → back to `ok` with `last_error` cleared;
   `overall` = the worst kind; a failed radar refresh keeps the cached frame
   series. `test_weather_api.py` serves the cached series with the health block.
+
+## OpenTelemetry tracing (E22-01)
+
+Tracing is **process-wide** once armed, so the suite runs with
+`BBZ_OTEL_ENABLED=false` (`conftest.py` sets the default) and only
+`server/tests/test_otel_tracing.py` opts in — a module-scoped fixture arms
+tracing with an in-memory span exporter behind the real
+`redaction`-wrapping exporter, and `telemetry._reset_for_tests()` tears it down.
+
+Coverage:
+
+- **connected trace** — a takeover request (`API → DB → outbox INSERT`) produces
+  exactly one SERVER span; every DB span shares its `trace_id` and hangs off the
+  request; `external_action_outbox` appears in the captured `db.statement`s;
+  `bbz.correlation_id` on the server span equals the request's `X-Correlation-Id`.
+- **`trace_id` in logs** — the `_add_trace_context` structlog processor stamps
+  `trace_id` / `span_id` on a line emitted inside a span, and neither field once
+  the span has ended.
+- **config-only exporter toggle** — `_build_exporter` returns `None` for
+  `otel_traces_exporter="none"` and an `OTLPSpanExporter` for `"otlp"`; no code
+  path differs.
+- **redaction** — a span attribute + an `exception` event carrying a
+  `redacting(...)`-registered secret come out masked after export.
+- **clean no-op** — `configure_tracing(Settings(otel_enabled=False))` is `False`
+  and `current_trace_ids()` is `None`.

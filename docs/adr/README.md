@@ -44,3 +44,4 @@ a provider contract, a security boundary, a technology choice. `.ai/RULES.md`:
 | 0025 | Siedle door-open DTMF flow | Accepted |
 | 0026 | DWD Open Data endpoints for the `dwd` integration | Accepted |
 | 0027 | RBAC condition context (clock-only, ADR-0010 field touch) | Accepted |
+| 0028 | OpenTelemetry tracing — activating the no-op seam | Accepted |

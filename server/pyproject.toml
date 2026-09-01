@@ -26,6 +26,15 @@ dependencies = [
   "cryptography>=46.0.7,<51",
   "structlog>=24.1",
   "prometheus-client>=0.20,<1.0",
+  # OpenTelemetry tracing (E22-01, ADR-0028). Core packages track 1.x; the
+  # instrumentation packages are permanently beta-versioned (0.NbM) upstream but
+  # production-used, and hard-pin their peers to one coordinated release.
+  "opentelemetry-api>=1.44,<2",
+  "opentelemetry-sdk>=1.44,<2",
+  "opentelemetry-exporter-otlp-proto-http>=1.44,<2",
+  "opentelemetry-instrumentation-fastapi>=0.65b0,<1",
+  "opentelemetry-instrumentation-sqlalchemy>=0.65b0,<1",
+  "opentelemetry-instrumentation-httpx>=0.65b0,<1",
   "bbz-integration-sdk",
 ]
 
