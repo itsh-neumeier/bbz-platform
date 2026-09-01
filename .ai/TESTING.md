@@ -60,3 +60,38 @@ seven repeatable scenarios via `deploy/ha-test/run.sh`:
 `assert_single_primary` runs after every fault — **two Patroni leaders is
 always a failure** (split brain). CI: `.github/workflows/ha-nightly.yml`
 (scheduled, non-gating until shaken out on real hardware).
+
+
+## DWD weather integration (E18-10)
+
+The `dwd` adapter (ADR-0026) is tested **only against recorded fixtures** — the
+PR CI never touches `opendata.dwd.de` / `maps.dwd.de`.
+
+**Fixtures** (`integrations/dwd/tests/fixtures/`, provenance in its `README.md`):
+
+| dir | content |
+|---|---|
+| `cap_district/` | 4 real DWD CAP-1.2 alerts (polygons stripped) + 2 synthetic (Mittelfranken multi-area filter, a `Cancel`) |
+| `poi/` | 2 real POI `-BEOB.csv` (trimmed to 5 rows) |
+| `wms/` | a trimmed real WMS `GetCapabilities` + a variant with no usable `time` dimension |
+
+**Coverage:**
+
+- **Parsing / normalisation** — `test_dwd_warnings.py`, `test_dwd_observations.py`,
+  `test_dwd_radar.py`: each fixture → the E18-06 item contract; CAP severity →
+  level, missing `expires`, multi-area = one row per area, `Cancel` → nothing;
+  POI decimal comma / `---` = missing / newest row; WMS `time` dimension →
+  `(latest, step)` → GetMap URL series clipped to the bbox.
+- **Degraded paths** — `test_dwd_degraded.py`: corrupt zip, feed listing without a
+  DISTRICT zip, a truncated CAP member, a non-German-only alert, an all-`---` POI
+  row, an unparseable timestamp, a thin CSV, `GetCapabilities` without a `time`
+  dimension or without our layer → each raises the adapter's typed error or
+  returns a thin-but-valid list, never a bare crash.
+- **No network** — `test_dwd_no_network.py`: an autouse fixture makes
+  `urllib.request.urlopen` raise; every adapter still parses its fixture end to
+  end over a stub transport.
+- **Cache / health / recovery** — `server/tests/test_weather_refresh.py`: a failed
+  kind → `degraded` (keeps last data) / `down` (never succeeded); past the TTL →
+  `stale`; the next good refresh → back to `ok` with `last_error` cleared;
+  `overall` = the worst kind; a failed radar refresh keeps the cached frame
+  series. `test_weather_api.py` serves the cached series with the health block.
