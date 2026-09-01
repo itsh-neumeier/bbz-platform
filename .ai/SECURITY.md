@@ -110,6 +110,17 @@ No credentials in repo.
 - Store secret values encrypted / via secret store; audit the action profile ID, not the code.
 - Duplicate/replayed telephony events must never cause duplicate door-open actions.
 
+## Logging (E22-03)
+- Two redaction layers run on every log line before it is rendered:
+  **by key** (a value whose key contains `password` / `token` / `authorization`
+  / `dtmf` / `secret` / `api_key` / `private_key` / `credential` / `otp` /
+  `recovery_code` / `session_key` → `[redacted]`, recursively) and **by value**
+  (transient `redacting()` secrets, E17-06). `test_logging.py` asserts no secret
+  survives.
+- `BBZ_LOG_FILE` is a plain append sink for a sidecar; the platform operates no
+  log store. Log lines carry `user_id` / `correlation_id` / `trace_id` but never
+  a token, password or DTMF code.
+
 ## Tracing (E22-01, ADR-0028)
 - Span attributes carry HTTP method / route / status / peer, `db.system` /
   `db.operation` / `db.statement`, and our `bbz.correlation_id`. `db.statement`

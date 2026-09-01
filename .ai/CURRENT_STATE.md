@@ -1739,7 +1739,22 @@ API. `integrations/telephony_cucm/` stays a placeholder README.
   link/unlink coverage → Epic 07** (blocked); backend is `test_account_linking.py`
   (12). **Epic 21 backend complete.**
 
-### Epic 22 – Monitoring / Observability: **in progress (2/7)**
+### Epic 22 – Monitoring / Observability: **in progress (3/7)**
+- **#451 (E22-03) structured-log pipeline** (builds on E04-09 + E22-01).
+  `bbz_core.logging` rewritten: every JSON line carries
+  `timestamp/level/event/logger/node_id`, plus `correlation_id` / `trace_id` /
+  `span_id` / `user_id` when in a request (`user_id` is a new contextvar set by
+  `current_auth`, reset per request by `CorrelationIdMiddleware`). **Two
+  redaction layers** before the renderer: `_redact_keys` (mask a value whose key
+  contains `password`/`token`/`authorization`/`dtmf`/… — recursive through
+  nested dicts/lists) and the existing `_redact` (transient `redacting()`
+  secrets, E17-06). **Per-module levels** via `BBZ_LOG_LEVELS`
+  (`bbz_core.auth=WARNING,bbz_core.infra.leader=DEBUG`, longest prefix wins;
+  coarse `make_filtering_bound_logger` gate drops to the lowest configured
+  level). **Noisy-event sampling** via `BBZ_LOG_SAMPLE` (`heartbeat=0.01`).
+  **File sink** via `BBZ_LOG_FILE` (a `_Tee` appends the JSON lines for a
+  sidecar to ship — no log backend operated). `get_logger(name)` now binds
+  `logger=name`. `test_logging.py` (8). `docs/observability/logging.md`.
 - **#449 (E22-02) Prometheus metrics — full §23 set** (extends E06-13). New
   `bbz_core.api.request_metrics.RequestMetricsMiddleware` (pure ASGI) records
   `bbz_http_request_duration_seconds{method,route,status}` — `route` is the

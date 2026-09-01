@@ -14,6 +14,7 @@ from bbz_core.auth.sessions import SessionService
 from bbz_core.auth.tokens import TokenError, decode_access_token
 from bbz_core.infra.db import session_scope
 from bbz_core.infra.repositories.sessions import SqlAlchemySessionStore
+from bbz_core.logging import user_id as _user_id_ctx
 
 ACCESS_COOKIE = "bbz_access"
 REFRESH_COOKIE = "bbz_refresh"
@@ -52,6 +53,7 @@ async def current_auth(
     sessions = SessionService(SqlAlchemySessionStore(session))
     if not await sessions.is_active(claims.session_id):
         raise UnauthorizedError("session is no longer active")
+    _user_id_ctx.set(str(claims.user_id))  # -> the `user_id` log field (E22-03)
     return AuthContext(user_id=claims.user_id, session_id=claims.session_id)
 
 

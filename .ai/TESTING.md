@@ -125,6 +125,21 @@ Coverage:
 - **clean no-op** — `configure_tracing(Settings(otel_enabled=False))` is `False`
   and `current_trace_ids()` is `None`.
 
+## Structured logging (E22-03)
+
+`server/tests/test_logging.py` (8) reconfigures `configure_logging(stream=buf)`
+and asserts the rendered JSON:
+
+- **baseline fields** — `timestamp` / `level` / `event` / `logger` / `node_id`
+  on every line; `correlation_id` / `user_id` only when the contextvars are set.
+- **redaction** — a sensitive **key** (`password`, `refresh_token`, `dtmf_*`,
+  a nested `Authorization` header) → `[redacted]`; a non-sensitive sibling
+  untouched; a registered `redacting()` secret still scrubbed by value.
+- **per-module levels** — `bbz_core.chatty=WARNING` drops its `info`, keeps its
+  `warning`, leaves another module alone; a longer prefix beats a broader one.
+- **sampling** — `heartbeat=0` drops every `heartbeat` line, keeps the rest.
+- **file sink** — `BBZ_LOG_FILE` gets the same JSON lines as stdout.
+
 ## Prometheus metrics (E22-02)
 
 `server/tests/test_metrics.py` covers the full §23 set at

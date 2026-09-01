@@ -18,7 +18,7 @@ from bbz_core.api.request_metrics import RequestMetricsMiddleware
 from bbz_core.api.v1.router import api_v1
 from bbz_core.api.ws import router as ws_router
 from bbz_core.infra.db import dispose_engine
-from bbz_core.logging import configure_logging, correlation_id, get_logger
+from bbz_core.logging import configure_logging, correlation_id, get_logger, user_id
 from bbz_core.settings import get_settings
 from bbz_core.telemetry import instrument_app, record_correlation_id, shutdown_tracing
 from bbz_core.workers.manager import ClusterWorkers
@@ -30,11 +30,13 @@ class CorrelationIdMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
         cid = request.headers.get("x-correlation-id") or str(uuid.uuid4())
         token = correlation_id.set(cid)
+        uid_token = user_id.set(None)  # cleared per request; current_auth fills it (E22-03)
         record_correlation_id(cid)  # -> bbz.correlation_id span attribute (E22-01)
         try:
             response = await call_next(request)
         finally:
             correlation_id.reset(token)
+            user_id.reset(uid_token)
         response.headers["x-correlation-id"] = cid
         return response
 
@@ -42,7 +44,14 @@ class CorrelationIdMiddleware(BaseHTTPMiddleware):
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     s = get_settings()
-    configure_logging(level=s.log_level, json=s.log_json)
+    configure_logging(
+        level=s.log_level,
+        json=s.log_json,
+        node_id=s.node_id,
+        module_levels=s.log_levels,
+        sample=s.log_sample,
+        log_file=s.log_file,
+    )
     _log.info("startup", service=s.service_name, version=__version__, environment=s.environment)
 
     workers: ClusterWorkers | None = None
