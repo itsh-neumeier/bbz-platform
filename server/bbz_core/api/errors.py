@@ -91,6 +91,15 @@ class MfaRequiredError(AppError):
     http_status = status.HTTP_401_UNAUTHORIZED
 
 
+class WebauthnRequiredError(AppError):
+    """Password was correct but a WebAuthn assertion is required (E21-06). The
+    ``details.options`` payload is the ``PublicKeyCredentialRequestOptions`` the
+    browser passes to ``navigator.credentials.get``."""
+
+    code = "webauthn_required"
+    http_status = status.HTTP_401_UNAUTHORIZED
+
+
 class StepUpRequiredError(AppError):
     """The permission was granted, but this action also needs a *fresh* MFA
     verification (E21-05) — the session's is missing or too old."""

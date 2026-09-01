@@ -97,7 +97,9 @@ async def delete_policy(
 
 class StepUpIn(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    totp: str
+    totp: str | None = None
+    #: a WebAuthn assertion (from POST /auth/webauthn/authenticate/options), JSON
+    webauthn: str | None = None
 
 
 @router.post("/step-up", status_code=status.HTTP_204_NO_CONTENT)
@@ -106,8 +108,23 @@ async def step_up(
     ctx: AuthContext = Depends(current_auth),
     session: AsyncSession = Depends(db_session),
 ) -> None:
-    """Re-verify the caller's own TOTP/recovery code and mark this session
-    fresh for step-up-gated actions (E21-05)."""
+    """Re-verify the caller's own second factor (TOTP / recovery code / WebAuthn)
+    and mark this session fresh for step-up-gated actions (E21-05/06)."""
+    if body.webauthn:
+        from bbz_core.infra.repositories.webauthn import WebauthnService
+
+        if not await WebauthnService(session).verify_authentication(
+            ctx.user_id, response=body.webauthn
+        ):
+            await AuditWriter(session).record(
+                AuditAction.MFA_CHALLENGE_FAILED, actor_user_id=ctx.user_id
+            )
+            raise UnauthorizedError("invalid assertion")
+        await SqlAlchemySessionStore(session).mark_mfa_verified(ctx.session_id)
+        return
+
+    if not body.totp:
+        raise ValidationError("a totp or webauthn value is required")
     aid = (
         await session.execute(
             select(AuthIdentity.id).where(

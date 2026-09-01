@@ -150,6 +150,16 @@ class Settings(BaseSettings):
     #: itself (only routes guarded with ``require_stepup`` honour this)
     mfa_stepup_permissions: list[str] = Field(default_factory=lambda: ["permissions.manage"])
 
+    # --- WebAuthn / FIDO2 (E21-06). The RP id is the registrable domain; the
+    # origin(s) the browser sends must match. Empty rp_id ⇒ enrolment disabled. ---
+    webauthn_rp_id: str = ""
+    webauthn_rp_name: str = "BBZ / 3-S-Zentrale"
+    #: allowed browser origin(s), comma-separated (e.g. https://bbz.example.org)
+    webauthn_origins: str = ""
+    #: require user verification (PIN/biometric) for a credential to count as MFA
+    webauthn_require_user_verification: bool = True
+    webauthn_challenge_ttl_seconds: int = 300
+
     # --- auth: sessions / tokens (E02-05; secret via ADR-0015 in prod) ---
     jwt_secret: str = "dev-insecure-secret-change-me-min-32-bytes!!"
     access_token_ttl_seconds: int = 900

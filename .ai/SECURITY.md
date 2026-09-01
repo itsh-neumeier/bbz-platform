@@ -38,6 +38,20 @@ No credentials in repo.
 - Policy changes audit `MFA_POLICY_CHANGED` (a critical action).
 - Config: `docs/auth/mfa-policy.md`.
 
+## WebAuthn / FIDO2 (E21-06)
+- A phishing-resistant second factor for **local** accounts (passwordless
+  first-factor is out of scope). Credentials are isolated per user; the
+  registration / assertion challenge is server-issued, single-use, DB-backed
+  (HA), and TTL'd (`webauthn_challenge_ttl_seconds`).
+- User verification (PIN / biometric) is required by default
+  (`webauthn_require_user_verification`); the signature counter is checked and
+  must move forward.
+- The RP id and allowed origin(s) are explicit config
+  (`webauthn_rp_id` / `webauthn_origins`); unset ⇒ enrolment returns 503.
+- A WebAuthn credential satisfies the MFA policy (E21-05) and can be used for
+  step-up. Register / remove audit `WEBAUTHN_REGISTERED` / `WEBAUTHN_REMOVED`.
+- Config: `docs/auth/webauthn.md`.
+
 ## Agent / remote control security
 - Agents enroll with short-lived token and receive a unique device identity/certificate.
 - No arbitrary shell/PowerShell/cmd execution endpoint.
