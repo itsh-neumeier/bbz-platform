@@ -69,6 +69,7 @@ class AuditAction(enum.StrEnum):
     DOOR_OPEN_REQUESTED = "DOOR_OPEN_REQUESTED"
     DOOR_OPEN_RESULT = "DOOR_OPEN_RESULT"
     WEATHER_EVENT_CREATED = "WEATHER_EVENT_CREATED"
+    MONITOR_ROUTE_CHANGED = "MONITOR_ROUTE_CHANGED"
 
 
 #: Actions that MUST be emitted from a write path (MASTER_PROMPT §17). A missing
@@ -126,5 +127,6 @@ CRITICAL_ACTIONS: frozenset[AuditAction] = frozenset(
         AuditAction.DOOR_OPEN_REQUESTED,
         AuditAction.DOOR_OPEN_RESULT,
         AuditAction.WEATHER_EVENT_CREATED,
+        AuditAction.MONITOR_ROUTE_CHANGED,
     }
 )

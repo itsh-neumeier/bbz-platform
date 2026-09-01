@@ -115,6 +115,9 @@ class Settings(BaseSettings):
     # --- video (E16-08). Which video integration serves camera trigger actions. ---
     video_integration_id: str = "coda_video"
 
+    # --- monitor routing (E19-04). Which monitor/KVM integration executes routes. ---
+    monitor_integration_id: str = "monitor_mock"
+
     # --- weather (E18-06). Which weather integration the refresh singleton polls,
     # how often it ticks, and how long a data kind may go without a successful
     # refresh before its health is `stale`. ---

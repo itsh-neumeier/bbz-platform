@@ -18,6 +18,7 @@ from typing import Any, cast
 from bbz_core.integrations_host.registry import IntegrationRegistry, LoadedManifest
 from bbz_core.settings import get_settings
 from bbz_integration_sdk.providers import (
+    MonitorProvider,
     Provider,
     TelephonyProvider,
     VideoProvider,
@@ -78,6 +79,17 @@ async def active_weather_provider() -> WeatherProvider:
         await provider.initialize()
         _CACHE[key] = provider
     return cast("WeatherProvider", _CACHE[key])
+
+
+async def active_monitor_provider() -> MonitorProvider:
+    integration_id = get_settings().monitor_integration_id
+    key = f"monitor:{integration_id}"
+    if key not in _CACHE:
+        lm = _manifest_for("monitor", integration_id)
+        provider = _load(lm.manifest.adapter, None)
+        await provider.initialize()
+        _CACHE[key] = provider
+    return cast("MonitorProvider", _CACHE[key])
 
 
 def reset_provider_cache() -> None:
