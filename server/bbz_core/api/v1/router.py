@@ -15,6 +15,7 @@ from bbz_core.api.v1.doors import router as doors_router
 from bbz_core.api.v1.events import router as events_router
 from bbz_core.api.v1.integrations import router as integrations_router
 from bbz_core.api.v1.lines import router as lines_router
+from bbz_core.api.v1.monitor import router as monitor_router
 from bbz_core.api.v1.presence import router as presence_router
 from bbz_core.api.v1.rbac import router as rbac_router
 from bbz_core.api.v1.system import router as system_router
@@ -52,6 +53,7 @@ api_v1.include_router(integrations_router)
 api_v1.include_router(door_action_profiles_router)
 api_v1.include_router(doors_router)
 api_v1.include_router(weather_router)
+api_v1.include_router(monitor_router)
 
 
 class MetaResponse(BaseModel):

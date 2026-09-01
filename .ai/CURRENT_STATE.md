@@ -1438,7 +1438,7 @@ API. `integrations/telephony_cucm/` stays a placeholder README.
   no network.** `dwd` test count 43.
 - Only **E18-09** (Wetterlage UI) left → Epic 07 (frontend, blocked).
 
-### Epic 19 – Weytec Monitor Routing: **in progress (4/10)**
+### Epic 19 – Weytec Monitor Routing: **in progress (5/10)**
 - **#395 (E19-01) DB schema** — migration `0041_monitor_schema` +
   `bbz_core.infra.models.monitor`. Four tables (MASTER_PROMPT §9): `monitor_inputs`
   (`key` unique — BBZ-OS / BKU1-4 / Cayuga 1-2), `monitor_outputs` (`key` unique,
@@ -1485,9 +1485,25 @@ API. `integrations/telephony_cucm/` stays a placeholder README.
   them unchanged. **BBZ policy (the lower-left rule) is NOT in the mock** — it is
   enforced upstream (E19-03 domain). `manifest.json` → v1.0.0.
   `test_mock_monitor.py` (11).
-- Next: E19-04 (routing API + `MONITOR_ROUTE_CHANGED`), E19-05 (profiles),
-  E19-07 (`monitor_weytec` scaffold — no invented API), E19-09 (permissions
-  seed), E19-10 (E2E). E19-08 (dialog UI) → Epic 07 (blocked).
+- **#400 (E19-04) routing API + `MONITOR_ROUTE_CHANGED`** —
+  `bbz_core.infra.repositories.monitor_routing.MonitorRoutingService` +
+  `bbz_core.api.v1.monitor`. `GET /api/v1/monitor/routes` (`monitor.view`) →
+  input/output catalog + current route per output + `is_fixed` flag + provider
+  health. `PUT /api/v1/monitor/routes` (`monitor.route`, batch
+  `{assignments: {output_key: input_key}}`) and `POST
+  /api/v1/monitor/routes/reset-standard` (`monitor.reset_standard`) — both
+  idempotent on `X-Command-Id` (`idempotent()` — a replay applies nothing). The
+  service validates via the domain (unknown key / fixed rule → 422), calls
+  `active_monitor_provider().set_route(... command_id=…)` per **changed** output
+  (the provider is itself command-idempotent, E19-06), upserts `monitor_routes`
+  and writes one `MONITOR_ROUTE_CHANGED` audit row (before/after input) per
+  change — all in one tx. `MONITOR_ROUTE_CHANGED` added to `AuditAction` +
+  `CRITICAL_ACTIONS`. New setting `monitor_integration_id` = `monitor_mock`;
+  `active_monitor_provider()` in `integrations_host`. No provider → 503; provider
+  reject → 503. `test_monitor_routing_api.py` (8, against `monitor_mock`).
+  **NB** external provider execution via the outbox is deferred to E19-07.
+- Next: E19-05 (profiles), E19-07 (`monitor_weytec` scaffold — no invented API),
+  E19-09 (permissions seed), E19-10 (E2E). E19-08 (dialog UI) → Epic 07 (blocked).
 
 ## Existing reference
 A functional HTML mockup defines important UX/feature behavior. **It is not yet in
