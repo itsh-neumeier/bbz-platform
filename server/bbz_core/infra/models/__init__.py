@@ -61,6 +61,7 @@ from bbz_core.infra.models.identity import (
 )
 from bbz_core.infra.models.inbox import ProviderEventInbox
 from bbz_core.infra.models.integration_camera_mappings import IntegrationCameraMapping
+from bbz_core.infra.models.integration_health import IntegrationHealth
 from bbz_core.infra.models.mfa_policy import MfaPolicy
 from bbz_core.infra.models.monitor import (
     MonitorInput,
@@ -172,6 +173,7 @@ __all__ = [
     "Group",
     "GroupRole",
     "IntegrationCameraMapping",
+    "IntegrationHealth",
     "LaunchMode",
     "Line",
     "LineState",

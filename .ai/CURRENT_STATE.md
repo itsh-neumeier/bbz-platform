@@ -1739,7 +1739,21 @@ API. `integrations/telephony_cucm/` stays a placeholder README.
   link/unlink coverage → Epic 07** (blocked); backend is `test_account_linking.py`
   (12). **Epic 21 backend complete.**
 
-### Epic 22 – Monitoring / Observability: **in progress (4/7)**
+### Epic 22 – Monitoring / Observability: **in progress (5/7)**
+- **#455 (E22-05) integration-health aggregation API + model** — `integration_health`
+  table (migration `0051`, one row per integration: normalised `state`
+  `ok/degraded/down/disabled`, `checked_at` / `last_ok_at` / `last_error_at`,
+  `consecutive_errors`, best-effort `last_activity_at` from the provider inbox,
+  redacted `details`). `IntegrationHealthService.refresh()` probes each **active**
+  integration's `health()` (5 s-bounded, parallel), maps the SDK `HealthState`,
+  upserts. `GET /api/v1/integrations/health` (`integrations.diagnostics`)
+  live-probes then returns the table; the new `integration-health` singleton
+  (interval `integration_health_interval_seconds`=60) keeps it current for
+  E22-06. `providers.loaded_providers()` unchanged; new
+  `active_*_provider` dispatch in the service. E12-15 (CUCM health, Epic 12
+  blocked) slots in as another `(domain, id)` — no schema change.
+  `test_integration_health_api.py` (5). `docs/observability/integration-health.md`.
+  Migration head **0051**.
 - **#453 (E22-04) `/health/details` enrichment** — now a per-dependency status
   matrix (`database` / `cluster` / `dcs`, each `ok` + `detail` + `duration_ms`)
   plus `build: {version, revision, built_at}` from `BBZ_BUILD_REVISION` /

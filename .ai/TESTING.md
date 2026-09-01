@@ -125,6 +125,17 @@ Coverage:
 - **clean no-op** — `configure_tracing(Settings(otel_enabled=False))` is `False`
   and `current_trace_ids()` is `None`.
 
+## Integration health (E22-05)
+
+`test_integration_health_api.py` (5): `GET /api/v1/integrations/health` needs
+`integrations.diagnostics` (401 / 403 without); it lists every active
+integration with a normalised `state` and a set `checked_at`; a probe that
+raises makes that integration `down` and bumps `consecutive_errors` on each
+call; `last_activity_at` picks up a `provider_event_inbox` row keyed by the
+integration id; the `integration-health` singleton tick returns an `int` and
+fills the table. `BBZ_WEATHER_INTEGRATION_ID=none` keeps the DWD probe off the
+network.
+
 ## `/health/details` (E22-04)
 
 `test_health.py` — `/health/details` needs `system.cluster.view` (401 without a

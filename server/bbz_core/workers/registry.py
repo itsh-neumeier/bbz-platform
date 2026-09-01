@@ -22,6 +22,7 @@ SINGLETON_NAMES: tuple[str, ...] = (
     "trigger-engine",
     "weather-refresh",
     "directory-sync",
+    "integration-health",
 )
 
 
@@ -100,6 +101,31 @@ async def _directory_sync_tick() -> object:
         return report.created + report.deactivated + report.role_reconciles
 
 
+async def _integration_health_tick() -> object:
+    """Refresh the ``integration_health`` table (E22-05) — but only once per
+    ``integration_health_interval_seconds``. Returns the number of integrations
+    probed. Always safe (the active integrations always resolve to a provider or
+    a ``down`` row)."""
+    import datetime as _dt
+
+    from sqlalchemy import func, select
+
+    from bbz_core.infra.db import session_scope
+    from bbz_core.infra.models.integration_health import IntegrationHealth
+    from bbz_core.infra.repositories.integration_health import IntegrationHealthService
+    from bbz_core.settings import get_settings
+
+    async with session_scope() as session:
+        last = (
+            await session.execute(select(func.max(IntegrationHealth.checked_at)))
+        ).scalar_one_or_none()
+        if last is not None:
+            age = (_dt.datetime.now(_dt.UTC) - last).total_seconds()
+            if age < get_settings().integration_health_interval_seconds:
+                return 0
+        return len(await IntegrationHealthService(session).refresh())
+
+
 def cluster_singletons() -> list[Singleton]:
     return [
         Singleton("outbox-dispatcher", _outbox_tick),
@@ -107,4 +133,5 @@ def cluster_singletons() -> list[Singleton]:
         Singleton("trigger-engine", _trigger_engine_tick),
         Singleton("weather-refresh", _weather_refresh_tick),
         Singleton("directory-sync", _directory_sync_tick),
+        Singleton("integration-health", _integration_health_tick),
     ]
