@@ -1438,7 +1438,7 @@ API. `integrations/telephony_cucm/` stays a placeholder README.
   no network.** `dwd` test count 43.
 - Only **E18-09** (Wetterlage UI) left → Epic 07 (frontend, blocked).
 
-### Epic 19 – Weytec Monitor Routing: **in progress (1/10)**
+### Epic 19 – Weytec Monitor Routing: **in progress (2/10)**
 - **#395 (E19-01) DB schema** — migration `0041_monitor_schema` +
   `bbz_core.infra.models.monitor`. Four tables (MASTER_PROMPT §9): `monitor_inputs`
   (`key` unique — BBZ-OS / BKU1-4 / Cayuga 1-2), `monitor_outputs` (`key` unique,
@@ -1453,10 +1453,23 @@ API. `integrations/telephony_cucm/` stays a placeholder README.
   layout are the E19-02 seed; the "lower-left is always BBZ-OS" rule is E19-03.
   `workplace_id` is a plain UUID (no `workplaces` entity yet). Real
   `alembic up/down/up` + `alembic check` (no drift) verified. `test_monitor_schema.py`.
-- Next: **E19-02** (domain model + standard layout seed), then E19-03 (fixed
-  rule), E19-04 (routing API + `MONITOR_ROUTE_CHANGED`), E19-05 (profiles),
-  E19-06 (`monitor_mock`), E19-07 (`monitor_weytec` scaffold — no invented API),
-  E19-09 (permissions seed), E19-10 (E2E). E19-08 (dialog UI) → Epic 07 (blocked).
+- **#397 (E19-02) domain model + standard layout** — pure
+  `bbz_core.domain.monitor`: `catalog.py` (the fixed §9 hardware layout —
+  `INPUTS` bbz-os/bku1-4/**coda1-2** [MASTER_PROMPT writes "Cayuga"; canonical
+  name is Coda, see glossary], `OUTPUTS` workplace1-6 at their 3x2 slots +
+  large-display, `BOTTOM_LEFT_OUTPUT_KEY` = `workplace4`, `STANDARD_LAYOUT`
+  output→input map with `workplace4 → bbz-os` per §9); `layout.py`
+  (`validate_assignment` / `validate_layout` → `MonitorDomainError` for unknown
+  keys or an incomplete/over-full map; `standard_layout()` returns a copy).
+  Migration `0042_monitor_catalog_seed` inserts the 7+7 catalog + the standard
+  layout into `monitor_routes` (idempotent `ON CONFLICT DO NOTHING`; downgrade
+  removes only the seeded rows). Real `alembic up/down/up` + `alembic check`
+  (no drift) verified; the seeded bottom-left route resolves to `bbz-os`.
+  `test_monitor_domain.py` (10, pure unit).
+- Next: E19-03 (fixed rule: unten links = BBZ-OS, server-enforced), E19-04
+  (routing API + `MONITOR_ROUTE_CHANGED`), E19-05 (profiles), E19-06
+  (`monitor_mock`), E19-07 (`monitor_weytec` scaffold — no invented API), E19-09
+  (permissions seed), E19-10 (E2E). E19-08 (dialog UI) → Epic 07 (blocked).
 
 ## Existing reference
 A functional HTML mockup defines important UX/feature behavior. **It is not yet in

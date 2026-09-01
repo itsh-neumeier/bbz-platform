@@ -46,7 +46,7 @@ class MonitorInput(Base, TimestampMixin):
     __tablename__ = "monitor_inputs"
 
     id: Mapped[uuid.UUID] = uuid_pk()
-    #: stable identifier, e.g. ``bbz-os`` / ``bku1`` / ``cayuga1``
+    #: stable identifier, e.g. ``bbz-os`` / ``bku1`` / ``coda1``
     key: Mapped[str] = mapped_column(String(32), unique=True)
     label: Mapped[str] = mapped_column(String(80))
     sort_order: Mapped[int] = mapped_column(Integer, server_default="0")
