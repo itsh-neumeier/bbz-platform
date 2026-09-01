@@ -23,7 +23,7 @@ plugins = ["pydantic.mypy"]
 exclude = ["(^|/)(\\.venv|alembic|node_modules|tests)/"]
 
 [[tool.mypy.overrides]]
-module = ["asyncpg.*", "ldap3.*"]
+module = ["asyncpg.*", "ldap3.*", "webauthn.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]

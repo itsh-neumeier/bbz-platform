@@ -1549,7 +1549,7 @@ API. `integrations/telephony_cucm/` stays a placeholder README.
   alternative, standard-layout button, profile save/load, locked lower-left) is
   left → Epic 07 (frontend, blocked).
 
-### Epic 21 – Enterprise Authentication: **in progress (5/8)**
+### Epic 21 – Enterprise Authentication: **in progress (6/8)**
 - **#431 (E21-01) Entra ID / OIDC provider** — `bbz_core.auth.oidc` (pure,
   framework-free): `pkce` (S256 only), `discovery` (fetch metadata, assert the
   issuer matches), `flow.start` (authorization-code URL with state / nonce /
@@ -1668,8 +1668,33 @@ API. `integrations/telephony_cucm/` stays a placeholder README.
   unblock, TOTP-login-counts-as-step-up, step-up expiry, admin CRUD gated +
   audited. **Not built**: scope-based (only role-based) policies; Entra/OIDC
   external factor verification (WebAuthn is E21-06).
-- Next: E21-06 (WebAuthn/FIDO2), E21-07 (advanced RBAC — conditions / time-bound
-  grants / delegation). E21-08 (account linking + admin UI) is partly frontend.
+- **#441 (E21-06) WebAuthn / FIDO2** — a phishing-resistant second factor for
+  local accounts. New dep `webauthn` (py_webauthn 3.x; pulls `cbor2`,
+  `pyasn1-modules`, `pyOpenSSL` — all pip-audit clean). `webauthn_credentials`
+  (per local `auth_identity`) + `webauthn_challenges` (DB-backed single-use
+  server challenge for HA; migration `0048`). `WebauthnService`
+  (`infra/repositories/webauthn.py`) wraps the ceremonies:
+  `begin/complete_registration`, `begin/verify_authentication`, `list/remove`,
+  `has_active`. Self-service API `POST/GET/DELETE /api/v1/auth/webauthn/...`
+  (`register/options`, `register/verify`, `credentials`, `credentials/{id}`,
+  `authenticate/options`). **Login**: `webauthn` field on `LoginRequest`; a user
+  with a credential and no assertion gets `401 webauthn_required` with the
+  request options in `error.details.options`, then retries. `_mfa_satisfied`
+  (E21-05) now also counts a WebAuthn credential, and `POST …/mfa-policies/step-up`
+  accepts `{webauthn}`. `_issue_session` takes a bare `user_id` now (a challenge
+  write mid-login expires ORM objects — the login handlers capture user fields
+  into locals). Settings `webauthn_{rp_id, rp_name, origins, require_user_verification,
+  challenge_ttl_seconds}` — empty `rp_id` ⇒ 503 (a real RP id/origin is a
+  deployment input). Audit `WEBAUTHN_REGISTERED` / `WEBAUTHN_REMOVED` (not
+  critical, matching TOTP `MFA_ENROLLED`). **Not built**: passwordless
+  first-factor; challenging a WebAuthn factor on the OIDC/LDAP callback (those
+  still use `has_active`); the CDP browser e2e → Epic 07. `test_webauthn.py`
+  (11) drives an in-process P-256 software authenticator (hand-built
+  attestation / assertion): register + list + isolation, login challenge +
+  verify + bad-assertion + sign-count + single-use, passkey-satisfies-policy,
+  step-up via assertion, removal, disabled-when-unconfigured.
+- Next: E21-07 (advanced RBAC — conditions / time-bound grants / delegation).
+  E21-08 (account linking + admin UI) is partly frontend.
 
 ## Existing reference
 A functional HTML mockup defines important UX/feature behavior. **It is not yet in
