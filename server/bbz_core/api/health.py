@@ -2,7 +2,7 @@
 
 - ``/health/live``    process is up
 - ``/health/ready``   dependencies reachable AND HA state valid -> route traffic
-- ``/health/details`` structured breakdown for operators/diagnostics
+- ``/health/details`` per-dependency status matrix + build info, for operators
 
 The client agent (and any load balancer) polls ``/health/live`` and
 ``/health/ready`` for failover (MASTER_PROMPT §4). Readiness is conservative and
@@ -14,17 +14,26 @@ checked **in order**, each with a ~2 s timeout:
    skipped when no local Patroni is configured (single-node dev).
 
 Any failing check -> ``503 not_ready`` so the node is taken out of rotation.
+
+``/health/details`` (E22-04) additionally probes **dcs** (etcd reachability),
+times every check, and reports the build revision. It is gated on
+``system.cluster.view`` — it is a diagnostic surface, not an LB probe (the
+Caddyfiles use ``/health/ready``). No secret or internal endpoint is in the body.
 """
 
 from __future__ import annotations
 
+import time
+from collections.abc import Awaitable
 from typing import Literal
 
-from fastapi import APIRouter, Response, status
+from fastapi import APIRouter, Depends, Response, status
 from pydantic import BaseModel
 
 from bbz_core import __version__
-from bbz_core.infra.cluster_status import local_node_ready
+from bbz_core.api.authz import require
+from bbz_core.api.deps import AuthContext
+from bbz_core.infra.cluster_status import dcs_reachable, local_node_ready
 from bbz_core.infra.db import check_database
 from bbz_core.settings import get_settings
 
@@ -43,9 +52,28 @@ class Check(BaseModel):
     detail: str | None = None
 
 
+class TimedCheck(Check):
+    duration_ms: float
+
+
 class ReadyResponse(BaseModel):
     status: Literal["ready", "not_ready"]
     checks: list[Check]
+
+
+class BuildInfo(BaseModel):
+    version: str
+    revision: str
+    built_at: str
+
+
+class DetailsResponse(BaseModel):
+    service: str
+    version: str
+    environment: str
+    node_id: str
+    build: BuildInfo
+    checks: list[TimedCheck]
 
 
 @router.get("/live", response_model=LiveResponse)
@@ -71,21 +99,39 @@ async def ready(response: Response) -> ReadyResponse:
     return ReadyResponse(status="ready" if all_ok else "not_ready", checks=checks)
 
 
-class DetailsResponse(BaseModel):
-    service: str
-    version: str
-    environment: str
-    node_id: str
-    checks: list[Check]
+async def _timed(name: str, probe: Awaitable[tuple[bool, str | None]]) -> TimedCheck:
+    start = time.perf_counter()
+    try:
+        ok, detail = await probe
+    except Exception as exc:  # pragma: no cover - a probe must not 500 the endpoint
+        ok, detail = False, f"{type(exc).__name__}: {exc}"
+    return TimedCheck(
+        name=name, ok=ok, detail=detail, duration_ms=round((time.perf_counter() - start) * 1000, 1)
+    )
+
+
+def _build_info() -> BuildInfo:
+    s = get_settings()
+    return BuildInfo(
+        version=__version__,
+        revision=s.build_revision or "unknown",
+        built_at=s.build_time or "unknown",
+    )
 
 
 @router.get("/details", response_model=DetailsResponse)
-async def details() -> DetailsResponse:
+async def details(_: AuthContext = Depends(require("system.cluster.view"))) -> DetailsResponse:
     s = get_settings()
+    checks = [
+        await _timed("database", check_database()),
+        await _timed("cluster", local_node_ready()),
+        await _timed("dcs", dcs_reachable()),
+    ]
     return DetailsResponse(
         service=s.service_name,
         version=__version__,
         environment=s.environment,
         node_id=s.node_id,
-        checks=await _collect_checks(),
+        build=_build_info(),
+        checks=checks,
     )

@@ -125,6 +125,14 @@ Coverage:
 - **clean no-op** — `configure_tracing(Settings(otel_enabled=False))` is `False`
   and `current_trace_ids()` is `None`.
 
+## `/health/details` (E22-04)
+
+`test_health.py` — `/health/details` needs `system.cluster.view` (401 without a
+session); with it, the body has `build.{version,revision,built_at}` and a
+`checks[]` matrix (`database` / `cluster` / `dcs`) each with a numeric
+`duration_ms`; patching the DB probe to fail flips that check's `ok` to `false`
+with a `detail`, and the endpoint still returns `200`.
+
 ## Structured logging (E22-03)
 
 `server/tests/test_logging.py` (8) reconfigures `configure_logging(stream=buf)`
