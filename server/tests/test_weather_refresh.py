@@ -238,11 +238,21 @@ _CAP = """<?xml version="1.0" encoding="UTF-8"?>
 </alert>"""
 
 
-def _dwd_with_stub_warnings() -> object:
+_POI = (
+    "surface observations;Parameter description;"
+    "dry_bulb_temperature_at_2_meter_above_ground;relative_humidity\n"
+    "10763;Unit;Grad C;%\n"
+    "Datum;Uhrzeit (UTC);Temperatur (2m);Relative Feuchte\n"
+    "01.09.26;12:00;18,4;61\n"
+)
+
+
+def _dwd_with_stubs() -> object:
     import io
     import zipfile
 
     from integrations.dwd.adapter import build as build_dwd
+    from integrations.dwd.observations import DwdObservationsClient
     from integrations.dwd.warnings import DwdWarningsClient
 
     class _StubCap(DwdWarningsClient):
@@ -258,30 +268,36 @@ def _dwd_with_stub_warnings() -> object:
                 return b'href="Z_CAP_C_EDZW_20260901120000_PVW_STATUS_PREMIUMDWD_DISTRICT_DE.zip"'
             return self._zip
 
-    provider = build_dwd({"places": [{"name": "Nürnberg"}]})
+    class _StubObs(DwdObservationsClient):
+        def _get(self, station_id: str) -> bytes:
+            return _POI.encode("latin-1")
+
+    provider = build_dwd({"places": [{"name": "Nürnberg", "poi_station_id": "10763"}]})
     provider._warnings_client = _StubCap()  # type: ignore[attr-defined]
+    provider._observations_client = _StubObs()  # type: ignore[attr-defined]
     return provider
 
 
-async def test_the_dwd_adapter_warnings_flow_end_to_end(
+async def test_the_dwd_adapter_flow_end_to_end(
     s: AsyncSession, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Real DwdWeatherProvider (stubbed CAP transport) → refresh stores the alert,
-    warnings health is ok; radar / observations still raise → overall down."""
-    _use(monkeypatch, _dwd_with_stub_warnings())
+    """Real DwdWeatherProvider (stubbed CAP + POI transport) → refresh stores the
+    alert + the observations; only radar still raises → overall down."""
+    _use(monkeypatch, _dwd_with_stubs())
 
     total = await WeatherRefreshService(s).refresh()
-    assert total == 1
+    assert total == 3  # 1 warning + 2 observation metrics (radar contributes 0)
 
     await s.rollback()
     alert = (await s.execute(select(WeatherAlert))).scalar_one()
     assert alert.region == "Stadt Nürnberg" and alert.type == "GEWITTER" and alert.level == "2"
-    assert alert.source_ref == "2.49.0.0.276.0.DWD.PVW.test.DEU"
+    obs = {o.metric: o for o in (await s.execute(select(WeatherObservation))).scalars()}
+    assert obs["temperature"].value == 18.4 and obs["temperature"].place == "Nürnberg"
 
     states = {st.data_kind: st for st in (await s.execute(select(WeatherRefreshState))).scalars()}
-    assert states["warnings"].last_success_at is not None
-    assert states["radar"].last_error and states["observations"].last_error
+    assert states["warnings"].last_success_at and states["observations"].last_success_at
+    assert states["radar"].last_error
 
     health = await WeatherRefreshService(s).health()
-    assert health.overall == "down"  # worst of {warnings ok, radar down, observations down}
-    assert next(k for k in health.kinds if k.data_kind == "warnings").status == "ok"
+    assert health.overall == "down"  # radar is down
+    assert {k.status for k in health.kinds if k.data_kind != "radar"} == {"ok"}

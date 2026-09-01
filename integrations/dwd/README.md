@@ -10,8 +10,15 @@ assessment, and "create a BBZ event from a warning".
 | Capability | DWD service (ADR-0026) | Epic | State |
 |---|---|---|---|
 | `weather.warnings` | CAP 1.2 **DISTRICT** feed `opendata.dwd.de/weather/alerts/cap/DISTRICT_DWD_STAT/` | E18-02 | **live** |
+| `weather.observations` | POI CSV `opendata.dwd.de/weather/weather_reports/poi/` (`<station>-BEOB.csv`) | E18-04 | **live** |
 | `weather.radar` | GeoServer WMS `maps.dwd.de/geoserver/dwd/wms` (`dwd:Niederschlagsradar`) | E18-03 | raises |
-| `weather.observations` | POI CSV `opendata.dwd.de/weather/weather_reports/poi/` (`<station>-BEOB.csv`) | E18-04 | raises |
+
+**Observations** (`observations.py`): `parse_poi_csv` reads the 3-header
+semicolon CSV (latin-1, decimal comma, `---` = missing) and normalises the newest
+row's temperature / humidity / wind / precipitation / pressure / cloud-cover to
+the E18-06 contract. `DwdWeatherProvider.get_observations` fetches one CSV per
+configured place that has a `poi_station_id`; a place without one contributes
+nothing ("keine Daten"), a single failing station is skipped, all-fail raises.
 
 **Warnings** (`warnings.py`): `DwdWarningsClient` fetches the lexically-last
 `…_DISTRICT_DE.zip`, `parse_cap_alerts` turns each `(alert, de-DE info, area)`
