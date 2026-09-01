@@ -1438,6 +1438,26 @@ API. `integrations/telephony_cucm/` stays a placeholder README.
   no network.** `dwd` test count 43.
 - Only **E18-09** (Wetterlage UI) left → Epic 07 (frontend, blocked).
 
+### Epic 19 – Weytec Monitor Routing: **in progress (1/10)**
+- **#395 (E19-01) DB schema** — migration `0041_monitor_schema` +
+  `bbz_core.infra.models.monitor`. Four tables (MASTER_PROMPT §9): `monitor_inputs`
+  (`key` unique — BBZ-OS / BKU1-4 / Cayuga 1-2), `monitor_outputs` (`key` unique,
+  `grid_row`/`grid_col` for the six workplace monitors, `is_large_display` for the
+  Mittelmonitor/Großbild; CHECK `monitor_outputs_grid` = a workplace monitor sits
+  at row 0-1 × col 0-2, a large display has no slot; UNIQUE `(grid_row, grid_col)`),
+  `monitor_routes` (`output_id` **PK** → exactly one active input per output;
+  `input_id` FK RESTRICT, `set_by` FK users SET NULL, `set_at`, `profile_id` FK
+  SET NULL), `monitor_profiles` (`scope` CHECK `user`/`workplace`, exactly one of
+  `owner_user_id` / `workplace_id` set — CHECK `monitor_profiles_scope_owner` —,
+  `layout` JSONB). **Schema only** — the fixed input/output catalog + the standard
+  layout are the E19-02 seed; the "lower-left is always BBZ-OS" rule is E19-03.
+  `workplace_id` is a plain UUID (no `workplaces` entity yet). Real
+  `alembic up/down/up` + `alembic check` (no drift) verified. `test_monitor_schema.py`.
+- Next: **E19-02** (domain model + standard layout seed), then E19-03 (fixed
+  rule), E19-04 (routing API + `MONITOR_ROUTE_CHANGED`), E19-05 (profiles),
+  E19-06 (`monitor_mock`), E19-07 (`monitor_weytec` scaffold — no invented API),
+  E19-09 (permissions seed), E19-10 (E2E). E19-08 (dialog UI) → Epic 07 (blocked).
+
 ## Existing reference
 A functional HTML mockup defines important UX/feature behavior. **It is not yet in
 the repository** — it must be committed under `docs/mockup/` before Phase 3 and is
