@@ -105,8 +105,8 @@ async def metrics(
     _: AuthContext = Depends(require("system.cluster.view")),
     session: AsyncSession = Depends(db_session),
 ) -> Response:
-    """Prometheus exposition of the HA-relevant gauges (roadmap E06-13). Behind
-    ``system.cluster.view`` — not a public endpoint; a dedicated internal scrape
-    port is Epic 22. See ``docs/metrics.md``."""
+    """Prometheus exposition of the per-node §23 metric set (roadmap E06-13 +
+    E22-02). Behind ``system.cluster.view`` — not a public endpoint; a dedicated
+    internal scrape port + dashboards are E22-07. See ``docs/metrics.md``."""
     body, content_type = await render_metrics(session)
     return Response(content=body, media_type=content_type)

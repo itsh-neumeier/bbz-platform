@@ -1739,7 +1739,22 @@ API. `integrations/telephony_cucm/` stays a placeholder README.
   link/unlink coverage → Epic 07** (blocked); backend is `test_account_linking.py`
   (12). **Epic 21 backend complete.**
 
-### Epic 22 – Monitoring / Observability: **in progress (1/7)**
+### Epic 22 – Monitoring / Observability: **in progress (2/7)**
+- **#449 (E22-02) Prometheus metrics — full §23 set** (extends E06-13). New
+  `bbz_core.api.request_metrics.RequestMetricsMiddleware` (pure ASGI) records
+  `bbz_http_request_duration_seconds{method,route,status}` — `route` is the
+  **template** rebuilt from the path with its params folded back
+  (`/api/v1/events/{event_id}`), 404s bucket as `route="unmatched"`. On-scrape
+  gauges added to `bbz_core.infra.metrics.render`: `bbz_db_pool_connections`
+  `{in_use|idle|overflow}` (engine pool), `bbz_connected_clients` (active
+  sessions), `bbz_commands_pending` (`commands.result_status IS NULL`),
+  `bbz_call_lines{state}` + `bbz_calls_active` (telephony), and
+  `bbz_integration_health{domain,integration}` from each provider **loaded in
+  this process** (`providers.loaded_providers()` — never triggers a load;
+  `health()` timeout-guarded). Endpoint stays `GET /api/v1/system/metrics`
+  behind `system.cluster.view`. Cardinality is bounded (closed label sets, no
+  ids). `test_metrics.py` (8). `docs/metrics.md` rewritten. Cross-integration
+  health aggregation + persistence is E22-05; scrape port + dashboards E22-07.
 - **#447 (E22-01) OpenTelemetry wiring** (ADR-0028). The `bbz_core.telemetry`
   no-op seam is now real tracing. New deps: `opentelemetry-{api,sdk}`,
   `-exporter-otlp-proto-http` (`>=1.44`), `-instrumentation-{fastapi,sqlalchemy,

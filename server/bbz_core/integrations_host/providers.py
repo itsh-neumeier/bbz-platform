@@ -92,6 +92,13 @@ async def active_monitor_provider() -> MonitorProvider:
     return cast("MonitorProvider", _CACHE[key])
 
 
+def loaded_providers() -> dict[str, Provider]:
+    """The providers already initialised in this process, keyed
+    ``"<domain>:<integration_id>"``. Read-only view for the metrics scrape
+    (E22-02) — it never triggers a load."""
+    return dict(_CACHE)
+
+
 def reset_provider_cache() -> None:
     """Drop every cached provider — call between tests."""
     _CACHE.clear()
