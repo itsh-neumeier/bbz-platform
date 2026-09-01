@@ -113,7 +113,7 @@ class MonitorRoutingService:
             self._s, command_id=command_id, endpoint=_PUT, request_hash=rhash, user_id=actor_id
         ) as slot:
             if slot.replay is None:
-                await self._apply(assignments, command_id=command_id, actor_id=actor_id)
+                await self.apply_assignments(assignments, command_id=command_id, actor_id=actor_id)
                 slot.set_result(200, {"ok": True})
             return await self.state()
 
@@ -126,35 +126,47 @@ class MonitorRoutingService:
             self._s, command_id=command_id, endpoint=_RESET, request_hash=rhash, user_id=actor_id
         ) as slot:
             if slot.replay is None:
-                await self._apply(assignments, command_id=command_id, actor_id=actor_id)
+                await self.apply_assignments(assignments, command_id=command_id, actor_id=actor_id)
                 slot.set_result(200, {"ok": True})
             return await self.state()
 
     # --- apply ---------------------------------------------------
 
-    async def _apply(
-        self, assignments: dict[str, str], *, command_id: uuid.UUID, actor_id: uuid.UUID | None
+    async def apply_assignments(
+        self,
+        assignments: dict[str, str],
+        *,
+        command_id: uuid.UUID,
+        actor_id: uuid.UUID | None,
+        profile_id: uuid.UUID | None = None,
     ) -> None:
+        """Validate, drive the provider for every *changed* output, persist the
+        routes and write one ``MONITOR_ROUTE_CHANGED`` per change — all in one
+        transaction. Has **no** idempotency guard of its own; the caller wraps it
+        in :func:`idempotent`. ``profile_id`` stamps the route rows when a profile
+        is being applied (E19-05)."""
+        for output_key, input_key in assignments.items():
+            validate_assignment(output_key, input_key)
+
         await self._s.rollback()
         current = {k: v[0] for k, v in (await self._current_routes()).items()}
         changes = {o: i for o, i in assignments.items() if current.get(o) != i}
-        if not changes:
-            return
 
-        provider = await active_monitor_provider()
-        for output_key, input_key in changes.items():
-            try:
-                await provider.set_route(
-                    output_id=output_key,
-                    input_id=input_key,
-                    command_id=f"{command_id}:{output_key}",
-                )
-            except NoActiveProvider:
-                raise
-            except Exception as exc:  # the mock raises RuntimeError subclasses
-                raise MonitorProviderError(
-                    f"provider rejected {output_key} <- {input_key}: {exc}"
-                ) from exc
+        if changes:
+            provider = await active_monitor_provider()
+            for output_key, input_key in changes.items():
+                try:
+                    await provider.set_route(
+                        output_id=output_key,
+                        input_id=input_key,
+                        command_id=f"{command_id}:{output_key}",
+                    )
+                except NoActiveProvider:
+                    raise
+                except Exception as exc:  # the mock raises RuntimeError subclasses
+                    raise MonitorProviderError(
+                        f"provider rejected {output_key} <- {input_key}: {exc}"
+                    ) from exc
 
         out_ids = {o.key: o.id for o in await self._outputs()}
         in_ids = {i.key: i.id for i in (await self._s.execute(select(MonitorInput))).scalars()}
@@ -169,7 +181,7 @@ class MonitorRoutingService:
                         input_id=in_ids[input_key],
                         set_by=actor_id,
                         set_at=now,
-                        profile_id=None,
+                        profile_id=profile_id,
                     )
                     .on_conflict_do_update(
                         index_elements=["output_id"],
@@ -177,7 +189,7 @@ class MonitorRoutingService:
                             "input_id": in_ids[input_key],
                             "set_by": actor_id,
                             "set_at": now,
-                            "profile_id": None,
+                            "profile_id": profile_id,
                             "updated_at": now,
                         },
                     )

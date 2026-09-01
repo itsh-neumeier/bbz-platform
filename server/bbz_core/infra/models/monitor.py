@@ -21,7 +21,15 @@ import datetime as _dt
 import enum
 import uuid
 
-from sqlalchemy import CheckConstraint, ForeignKey, Integer, SmallInteger, String, UniqueConstraint
+from sqlalchemy import (
+    CheckConstraint,
+    ForeignKey,
+    Index,
+    Integer,
+    SmallInteger,
+    String,
+    UniqueConstraint,
+)
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -89,6 +97,21 @@ class MonitorProfile(Base, TimestampMixin):
             "(scope = 'user' AND owner_user_id IS NOT NULL AND workplace_id IS NULL) OR "
             "(scope = 'workplace' AND workplace_id IS NOT NULL AND owner_user_id IS NULL)",
             name="monitor_profiles_scope_owner",
+        ),
+        # a profile name is unique within its scope (E19-05)
+        Index(
+            "uq_monitor_profiles_user_name",
+            "owner_user_id",
+            "name",
+            unique=True,
+            postgresql_where="scope = 'user'",
+        ),
+        Index(
+            "uq_monitor_profiles_workplace_name",
+            "workplace_id",
+            "name",
+            unique=True,
+            postgresql_where="scope = 'workplace'",
         ),
     )
 
