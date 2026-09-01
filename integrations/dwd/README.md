@@ -11,7 +11,7 @@ assessment, and "create a BBZ event from a warning".
 |---|---|---|---|
 | `weather.warnings` | CAP 1.2 **DISTRICT** feed `opendata.dwd.de/weather/alerts/cap/DISTRICT_DWD_STAT/` | E18-02 | **live** |
 | `weather.observations` | POI CSV `opendata.dwd.de/weather/weather_reports/poi/` (`<station>-BEOB.csv`) | E18-04 | **live** |
-| `weather.radar` | GeoServer WMS `maps.dwd.de/geoserver/dwd/wms` (`dwd:Niederschlagsradar`) | E18-03 | raises |
+| `weather.radar` | GeoServer WMS `maps.dwd.de/geoserver/dwd/wms` (`Radar_rv_product_1x1km_ger`) | E18-03 | **live** |
 
 **Observations** (`observations.py`): `parse_poi_csv` reads the 3-header
 semicolon CSV (latin-1, decimal comma, `---` = missing) and normalises the newest
@@ -28,6 +28,17 @@ geocode-less areas drop out. The adapter filters to the configured places'
 warncells and runs the blocking fetch in a worker thread. Fetch/parse failure →
 `DwdWarningsError` (E18-06 keeps the last-good snapshot).
 
+**Radar** (`radar.py`): `parse_time_dimension` reads the layer's ISO8601 `time`
+dimension (`<start>/<end>/PT5M`) from a stdlib-`ElementTree` GetCapabilities
+parse; `build_frames` turns `(latest, step)` into the last `frame_count` (default
+12) **GetMap URLs**, oldest → newest, clipped to the Mittelfranken bbox
+(`crs=CRS:84`, `image/png`, transparent). We do **not** proxy the images — a frame
+is a ready URL the browser fetches from DWD directly. `get_radar_frames` runs the
+blocking GetCapabilities read in a worker thread; the E18-06 refresh puts the
+series in the per-node `weather_read.RADAR_CACHE` and E18-07 serves it. A WMS
+outage raises `DwdRadarError` → the refresh keeps the last frames + health
+`degraded`.
+
 ## Config
 
 - `region` — operational label (default `mittelfranken`), also the radar clip.
@@ -37,7 +48,9 @@ warncells and runs the blocking fetch in a worker thread. Fetch/parse failure �
   override / extend that (e.g. a place outside Mittelfranken).
 - `enabled_capabilities` — activate warnings / radar / observations independently.
 - `warnings.base_url` — override the CAP feed (e.g. to COMMUNEUNION for Gemeinde
-  granularity); `radar` / `observations` — per-service settings.
+  granularity); `observations.base_url` — override the POI base.
+- `radar` — `{wms_url?, layer?, bbox?: [minLon,minLat,maxLon,maxLat], frame_count?}`
+  (defaults: the RV composite layer, the Mittelfranken bbox, 12 frames).
 
 ## Rules
 
@@ -47,8 +60,10 @@ warncells and runs the blocking fetch in a worker thread. Fetch/parse failure �
   stripped). CI never touches the network.
 - Outbound HTTPS to `opendata.dwd.de` / `maps.dwd.de` only. No credentials, no PII.
   No new runtime dependency — stdlib `urllib` / `zipfile` / `ElementTree`.
-- Degradation: a fetch/parse failure raises `DwdWarningsError`; the E18-06 refresh
-  singleton keeps the last good snapshot and marks health `degraded` / `stale`.
-- The refresh is a leader-elected singleton (ADR-0018); the cache is per node.
+- Degradation: a fetch/parse failure raises (`DwdWarningsError` /
+  `DwdObservationsError` / `DwdRadarError`); the E18-06 refresh singleton keeps the
+  last good snapshot / radar frames and marks health `degraded` / `stale`.
+- The refresh is a leader-elected singleton (ADR-0018); the cache is per node. The
+  radar series is replaced wholesale each tick, so it is bounded to `frame_count`.
 - Every DWD-derived view must carry the **"Deutscher Wetterdienst"** attribution
   (GeoNutzV / DL-DE-BY-2.0 licence condition).

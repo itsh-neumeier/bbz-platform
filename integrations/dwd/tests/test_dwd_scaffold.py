@@ -13,12 +13,7 @@ import pytest
 from bbz_integration_sdk.capabilities import Capability
 from bbz_integration_sdk.manifest import validate_manifest
 from bbz_integration_sdk.providers import Provider, WeatherProvider
-from integrations.dwd.adapter import (
-    DEFAULT_PLACES,
-    DwdNotImplementedError,
-    DwdWeatherProvider,
-    build,
-)
+from integrations.dwd.adapter import DEFAULT_PLACES, DwdWeatherProvider, build
 
 _DIR = Path(__file__).resolve().parents[1]
 
@@ -67,8 +62,7 @@ async def test_lifecycle_defaults_to_mittelfranken_and_reports_scaffold_health()
     assert p.capabilities().has(Capability.WEATHER_OBSERVATIONS)
 
     h = await p.health()
-    assert h.state.value == "healthy" and "warnings + observations live" in h.summary
-    assert "E18-03" in h.summary  # radar still pending
+    assert h.state.value == "healthy" and "warnings + radar + observations live" in h.summary
     assert h.details["places"] == len(DEFAULT_PLACES)
     assert h.details["warncells"] >= len(DEFAULT_PLACES)  # bundled mittelfranken.json
     assert h.details["poi_stations"] >= 1
@@ -95,7 +89,6 @@ async def test_a_configured_place_may_carry_its_own_warncell() -> None:
     assert (await p.health()).details["warncells"] == 1
 
 
-async def test_radar_is_gated_until_its_adapter_epic() -> None:
-    p = build({})
-    with pytest.raises(DwdNotImplementedError):
-        await p.get_radar_frames(area="mittelfranken")
+async def test_disabling_a_capability_removes_it() -> None:
+    p = build({"enabled_capabilities": ["weather.warnings", "weather.observations"]})
+    assert not p.capabilities().has(Capability.WEATHER_RADAR)

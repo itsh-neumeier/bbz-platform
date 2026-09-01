@@ -1314,7 +1314,7 @@ API. `integrations/telephony_cucm/` stays a placeholder README.
   done end-to-end against the mocks; the real CUCM/SIP `send_dtmf` transport is
   E12-05 / E13-06 (blocked).
 
-### Epic 18 – DWD Weather: **in progress (7/10)**
+### Epic 18 – DWD Weather: **in progress (8/10)**
 - **#375 (E18-01) `integrations/dwd` scaffold + manifest + config** — **ADR-0026**
   (Accepted; amended in E18-02 — warnings feed → DISTRICT) pins the three public
   DWD Open Data services: warnings → CAP 1.2
@@ -1345,9 +1345,9 @@ API. `integrations/telephony_cucm/` stays a placeholder README.
   polls the active weather integration (`active_weather_provider()`, setting
   `weather_integration_id` = `dwd`) for each advertised capability, upserts
   normalized warnings → `weather_alerts` (a full fetch is authoritative — drops
-  what DWD stopped publishing) and observations → `weather_observations`, counts
-  radar frames (frame cache is E18-03), and records per-kind outcome in
-  `weather_refresh_state` (migration `0039`). **Never raises** — a fetch/parse
+  what DWD stopped publishing) and observations → `weather_observations`, puts the
+  radar frame series in the per-node `RADAR_CACHE` (E18-03), and records per-kind
+  outcome in `weather_refresh_state` (migration `0039`). **Never raises** — a fetch/parse
   failure is logged + recorded, last-good data stays. `health()` →
   `ok` / `stale` (last success older than `weather_stale_after_seconds`) /
   `degraded` (last attempt failed after a success) / `down` (never succeeded);
@@ -1358,9 +1358,10 @@ API. `integrations/telephony_cucm/` stays a placeholder README.
 - **#387 (E18-07) weather read API** — `bbz_core.api.v1.weather` +
   `WeatherReadService`. `GET /api/v1/weather/{alerts,observations,radar,regions}`,
   all `weather.view`. `alerts` (optional `?region=`), `observations` (latest per
-  place+metric, optional `?place=`), `radar` (frames from a per-node
-  `RADAR_CACHE` the E18-03 adapter fills — empty for now), `regions` (distinct
-  regions/places we hold data for). Every response carries `attribution`
+  place+metric, optional `?place=`), `radar` (frame series from the per-node
+  `RADAR_CACHE` the E18-03 refresh fills; optional `?area=`, default
+  `weather_radar_area`), `regions` (distinct regions/places we hold data for).
+  Every response carries `attribution`
   ("Deutscher Wetterdienst", ADR-0026) + the `health` block from
   `WeatherRefreshService.health()` (overall + per-kind status / last_success /
   age). UTC times. `test_weather_api.py`.
@@ -1404,9 +1405,27 @@ API. `integrations/telephony_cucm/` stays a placeholder README.
   is skipped, all-fail raises `DwdObservationsError`. Fixtures are **real**
   trimmed POI CSVs. `test_dwd_observations.py`; the `test_weather_refresh.py` E2E
   now drives warnings **and** observations end to end.
-- Next: **E18-03** (radar WMS frame series → `RADAR_CACHE`) then **E18-10**
-  (recorded-fixture suite + degraded paths). E18-09 (UI) → Epic 07 (frontend,
-  blocked).
+- **#379 (E18-03) DWD radar adapter — LIVE** — `integrations/dwd/radar.py`:
+  `parse_time_dimension` reads the ISO8601 `time` dimension
+  (`<start>/<end>/PT5M`) of the GeoServer WMS layer `Radar_rv_product_1x1km_ger`
+  (RV composite, analysis + nowcast) from a stdlib-`ElementTree` GetCapabilities
+  parse; `build_frames` turns `(latest, step)` into the last `frame_count`
+  (default 12) **GetMap URLs**, oldest → newest, clipped to the Mittelfranken
+  bbox (`crs=CRS:84`, `image/png`, transparent). The images are **not** proxied —
+  a frame is a ready URL the browser fetches from DWD directly (per-node
+  `RADAR_CACHE` holds only `{frame_time, image_ref}`). `DwdRadarClient.frames()`
+  takes layer / bbox / size per call so config always wins; the blocking
+  GetCapabilities read runs in `asyncio.to_thread`. `WeatherRefreshService.
+  _store_radar` parses the items into `RADAR_CACHE[weather_radar_area]` (new
+  setting `weather_radar_area` = `mittelfranken`, also the E18-07 `/radar`
+  default), sorted, bounded to `frame_count`; a WMS outage raises `DwdRadarError`
+  → the refresh keeps the last frames + health `degraded`. `DwdNotImplementedError`
+  removed — the adapter is fully live. Fixture is a trimmed real GetCapabilities
+  (`tests/fixtures/wms/getcapabilities_radar.xml`). `test_dwd_radar.py`; the
+  `test_weather_refresh.py` E2E now drives warnings **+** observations **+** the
+  12-frame radar series end to end.
+- Next: **E18-10** (recorded-fixture suite + degraded paths). E18-09 (UI) →
+  Epic 07 (frontend, blocked).
 
 ## Existing reference
 A functional HTML mockup defines important UX/feature behavior. **It is not yet in

@@ -3,7 +3,9 @@
 ## Status
 Accepted (2026-09-01, review E18-01 / #375) · amended 2026-09-01 (E18-02 / #377 —
 warnings feed changed COMMUNEUNION → **DISTRICT** after inspecting real samples;
-see the note under Decision §1)
+see the note under Decision §1) · radar layer finalised 2026-09-01 (E18-03 / #379
+— GetCapabilities names it `Radar_rv_product_1x1km_ger`; see the note under
+Decision §2)
 
 ## Context
 Epic 18 builds the first *real* live-integration reference: DWD weather warnings,
@@ -48,12 +50,19 @@ The `dwd` integration uses these three DWD Open Data services:
    in later if the threat model or async needs tighten.
 
 2. **Radar / precipitation → DWD GeoServer WMS**
-   `https://maps.dwd.de/geoserver/dwd/wms` (layer `dwd:Niederschlagsradar` /
-   the RV product), requested as rendered PNG frames clipped to a Mittelfranken
-   bounding box, one per 5-minute radar step, each tagged with its UTC step time
-   (ADR-0017). The raw RADOLAN/RADVOR binary composites under
-   `https://opendata.dwd.de/weather/radar/` are **not** used in Phase 7 (they
-   need a bespoke binary decoder); revisit if the WMS proves insufficient.
+   `https://maps.dwd.de/geoserver/dwd/wms`, requested as rendered PNG frames
+   clipped to a Mittelfranken bounding box, one per 5-minute radar step, each
+   tagged with its UTC step time (ADR-0017). The raw RADOLAN/RADVOR binary
+   composites under `https://opendata.dwd.de/weather/radar/` are **not** used in
+   Phase 7 (they need a bespoke binary decoder); revisit if the WMS proves
+   insufficient.
+
+   **(E18-03 note:** the live `GetCapabilities` names the RV-product layer
+   `Radar_rv_product_1x1km_ger` — "Radarkomposit RV" (analysis + 2 h nowcast,
+   5-minute steps), not `dwd:Niederschlagsradar`. That is the layer the adapter
+   uses; the `time` dimension is `<start>/<end>/PT5M` and the client builds the
+   last N GetMap URLs from it — the browser fetches the images from DWD directly,
+   BBZ never proxies them. CRS `CRS:84`, `image/png`, transparent.)
 
 3. **Local observations → POI current-weather CSV**
    `https://opendata.dwd.de/weather/weather_reports/poi/` — one

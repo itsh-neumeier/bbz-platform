@@ -121,6 +121,8 @@ class Settings(BaseSettings):
     weather_integration_id: str = "dwd"
     weather_refresh_seconds: int = 300
     weather_stale_after_seconds: int = 1800
+    #: the label the radar frame series is cached + served under (E18-03/07)
+    weather_radar_area: str = "mittelfranken"
 
     # --- retention (E20-07, docs/domain/retention-policy.md). Windows for
     # *derived / non-essential* data only. Events, domain events, audit and the

@@ -115,6 +115,7 @@ class WeatherRefreshService:
 
         settings = get_settings()
         region = settings.weather_integration_id  # label only; the adapter knows its region
+        radar_area = settings.weather_radar_area
         caps = provider.capabilities()
         total = 0
 
@@ -133,8 +134,8 @@ class WeatherRefreshService:
         if caps.has("weather.radar"):
             total += await self._run(
                 "radar",
-                lambda: provider.get_radar_frames(area=region),
-                self._count_only,
+                lambda: provider.get_radar_frames(area=radar_area),
+                lambda frames: self._store_radar(radar_area, frames),
             )
         return total
 
@@ -166,8 +167,23 @@ class WeatherRefreshService:
     def _station_ids(self) -> list[str]:
         return []  # the adapter resolves places → stations from its own config (E18-04)
 
-    async def _count_only(self, items: Sequence[Any]) -> int:
-        return len(items)
+    async def _store_radar(self, area: str, frames: Sequence[Any]) -> int:
+        """Radar frames are not a DB table — put the series in the per-node cache
+        the E18-07 read API serves (E18-03). Each item is
+        ``{frame_time, image_ref}`` (a WMS GetMap URL, no server-side proxy)."""
+        from bbz_core.infra.repositories.weather_read import RADAR_CACHE, RadarFrame
+
+        parsed: list[RadarFrame] = []
+        for it in frames:
+            if not isinstance(it, dict):
+                continue
+            when = _as_dt(it.get("frame_time"))
+            ref = it.get("image_ref")
+            if when is not None and isinstance(ref, str) and ref:
+                parsed.append(RadarFrame(frame_time=when, image_ref=ref))
+        parsed.sort(key=lambda f: f.frame_time)
+        RADAR_CACHE[area] = parsed
+        return len(parsed)
 
     # --- storage ----------------------------------------------------------
 
