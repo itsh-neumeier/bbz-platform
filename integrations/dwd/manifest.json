@@ -17,5 +17,5 @@
     "observations": ["weather.observations"]
   },
   "mock": false,
-  "description": "DWD weather for Mittelfranken using DWD's public open-data services (ADR-0026): CAP 1.2 warnings, GeoServer WMS radar, POI observations. Target places Nürnberg / Fürth / Erlangen / Schwabach / Ansbach / Neustadt a.d. Aisch, each mapped to a warncell + POI station in config. Scaffold only — the data adapters are E18-02 (warnings), E18-03 (radar), E18-04 (observations); the get_* methods raise until then. Outbound HTTPS to opendata.dwd.de / maps.dwd.de only, no credentials."
+  "description": "DWD weather for Mittelfranken using DWD's public open-data services (ADR-0026). weather.warnings is LIVE (E18-02): the CAP 1.2 DISTRICT feed, filtered to the configured places' warncells (bundled data/mittelfranken.json). weather.radar (E18-03, GeoServer WMS) and weather.observations (E18-04, POI CSV) still raise. Target places Nürnberg / Fürth / Erlangen / Schwabach / Ansbach / Neustadt a.d. Aisch. Outbound HTTPS to opendata.dwd.de / maps.dwd.de only, no credentials, no new runtime dependency (stdlib urllib/zipfile/ElementTree)."
 }

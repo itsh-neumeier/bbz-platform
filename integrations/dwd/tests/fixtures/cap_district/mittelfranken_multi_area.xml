@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<alert xmlns="urn:oasis:names:tc:emergency:cap:1.2">
+  <identifier>2.49.0.0.276.0.DWD.PVW.1788200000000.mittelfranken-fixture.DEU</identifier>
+  <sender>opendata@dwd.de</sender>
+  <sent>2026-09-01T09:00:00+02:00</sent>
+  <status>Actual</status>
+  <msgType>Alert</msgType>
+  <source>PVW</source>
+  <scope>Public</scope>
+  <code>id:2.49.0.0.276.0.DWD.PVW.1788200000000.mittelfranken-fixture</code>
+  <info>
+    <language>de-DE</language>
+    <category>Met</category>
+    <event>GEWITTER</event>
+    <responseType>Prepare</responseType>
+    <urgency>Immediate</urgency>
+    <severity>Moderate</severity>
+    <certainty>Likely</certainty>
+    <eventCode>
+      <valueName>II</valueName>
+      <value>31</value>
+    </eventCode>
+    <eventCode>
+      <valueName>GROUP</valueName>
+      <value>THUNDERSTORM</value>
+    </eventCode>
+    <eventCode>
+      <valueName>AREA_COLOR</valueName>
+      <value>251 140 0</value>
+    </eventCode>
+    <effective>2026-09-01T09:00:00+02:00</effective>
+    <onset>2026-09-01T12:00:00+02:00</onset>
+    <expires>2026-09-01T18:00:00+02:00</expires>
+    <senderName>Deutscher Wetterdienst</senderName>
+    <headline>Amtliche WARNUNG vor GEWITTER</headline>
+    <description>Es treten Gewitter mit Starkregen um 20 l/m² und Windböen um 60 km/h auf.</description>
+    <instruction>Vereinzelt Blitzschlag; kurzzeitige Überflutung von Straßen.</instruction>
+    <web>https://dwd.de/warnungen</web>
+    <contact>Deutscher Wetterdienst</contact>
+    <area>
+      <areaDesc>Stadt Nürnberg</areaDesc>
+      <geocode>
+        <valueName>WARNCELLID</valueName>
+        <value>109564000</value>
+      </geocode>
+    </area>
+    <area>
+      <areaDesc>Stadt Fürth</areaDesc>
+      <geocode>
+        <valueName>WARNCELLID</valueName>
+        <value>109563000</value>
+      </geocode>
+    </area>
+    <area>
+      <areaDesc>Kreis Passau</areaDesc>
+      <geocode>
+        <valueName>WARNCELLID</valueName>
+        <value>109275000</value>
+      </geocode>
+    </area>
+  </info>
+</alert>

@@ -223,17 +223,65 @@ async def test_an_unconfigured_system_is_a_no_op(
     assert (await WeatherRefreshService(s).health()).overall == "down"
 
 
-async def test_the_real_dwd_stub_refresh_records_errors_without_crashing(s: AsyncSession) -> None:
-    """Against the shipped dwd scaffold (get_* raise DwdNotImplementedError) the
-    tick is safe and every kind ends up `down`."""
-    from bbz_core.integrations_host.providers import reset_provider_cache
+_CAP = """<?xml version="1.0" encoding="UTF-8"?>
+<alert xmlns="urn:oasis:names:tc:emergency:cap:1.2">
+  <identifier>2.49.0.0.276.0.DWD.PVW.test.DEU</identifier>
+  <status>Actual</status><msgType>Alert</msgType>
+  <info>
+    <language>de-DE</language><event>GEWITTER</event><severity>Moderate</severity>
+    <onset>2026-09-01T12:00:00+02:00</onset><expires>2026-09-01T18:00:00+02:00</expires>
+    <headline>Amtliche WARNUNG vor GEWITTER</headline>
+    <description>Starkregen und Windböen.</description>
+    <area><areaDesc>Stadt Nürnberg</areaDesc>
+      <geocode><valueName>WARNCELLID</valueName><value>109564000</value></geocode></area>
+  </info>
+</alert>"""
 
-    reset_provider_cache()
+
+def _dwd_with_stub_warnings() -> object:
+    import io
+    import zipfile
+
+    from integrations.dwd.adapter import build as build_dwd
+    from integrations.dwd.warnings import DwdWarningsClient
+
+    class _StubCap(DwdWarningsClient):
+        def __init__(self) -> None:
+            super().__init__("https://example.invalid/DISTRICT_DWD_STAT/")
+            buf = io.BytesIO()
+            with zipfile.ZipFile(buf, "w") as zf:
+                zf.writestr("a.xml", _CAP)
+            self._zip = buf.getvalue()
+
+        def _get(self, url: str) -> bytes:
+            if url.endswith("/"):
+                return b'href="Z_CAP_C_EDZW_20260901120000_PVW_STATUS_PREMIUMDWD_DISTRICT_DE.zip"'
+            return self._zip
+
+    provider = build_dwd({"places": [{"name": "Nürnberg"}]})
+    provider._warnings_client = _StubCap()  # type: ignore[attr-defined]
+    return provider
+
+
+async def test_the_dwd_adapter_warnings_flow_end_to_end(
+    s: AsyncSession, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Real DwdWeatherProvider (stubbed CAP transport) → refresh stores the alert,
+    warnings health is ok; radar / observations still raise → overall down."""
+    _use(monkeypatch, _dwd_with_stub_warnings())
+
     total = await WeatherRefreshService(s).refresh()
-    assert total == 0
+    assert total == 1
+
     await s.rollback()
-    states = (await s.execute(select(WeatherRefreshState))).scalars().all()
-    assert {st.data_kind for st in states} == {"warnings", "radar", "observations"}
-    assert all(st.last_success_at is None and st.last_error for st in states)
-    assert (await WeatherRefreshService(s).health()).overall == "down"
-    reset_provider_cache()
+    alert = (await s.execute(select(WeatherAlert))).scalar_one()
+    assert alert.region == "Stadt Nürnberg" and alert.type == "GEWITTER" and alert.level == "2"
+    assert alert.source_ref == "2.49.0.0.276.0.DWD.PVW.test.DEU"
+
+    states = {st.data_kind: st for st in (await s.execute(select(WeatherRefreshState))).scalars()}
+    assert states["warnings"].last_success_at is not None
+    assert states["radar"].last_error and states["observations"].last_error
+
+    health = await WeatherRefreshService(s).health()
+    assert health.overall == "down"  # worst of {warnings ok, radar down, observations down}
+    assert next(k for k in health.kinds if k.data_kind == "warnings").status == "ok"

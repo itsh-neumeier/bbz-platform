@@ -19,7 +19,7 @@
     },
     "places": {
       "type": "array",
-      "description": "The places to report. `warncell_id` maps to the DWD CAP warncell (cap_warncellids.csv); `poi_station_id` to the DWD POI observation station. Both are looked up from the vendored DWD reference data — the ids here are the operational selection.",
+      "description": "The places to report. If a place name is in the bundled DWD reference data (integrations/dwd/data/mittelfranken.json) its warncell ids + POI station are resolved automatically; `warncell_id`/`warncell_ids`/`poi_station_id` here override / extend that (e.g. for a place outside Mittelfranken).",
       "default": [],
       "items": {
         "type": "object",
@@ -29,11 +29,17 @@
           "name": { "type": "string", "minLength": 1 },
           "warncell_id": {
             "type": "string",
-            "description": "DWD CAP warncell id (e.g. a 9-digit Gemeinde code). Empty until E18-02 wires the lookup."
+            "description": "A single DWD DISTRICT warncell id (prefix 1). Merged with any resolved from the bundled data."
+          },
+          "warncell_ids": {
+            "type": "array",
+            "items": { "type": "string" },
+            "uniqueItems": true,
+            "description": "DWD DISTRICT warncell ids covering this place (Stadt + Kreis)."
           },
           "poi_station_id": {
             "type": "string",
-            "description": "DWD POI weather-report station id. Empty until E18-04 wires the lookup."
+            "description": "DWD POI weather-report station id (E18-04)."
           }
         }
       }
@@ -45,7 +51,7 @@
         "base_url": {
           "type": "string",
           "format": "uri",
-          "default": "https://opendata.dwd.de/weather/alerts/cap/COMMUNEUNION_DWD_STAT/"
+          "default": "https://opendata.dwd.de/weather/alerts/cap/DISTRICT_DWD_STAT/"
         },
         "refresh_seconds": { "type": "integer", "minimum": 60, "default": 300 }
       },

@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<alert xmlns="urn:oasis:names:tc:emergency:cap:1.2">
+  <identifier>2.49.0.0.276.0.DWD.PVW.1788206100000.bdb116fe-48f6-4a4d-b95b-855c2e4092df.DEU</identifier>
+  <sender>opendata@dwd.de</sender>
+  <sent>2026-08-31T21:55:00+02:00</sent>
+  <status>Actual</status>
+  <msgType>Update</msgType>
+  <source>PVW</source>
+  <scope>Public</scope>
+  <code>id:2.49.0.0.276.0.DWD.PVW.1788206100000.bdb116fe-48f6-4a4d-b95b-855c2e4092df</code>
+  <references>opendata@dwd.de,2.49.0.0.276.0.DWD.PVW.1788196080000.509449f9-e386-427c-8cfb-edd9fd2d96e6.DEU,2026-08-31T19:08:00+02:00</references>
+  <info>
+    <language>de-DE</language>
+    <category>Met</category>
+    <event>BÖEN</event>
+    <responseType>Prepare</responseType>
+    <urgency>Immediate</urgency>
+    <severity>Minor</severity>
+    <certainty>Likely</certainty>
+    <eventCode>
+      <valueName>PROFILE_VERSION</valueName>
+      <value>2.1.14</value>
+    </eventCode>
+    <eventCode>
+      <valueName>LICENSE</valueName>
+      <value>© GeoBasis-DE / BKG 2021 (Daten modifiziert)</value>
+    </eventCode>
+    <eventCode>
+      <valueName>II</valueName>
+      <value>11</value>
+    </eventCode>
+    <eventCode>
+      <valueName>GROUP</valueName>
+      <value>WIND</value>
+    </eventCode>
+    <eventCode>
+      <valueName>AREA_COLOR</valueName>
+      <value>255 235 59</value>
+    </eventCode>
+    <effective>2026-08-31T21:55:00+02:00</effective>
+    <onset>2026-08-31T21:55:00+02:00</onset>
+    <senderName>DWD / Seewetterdienst Hamburg</senderName>
+    <headline>Amtliche Warnung des Seewetterdienstes Hamburg vor BÖEN</headline>
+    <description>Böen von 7 Beaufort aus West bis Nordwest.</description>
+    <instruction/>
+    <web>https://dwd.de/warnungen</web>
+    <contact>Deutscher Wetterdienst</contact>
+    <area>
+      <areaDesc>Ostfriesische Küste</areaDesc>
+      <geocode>
+        <valueName>EXCLUDE_POLYGON</valueName>
+        <value>53.786994,7.846123 53.773693,7.867558 53.787845,7.874899 53.780047,7.912813 53.782094,7.946882 53.7753,7.96936 53.77784,7.978262 53.782001,7.973737 53.789841,7.934358 53.795274,7.868256 53.786994,7.846123 53.786994,7.846123 </value>
+      </geocode>
+      <geocode>
+        <valueName>EXCLUDE_POLYGON</valueName>
+        <value>53.774842,7.81399 53.781371,7.814697 53.781227,7.74407 53.777486,7.685665 53.766875,7.670538 53.753906,7.668771 53.752126,7.683814 53.762942,7.695724 53.760162,7.756713 53.774842,7.81399 53.774842,7.81399 </value>
+      </geocode>
+      <geocode>
+        <valueName>EXCLUDE_POLYGON</valueName>
+        <value>53.754873,7.62447 53.758831,7.590616 53.755781,7.485889 53.740836,7.464855 53.723317,7.464725 53.721985,7.500393 53.742922,7.513353 53.748771,7.631183 53.754873,7.62447 53.754873,7.62447 </value>
+      </geocode>
+      <geocode>
+        <valueName>EXCLUDE_POLYGON</valueName>
+        <value>53.732204,7.430946 53.73504,7.382707 53.727292,7.363001 53.721523,7.368306 53.720188,7.428475 53.732204,7.430946 53.732204,7.430946 </value>
+      </geocode>
+      <geocode>
+        <valueName>EXCLUDE_POLYGON</valueName>
+        <value>53.718062,7.346203 53.726011,7.341087 53.722784,7.234037 53.723262,7.187707 53.711721,7.143179 53.705883,7.137838 53.697242,7.152508 53.704322,7.170308 53.698655,7.194395 53.706114,7.205668 53.704611,7.270835 53.718062,7.346203 53.718062,7.346203 </value>
+      </geocode>
+      <geocode>
+        <valueName>EXCLUDE_POLYGON</valueName>
+        <value>53.671095,6.867998 53.662652,6.851934 53.679364,7.097156 53.687411,7.084589 53.685167,7.026979 53.671095,6.867998 53.671095,6.867998 </value>
+      </geocode>
+      <geocode>
+        <valueName>EXCLUDE_POLYGON</valueName>
+        <value>53.62953,6.875511 53.625489,6.891767 53.641711,6.906972 53.653871,6.898536 53.64111,6.865194 53.62953,6.875511 53.62953,6.875511 </value>
+      </geocode>
+      <geocode>
+        <valueName>EXCLUDE_POLYGON</valueName>
+        <value>53.577787,6.664979 53.558913,6.716775 53.568347,6.707378 53.568342,6.732102 53.563796,6.742922 53.556722,6.740508 53.557769,6.748593 53.568043,6.758352 53.584279,6.719525 53.5963,6.754166 53.59634,6.783837 53.604443,6.812073 53.618198,6.757171 53.599096,6.658253 53.58559,6.656202 53.577787,6.664979 53.577787,6.664979 </value>
+      </geocode>
+      <geocode>
+        <valueName>EXCLUDE_POLYGON</valueName>
+        <value>53.589967,6.852693 53.584722,6.865479 53.593227,6.875252 53.596728,6.863725 53.589967,6.852693 53.589967,6.852693 </value>
+      </geocode>
+      <geocode>
+        <valueName>WARNCELLID</valueName>
+        <value>501000001</value>
+      </geocode>
+      <altitude>0.0</altitude>
+      <ceiling>9842.5197</ceiling>
+    </area>
+    <area>
+      <areaDesc>Helgoland</areaDesc>
+      <geocode>
+        <valueName>EXCLUDE_POLYGON</valueName>
+        <value>54.189534,7.919221 54.187188,7.901788 54.18791,7.869404 54.172252,7.889149 54.180256,7.909102 54.181188,7.917959 54.189534,7.919221 54.189534,7.919221 </value>
+      </geocode>
+      <geocode>
+        <valueName>WARNCELLID</valueName>
+        <value>501000002</value>
+      </geocode>
+      <altitude>0.0</altitude>
+      <ceiling>9842.5197</ceiling>
+    </area>
+  </info>
+</alert>

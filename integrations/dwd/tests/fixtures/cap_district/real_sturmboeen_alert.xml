@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<alert xmlns="urn:oasis:names:tc:emergency:cap:1.2">
+  <identifier>2.49.0.0.276.0.DWD.PVW.1788188820000.d6956354-d0e7-4219-ad31-a3ed735b956d.DEU</identifier>
+  <sender>opendata@dwd.de</sender>
+  <sent>2026-08-31T17:07:00+02:00</sent>
+  <status>Actual</status>
+  <msgType>Alert</msgType>
+  <source>PVW</source>
+  <scope>Public</scope>
+  <code>id:2.49.0.0.276.0.DWD.PVW.1788188820000.d6956354-d0e7-4219-ad31-a3ed735b956d</code>
+  <info>
+    <language>de-DE</language>
+    <category>Met</category>
+    <event>STURMBÖEN</event>
+    <responseType>Prepare</responseType>
+    <urgency>Immediate</urgency>
+    <severity>Moderate</severity>
+    <certainty>Likely</certainty>
+    <eventCode>
+      <valueName>PROFILE_VERSION</valueName>
+      <value>2.1.14</value>
+    </eventCode>
+    <eventCode>
+      <valueName>LICENSE</valueName>
+      <value>© GeoBasis-DE / BKG 2021 (Daten modifiziert)</value>
+    </eventCode>
+    <eventCode>
+      <valueName>II</valueName>
+      <value>52</value>
+    </eventCode>
+    <eventCode>
+      <valueName>GROUP</valueName>
+      <value>WIND</value>
+    </eventCode>
+    <eventCode>
+      <valueName>AREA_COLOR</valueName>
+      <value>251 140 0</value>
+    </eventCode>
+    <effective>2026-08-31T17:07:00+02:00</effective>
+    <onset>2026-09-01T02:00:00+02:00</onset>
+    <expires>2026-09-01T08:00:00+02:00</expires>
+    <senderName>Deutscher Wetterdienst</senderName>
+    <headline>Amtliche WARNUNG vor STURMBÖEN</headline>
+    <description>Es treten oberhalb 1000 m Sturmböen mit Geschwindigkeiten zwischen 70 km/h (20 m/s, 38 kn, Bft 8) und 85 km/h (24 m/s, 47 kn, Bft 9) aus westlicher Richtung auf.</description>
+    <instruction>Gefahr durch: einzelne herabstürzende Äste; umherfliegende Gegenstände. 
+Handlungsempfehlungen: 
+frei stehende Objekte sichern (z.B. Leinwände und Möbel); z.B. Zelte und Abdeckungen befestigen; im Freien auf herabfallende Gegenstände (z.B. Äste) achten</instruction>
+    <web>https://dwd.de/warnungen</web>
+    <contact>Deutscher Wetterdienst</contact>
+    <parameter>
+      <valueName>gusts</valueName>
+      <value>70-85 [km/h]</value>
+    </parameter>
+    <parameter>
+      <valueName>wind direction</valueName>
+      <value>west</value>
+    </parameter>
+    <area>
+      <areaDesc>Kreis Harz - Bergland (Oberharz)</areaDesc>
+      <geocode>
+        <valueName>WARNCELLID</valueName>
+        <value>915085002</value>
+      </geocode>
+      <altitude>3280.8399</altitude>
+      <ceiling>9842.5197</ceiling>
+    </area>
+  </info>
+</alert>

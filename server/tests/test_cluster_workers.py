@@ -22,12 +22,23 @@ def test_the_registry_lists_the_expected_singletons() -> None:
     }
 
 
-async def test_the_real_ticks_run_against_the_database(db: object) -> None:
+async def test_the_real_ticks_run_against_the_database(
+    db: object, monkeypatch: pytest.MonkeyPatch
+) -> None:
     s = db  # type: ignore[assignment]
     assert isinstance(s, AsyncSession)
+    # weather-refresh would poll DWD over the network — point it at nothing so the
+    # tick is a no-op (CI must not touch the network, ADR-0026)
+    from bbz_core import settings as settings_mod
+
+    monkeypatch.setenv("BBZ_WEATHER_INTEGRATION_ID", "none")
+    settings_mod.get_settings.cache_clear()
+
     # every tick opens its own session and is safe on an empty system
     for spec in cluster_singletons():
         assert isinstance(await spec.tick(), int)  # rows handled / timers fired / signals drained
+
+    settings_mod.get_settings.cache_clear()
 
 
 async def test_cluster_workers_run_the_leader_and_stop_cleanly(

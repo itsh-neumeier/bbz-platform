@@ -1,0 +1,115 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<alert xmlns="urn:oasis:names:tc:emergency:cap:1.2">
+  <identifier>2.49.0.0.276.0.DWD.PVW.1788206100000.cb12cc13-6146-425b-849c-a5959efaeca2.DEU</identifier>
+  <sender>opendata@dwd.de</sender>
+  <sent>2026-08-31T21:55:00+02:00</sent>
+  <status>Actual</status>
+  <msgType>Update</msgType>
+  <source>PVW</source>
+  <scope>Public</scope>
+  <code>id:2.49.0.0.276.0.DWD.PVW.1788206100000.cb12cc13-6146-425b-849c-a5959efaeca2</code>
+  <references>opendata@dwd.de,2.49.0.0.276.0.DWD.PVW.1788196080000.2911d647-2718-4e2a-a605-bf24dba99d72.DEU,2026-08-31T19:08:00+02:00</references>
+  <info>
+    <language>de-DE</language>
+    <category>Met</category>
+    <event>BÖEN</event>
+    <responseType>Prepare</responseType>
+    <urgency>Immediate</urgency>
+    <severity>Minor</severity>
+    <certainty>Likely</certainty>
+    <eventCode>
+      <valueName>PROFILE_VERSION</valueName>
+      <value>2.1.14</value>
+    </eventCode>
+    <eventCode>
+      <valueName>LICENSE</valueName>
+      <value>© GeoBasis-DE / BKG 2021 (Daten modifiziert)</value>
+    </eventCode>
+    <eventCode>
+      <valueName>II</valueName>
+      <value>11</value>
+    </eventCode>
+    <eventCode>
+      <valueName>GROUP</valueName>
+      <value>WIND</value>
+    </eventCode>
+    <eventCode>
+      <valueName>AREA_COLOR</valueName>
+      <value>255 235 59</value>
+    </eventCode>
+    <effective>2026-08-31T21:55:00+02:00</effective>
+    <onset>2026-08-31T21:55:00+02:00</onset>
+    <senderName>DWD / Seewetterdienst Hamburg</senderName>
+    <headline>Amtliche Warnung des Seewetterdienstes Hamburg vor BÖEN</headline>
+    <description>Böen von 7 Beaufort aus West bis Nordwest.</description>
+    <instruction/>
+    <web>https://dwd.de/warnungen</web>
+    <contact>Deutscher Wetterdienst</contact>
+    <area>
+      <areaDesc>Nordfriesische Küste</areaDesc>
+      <geocode>
+        <valueName>EXCLUDE_POLYGON</valueName>
+        <value>54.752743,8.276512 54.739311,8.293461 54.774392,8.300973 54.793811,8.293642 54.841497,8.295239 54.856947,8.306199 54.863151,8.332505 54.87903,8.339913 54.874811,8.362808 54.859473,8.374178 54.845622,8.41275 54.856679,8.454667 54.876823,8.491279 54.878086,8.426843 54.89684,8.373082 54.928558,8.362168 54.943623,8.362966 54.968854,8.353391 54.988686,8.371404 55.003067,8.395027 55.015972,8.439114 55.023156,8.440497 55.03344,8.425465 55.035058,8.40087 55.043776,8.396217 55.044893,8.463614 55.055427,8.428824 55.05706,8.407326 55.051255,8.393702 54.992405,8.350541 54.952596,8.320874 54.933509,8.309028 54.8837,8.287158 54.796224,8.279655 54.752743,8.276512 54.752743,8.276512 </value>
+      </geocode>
+      <geocode>
+        <valueName>EXCLUDE_POLYGON</valueName>
+        <value>54.748256,8.43741 54.730233,8.403628 54.705087,8.396664 54.694936,8.425206 54.69253,8.446001 54.692361,8.45354 54.682596,8.470527 54.680522,8.525089 54.679835,8.566784 54.711767,8.583862 54.718993,8.597494 54.728573,8.583586 54.744992,8.585019 54.755636,8.538394 54.751993,8.505597 54.748256,8.43741 54.748256,8.43741 </value>
+      </geocode>
+      <geocode>
+        <valueName>EXCLUDE_POLYGON</valueName>
+        <value>54.680599,8.697935 54.675719,8.681255 54.670898,8.686852 54.671594,8.706789 54.677626,8.713057 54.680599,8.697935 54.680599,8.697935 </value>
+      </geocode>
+      <geocode>
+        <valueName>EXCLUDE_POLYGON</valueName>
+        <value>54.67552,8.350529 54.695192,8.339413 54.711574,8.356166 54.683886,8.307366 54.667328,8.292805 54.627207,8.336451 54.611182,8.357761 54.609727,8.382261 54.618085,8.401032 54.623421,8.386625 54.62619,8.401948 54.632809,8.379923 54.639996,8.382274 54.649963,8.360922 54.67552,8.350529 54.67552,8.350529 </value>
+      </geocode>
+      <geocode>
+        <valueName>EXCLUDE_POLYGON</valueName>
+        <value>54.626115,8.528676 54.617556,8.548782 54.633601,8.584156 54.636986,8.632264 54.645936,8.659212 54.652348,8.643343 54.636055,8.540305 54.626115,8.528676 54.626115,8.528676 </value>
+      </geocode>
+      <geocode>
+        <valueName>EXCLUDE_POLYGON</valueName>
+        <value>54.639248,8.715114 54.628531,8.715903 54.632699,8.735987 54.644099,8.73649 54.639248,8.715114 54.639248,8.715114 </value>
+      </geocode>
+      <geocode>
+        <valueName>EXCLUDE_POLYGON</valueName>
+        <value>54.574523,8.508646 54.557457,8.546274 54.559221,8.572875 54.578585,8.556204 54.575569,8.530731 54.57943,8.515234 54.574523,8.508646 54.574523,8.508646 </value>
+      </geocode>
+      <geocode>
+        <valueName>EXCLUDE_POLYGON</valueName>
+        <value>54.557538,8.705088 54.546574,8.642841 54.537734,8.632787 54.532226,8.589888 54.513556,8.587974 54.488634,8.624575 54.494059,8.669679 54.515224,8.696569 54.557538,8.705088 54.557538,8.705088 </value>
+      </geocode>
+      <geocode>
+        <valueName>EXCLUDE_POLYGON</valueName>
+        <value>54.551762,8.789096 54.54255,8.822621 54.552093,8.832024 54.554202,8.812972 54.551762,8.789096 54.551762,8.789096 </value>
+      </geocode>
+      <geocode>
+        <valueName>WARNCELLID</valueName>
+        <value>501000005</value>
+      </geocode>
+      <altitude>0.0</altitude>
+      <ceiling>9842.5197</ceiling>
+    </area>
+    <area>
+      <areaDesc>Elbe-/Wesermündung</areaDesc>
+      <geocode>
+        <valueName>EXCLUDE_POLYGON</valueName>
+        <value>54.053931,8.677237 54.045811,8.687869 54.047894,8.704575 54.052264,8.685568 54.058092,8.700288 54.061034,8.686926 54.068479,8.702911 54.070098,8.690563 54.06272,8.679921 54.053931,8.677237 54.053931,8.677237 </value>
+      </geocode>
+      <geocode>
+        <valueName>EXCLUDE_POLYGON</valueName>
+        <value>53.947277,8.420337 53.944902,8.43256 53.957267,8.459304 53.963952,8.438006 53.954823,8.438029 53.947277,8.420337 53.947277,8.420337 </value>
+      </geocode>
+      <geocode>
+        <valueName>EXCLUDE_POLYGON</valueName>
+        <value>53.914758,8.486716 53.91255,8.500589 53.921202,8.518481 53.931865,8.497041 53.914758,8.486716 53.914758,8.486716 </value>
+      </geocode>
+      <geocode>
+        <valueName>WARNCELLID</valueName>
+        <value>501000003</value>
+      </geocode>
+      <altitude>0.0</altitude>
+      <ceiling>9842.5197</ceiling>
+    </area>
+  </info>
+</alert>

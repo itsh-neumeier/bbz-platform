@@ -1314,11 +1314,12 @@ API. `integrations/telephony_cucm/` stays a placeholder README.
   done end-to-end against the mocks; the real CUCM/SIP `send_dtmf` transport is
   E12-05 / E13-06 (blocked).
 
-### Epic 18 – DWD Weather: **in progress (5/10)**
+### Epic 18 – DWD Weather: **in progress (6/10)**
 - **#375 (E18-01) `integrations/dwd` scaffold + manifest + config** — **ADR-0026**
-  (Accepted) pins the three public DWD Open Data services: warnings → CAP 1.2
-  feed `opendata.dwd.de/weather/alerts/cap/COMMUNEUNION_DWD_STAT/` +
-  `cap_warncellids.csv`; radar → GeoServer WMS `maps.dwd.de/geoserver/dwd/wms`
+  (Accepted; amended in E18-02 — warnings feed → DISTRICT) pins the three public
+  DWD Open Data services: warnings → CAP 1.2
+  feed `opendata.dwd.de/weather/alerts/cap/DISTRICT_DWD_STAT/`;
+  radar → GeoServer WMS `maps.dwd.de/geoserver/dwd/wms`
   (`dwd:Niederschlagsradar`, rendered frames); observations → POI CSV
   `opendata.dwd.de/weather/weather_reports/poi/`. Degradation contract: a
   fetch/parse failure serves the last good cache + health `degraded`, never
@@ -1374,8 +1375,26 @@ API. `integrations/telephony_cucm/` stays a placeholder README.
   `WEATHER_EVENT_CREATED` (critical) with `weather_alert_id` / `source_ref` /
   `region` / `priority`. **Never automatic** — there is no operator-less path
   (§10). `test_weather_create_event_api.py`.
-- Next: **E18-02 / E18-04 / E18-03** (the DWD adapters — need recorded fixtures)
-  then **E18-10** (fixture test suite). E18-09 (UI) → Epic 07 (frontend, blocked).
+- **#377 (E18-02) DWD warnings adapter — LIVE** — `integrations/dwd/warnings.py`:
+  `parse_cap_alerts` (pure) turns each `(alert, de-DE info, area)` of a CAP 1.2
+  XML into a normalized dict — `region`=areaDesc, `type`=event, `level` 1–4 from
+  `severity`, `valid_from`=onset, `valid_to`=expires (often absent), headline,
+  description+instruction, `source_ref`=identifier, `warncell_id`;
+  `msgType=Cancel` and geocode-less areas drop out. `DwdWarningsClient` fetches
+  the lexically-last `…_DISTRICT_DE.zip`, unzips, parses, filters to warncells —
+  stdlib `urllib`/`zipfile`/`ElementTree`, **no new dependency**, blocking work in
+  `asyncio.to_thread`. `DwdWeatherProvider.get_warnings` resolves the configured
+  place names → DISTRICT warncells via the vendored
+  `data/mittelfranken.json`, and returns the `as_item()` dicts E18-06 stores.
+  **ADR-0026 amended**: feed COMMUNEUNION → DISTRICT (Gemeinde level was far too
+  fine). Fixtures are **real** DWD alerts (`tests/fixtures/cap_district/real_*.xml`,
+  polygons stripped) + synthetic ones for the filter / cancel paths; CI never
+  touches the network (`test_cluster_workers` weather tick pointed at nothing).
+  `test_dwd_warnings.py` + an end-to-end `test_weather_refresh.py` case: real
+  provider (stubbed transport) → refresh → `weather_alerts` row → health.
+- Next: **E18-04** (POI observations adapter) then **E18-03** (radar WMS) then
+  **E18-10** (recorded-fixture suite + degraded paths). E18-09 (UI) → Epic 07
+  (frontend, blocked).
 
 ## Existing reference
 A functional HTML mockup defines important UX/feature behavior. **It is not yet in
