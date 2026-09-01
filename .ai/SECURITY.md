@@ -81,6 +81,18 @@ No credentials in repo.
   dry run computes the diff and writes nothing.
 - Config + open-dependency checklist: `docs/auth/ldap-directory.md`.
 
+## Account linking (E21-08)
+- A user can hold several `auth_identities` (local + Entra + LDAP). Linking and
+  unlinking act only on the caller's own account and require a **fresh
+  second-factor confirmation** when the account has a factor.
+- Unlink guards prevent lock-out: never the last identity, never a reduction of
+  the last active admin's sign-in methods.
+- Linking a verified external identity is refused if that `(provider, subject)`
+  is already on another account. `IDENTITY_LINKED` / `IDENTITY_UNLINKED` /
+  `AUTH_PROVIDER_CONFIGURED` audit (critical actions).
+- `auth_provider_config` is display-only — it never enables auth that the
+  deployment's env / secrets do not already back.
+
 ## Advanced RBAC (E21-07)
 - A `role_permissions.condition` (Rule-DSL, ADR-0010) can only **narrow** a grant.
   It evaluates against a clock-only context (ADR-0027), is validated at write
