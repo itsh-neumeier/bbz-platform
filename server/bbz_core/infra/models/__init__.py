@@ -58,6 +58,13 @@ from bbz_core.infra.models.identity import (
 )
 from bbz_core.infra.models.inbox import ProviderEventInbox
 from bbz_core.infra.models.integration_camera_mappings import IntegrationCameraMapping
+from bbz_core.infra.models.monitor import (
+    MonitorInput,
+    MonitorOutput,
+    MonitorProfile,
+    MonitorProfileScope,
+    MonitorRoute,
+)
 from bbz_core.infra.models.outbox import ExternalActionOutbox, OutboxStatus
 from bbz_core.infra.models.rbac import (
     Group,
@@ -160,6 +167,11 @@ __all__ = [
     "LocalCredential",
     "LocalTotp",
     "LocalTotpRecoveryCode",
+    "MonitorInput",
+    "MonitorOutput",
+    "MonitorProfile",
+    "MonitorProfileScope",
+    "MonitorRoute",
     "OutboxStatus",
     "ParticipantRole",
     "Permission",
