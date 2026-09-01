@@ -73,6 +73,18 @@ class Settings(BaseSettings):
     # --- auth: providers (E02-04). 'local' is always active regardless. ---
     auth_providers: list[str] = Field(default_factory=lambda: ["local"])
 
+    # --- auth: Entra ID / OIDC (E21-01). Empty issuer/client_id ⇒ the provider
+    # stays a stub. `client_secret` blank ⇒ a public client (PKCE only). The real
+    # values are an open external dependency; tests use a mock IdP.
+    oidc_entra_issuer: str = ""
+    oidc_entra_client_id: str = ""
+    oidc_entra_client_secret: str = ""
+    oidc_entra_redirect_uri: str = ""
+    #: how long an unfinished OIDC login attempt (the `state` row) stays valid
+    oidc_login_flow_ttl_seconds: int = 600
+    #: allow just-in-time user creation on first external login (policy: E21-02)
+    oidc_jit_provisioning: bool = False
+
     # --- authorization (E02-07). Conditional grants stay deny until E05-01. ---
     rbac_conditions_enabled: bool = False
 

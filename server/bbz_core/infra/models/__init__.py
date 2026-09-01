@@ -65,6 +65,7 @@ from bbz_core.infra.models.monitor import (
     MonitorProfileScope,
     MonitorRoute,
 )
+from bbz_core.infra.models.oidc import OidcLoginFlow
 from bbz_core.infra.models.outbox import ExternalActionOutbox, OutboxStatus
 from bbz_core.infra.models.rbac import (
     Group,
@@ -172,6 +173,7 @@ __all__ = [
     "MonitorProfile",
     "MonitorProfileScope",
     "MonitorRoute",
+    "OidcLoginFlow",
     "OutboxStatus",
     "ParticipantRole",
     "Permission",
