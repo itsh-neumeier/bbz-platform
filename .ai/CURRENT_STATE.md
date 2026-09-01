@@ -1314,7 +1314,7 @@ API. `integrations/telephony_cucm/` stays a placeholder README.
   done end-to-end against the mocks; the real CUCM/SIP `send_dtmf` transport is
   E12-05 / E13-06 (blocked).
 
-### Epic 18 – DWD Weather: **in progress (6/10)**
+### Epic 18 – DWD Weather: **in progress (7/10)**
 - **#375 (E18-01) `integrations/dwd` scaffold + manifest + config** — **ADR-0026**
   (Accepted; amended in E18-02 — warnings feed → DISTRICT) pins the three public
   DWD Open Data services: warnings → CAP 1.2
@@ -1392,9 +1392,21 @@ API. `integrations/telephony_cucm/` stays a placeholder README.
   touches the network (`test_cluster_workers` weather tick pointed at nothing).
   `test_dwd_warnings.py` + an end-to-end `test_weather_refresh.py` case: real
   provider (stubbed transport) → refresh → `weather_alerts` row → health.
-- Next: **E18-04** (POI observations adapter) then **E18-03** (radar WMS) then
-  **E18-10** (recorded-fixture suite + degraded paths). E18-09 (UI) → Epic 07
-  (frontend, blocked).
+- **#381 (E18-04) DWD observations adapter — LIVE** — `integrations/dwd/observations.py`:
+  `parse_poi_csv` reads the DWD POI `<station>-BEOB.csv` (3 header rows,
+  semicolon, latin-1, decimal comma, `---` = missing) and normalises the newest
+  row's temperature / humidity / wind_speed / wind_gust / precipitation /
+  pressure / cloud_cover to the E18-06 observation contract (UTC `observed_at`
+  from `Datum` + `Uhrzeit (UTC)`). `DwdWeatherProvider.get_observations` fetches
+  one CSV per configured place that has a `poi_station_id`
+  (`data/mittelfranken.json`: Nürnberg/Fürth/Erlangen/Schwabach → 10763,
+  Ansbach / Neustadt a.d. Aisch → none → "keine Daten"); a single failing station
+  is skipped, all-fail raises `DwdObservationsError`. Fixtures are **real**
+  trimmed POI CSVs. `test_dwd_observations.py`; the `test_weather_refresh.py` E2E
+  now drives warnings **and** observations end to end.
+- Next: **E18-03** (radar WMS frame series → `RADAR_CACHE`) then **E18-10**
+  (recorded-fixture suite + degraded paths). E18-09 (UI) → Epic 07 (frontend,
+  blocked).
 
 ## Existing reference
 A functional HTML mockup defines important UX/feature behavior. **It is not yet in

@@ -27,6 +27,8 @@ from typing import Any
 from bbz_integration_sdk.capabilities import Capability, CapabilitySet
 from bbz_integration_sdk.diagnostics import DiagnosticsReport, HealthState
 from bbz_integration_sdk.providers.base import ProviderInfo
+from integrations.dwd.observations import DEFAULT_BASE_URL as _OBS_BASE_URL
+from integrations.dwd.observations import DwdObservationsClient
 from integrations.dwd.warnings import DEFAULT_BASE_URL, DwdWarningsClient
 
 #: DWD open-data capability → the SDK capability it maps to
@@ -99,10 +101,15 @@ def _place(name: str, cfg: dict[str, Any] | None = None) -> DwdPlace:
 
 class DwdWeatherProvider:
     def __init__(
-        self, config: DwdConfig | None = None, *, warnings_client: DwdWarningsClient | None = None
+        self,
+        config: DwdConfig | None = None,
+        *,
+        warnings_client: DwdWarningsClient | None = None,
+        observations_client: DwdObservationsClient | None = None,
     ) -> None:
         self._cfg = config or DwdConfig()
         self._warnings_client = warnings_client
+        self._observations_client = observations_client
         self._initialized = False
 
     # --- lifecycle ------------------------------------------------------
@@ -121,23 +128,22 @@ class DwdWeatherProvider:
         )
 
     async def health(self) -> DiagnosticsReport:
-        pending = [
-            k
-            for k in ("weather.radar", "weather.observations")
-            if k in self._cfg.enabled_capabilities
-        ]
+        pending = [k for k in ("weather.radar",) if k in self._cfg.enabled_capabilities]
         return DiagnosticsReport(
             integration_id="dwd",
             state=HealthState.HEALTHY if self._initialized else HealthState.DISABLED,
             summary=(
-                "warnings live (E18-02)"
-                + (f"; {', '.join(pending)} pending (E18-03/04)" if pending else "")
+                "warnings + observations live (E18-02/04)"
+                + (f"; {', '.join(pending)} pending (E18-03)" if pending else "")
             ),
             checked_at=_dt.datetime.now(_dt.UTC),
             details={
                 "region": self._cfg.region,
                 "places": len(self._cfg.places),
                 "warncells": len(self._cfg.warncell_ids()),
+                "poi_stations": len(
+                    {p.poi_station_id for p in self._cfg.places if p.poi_station_id}
+                ),
                 "enabled_capabilities": ", ".join(sorted(self._cfg.enabled_capabilities)),
                 "attribution": ATTRIBUTION,
             },
@@ -156,11 +162,38 @@ class DwdWeatherProvider:
         alerts = await asyncio.to_thread(client.fetch_alerts, warncell_ids=warncells)
         return [a.as_item() for a in alerts]
 
-    async def get_observations(self, *, station_ids: list[str]) -> list[Any]:
-        raise DwdNotImplementedError("get_observations is E18-04 (DWD POI CSV, ADR-0026)")
+    async def get_observations(self, *, station_ids: list[str]) -> list[dict[str, object]]:
+        """The latest reading per configured place that has a POI station. The
+        ``station_ids`` argument is ignored — the adapter owns the place→station
+        map (E18-06 passes ``[]``). A place without a station contributes nothing
+        ("keine Daten")."""
+        client = self._observations_client or DwdObservationsClient(
+            self._cfg.observations.get("base_url") or _OBS_BASE_URL
+        )
+        targets = [(p.name, p.poi_station_id) for p in self._cfg.places if p.poi_station_id]
+        return await asyncio.to_thread(_fetch_observations, client, targets)
 
     async def get_radar_frames(self, *, area: str) -> list[Any]:
         raise DwdNotImplementedError("get_radar_frames is E18-03 (DWD GeoServer WMS, ADR-0026)")
+
+
+def _fetch_observations(
+    client: DwdObservationsClient, targets: list[tuple[str, str]]
+) -> list[dict[str, object]]:
+    """Latest reading per (place, station). A single failing station is skipped;
+    only an all-failure raises (E18-06 keeps the last good snapshot)."""
+    from integrations.dwd.observations import DwdObservationsError
+
+    out: list[dict[str, object]] = []
+    failed_stations: set[str] = set()
+    for place, station_id in targets:
+        try:
+            out.extend(o.as_item() for o in client.fetch(place=place, station_id=station_id))
+        except DwdObservationsError:
+            failed_stations.add(station_id)
+    if failed_stations and failed_stations == {s for _, s in targets}:
+        raise DwdObservationsError("every POI station fetch failed")
+    return out
 
 
 def _parse_config(raw: dict[str, Any] | None) -> DwdConfig:

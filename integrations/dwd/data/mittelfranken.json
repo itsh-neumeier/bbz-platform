@@ -1,26 +1,26 @@
 {
-  "_source": "DWD cap_warncellids.csv (DISTRICT level, WARNCELLID prefix 1) — www.dwd.de/DE/leistungen/opendata/help/warnungen/cap_warncellids_csv",
-  "_note": "Operational places for Mittelfranken (MASTER_PROMPT §10). Each carries the DWD DISTRICT warncell ids that cover it (Stadt + surrounding Kreis) and its DWD POI observation station (filled by E18-04). A deployment may add places.",
+  "_source": "DWD cap_warncellids.csv (DISTRICT level, WARNCELLID prefix 1) + the DWD POI observation feed (opendata.dwd.de/weather/weather_reports/poi/).",
+  "_note": "Operational places for Mittelfranken (MASTER_PROMPT §10). warncell_ids = the DWD DISTRICT warncells covering the place (Stadt + Kreis). poi_station_id = the nearest DWD POI observation station; empty where DWD has none nearby (E18-04 then shows 'keine Daten'). A deployment may add places / override ids.",
   "places": [
     {
       "name": "Nürnberg",
       "warncell_ids": ["109564000", "109574000"],
-      "poi_station_id": ""
+      "poi_station_id": "10763"
     },
     {
       "name": "Fürth",
       "warncell_ids": ["109563000", "109573000"],
-      "poi_station_id": ""
+      "poi_station_id": "10763"
     },
     {
       "name": "Erlangen",
       "warncell_ids": ["109562000", "109572000"],
-      "poi_station_id": ""
+      "poi_station_id": "10763"
     },
     {
       "name": "Schwabach",
       "warncell_ids": ["109565000"],
-      "poi_station_id": ""
+      "poi_station_id": "10763"
     },
     {
       "name": "Ansbach",

@@ -67,10 +67,11 @@ async def test_lifecycle_defaults_to_mittelfranken_and_reports_scaffold_health()
     assert p.capabilities().has(Capability.WEATHER_OBSERVATIONS)
 
     h = await p.health()
-    assert h.state.value == "healthy" and "warnings live" in h.summary
-    assert "E18-03/04" in h.summary  # radar / observations still pending
+    assert h.state.value == "healthy" and "warnings + observations live" in h.summary
+    assert "E18-03" in h.summary  # radar still pending
     assert h.details["places"] == len(DEFAULT_PLACES)
     assert h.details["warncells"] >= len(DEFAULT_PLACES)  # bundled mittelfranken.json
+    assert h.details["poi_stations"] >= 1
     assert h.details["attribution"] == "Deutscher Wetterdienst"
 
     await p.shutdown()
@@ -94,14 +95,7 @@ async def test_a_configured_place_may_carry_its_own_warncell() -> None:
     assert (await p.health()).details["warncells"] == 1
 
 
-@pytest.mark.parametrize(
-    "call",
-    [
-        lambda p: p.get_observations(station_ids=["10763"]),
-        lambda p: p.get_radar_frames(area="mittelfranken"),
-    ],
-)
-async def test_radar_and_observations_are_gated_until_their_adapter_epic(call: object) -> None:
+async def test_radar_is_gated_until_its_adapter_epic() -> None:
     p = build({})
     with pytest.raises(DwdNotImplementedError):
-        await call(p)  # type: ignore[operator]
+        await p.get_radar_frames(area="mittelfranken")
