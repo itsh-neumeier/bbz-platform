@@ -6,6 +6,7 @@ the DB per request, so no cache invalidation or restart is needed.
 
 from __future__ import annotations
 
+import datetime as _dt
 import uuid
 from collections.abc import Sequence
 from dataclasses import dataclass
@@ -27,6 +28,16 @@ from bbz_core.infra.models.rbac import (
 
 class RbacAdminError(Exception):
     pass
+
+
+def _validate_condition(condition: dict[str, Any]) -> None:
+    """Reject a stored-but-broken RBAC condition at write time (ADR-0027)."""
+    from bbz_rule_dsl import RBAC_CONTEXT, RuleDslError
+
+    try:
+        RBAC_CONTEXT.validate(condition)
+    except RuleDslError as exc:
+        raise RbacAdminError(f"invalid condition: {exc}") from exc
 
 
 class LastAdminError(RbacAdminError):
@@ -103,6 +114,10 @@ class RbacAdminRepository:
         if missing:
             raise RbacAdminError(f"unknown permission keys: {sorted(missing)}")
 
+        for a in assignments:
+            if a.condition is not None:
+                _validate_condition(a.condition)
+
         had_admin = await self._any_admin()
         await self._s.execute(delete(RolePermission).where(RolePermission.role_id == role.id))
         for a in assignments:
@@ -121,11 +136,31 @@ class RbacAdminRepository:
     # --- assignments --------------------------------------------------
 
     async def assign_user_role(
-        self, user_id: uuid.UUID, role_id: uuid.UUID, granted_by: uuid.UUID | None
+        self,
+        user_id: uuid.UUID,
+        role_id: uuid.UUID,
+        granted_by: uuid.UUID | None,
+        *,
+        valid_from: _dt.datetime | None = None,
+        valid_to: _dt.datetime | None = None,
     ) -> None:
-        if await self._s.get(UserRole, (user_id, role_id)) is None:
-            self._s.add(UserRole(user_id=user_id, role_id=role_id, granted_by=granted_by))
-            await self._s.commit()
+        if valid_from and valid_to and valid_to <= valid_from:
+            raise RbacAdminError("valid_to must be after valid_from")
+        existing = await self._s.get(UserRole, (user_id, role_id))
+        if existing is None:
+            self._s.add(
+                UserRole(
+                    user_id=user_id,
+                    role_id=role_id,
+                    granted_by=granted_by,
+                    valid_from=valid_from,
+                    valid_to=valid_to,
+                )
+            )
+        else:  # re-assigning updates the validity window
+            existing.valid_from = valid_from
+            existing.valid_to = valid_to
+        await self._s.commit()
 
     async def revoke_user_role(self, user_id: uuid.UUID, role_id: uuid.UUID) -> None:
         had_admin = await self._any_admin()

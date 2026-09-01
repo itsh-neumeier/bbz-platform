@@ -6,13 +6,16 @@ own BBZ"; ``own_events`` means "objects this user owns"; and so on. The
 object's placement — a mismatch, or a missing value on either side, denies.
 Never the other way round.
 
-``condition`` (Rule-DSL, ADR-0010) is evaluated only when
-``BBZ_RBAC_CONDITIONS_ENABLED`` is true; until the DSL evaluator ships
-(E05-01) a conditional grant is treated as **deny**.
+``condition`` (Rule-DSL, ADR-0010) is evaluated against the ADR-0027 RBAC
+context (clock + the grant's scope) only when ``BBZ_RBAC_CONDITIONS_ENABLED`` is
+true — turning it on is a deliberate operator choice. With the flag off, or on a
+parse / evaluation failure, a conditional grant is **deny**. A condition can
+only narrow a grant, never widen it.
 """
 
 from __future__ import annotations
 
+import datetime as _dt
 import uuid
 from dataclasses import dataclass
 
@@ -59,22 +62,29 @@ def scope_covers(scope: str, ctx: ScopeContext) -> bool:
             return False  # unknown scope value -> deny
 
 
-def _condition_allows(grant: Grant, ctx: ScopeContext) -> bool:
+def condition_allows(grant: Grant, *, now: _dt.datetime | None = None) -> bool:
+    """Evaluate ``grant.condition`` against the ADR-0027 RBAC context. Used by
+    both the scope-agnostic and the scope-aware permission check."""
     if grant.condition is None:
         return True
     if not get_settings().rbac_conditions_enabled:
-        return False  # safe default: conditional grants stay deny unless opted in
-    # Feature flag is on: attempt real evaluation. A dedicated RBAC condition
-    # context (which ScopeContext fields expose as which DSL fields) is still to
-    # be defined; until then the context is empty and any parse/eval error is a
-    # deny, never an allow.
-    from bbz_rule_dsl import Context, RuleDslError, evaluate, parse
+        return False  # conditional grants stay deny unless opted in
+    from bbz_rule_dsl import Context, evaluate, parse
 
+    n = now or _dt.datetime.now(_dt.UTC)
+    context = Context(
+        {
+            "now.hour": n.hour,
+            "now.weekday": n.weekday(),
+            "now.iso": n.isoformat(timespec="seconds"),
+            "scope": grant.scope,
+        }
+    )
     try:
-        return bool(evaluate(parse(dict(grant.condition)), Context()))
-    except RuleDslError:
+        return bool(evaluate(parse(dict(grant.condition)), context))
+    except Exception:  # any parse/eval failure is a deny, never an allow
         return False
 
 
 def grant_resolves(grant: Grant, ctx: ScopeContext) -> bool:
-    return scope_covers(grant.scope, ctx) and _condition_allows(grant, ctx)
+    return scope_covers(grant.scope, ctx) and condition_allows(grant)

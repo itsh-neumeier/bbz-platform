@@ -104,6 +104,31 @@ class UserRole(Base):
     granted_by: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("users.id", ondelete="SET NULL")
     )
+    #: optional validity window (E21-07) — NULL ends are open. Outside it, the
+    #: grant is not returned by the grant store (so it just isn't effective).
+    valid_from: Mapped[_dt.datetime | None] = mapped_column()
+    valid_to: Mapped[_dt.datetime | None] = mapped_column()
+
+
+class PermissionDelegation(Base):
+    """One user temporarily lends a single permission to another (E21-07).
+
+    Always expires; revocable. The grant store folds active rows into the
+    delegatee's effective permissions. Not a role — a single permission key.
+    """
+
+    __tablename__ = "permission_delegations"
+
+    id: Mapped[uuid.UUID] = uuid_pk()
+    from_user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    to_user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), index=True
+    )
+    permission_key: Mapped[str] = mapped_column(String(100))
+    scope: Mapped[str] = mapped_column(String(32), server_default=text("'global'"))
+    granted_at: Mapped[_dt.datetime] = mapped_column(server_default=text("now()"))
+    expires_at: Mapped[_dt.datetime] = mapped_column()
+    revoked_at: Mapped[_dt.datetime | None] = mapped_column()
 
 
 class GroupRole(Base):

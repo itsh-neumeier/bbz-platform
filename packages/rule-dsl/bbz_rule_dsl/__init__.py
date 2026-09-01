@@ -17,6 +17,7 @@ plus a Hypothesis fuzz suite (E05-01, ADR-0010). The typed context registry
 """
 
 from bbz_rule_dsl.context import (
+    RBAC_CONTEXT,
     TRIGGER_CONTEXT,
     WORKFLOW_CONTEXT,
     ContextSchema,
@@ -34,6 +35,7 @@ from bbz_rule_dsl.model import (
 
 __all__ = [
     "ALLOWED_OPERATORS",
+    "RBAC_CONTEXT",
     "TRIGGER_CONTEXT",
     "WORKFLOW_CONTEXT",
     "Context",

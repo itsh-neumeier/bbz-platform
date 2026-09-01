@@ -1549,7 +1549,7 @@ API. `integrations/telephony_cucm/` stays a placeholder README.
   alternative, standard-layout button, profile save/load, locked lower-left) is
   left → Epic 07 (frontend, blocked).
 
-### Epic 21 – Enterprise Authentication: **in progress (6/8)**
+### Epic 21 – Enterprise Authentication: **in progress (7/8)**
 - **#431 (E21-01) Entra ID / OIDC provider** — `bbz_core.auth.oidc` (pure,
   framework-free): `pkce` (S256 only), `discovery` (fetch metadata, assert the
   issuer matches), `flow.start` (authorization-code URL with state / nonce /
@@ -1693,8 +1693,29 @@ API. `integrations/telephony_cucm/` stays a placeholder README.
   attestation / assertion): register + list + isolation, login challenge +
   verify + bad-assertion + sign-count + single-use, passkey-satisfies-policy,
   step-up via assertion, removal, disabled-when-unconfigured.
-- Next: E21-07 (advanced RBAC — conditions / time-bound grants / delegation).
-  E21-08 (account linking + admin UI) is partly frontend.
+- **#443 (E21-07) advanced RBAC — conditions, time-bound grants, delegation**
+  (ADR-0027). **Conditions** (`role_permissions.condition`, since E02-07) now
+  evaluate: `bbz_rule_dsl.RBAC_CONTEXT` (clock-only — `now.hour` / `now.weekday`
+  / `now.iso` + the grant's `scope`), built per check in
+  `resolver.condition_allows(grant, now=...)`, used by **both** `authorize()`
+  and `authorize_scoped()`. Still gated by `rbac_conditions_enabled` (default
+  **off** — opt-in); flag off / parse error / eval raise ⇒ deny. The condition
+  JSON is validated (`RBAC_CONTEXT.validate`) at write time in
+  `set_role_permissions` → 422 on a bad expression. **Time-bound grants**:
+  `user_roles.valid_from` / `valid_to` (migration `0049`) — the grant store only
+  returns grants inside the window, so an expired grant is simply not effective;
+  `POST /users/{id}/roles` takes the optional window, `valid_to <= valid_from`
+  → 422. **Delegation**: `permission_delegations` (always `expires_at`,
+  revocable) — `DelegationService.delegate` (the delegator must currently hold
+  the permission, else `NotDelegatorsToGive`; `PERMISSION_DELEGATED` audit) /
+  `revoke` (`PERMISSION_DELEGATION_REVOKED`); the grant store folds active
+  delegations into the delegatee's effective permissions, so a revoke / expiry
+  is effective on their next request. API `POST/GET/DELETE
+  /api/v1/permissions/delegations` (`permissions.manage`). Both delegation
+  actions are critical. `test_advanced_rbac.py` (13) + `RBAC_CONTEXT` DSL tests.
+  **Not built**: approval workflows for delegations; request-derived condition
+  fields (client/workplace).
+- Next: E21-08 (account linking + auth-provider admin UI) — partly frontend.
 
 ## Existing reference
 A functional HTML mockup defines important UX/feature behavior. **It is not yet in

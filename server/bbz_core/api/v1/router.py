@@ -11,6 +11,7 @@ from bbz_core.api.v1.calls import router as calls_router
 from bbz_core.api.v1.client_popups import router as client_popups_router
 from bbz_core.api.v1.coda_alarm_sources import router as coda_alarm_sources_router
 from bbz_core.api.v1.contacts import router as contacts_router
+from bbz_core.api.v1.delegations import router as delegations_router
 from bbz_core.api.v1.directory_sync import router as directory_sync_router
 from bbz_core.api.v1.door_action_profiles import router as door_action_profiles_router
 from bbz_core.api.v1.doors import router as doors_router
@@ -46,6 +47,7 @@ api_v1.include_router(contacts_router)
 api_v1.include_router(lines_router)
 api_v1.include_router(system_router)
 api_v1.include_router(rbac_router)
+api_v1.include_router(delegations_router)
 api_v1.include_router(users_router)
 api_v1.include_router(presence_router)
 api_v1.include_router(totp_router)
