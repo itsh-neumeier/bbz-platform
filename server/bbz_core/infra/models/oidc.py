@@ -13,8 +13,9 @@ failover still resolves (HA note in the roadmap).
 from __future__ import annotations
 
 import datetime as _dt
+import uuid
 
-from sqlalchemy import String, Text
+from sqlalchemy import ForeignKey, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from bbz_core.infra.models.base import Base
@@ -30,5 +31,10 @@ class OidcLoginFlow(Base):
     #: Fernet ciphertext of the PKCE code_verifier
     code_verifier_enc: Mapped[str] = mapped_column(Text)
     redirect_uri: Mapped[str] = mapped_column(String(500))
+    #: set for an account-linking flow (E21-08) — the callback attaches the
+    #: verified identity to this user instead of resolving / JIT-provisioning
+    link_user_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE")
+    )
     created_at: Mapped[_dt.datetime] = mapped_column()
     expires_at: Mapped[_dt.datetime] = mapped_column(index=True)

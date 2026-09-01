@@ -1549,7 +1549,7 @@ API. `integrations/telephony_cucm/` stays a placeholder README.
   alternative, standard-layout button, profile save/load, locked lower-left) is
   left → Epic 07 (frontend, blocked).
 
-### Epic 21 – Enterprise Authentication: **in progress (7/8)**
+### Epic 21 – Enterprise Authentication: **backend COMPLETE (8/8; E21-08 Admin-UI + Playwright → Epic 07)**
 - **#431 (E21-01) Entra ID / OIDC provider** — `bbz_core.auth.oidc` (pure,
   framework-free): `pkce` (S256 only), `discovery` (fetch metadata, assert the
   issuer matches), `flow.start` (authorization-code URL with state / nonce /
@@ -1715,7 +1715,29 @@ API. `integrations/telephony_cucm/` stays a placeholder README.
   actions are critical. `test_advanced_rbac.py` (13) + `RBAC_CONTEXT` DSL tests.
   **Not built**: approval workflows for delegations; request-derived condition
   fields (client/workplace).
-- Next: E21-08 (account linking + auth-provider admin UI) — partly frontend.
+- **#445 (E21-08) account linking + auth-provider config** — a BBZ `User` can
+  carry several `auth_identities`. `AccountLinkingService`
+  (`infra/repositories/account_linking.py`): `list_identities`, `link_local`
+  (external-only account adds a password), `link_external` (attach a verified
+  `ldap_ad` / `entra_oidc` identity — rejects a subject already on another
+  account, or a second identity for the same provider), `unlink` (guards: never
+  the **last** identity, never one that would reduce the last active admin's
+  sign-in methods; cascades to credentials / TOTP / WebAuthn). Self-service API
+  `GET /api/v1/auth/identities`, `POST …/identities/{local,ldap}`,
+  `POST …/identities/oidc/{provider}/{start,callback}`, `DELETE …/identities/{id}`
+  — all need a **fresh second-factor confirmation** (`_confirm_second_factor`:
+  step-up freshness, but a no-factor account is exempt). The OIDC link flow adds
+  `oidc_login_flows.link_user_id` (migration `0050`) + `OidcLoginService.begin(…,
+  link_user_id=)` / `complete_link()` (verifies the ID token, returns
+  `(link_user_id, sub)`, mints **no** session); the callback checks the flow
+  belongs to the caller. `IDENTITY_LINKED` / `IDENTITY_UNLINKED` /
+  `AUTH_PROVIDER_CONFIGURED` audit (all critical). **Auth-provider config**:
+  `auth_provider_config` (per-provider `enabled` + `display_name`; **display
+  only** — it never enables auth the env doesn't back) + `GET/PUT
+  /api/v1/auth/providers` (`permissions.manage`). Group-mapping (E21-02) and
+  MFA-policy (E21-05) admin APIs already existed. **Admin-UI + the Playwright
+  link/unlink coverage → Epic 07** (blocked); backend is `test_account_linking.py`
+  (12). **Epic 21 backend complete.**
 
 ## Existing reference
 A functional HTML mockup defines important UX/feature behavior. **It is not yet in

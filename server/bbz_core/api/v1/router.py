@@ -4,6 +4,7 @@ from fastapi import APIRouter
 from pydantic import BaseModel
 
 from bbz_core import __version__
+from bbz_core.api.v1.account_linking import router as account_linking_router
 from bbz_core.api.v1.audit import router as audit_router
 from bbz_core.api.v1.auth import router as auth_router
 from bbz_core.api.v1.auth_mappings import router as auth_mappings_router
@@ -37,6 +38,7 @@ from bbz_core.settings import get_settings
 
 api_v1 = APIRouter(prefix="/api/v1")
 api_v1.include_router(auth_router)
+api_v1.include_router(account_linking_router)
 api_v1.include_router(auth_mappings_router)
 api_v1.include_router(directory_sync_router)
 api_v1.include_router(mfa_policies_router)

@@ -60,6 +60,7 @@ class OidcUserNotProvisioned(OidcError):
 class _ConsumedFlow:
     nonce: str
     code_verifier_enc: str
+    link_user_id: uuid.UUID | None = None
 
 
 def _fernet() -> Fernet:
@@ -99,8 +100,9 @@ class OidcLoginService:
         _META_CACHE[cfg.issuer] = (time.monotonic(), meta)
         return meta
 
-    async def begin(self, provider: str) -> str:
-        """Persist a new login attempt and return the IdP authorization URL."""
+    async def begin(self, provider: str, *, link_user_id: uuid.UUID | None = None) -> str:
+        """Persist a new login attempt and return the IdP authorization URL.
+        ``link_user_id`` marks an account-linking flow (E21-08)."""
         cfg = config_for(provider)
         meta = await self._metadata(cfg)
         flow = start(cfg, meta)
@@ -114,6 +116,7 @@ class OidcLoginService:
                     nonce=flow.nonce,
                     code_verifier_enc=_fernet().encrypt(flow.code_verifier.encode()).decode(),
                     redirect_uri=cfg.redirect_uri,
+                    link_user_id=link_user_id,
                     created_at=_now(),
                     expires_at=_now() + _dt.timedelta(seconds=ttl),
                 )
@@ -140,6 +143,27 @@ class OidcLoginService:
         await self._audit_ok(user_id, provider, client_id=client_id, workplace_id=workplace_id)
         return user_id
 
+    async def complete_link(self, provider: str, *, code: str, state: str) -> tuple[uuid.UUID, str]:
+        """Finish an account-linking flow (E21-08): consume the state, verify the
+        ID token, and return ``(link_user_id, sub)``. The flow **must** have been
+        started with ``link_user_id``. Does not mint a session. Raises
+        :class:`OidcError` on any problem."""
+        consumed = await self._consume_flow(provider, state)
+        if consumed.link_user_id is None:
+            raise OidcStateError("not a linking flow")
+        cfg = config_for(provider)
+        meta = await self._metadata(cfg)
+        try:
+            verifier = _fernet().decrypt(consumed.code_verifier_enc.encode()).decode()
+        except InvalidToken as exc:
+            raise OidcStateError("login state is corrupt") from exc
+        tokens = await exchange(cfg, meta, code=code, code_verifier=verifier, http=self._http)
+        jwks = await fetch_jwks(meta, self._http)
+        claims = validate_id_token(
+            tokens.id_token, cfg=cfg, meta=meta, jwks=jwks, nonce=consumed.nonce
+        )
+        return consumed.link_user_id, claims.subject
+
     # --- steps ----------------------------------------------------
 
     async def _consume_flow(self, provider: str, state: str) -> _ConsumedFlow:
@@ -147,7 +171,11 @@ class OidcLoginService:
         row = await self._s.get(OidcLoginFlow, state)
         if row is None or row.provider != provider:
             raise OidcStateError("unknown or foreign login state")
-        consumed = _ConsumedFlow(nonce=row.nonce, code_verifier_enc=row.code_verifier_enc)
+        consumed = _ConsumedFlow(
+            nonce=row.nonce,
+            code_verifier_enc=row.code_verifier_enc,
+            link_user_id=row.link_user_id,
+        )
         expired = row.expires_at < _now()
         await self._s.rollback()
         async with self._s.begin():  # single-use: the row is gone before anything else

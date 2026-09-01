@@ -13,6 +13,7 @@ from bbz_core.infra.models.application_catalog import (
 )
 from bbz_core.infra.models.audit import AuditEvent
 from bbz_core.infra.models.auth_mapping import AuthGroupMapping, ExternalRoleAssignment
+from bbz_core.infra.models.auth_provider_config import AuthProviderConfig
 from bbz_core.infra.models.base import Base
 from bbz_core.infra.models.bku_agent import (
     BkuAgent,
@@ -133,6 +134,7 @@ __all__ = [
     "AuthGroupMapping",
     "AuthIdentity",
     "AuthProvider",
+    "AuthProviderConfig",
     "Base",
     "BkuAgent",
     "BkuAgentCommand",

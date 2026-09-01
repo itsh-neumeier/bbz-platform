@@ -21,6 +21,12 @@ _EXEMPT: set[tuple[str, str]] = {
     ("POST", "/api/v1/auth/totp/activate"),
     ("DELETE", "/api/v1/auth/totp"),
     ("POST", "/api/v1/auth/mfa-policies/step-up"),  # self-service: re-verify own MFA
+    # self-service account linking / unlinking (E21-08) — acts on the caller's own account
+    ("POST", "/api/v1/auth/identities/local"),
+    ("POST", "/api/v1/auth/identities/ldap"),
+    ("POST", "/api/v1/auth/identities/oidc/{provider}/start"),
+    ("POST", "/api/v1/auth/identities/oidc/{provider}/callback"),
+    ("DELETE", "/api/v1/auth/identities/{identity_id}"),
 }
 _WRITE = {"POST", "PUT", "PATCH", "DELETE"}
 
