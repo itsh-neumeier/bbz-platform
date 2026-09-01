@@ -1,0 +1,10 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "monitor_weytec configuration",
+  "description": "Interface-only scaffold (E19-07). Real connection settings (base URL, auth, the input/output identifier map) are added ONLY from official Weytec documentation — see docs/integrations/weytec-monitor-pending.md.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "instance_id": { "type": "string", "default": "weytec-1" }
+  }
+}

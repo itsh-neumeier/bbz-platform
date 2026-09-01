@@ -1,0 +1,21 @@
+{
+  "id": "monitor_weytec",
+  "name": "Weytec Monitor Routing",
+  "version": "0.0.0",
+  "domain": "monitor",
+  "adapter": "integrations.monitor_weytec.adapter:WeytecMonitorProvider",
+  "minimum_core_version": "0.0.0",
+  "config_schema_version": 1,
+  "capabilities": [],
+  "mock": false,
+  "pending_vendor_documentation": [
+    "api-endpoints",
+    "authentication",
+    "routing-commands",
+    "layout-model",
+    "input-output-identifiers",
+    "sdk-classes",
+    "licensing"
+  ],
+  "description": "Weytec monitor/KVM routing (MASTER_PROMPT §9). INTERFACE-ONLY SCAFFOLD — every routing call raises WeytecNotConfiguredError. The Weytec API is an open external dependency and must not be invented (RULES.md); see docs/integrations/weytec-monitor-pending.md. Only the normalized bbz_integration_sdk MonitorProvider shape is fixed. Use monitor_mock for development and tests (E19-06)."
+}
