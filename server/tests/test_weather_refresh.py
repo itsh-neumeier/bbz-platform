@@ -236,6 +236,93 @@ async def test_never_succeeded_is_down(s: AsyncSession, monkeypatch: pytest.Monk
     assert health.overall == "down" and health.kinds[0].status == "down"
 
 
+# --- degradation & recovery (E18-10) -----------------------------------------
+
+
+async def test_a_degraded_kind_recovers_on_the_next_good_refresh(
+    s: AsyncSession, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _use(monkeypatch, _StubWeather(caps={"weather.warnings"}, warnings=[_warning("a")]))
+    await WeatherRefreshService(s).refresh()
+
+    _use(monkeypatch, _StubWeather(caps={"weather.warnings"}, fail={"warnings"}))
+    await WeatherRefreshService(s).refresh()
+    assert (await WeatherRefreshService(s).health()).overall == "degraded"
+
+    # DWD is back
+    _use(
+        monkeypatch,
+        _StubWeather(caps={"weather.warnings"}, warnings=[_warning("a"), _warning("b")]),
+    )
+    await WeatherRefreshService(s).refresh()
+
+    await s.rollback()
+    health = await WeatherRefreshService(s).health()
+    assert health.overall == "ok" and health.kinds[0].status == "ok"
+    st = (await s.execute(select(WeatherRefreshState))).scalar_one()
+    assert st.last_error is None and st.last_item_count == 2
+
+
+async def test_a_stale_kind_recovers_on_the_next_good_refresh(
+    s: AsyncSession, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _use(monkeypatch, _StubWeather(caps={"weather.warnings"}, warnings=[_warning("a")]))
+    await WeatherRefreshService(s).refresh()
+
+    await s.rollback()
+    async with s.begin():
+        await s.execute(
+            update(WeatherRefreshState).values(
+                last_success_at=_dt.datetime.now(_dt.UTC) - _dt.timedelta(hours=2),
+                last_attempt_at=_dt.datetime.now(_dt.UTC) - _dt.timedelta(hours=2),
+            )
+        )
+    assert (await WeatherRefreshService(s).health()).overall == "stale"
+
+    await WeatherRefreshService(s).refresh()  # a fresh success
+    assert (await WeatherRefreshService(s).health()).overall == "ok"
+
+
+async def test_overall_health_is_the_worst_of_the_kinds(
+    s: AsyncSession, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    caps = {"weather.warnings", "weather.radar"}
+    ok = _StubWeather(caps=caps, warnings=[_warning("a")], radar=[_frame(30), _frame(35)])
+    _use(monkeypatch, ok)
+    await WeatherRefreshService(s).refresh()
+    assert (await WeatherRefreshService(s).health()).overall == "ok"
+
+    _use(monkeypatch, _StubWeather(caps=caps, warnings=[_warning("a")], fail={"radar"}))
+    await WeatherRefreshService(s).refresh()
+    health = await WeatherRefreshService(s).health()
+    assert health.overall == "degraded"  # warnings ok, radar degraded → worst wins
+    assert {k.data_kind: k.status for k in health.kinds} == {"warnings": "ok", "radar": "degraded"}
+
+    _use(monkeypatch, ok)
+    await WeatherRefreshService(s).refresh()
+    assert (await WeatherRefreshService(s).health()).overall == "ok"
+
+
+async def test_a_failed_radar_refresh_keeps_the_cached_frames(
+    s: AsyncSession, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from bbz_core.infra.repositories.weather_read import RADAR_CACHE
+
+    area = get_settings().weather_radar_area
+    _use(
+        monkeypatch,
+        _StubWeather(caps={"weather.radar"}, radar=[_frame(20), _frame(25), _frame(30)]),
+    )
+    await WeatherRefreshService(s).refresh()
+    assert len(RADAR_CACHE[area]) == 3
+
+    _use(monkeypatch, _StubWeather(caps={"weather.radar"}, fail={"radar"}))
+    await WeatherRefreshService(s).refresh()
+
+    assert [f.frame_time.minute for f in RADAR_CACHE[area]] == [20, 25, 30]  # last good series kept
+    assert (await WeatherRefreshService(s).health()).overall == "degraded"
+
+
 async def test_an_unconfigured_system_is_a_no_op(
     s: AsyncSession, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -347,3 +434,31 @@ async def test_the_dwd_adapter_flow_end_to_end(
     health = await WeatherRefreshService(s).health()
     assert health.overall == "ok"
     assert {k.status for k in health.kinds} == {"ok"}
+
+
+async def test_the_dwd_adapter_degrades_one_kind_without_touching_the_others(
+    s: AsyncSession, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Real DwdWeatherProvider, only the CAP transport broken → warnings ``down``,
+    observations + radar ``ok``, overall = worst (E18-10)."""
+    from integrations.dwd.warnings import DwdWarningsError
+
+    provider = _dwd_with_stubs()
+
+    def _boom(_url: str) -> bytes:
+        raise DwdWarningsError("opendata.dwd.de 503")
+
+    provider._warnings_client._get = _boom  # type: ignore[attr-defined]
+    _use(monkeypatch, provider)
+
+    await WeatherRefreshService(s).refresh()
+    await s.rollback()
+
+    health = await WeatherRefreshService(s).health()
+    kinds = {k.data_kind: k.status for k in health.kinds}
+    assert kinds == {"warnings": "down", "observations": "ok", "radar": "ok"}
+    assert health.overall == "down"
+    # the good kinds still landed their data
+    assert (await s.execute(select(func.count()).select_from(WeatherObservation))).scalar_one() == 2
+    st = {r.data_kind: r for r in (await s.execute(select(WeatherRefreshState))).scalars()}
+    assert "503" in (st["warnings"].last_error or "")

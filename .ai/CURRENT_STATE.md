@@ -1314,7 +1314,7 @@ API. `integrations/telephony_cucm/` stays a placeholder README.
   done end-to-end against the mocks; the real CUCM/SIP `send_dtmf` transport is
   E12-05 / E13-06 (blocked).
 
-### Epic 18 – DWD Weather: **in progress (8/10)**
+### Epic 18 – DWD Weather: **in progress (9/10)**
 - **#375 (E18-01) `integrations/dwd` scaffold + manifest + config** — **ADR-0026**
   (Accepted; amended in E18-02 — warnings feed → DISTRICT) pins the three public
   DWD Open Data services: warnings → CAP 1.2
@@ -1424,8 +1424,19 @@ API. `integrations/telephony_cucm/` stays a placeholder README.
   (`tests/fixtures/wms/getcapabilities_radar.xml`). `test_dwd_radar.py`; the
   `test_weather_refresh.py` E2E now drives warnings **+** observations **+** the
   12-frame radar series end to end.
-- Next: **E18-10** (recorded-fixture suite + degraded paths). E18-09 (UI) →
-  Epic 07 (frontend, blocked).
+- **#393 (E18-10) recorded-fixture suite + degraded/recovery paths** —
+  `integrations/dwd/tests/fixtures/README.md` documents every fixture's provenance
+  (real vs synthetic, what was trimmed). New `test_dwd_degraded.py` (corrupt zip,
+  truncated CAP member, non-de-only alert, all-`---` POI row, unparseable
+  timestamp, thin CSV, GetCapabilities without a `time` dimension / without our
+  layer → each raises the typed error or returns a thin-but-valid list) and
+  `test_dwd_no_network.py` (autouse fixture makes `urllib.request.urlopen` raise;
+  every adapter still parses its fixture end to end). `test_weather_refresh.py`
+  gains degradation→recovery (`degraded`/`stale` → next good refresh → `ok`,
+  `last_error` cleared), `overall` = worst kind, and "a failed radar refresh
+  keeps the cached frames". `.ai/TESTING.md` gets a DWD section. **PR CI touches
+  no network.** `dwd` test count 43.
+- Only **E18-09** (Wetterlage UI) left → Epic 07 (frontend, blocked).
 
 ## Existing reference
 A functional HTML mockup defines important UX/feature behavior. **It is not yet in
