@@ -1438,7 +1438,7 @@ API. `integrations/telephony_cucm/` stays a placeholder README.
   no network.** `dwd` test count 43.
 - Only **E18-09** (Wetterlage UI) left → Epic 07 (frontend, blocked).
 
-### Epic 19 – Weytec Monitor Routing: **in progress (5/10)**
+### Epic 19 – Weytec Monitor Routing: **in progress (6/10)**
 - **#395 (E19-01) DB schema** — migration `0041_monitor_schema` +
   `bbz_core.infra.models.monitor`. Four tables (MASTER_PROMPT §9): `monitor_inputs`
   (`key` unique — BBZ-OS / BKU1-4 / Cayuga 1-2), `monitor_outputs` (`key` unique,
@@ -1502,8 +1502,22 @@ API. `integrations/telephony_cucm/` stays a placeholder README.
   `active_monitor_provider()` in `integrations_host`. No provider → 503; provider
   reject → 503. `test_monitor_routing_api.py` (8, against `monitor_mock`).
   **NB** external provider execution via the outbox is deferred to E19-07.
-- Next: E19-05 (profiles), E19-07 (`monitor_weytec` scaffold — no invented API),
-  E19-09 (permissions seed), E19-10 (E2E). E19-08 (dialog UI) → Epic 07 (blocked).
+- **#402 (E19-05) layout profiles** —
+  `bbz_core.infra.repositories.monitor_profiles.MonitorProfileService` + profile
+  routes on `bbz_core.api.v1.monitor`. `GET /monitor/profiles?workplace_id=` +
+  `POST` / `PUT /{id}` / `DELETE /{id}` (`monitor.manage_profiles`) +
+  `POST /{id}/apply` (`monitor.route`, idempotent). A profile is a named full
+  `{output_key: input_key}` layout, `validate_layout`-checked on create/update
+  (incl. the fixed rule). Scope `user` (private to `owner_user_id`) or
+  `workplace` (visible with a matching `?workplace_id`; `workplace_id` is a plain
+  UUID). Name unique per scope — migration `0043_monitor_profile_name_uq` (two
+  partial unique indexes) + a service pre-check → 409. **Apply** goes through
+  `MonitorRoutingService.apply_assignments` (shared with direct routing — same
+  fixed-rule enforcement + `MONITOR_ROUTE_CHANGED` per change, route rows stamped
+  with `profile_id`) and then writes one `MONITOR_PROFILE_APPLIED` audit
+  (`AuditAction` + `CRITICAL_ACTIONS`). `test_monitor_profiles_api.py` (9).
+- Next: E19-07 (`monitor_weytec` scaffold — no invented API), E19-09 (permissions
+  seed), E19-10 (E2E). E19-08 (dialog UI) → Epic 07 (blocked).
 
 ## Existing reference
 A functional HTML mockup defines important UX/feature behavior. **It is not yet in
