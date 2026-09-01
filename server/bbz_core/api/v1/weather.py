@@ -1,31 +1,48 @@
-"""Weather API for the Wetterlage page (roadmap E18-07).
+"""Weather API for the Wetterlage page (roadmap E18-07 / E18-08).
 
 Read-only DWD data for Mittelfranken — current warnings, latest observations, the
-radar frame series, and the regions we hold data for. Every response carries the
-refresh ``health`` (E18-06) so the client can flag stale data. All times UTC
-(ADR-0017). Every route requires ``weather.view``.
+radar frame series, and the regions we hold data for — plus "create a BBZ event
+from a warning" (E18-08). Every read response carries the refresh ``health``
+(E18-06) so the client can flag stale data. All times UTC (ADR-0017).
 
 Attribution: DWD data must be shown with "Deutscher Wetterdienst" (ADR-0026).
 """
 
 from __future__ import annotations
 
+import contextlib
 import datetime as _dt
 import uuid
+from collections.abc import Iterator
 
-from fastapi import APIRouter, Depends, Query
-from pydantic import BaseModel
+from fastapi import APIRouter, Depends, Query, Response, status
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from bbz_core.api.authz import require
 from bbz_core.api.deps import AuthContext, db_session
+from bbz_core.api.errors import NotFoundError
+from bbz_core.api.idempotency import CommandEnvelope, command_envelope
+from bbz_core.domain.events import EventPriority
 from bbz_core.infra.models.weather import WeatherAlert, WeatherObservation
+from bbz_core.infra.repositories.weather_events import (
+    WeatherAlertNotFoundError,
+    WeatherEventService,
+)
 from bbz_core.infra.repositories.weather_read import RadarFrame, WeatherReadService
 from bbz_core.infra.repositories.weather_refresh import WeatherRefreshService
 
 router = APIRouter(prefix="/weather", tags=["weather"])
 
 ATTRIBUTION = "Deutscher Wetterdienst"
+
+
+@contextlib.contextmanager
+def _translate() -> Iterator[None]:
+    try:
+        yield
+    except WeatherAlertNotFoundError as exc:
+        raise NotFoundError("weather alert not found") from exc
 
 
 class KindHealthOut(BaseModel):
@@ -186,3 +203,52 @@ async def regions(
     session: AsyncSession = Depends(db_session),
 ) -> RegionsResponse:
     return RegionsResponse(regions=await WeatherReadService(session).regions())
+
+
+# --- create a BBZ event from a warning (E18-08) ---------------------------
+
+
+class CreateEventIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    priority: EventPriority
+    #: the operator's operational assessment ("betriebliche Bewertung")
+    assessment: str | None = Field(default=None, max_length=20_000)
+
+
+class CreateEventOut(BaseModel):
+    event_id: uuid.UUID
+    weather_alert_id: uuid.UUID
+    source_ref: str
+    priority: str
+    created: bool
+
+
+@router.post(
+    "/alerts/{alert_id}/create-event",
+    response_model=CreateEventOut,
+    status_code=status.HTTP_201_CREATED,
+)
+async def create_event_from_alert(
+    alert_id: uuid.UUID,
+    body: CreateEventIn,
+    response: Response,
+    ctx: AuthContext = Depends(require("weather.create_event")),
+    env: CommandEnvelope = Depends(command_envelope),
+    session: AsyncSession = Depends(db_session),
+) -> CreateEventOut:
+    with _translate():
+        result = await WeatherEventService(session).create_from_alert(
+            alert_id=alert_id,
+            priority=body.priority,
+            assessment=body.assessment,
+            command_id=env.command_id,
+            actor_id=ctx.user_id,
+        )
+    response.headers["Location"] = f"/api/v1/events/{result.event_id}"
+    return CreateEventOut(
+        event_id=result.event_id,
+        weather_alert_id=result.weather_alert_id,
+        source_ref=result.source_ref,
+        priority=result.priority,
+        created=result.created,
+    )

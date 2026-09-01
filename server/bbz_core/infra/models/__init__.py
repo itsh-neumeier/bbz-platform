@@ -95,6 +95,7 @@ from bbz_core.infra.models.trigger_rules import (
 )
 from bbz_core.infra.models.unmapped_signals import UnmappedSignal
 from bbz_core.infra.models.weather import WeatherAlert, WeatherObservation
+from bbz_core.infra.models.weather_alert_events import WeatherAlertEvent
 from bbz_core.infra.models.weather_refresh import WeatherRefreshState
 from bbz_core.infra.models.workflow import (
     WorkflowGraphEdge,
@@ -183,6 +184,7 @@ __all__ = [
     "UserRole",
     "UserStatus",
     "WeatherAlert",
+    "WeatherAlertEvent",
     "WeatherObservation",
     "WeatherRefreshState",
     "WorkflowDecision",
