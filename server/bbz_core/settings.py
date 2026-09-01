@@ -35,6 +35,16 @@ class Settings(BaseSettings):
     service_name: str = "bbz-api"
     log_level: str = "INFO"
     log_json: bool = True
+    # --- structured-log pipeline (E22-03) ---
+    #: per-module overrides, "module=LEVEL,module=LEVEL" (a prefix match wins;
+    #: e.g. "bbz_core.infra.leader=DEBUG,bbz_core.auth=WARNING")
+    log_levels: str = ""
+    #: drop a fraction of a noisy event, "event_name=keep_ratio,..."
+    #: (e.g. "heartbeat=0.01,cluster_status_probe=0.1"); 0 drops it entirely
+    log_sample: str = ""
+    #: also write the JSON log lines to this file (a sidecar ships them —
+    #: E22-03 does not run a log backend). Empty = stdout only.
+    log_file: str = ""
 
     # --- HTTP ---
     api_root_path: str = ""
