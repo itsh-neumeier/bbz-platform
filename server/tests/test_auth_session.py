@@ -78,9 +78,11 @@ class FakeSessionStore:
         client_id: str | None = None,
         workplace_id: str | None = None,
         user_agent: str | None = None,
+        mfa_verified: bool = False,
     ) -> uuid.UUID:
         sid = uuid.uuid4()
-        self.rows[sid] = SessionRecord(sid, user_id, expires_at, None)
+        mfa_at = _dt.datetime.now(_dt.UTC) if mfa_verified else None
+        self.rows[sid] = SessionRecord(sid, user_id, expires_at, None, mfa_at)
         self.by_hash[refresh_hash] = sid
         return sid
 
@@ -94,6 +96,12 @@ class FakeSessionStore:
         return rec if rec and rec.revoked_at is None else None
 
     async def touch(self, session_id: uuid.UUID) -> None: ...
+
+    async def mark_mfa_verified(self, session_id: uuid.UUID) -> None:
+        r = self.rows[session_id]
+        self.rows[session_id] = SessionRecord(
+            r.id, r.user_id, r.expires_at, r.revoked_at, _dt.datetime.now(_dt.UTC)
+        )
 
     async def revoke(self, session_id: uuid.UUID) -> None:
         r = self.rows[session_id]

@@ -21,6 +21,23 @@ Security baseline:
 No credentials in repo.
 
 
+## MFA policy + step-up (E21-05)
+- MFA is a **role-based** requirement (`mfa_policies`): holding any policy'd role
+  (direct or via a group) makes a second factor mandatory. A grace period per
+  policy lets a newly-assigned user enrol; after it elapses, login is refused
+  (`401 mfa_required`) until they have a factor — the login response carries
+  `mfa_enrolment_required` + `mfa_grace_until` during grace so the client can
+  force enrolment. Enforced on **every** login path (local / OIDC / LDAP);
+  external logins can be exempted with `mfa_policy_enforce_external=false`.
+- **Step-up**: a small set of sensitive permissions (`mfa_stepup_permissions`,
+  default `permissions.manage` — used on the RBAC role-permission write and the
+  MFA-policy writes) additionally require a *fresh* MFA verification on the
+  session (`mfa_stepup_max_age_seconds`, default 300). A stale session gets
+  `401 step_up_required` and an `MFA_STEPUP_REQUIRED` audit row; the user clears
+  it with `POST /api/v1/auth/mfa-policies/step-up`.
+- Policy changes audit `MFA_POLICY_CHANGED` (a critical action).
+- Config: `docs/auth/mfa-policy.md`.
+
 ## Agent / remote control security
 - Agents enroll with short-lived token and receive a unique device identity/certificate.
 - No arbitrary shell/PowerShell/cmd execution endpoint.

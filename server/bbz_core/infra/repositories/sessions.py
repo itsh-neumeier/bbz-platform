@@ -29,6 +29,7 @@ class SqlAlchemySessionStore:
         client_id: str | None,
         workplace_id: str | None,
         user_agent: str | None,
+        mfa_verified: bool = False,
     ) -> uuid.UUID:
         row = Session(
             user_id=user_id,
@@ -37,6 +38,7 @@ class SqlAlchemySessionStore:
             client_id=client_id,
             workplace_id=workplace_id,
             user_agent=user_agent,
+            mfa_verified_at=_utcnow() if mfa_verified else None,
         )
         self._s.add(row)
         await self._s.flush()
@@ -51,6 +53,7 @@ class SqlAlchemySessionStore:
             user_id=row.user_id,
             expires_at=row.expires_at,
             revoked_at=row.revoked_at,
+            mfa_verified_at=row.mfa_verified_at,
         )
 
     async def get_active_by_refresh(self, refresh_hash: str) -> SessionRecord | None:
@@ -75,6 +78,12 @@ class SqlAlchemySessionStore:
     async def touch(self, session_id: uuid.UUID) -> None:
         await self._s.execute(
             update(Session).where(Session.id == session_id).values(last_used_at=_utcnow())
+        )
+        await self._s.commit()
+
+    async def mark_mfa_verified(self, session_id: uuid.UUID) -> None:
+        await self._s.execute(
+            update(Session).where(Session.id == session_id).values(mfa_verified_at=_utcnow())
         )
         await self._s.commit()
 

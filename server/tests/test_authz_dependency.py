@@ -20,6 +20,7 @@ _EXEMPT: set[tuple[str, str]] = {
     ("POST", "/api/v1/auth/totp/enrol"),  # self-service MFA enrolment
     ("POST", "/api/v1/auth/totp/activate"),
     ("DELETE", "/api/v1/auth/totp"),
+    ("POST", "/api/v1/auth/mfa-policies/step-up"),  # self-service: re-verify own MFA
 }
 _WRITE = {"POST", "PUT", "PATCH", "DELETE"}
 

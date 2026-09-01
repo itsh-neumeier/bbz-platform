@@ -8,9 +8,11 @@ Effective permissions on ``/me`` come from the permission service (E02-08).
 from __future__ import annotations
 
 import contextlib
+import datetime as _dt
 import secrets
 import uuid
 from collections.abc import Iterator
+from dataclasses import dataclass
 
 from fastapi import APIRouter, Depends, Request, Response, status
 from pydantic import BaseModel
@@ -27,6 +29,7 @@ from bbz_core.api.deps import (
     require_csrf,
 )
 from bbz_core.api.errors import (
+    MfaRequiredError,
     NotFoundError,
     ServiceUnavailableError,
     TotpRequiredError,
@@ -46,6 +49,7 @@ from bbz_core.authorization import PermissionService
 from bbz_core.infra.models.identity import AuthIdentity, User
 from bbz_core.infra.repositories.authorization import SqlAlchemyGrantStore
 from bbz_core.infra.repositories.local_credentials import SqlAlchemyCredentialStore
+from bbz_core.infra.repositories.mfa_policy import MfaPolicyService
 from bbz_core.infra.repositories.sessions import SqlAlchemySessionStore
 from bbz_core.infra.repositories.totp import TotpRepository
 from bbz_core.settings import get_settings
@@ -69,6 +73,10 @@ class LoginResponse(BaseModel):
     user: UserOut
     must_change_password: bool
     csrf_token: str
+    #: this account's role requires MFA (E21-05) but has none yet — still inside
+    #: the grace period. The client should prompt enrolment before ``mfa_grace_until``.
+    mfa_enrolment_required: bool = False
+    mfa_grace_until: _dt.datetime | None = None
 
 
 class MeResponse(BaseModel):
@@ -98,6 +106,43 @@ def _clear_cookie(resp: Response, name: str) -> None:
 
 async def _load_user(session: AsyncSession, user_id: uuid.UUID) -> User | None:
     return (await session.execute(select(User).where(User.id == user_id))).scalar_one_or_none()
+
+
+async def _mfa_satisfied(session: AsyncSession, user_id: uuid.UUID) -> bool:
+    """Does this user have an active local TOTP factor? Checked regardless of
+    which provider is logging them in now — a directory/OIDC user who also
+    enrolled a local factor satisfies their role's MFA requirement with it."""
+    aid = (
+        await session.execute(
+            select(AuthIdentity.id).where(
+                AuthIdentity.user_id == user_id, AuthIdentity.provider == "local"
+            )
+        )
+    ).scalar_one_or_none()
+    if aid is None:
+        return False
+    return await TotpService(TotpRepository(session)).is_active(aid)
+
+
+@dataclass(frozen=True)
+class _MfaGate:
+    blocked: bool
+    grace_until: _dt.datetime | None
+
+
+async def _enforce_mfa_policy(
+    session: AsyncSession, user_id: uuid.UUID, *, satisfied: bool, external: bool
+) -> _MfaGate:
+    """Role-based MFA requirement (E21-05). ``external`` logins (OIDC/LDAP) can
+    be exempted via ``mfa_policy_enforce_external=False`` — they have no local
+    TOTP to challenge unless the same user also enrolled one locally."""
+    if external and not get_settings().mfa_policy_enforce_external:
+        return _MfaGate(blocked=False, grace_until=None)
+    req = await MfaPolicyService(session).evaluate(user_id)
+    if req.blocks(satisfied=satisfied):
+        return _MfaGate(blocked=True, grace_until=None)
+    grace = req.grace_until if (req.required and req.in_grace and not satisfied) else None
+    return _MfaGate(blocked=False, grace_until=grace)
 
 
 @contextlib.contextmanager
@@ -150,15 +195,19 @@ async def _issue_session(
     user: User,
     client_id: str | None,
     workplace_id: str | None,
+    mfa_verified: bool = False,
 ) -> str:
     """Start a session for ``user``, set the access / refresh / CSRF cookies, and
     write the ``SESSION_STARTED`` audit row. Returns the CSRF token. The caller is
-    responsible for the ``LOGIN_SUCCEEDED`` audit (the reason differs per flow)."""
+    responsible for the ``LOGIN_SUCCEEDED`` audit (the reason differs per flow).
+    ``mfa_verified`` stamps the session so a step-up right after login doesn't
+    ask again (E21-05)."""
     tokens = await SessionService(SqlAlchemySessionStore(session)).start(
         user.id,
         client_id=client_id,
         workplace_id=workplace_id,
         user_agent=request.headers.get("user-agent"),
+        mfa_verified=mfa_verified,
     )
     await AuditWriter(session).record(
         AuditAction.SESSION_STARTED,
@@ -207,6 +256,20 @@ async def login(
             session, body, client_id=client_id, workplace_id=workplace_id
         )
         if ldap_user is not None:
+            satisfied = await _mfa_satisfied(session, ldap_user.id)
+            gate = await _enforce_mfa_policy(
+                session, ldap_user.id, satisfied=satisfied, external=True
+            )
+            if gate.blocked:
+                await audit.record(
+                    AuditAction.LOGIN_FAILED,
+                    actor_user_id=ldap_user.id,
+                    actor_client_id=client_id,
+                    workplace_id=workplace_id,
+                    target_type="login_attempt",
+                    target_id=body.username[:64],
+                )
+                raise MfaRequiredError("multi-factor authentication is required for this account")
             csrf = await _issue_session(
                 session=session,
                 request=request,
@@ -214,6 +277,7 @@ async def login(
                 user=ldap_user,
                 client_id=client_id,
                 workplace_id=workplace_id,
+                mfa_verified=satisfied,
             )
             return LoginResponse(
                 user=UserOut(
@@ -221,6 +285,8 @@ async def login(
                 ),
                 must_change_password=False,
                 csrf_token=csrf,
+                mfa_enrolment_required=gate.grace_until is not None,
+                mfa_grace_until=gate.grace_until,
             )
 
     if outcome.result is not LocalAuthResult.SUCCESS or outcome.user_id is None:
@@ -248,7 +314,23 @@ async def login(
         )
     ).scalar_one_or_none()
     mfa = TotpService(TotpRepository(session))
-    if aid is not None and await mfa.is_active(aid):
+    totp_active = aid is not None and await mfa.is_active(aid)
+    mfa_verified = False
+
+    gate = await _enforce_mfa_policy(session, user.id, satisfied=totp_active, external=False)
+    if gate.blocked:
+        await audit.record(
+            AuditAction.LOGIN_FAILED,
+            actor_user_id=user.id,
+            actor_client_id=client_id,
+            workplace_id=workplace_id,
+            target_type="login_attempt",
+            target_id=body.username[:64],
+        )
+        raise MfaRequiredError("multi-factor authentication is required for this account")
+
+    if totp_active:
+        assert aid is not None  # totp_active implies aid is not None
         if not body.totp:
             raise TotpRequiredError("second factor required")
         result = await mfa.challenge(aid, body.totp)
@@ -261,6 +343,7 @@ async def login(
             raise UnauthorizedError("invalid credentials")
         if result is ChallengeResult.RECOVERY_USED:
             await audit.record(AuditAction.MFA_RECOVERY_USED, actor_user_id=user.id)
+        mfa_verified = True
 
     await audit.record(
         AuditAction.LOGIN_SUCCEEDED,
@@ -275,11 +358,14 @@ async def login(
         user=user,
         client_id=client_id,
         workplace_id=workplace_id,
+        mfa_verified=mfa_verified,
     )
     return LoginResponse(
         user=UserOut(id=user.id, display_name=user.display_name, status=user.status),
         must_change_password=outcome.must_change_password,
         csrf_token=csrf,
+        mfa_enrolment_required=gate.grace_until is not None,
+        mfa_grace_until=gate.grace_until,
     )
 
 
@@ -331,6 +417,18 @@ async def oidc_callback(
     user = await _load_user(session, user_id)
     if user is None:  # the identity resolved to a user that has since gone
         raise UnauthorizedError("authentication failed")
+
+    satisfied = await _mfa_satisfied(session, user.id)
+    gate = await _enforce_mfa_policy(session, user.id, satisfied=satisfied, external=True)
+    if gate.blocked:
+        await AuditWriter(session).record(
+            AuditAction.LOGIN_FAILED,
+            actor_user_id=user.id,
+            actor_client_id=client_id,
+            workplace_id=workplace_id,
+        )
+        raise MfaRequiredError("multi-factor authentication is required for this account")
+
     csrf = await _issue_session(
         session=session,
         request=request,
@@ -338,11 +436,14 @@ async def oidc_callback(
         user=user,
         client_id=client_id,
         workplace_id=workplace_id,
+        mfa_verified=satisfied,
     )
     return LoginResponse(
         user=UserOut(id=user.id, display_name=user.display_name, status=user.status),
         must_change_password=False,
         csrf_token=csrf,
+        mfa_enrolment_required=gate.grace_until is not None,
+        mfa_grace_until=gate.grace_until,
     )
 
 

@@ -83,6 +83,22 @@ class TotpRequiredError(AppError):
     http_status = status.HTTP_401_UNAUTHORIZED
 
 
+class MfaRequiredError(AppError):
+    """The account's role requires MFA (E21-05) and the grace period to enrol
+    has elapsed — the account has no active second factor to challenge."""
+
+    code = "mfa_required"
+    http_status = status.HTTP_401_UNAUTHORIZED
+
+
+class StepUpRequiredError(AppError):
+    """The permission was granted, but this action also needs a *fresh* MFA
+    verification (E21-05) — the session's is missing or too old."""
+
+    code = "step_up_required"
+    http_status = status.HTTP_401_UNAUTHORIZED
+
+
 class ServiceUnavailableError(AppError):
     """A feature is unavailable on this deployment (e.g. a secret key is unset)."""
 
