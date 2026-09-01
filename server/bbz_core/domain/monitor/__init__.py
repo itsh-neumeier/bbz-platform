@@ -16,7 +16,11 @@ from bbz_core.domain.monitor.catalog import (
     MonitorOutputSpec,
 )
 from bbz_core.domain.monitor.layout import (
+    FIXED_ASSIGNMENTS,
+    FixedRouteViolation,
     MonitorDomainError,
+    fixed_input_for,
+    is_fixed_output,
     standard_layout,
     validate_assignment,
     validate_layout,
@@ -24,6 +28,7 @@ from bbz_core.domain.monitor.layout import (
 
 __all__ = [
     "BOTTOM_LEFT_OUTPUT_KEY",
+    "FIXED_ASSIGNMENTS",
     "GRID_COLS",
     "GRID_ROWS",
     "INPUTS",
@@ -31,9 +36,12 @@ __all__ = [
     "OUTPUTS",
     "OUTPUT_KEYS",
     "STANDARD_LAYOUT",
+    "FixedRouteViolation",
     "MonitorDomainError",
     "MonitorInputSpec",
     "MonitorOutputSpec",
+    "fixed_input_for",
+    "is_fixed_output",
     "standard_layout",
     "validate_assignment",
     "validate_layout",
