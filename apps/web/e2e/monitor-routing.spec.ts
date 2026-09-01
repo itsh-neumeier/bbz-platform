@@ -26,7 +26,7 @@ test.fixme('monitor routing — route, fixed rule, profile save/apply, reset', a
   // 1. change a route via the keyboard / select alternative (must not depend on
   //    drag & drop — §26.14)
   const ap3 = page.getByRole('group', { name: /Arbeitsplatzmonitor 3/i });
-  await ap3.getByRole('combobox').selectOption({ label: /Coda 1/i });
+  await ap3.getByRole('combobox').selectOption({ label: 'Coda 1' });
   await expect(ap3.getByText(/Coda 1/i)).toBeVisible();
 
   // 2. the lower-left field is locked to BBZ-OS
