@@ -22,6 +22,10 @@ class LdapConfig:
     user_search_base: str
     #: ``%s`` is replaced with the (escaped) login name
     user_filter: str = "(uid=%s)"
+    #: enumerate every account (no ``%s``) — used by the directory sync (E21-04)
+    user_list_filter: str = "(objectClass=inetOrgPerson)"
+    #: page size for the sync's paged search
+    page_size: int = 500
     group_search_base: str = ""
     #: ``%s`` is the user's DN
     group_filter: str = "(&(objectClass=groupOfNames)(member=%s))"

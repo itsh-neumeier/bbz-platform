@@ -4,8 +4,8 @@ Local-account lifecycle. Deactivation and password reset revoke every live
 session immediately (both nodes — the session registry is authoritative).
 Guarded by ``users.view`` / ``users.manage``.
 
-TODO(E04-03 / #66): emit USER_CREATED / USER_DEACTIVATED / USER_PASSWORD_RESET
-audit events once the audit-write service exists.
+Deactivation audits ``USER_DEACTIVATED`` (E21-04). TODO(E04-03 / #66): also emit
+USER_CREATED / USER_PASSWORD_RESET.
 """
 
 from __future__ import annotations
@@ -135,14 +135,14 @@ async def update_user(
 @router.post("/{user_id}/deactivate", response_model=RevokedOut)
 async def deactivate_user(
     user_id: uuid.UUID,
-    _: AuthContext = Depends(require("users.manage")),
+    ctx: AuthContext = Depends(require("users.manage")),
     repo: UsersAdminRepository = Depends(_repo),
 ) -> RevokedOut:
     user = await repo.get(user_id)
     if user is None:
         raise NotFoundError("user not found")
     with _translate():
-        revoked = await repo.set_active(user, active=False)
+        revoked = await repo.set_active(user, active=False, actor_id=ctx.user_id)
     return RevokedOut(sessions_revoked=revoked)
 
 

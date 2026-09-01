@@ -41,6 +41,13 @@ No credentials in repo.
   bad-credentials result; one generic failure is reported (no account-existence
   or lockout-reason leak). A directory outage degrades to local logins only.
 - Directory logins audit `LOGIN_SUCCEEDED` / `LOGIN_FAILED` with `provider=ldap_ad`.
+- **Directory sync (E21-04)** — a leader-elected singleton reconciles BBZ against
+  the directory: accounts that vanish are **soft-deactivated** (status + session
+  revocation, never a hard delete) for reliable off-boarding, auditing
+  `USER_DEACTIVATED`; every run audits `DIRECTORY_SYNC_COMPLETED`. Guards against
+  a directory error mass-off-boarding: an empty enumeration, or more
+  deactivations than `ldap_sync_max_deactivations`, aborts the run untouched. A
+  dry run computes the diff and writes nothing.
 - Config + open-dependency checklist: `docs/auth/ldap-directory.md`.
 
 ## Door control security

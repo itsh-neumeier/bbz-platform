@@ -14,6 +14,7 @@ from dataclasses import dataclass
 from sqlalchemy import Select, exists, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from bbz_core.audit import AuditAction, AuditService
 from bbz_core.auth.hashing import hash_password
 from bbz_core.auth.policy import PasswordPolicy
 from bbz_core.infra.models.identity import AuthIdentity, LocalCredential, User, UserStatus
@@ -88,14 +89,27 @@ class UsersAdminRepository:
         await self._s.commit()
         return user
 
-    async def set_active(self, user: User, *, active: bool) -> int:
-        """Returns the number of sessions revoked (0 when activating)."""
+    async def set_active(
+        self, user: User, *, active: bool, actor_id: uuid.UUID | None = None
+    ) -> int:
+        """Returns the number of sessions revoked (0 when activating). A real
+        active→disabled transition audits ``USER_DEACTIVATED`` (a critical action)."""
         if not active and await self._is_last_active_admin(user.id):
             raise LastAdminError("cannot deactivate the last user able to manage permissions")
+        was_active = user.status == UserStatus.ACTIVE.value
         user.status = (UserStatus.ACTIVE if active else UserStatus.DISABLED).value
         revoked = 0
         if not active:
             revoked = await self._revoke_sessions(user.id)
+            if was_active:
+                await AuditService(self._s).write(
+                    AuditAction.USER_DEACTIVATED,
+                    actor_user_id=actor_id,
+                    target_type="user",
+                    target_id=str(user.id),
+                    before={"status": UserStatus.ACTIVE.value},
+                    after={"status": UserStatus.DISABLED.value, "sessions_revoked": revoked},
+                )
         await self._s.commit()
         return revoked
 

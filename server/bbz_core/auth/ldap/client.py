@@ -96,6 +96,44 @@ class LdapClient:
             groups=groups,
         )
 
+    def enumerate_principals(self) -> list[LdapPrincipal]:
+        """Every account under ``user_search_base`` (paged), each with its groups.
+        Service-bind only — no user binds. For the directory sync (E21-04)."""
+        cfg = self._cfg
+        servers = _servers(cfg)
+        conn = self._connect(servers, cfg.bind_dn, cfg.bind_password, who="service account")
+        try:
+            found: list[tuple[str, str, str | None, str | None]] = []
+            for item in conn.extend.standard.paged_search(
+                cfg.user_search_base,
+                cfg.user_list_filter,
+                attributes=[cfg.uid_attr, cfg.name_attr, cfg.mail_attr],
+                paged_size=cfg.page_size,
+                generator=True,
+            ):
+                if item.get("type") != "searchResEntry":
+                    continue
+                attrs = item.get("attributes") or {}
+                dn = str(item.get("dn") or "")
+                uid = _first(attrs.get(cfg.uid_attr))
+                if dn and uid:
+                    name = _first(attrs.get(cfg.name_attr))
+                    mail = _first(attrs.get(cfg.mail_attr))
+                    found.append((dn, uid, name, mail))
+            # the paged search is fully drained — safe to reuse the connection
+            return [
+                LdapPrincipal(
+                    dn=dn,
+                    uid=uid,
+                    display_name=name,
+                    email=mail,
+                    groups=self._groups_on(conn, dn),
+                )
+                for dn, uid, name, mail in found
+            ]
+        finally:
+            conn.unbind()
+
     # --- steps -------------------------------------------------
 
     def _connect(
@@ -157,17 +195,22 @@ class LdapClient:
             servers, self._cfg.bind_dn, self._cfg.bind_password, who="group search"
         )
         try:
-            flt = self._cfg.group_filter.replace("%s", escape_filter_chars(user_dn))
-            conn.search(self._cfg.group_search_base, flt, attributes=["cn"])
-            names: list[str] = []
-            for e in conn.entries:
-                if self._cfg.group_name_from_dn:
-                    names.append(_cn_of(str(e.entry_dn)))
-                else:
-                    names.append(str(e["cn"].value))
-            return tuple(dict.fromkeys(n for n in names if n))
+            return self._groups_on(conn, user_dn)
         finally:
             conn.unbind()
+
+    def _groups_on(self, conn: ldap3.Connection, user_dn: str) -> tuple[str, ...]:
+        if not self._cfg.has_group_search:
+            return ()
+        flt = self._cfg.group_filter.replace("%s", escape_filter_chars(user_dn))
+        conn.search(self._cfg.group_search_base, flt, attributes=["cn"])
+        names: list[str] = []
+        for e in conn.entries:
+            if self._cfg.group_name_from_dn:
+                names.append(_cn_of(str(e.entry_dn)))
+            else:
+                names.append(str(e["cn"].value))
+        return tuple(dict.fromkeys(n for n in names if n))
 
 
 def _first(value: object) -> str | None:
