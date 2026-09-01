@@ -12,6 +12,7 @@ from bbz_core.infra.models.application_catalog import (
     LaunchMode,
 )
 from bbz_core.infra.models.audit import AuditEvent
+from bbz_core.infra.models.auth_mapping import AuthGroupMapping, ExternalRoleAssignment
 from bbz_core.infra.models.base import Base
 from bbz_core.infra.models.bku_agent import (
     BkuAgent,
@@ -125,6 +126,7 @@ __all__ = [
     "ApplicationCatalogEntry",
     "ApplicationCatalogScope",
     "AuditEvent",
+    "AuthGroupMapping",
     "AuthIdentity",
     "AuthProvider",
     "Base",
@@ -159,6 +161,7 @@ __all__ = [
     "EventStatus",
     "EventStatusHistory",
     "ExternalActionOutbox",
+    "ExternalRoleAssignment",
     "Group",
     "GroupRole",
     "IntegrationCameraMapping",

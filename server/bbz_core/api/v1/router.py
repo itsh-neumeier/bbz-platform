@@ -6,6 +6,7 @@ from pydantic import BaseModel
 from bbz_core import __version__
 from bbz_core.api.v1.audit import router as audit_router
 from bbz_core.api.v1.auth import router as auth_router
+from bbz_core.api.v1.auth_mappings import router as auth_mappings_router
 from bbz_core.api.v1.calls import router as calls_router
 from bbz_core.api.v1.client_popups import router as client_popups_router
 from bbz_core.api.v1.coda_alarm_sources import router as coda_alarm_sources_router
@@ -32,6 +33,7 @@ from bbz_core.settings import get_settings
 
 api_v1 = APIRouter(prefix="/api/v1")
 api_v1.include_router(auth_router)
+api_v1.include_router(auth_mappings_router)
 api_v1.include_router(audit_router)
 api_v1.include_router(events_router)
 api_v1.include_router(calls_router)
