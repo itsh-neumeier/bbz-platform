@@ -40,3 +40,7 @@ a provider contract, a security boundary, a technology choice. `.ai/RULES.md`:
 | 0018 | Distributed config store (etcd) | Proposed |
 | 0020 | Audit / event-log immutability (append-only trigger) | Proposed |
 | 0021 | PostgreSQL replication mode (synchronous + auto fallback) | Accepted |
+| 0024 | Trigger execution worker (leader-elected inbox drain) | Accepted |
+| 0025 | Siedle door-open DTMF flow | Accepted |
+| 0026 | DWD Open Data endpoints for the `dwd` integration | Accepted |
+| 0027 | RBAC condition context (clock-only, ADR-0010 field touch) | Accepted |

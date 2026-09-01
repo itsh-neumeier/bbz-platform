@@ -11,6 +11,7 @@ USER_ROLE_ASSIGNED etc. audit events once the audit-write service exists.
 from __future__ import annotations
 
 import contextlib
+import datetime as _dt
 import uuid
 from collections.abc import Iterator
 from typing import Any
@@ -67,6 +68,9 @@ class PermAssignmentIn(BaseModel):
 
 class RoleRef(BaseModel):
     role_id: uuid.UUID
+    #: optional validity window for this assignment (E21-07)
+    valid_from: _dt.datetime | None = None
+    valid_to: _dt.datetime | None = None
 
 
 class GroupIn(BaseModel):
@@ -173,7 +177,14 @@ async def assign_user_role(
     ctx: AuthContext = Depends(require("roles.manage")),
     repo: RbacAdminRepository = Depends(_repo),
 ) -> None:
-    await repo.assign_user_role(user_id, body.role_id, granted_by=ctx.user_id)
+    with _translate():
+        await repo.assign_user_role(
+            user_id,
+            body.role_id,
+            granted_by=ctx.user_id,
+            valid_from=body.valid_from,
+            valid_to=body.valid_to,
+        )
 
 
 @router.delete("/users/{user_id}/roles/{role_id}", status_code=status.HTTP_204_NO_CONTENT)

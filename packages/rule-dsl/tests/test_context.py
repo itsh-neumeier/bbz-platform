@@ -7,6 +7,7 @@ from typing import Any
 import pytest
 
 from bbz_rule_dsl import (
+    RBAC_CONTEXT,
     TRIGGER_CONTEXT,
     WORKFLOW_CONTEXT,
     ContextSchema,
@@ -71,6 +72,22 @@ def test_contexts_are_separated() -> None:
         WORKFLOW_CONTEXT.validate({"op": "eq", "args": [{"field": "provider"}, "cti"]})
     with pytest.raises(UnknownField):
         TRIGGER_CONTEXT.validate({"op": "eq", "args": [{"field": "branch_key"}, "b1"]})
+
+
+def test_rbac_context_is_clock_only() -> None:  # ADR-0027
+    _ok(
+        RBAC_CONTEXT,
+        {
+            "op": "and",
+            "args": [
+                {"op": "gte", "args": [{"field": "now.hour"}, 7]},
+                {"op": "lt", "args": [{"field": "now.hour"}, 19]},
+                {"op": "in", "args": [{"field": "now.weekday"}, [0, 1, 2, 3, 4]]},
+            ],
+        },
+    )
+    _bad(RBAC_CONTEXT, {"op": "eq", "args": [{"field": "provider"}, "x"]})  # not an RBAC field
+    _bad(RBAC_CONTEXT, {"op": "eq", "args": [{"field": "now.hour"}, "seven"]})  # type mismatch
 
 
 def test_valid_workflow_expression_passes() -> None:

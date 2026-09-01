@@ -163,3 +163,15 @@ WORKFLOW_CONTEXT = ContextSchema(
         "operator_confirmed": FieldType.BOOLEAN,
     },
 )
+
+#: fields an RBAC ``role_permissions.condition`` may reference (ADR-0027).
+#: Evaluated on every permission check, so kept small + cheap + clock-only.
+RBAC_CONTEXT = ContextSchema(
+    "rbac",
+    {
+        "now.hour": FieldType.NUMBER,
+        "now.weekday": FieldType.NUMBER,
+        "now.iso": FieldType.STRING,
+        "scope": FieldType.STRING,
+    },
+)

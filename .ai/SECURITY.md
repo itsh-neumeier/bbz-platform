@@ -81,6 +81,17 @@ No credentials in repo.
   dry run computes the diff and writes nothing.
 - Config + open-dependency checklist: `docs/auth/ldap-directory.md`.
 
+## Advanced RBAC (E21-07)
+- A `role_permissions.condition` (Rule-DSL, ADR-0010) can only **narrow** a grant.
+  It evaluates against a clock-only context (ADR-0027), is validated at write
+  time, and is deny on any failure. Off by default (`rbac_conditions_enabled`).
+- Role grants may carry a validity window (`user_roles.valid_from` / `valid_to`);
+  an out-of-window grant is not returned by the grant store.
+- Permission delegation (`permission_delegations`) always expires and is
+  revocable; the delegator must actually hold the permission. A revoke / expiry
+  is effective on the delegatee's next request. `PERMISSION_DELEGATED` /
+  `PERMISSION_DELEGATION_REVOKED` audit (critical actions).
+
 ## Door control security
 - Door-open actions require a dedicated permission and complete audit trail.
 - DTMF door codes are secrets/configuration values and must not be written in plaintext audit logs.
