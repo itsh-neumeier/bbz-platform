@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<alert xmlns="urn:oasis:names:tc:emergency:cap:1.2">
+  <identifier>2.49.0.0.276.0.DWD.PVW.1788199990000.cancel-fixture.DEU</identifier>
+  <sender>opendata@dwd.de</sender>
+  <sent>2026-09-01T08:30:00+02:00</sent>
+  <status>Actual</status>
+  <msgType>Cancel</msgType>
+  <source>PVW</source>
+  <scope>Public</scope>
+  <references>opendata@dwd.de,2.49.0.0.276.0.DWD.PVW.1788190000000.old.DEU,2026-09-01T06:00:00+02:00</references>
+  <info>
+    <language>de-DE</language>
+    <category>Met</category>
+    <event>FROST</event>
+    <urgency>Past</urgency>
+    <severity>Minor</severity>
+    <certainty>Observed</certainty>
+    <senderName>Deutscher Wetterdienst</senderName>
+    <headline>Entwarnung</headline>
+    <description>Die Warnung vor Frost wurde aufgehoben.</description>
+    <area>
+      <areaDesc>Stadt Nürnberg</areaDesc>
+      <geocode>
+        <valueName>WARNCELLID</valueName>
+        <value>109564000</value>
+      </geocode>
+    </area>
+  </info>
+</alert>

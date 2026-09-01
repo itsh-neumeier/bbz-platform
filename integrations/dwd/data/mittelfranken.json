@@ -1,0 +1,36 @@
+{
+  "_source": "DWD cap_warncellids.csv (DISTRICT level, WARNCELLID prefix 1) — www.dwd.de/DE/leistungen/opendata/help/warnungen/cap_warncellids_csv",
+  "_note": "Operational places for Mittelfranken (MASTER_PROMPT §10). Each carries the DWD DISTRICT warncell ids that cover it (Stadt + surrounding Kreis) and its DWD POI observation station (filled by E18-04). A deployment may add places.",
+  "places": [
+    {
+      "name": "Nürnberg",
+      "warncell_ids": ["109564000", "109574000"],
+      "poi_station_id": ""
+    },
+    {
+      "name": "Fürth",
+      "warncell_ids": ["109563000", "109573000"],
+      "poi_station_id": ""
+    },
+    {
+      "name": "Erlangen",
+      "warncell_ids": ["109562000", "109572000"],
+      "poi_station_id": ""
+    },
+    {
+      "name": "Schwabach",
+      "warncell_ids": ["109565000"],
+      "poi_station_id": ""
+    },
+    {
+      "name": "Ansbach",
+      "warncell_ids": ["109561000", "109571000"],
+      "poi_station_id": ""
+    },
+    {
+      "name": "Neustadt a.d. Aisch",
+      "warncell_ids": ["109575000"],
+      "poi_station_id": ""
+    }
+  ]
+}

@@ -1,6 +1,6 @@
 """dwd scaffold (E18-01): manifest validates, config schema is sane, the adapter
-is a protocol-conformant WeatherProvider, lifecycle is safe, and every data
-method is gated until its adapter epic (E18-02..04) lands."""
+is a protocol-conformant WeatherProvider, lifecycle is safe. Warnings are live
+(E18-02, see test_dwd_warnings.py); radar / observations still gated (E18-03/04)."""
 
 from __future__ import annotations
 
@@ -67,8 +67,10 @@ async def test_lifecycle_defaults_to_mittelfranken_and_reports_scaffold_health()
     assert p.capabilities().has(Capability.WEATHER_OBSERVATIONS)
 
     h = await p.health()
-    assert h.state.value == "unknown" and "E18-02" in h.summary
+    assert h.state.value == "healthy" and "warnings live" in h.summary
+    assert "E18-03/04" in h.summary  # radar / observations still pending
     assert h.details["places"] == len(DEFAULT_PLACES)
+    assert h.details["warncells"] >= len(DEFAULT_PLACES)  # bundled mittelfranken.json
     assert h.details["attribution"] == "Deutscher Wetterdienst"
 
     await p.shutdown()
@@ -81,20 +83,25 @@ async def test_enabled_capabilities_narrows_the_capability_set() -> None:
     assert not p.capabilities().has(Capability.WEATHER_RADAR)
 
 
-async def test_configured_places_replace_the_defaults() -> None:
-    p = build({"places": [{"name": "Fürth", "warncell_id": "809563000"}]})
-    assert (await p.health()).details["places"] == 1
+async def test_configured_places_replace_the_defaults_and_keep_bundled_warncells() -> None:
+    p = build({"places": [{"name": "Nürnberg"}]})  # resolved from mittelfranken.json
+    h = await p.health()
+    assert h.details["places"] == 1 and h.details["warncells"] >= 1
+
+
+async def test_a_configured_place_may_carry_its_own_warncell() -> None:
+    p = build({"places": [{"name": "Passau", "warncell_id": "109275000"}]})
+    assert (await p.health()).details["warncells"] == 1
 
 
 @pytest.mark.parametrize(
     "call",
     [
-        lambda p: p.get_warnings(region="mittelfranken"),
         lambda p: p.get_observations(station_ids=["10763"]),
         lambda p: p.get_radar_frames(area="mittelfranken"),
     ],
 )
-async def test_data_methods_are_gated_until_their_adapter_epic(call: object) -> None:
+async def test_radar_and_observations_are_gated_until_their_adapter_epic(call: object) -> None:
     p = build({})
     with pytest.raises(DwdNotImplementedError):
         await call(p)  # type: ignore[operator]

@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<alert xmlns="urn:oasis:names:tc:emergency:cap:1.2">
+  <identifier>2.49.0.0.276.0.DWD.PVW.1788206100000.e5411572-f766-44dd-9da6-7c3205d6bfc4.DEU</identifier>
+  <sender>opendata@dwd.de</sender>
+  <sent>2026-08-31T21:55:00+02:00</sent>
+  <status>Actual</status>
+  <msgType>Update</msgType>
+  <source>PVW</source>
+  <scope>Public</scope>
+  <code>id:2.49.0.0.276.0.DWD.PVW.1788206100000.e5411572-f766-44dd-9da6-7c3205d6bfc4</code>
+  <references>opendata@dwd.de,2.49.0.0.276.0.DWD.PVW.1788196080000.2911d647-2718-4e2a-a605-bf24dba99d72.DEU,2026-08-31T19:08:00+02:00</references>
+  <info>
+    <language>de-DE</language>
+    <category>Met</category>
+    <event>BÖEN</event>
+    <responseType>Prepare</responseType>
+    <urgency>Immediate</urgency>
+    <severity>Minor</severity>
+    <certainty>Likely</certainty>
+    <eventCode>
+      <valueName>PROFILE_VERSION</valueName>
+      <value>2.1.14</value>
+    </eventCode>
+    <eventCode>
+      <valueName>LICENSE</valueName>
+      <value>© GeoBasis-DE / BKG 2021 (Daten modifiziert)</value>
+    </eventCode>
+    <eventCode>
+      <valueName>II</valueName>
+      <value>11</value>
+    </eventCode>
+    <eventCode>
+      <valueName>GROUP</valueName>
+      <value>WIND</value>
+    </eventCode>
+    <eventCode>
+      <valueName>AREA_COLOR</valueName>
+      <value>255 235 59</value>
+    </eventCode>
+    <effective>2026-08-31T21:55:00+02:00</effective>
+    <onset>2026-08-31T21:55:00+02:00</onset>
+    <senderName>DWD / Seewetterdienst Hamburg</senderName>
+    <headline>Amtliche Warnung des Seewetterdienstes Hamburg vor BÖEN</headline>
+    <description>Westteil Böen von 7 Beaufort aus West bis Nordwest.</description>
+    <instruction/>
+    <web>https://dwd.de/warnungen</web>
+    <contact>Deutscher Wetterdienst</contact>
+    <area>
+      <areaDesc>Elbe von Hamburg bis Cuxhaven</areaDesc>
+      <geocode>
+        <valueName>WARNCELLID</valueName>
+        <value>501000004</value>
+      </geocode>
+      <altitude>0.0</altitude>
+      <ceiling>9842.5197</ceiling>
+    </area>
+  </info>
+</alert>

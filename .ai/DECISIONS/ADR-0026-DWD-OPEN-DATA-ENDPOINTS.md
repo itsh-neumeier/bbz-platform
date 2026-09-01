@@ -1,7 +1,9 @@
 # ADR-0026: DWD Open Data — which public services the `dwd` integration uses
 
 ## Status
-Accepted (2026-09-01, review E18-01 / #375)
+Accepted (2026-09-01, review E18-01 / #375) · amended 2026-09-01 (E18-02 / #377 —
+warnings feed changed COMMUNEUNION → **DISTRICT** after inspecting real samples;
+see the note under Decision §1)
 
 ## Context
 Epic 18 builds the first *real* live-integration reference: DWD weather warnings,
@@ -23,16 +25,27 @@ Wetterdienst").
 The `dwd` integration uses these three DWD Open Data services:
 
 1. **Warnings → CAP 1.2 feed**
-   `https://opendata.dwd.de/weather/alerts/cap/COMMUNEUNION_DWD_STAT/`
-   (Gemeinde level; `DISTRICT_DWD_STAT/` — Landkreis, with geometries — is the
-   fallback granularity). Files are ZIP archives of CAP 1.2 XML,
-   `Z_CAP_C_EDZW_<UTC timestamp>_PVW_STATUS_PREMIUMDWD_COMMUNEUNION_<lang>.zip`,
-   refreshed every ~10–15 min. The region → **warncell id** mapping comes from
-   the published `cap_warncellids.csv`
-   (`https://www.dwd.de/DE/leistungen/opendata/help/warnungen/cap_warncellids_csv.html`),
-   vendored into the integration and refreshed deliberately, not at runtime.
-   Normalise each alert to `(warncell_id, place, event, severity, onset,
-   expires, headline, description, instruction)`.
+   `https://opendata.dwd.de/weather/alerts/cap/DISTRICT_DWD_STAT/` — Landkreis /
+   kreisfreie-Stadt granularity (WARNCELLID prefix `1`), the operationally right
+   level for a Leitstelle. **(E18-02 amendment:** the ADR first picked
+   `COMMUNEUNION_DWD_STAT/` — recorded samples showed that is per-Gemeinde
+   (WARNCELLID prefix `8`), far too fine for "warnings for Nürnberg";
+   `DISTRICT_DWD_STAT/` is one row per Kreis/Stadt. COMMUNEUNION stays available
+   via config `warnings.base_url` for a deployment that wants Gemeinde detail.)
+   Files are ZIP archives of CAP 1.2 XML,
+   `Z_CAP_C_EDZW_<UTC timestamp>_PVW_STATUS_PREMIUMDWD_DISTRICT_DE.zip`, the
+   lexically-last is current, refreshed every ~10–15 min. The place → **warncell
+   id** mapping is vendored in `integrations/dwd/data/mittelfranken.json` (built
+   from `cap_warncellids.csv`), refreshed deliberately, not at runtime.
+   Normalise each `(alert, de-DE info, area)` to `(region=areaDesc, type=event,
+   level=severity 1–4, valid_from=onset, valid_to=expires (often absent),
+   headline, description+instruction, source_ref=identifier, warncell_id)`.
+   `msgType=Cancel` and geocode-less areas are dropped.
+
+   **XML:** stdlib `ElementTree` (expat, no external-entity resolution), input
+   size-capped; the fetch/unzip is stdlib `urllib`+`zipfile` run in a worker
+   thread — **no new runtime dependency**. `defusedxml` / `httpx` can be swapped
+   in later if the threat model or async needs tighten.
 
 2. **Radar / precipitation → DWD GeoServer WMS**
    `https://maps.dwd.de/geoserver/dwd/wms` (layer `dwd:Niederschlagsradar` /

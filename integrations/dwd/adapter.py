@@ -1,28 +1,33 @@
-"""``dwd`` adapter — scaffold (roadmap E18-01).
+"""``dwd`` adapter (roadmap E18-01 scaffold, E18-02 warnings).
 
-A protocol-conformant :class:`~bbz_integration_sdk.providers.WeatherProvider`
-that carries **no DWD client yet**. Lifecycle answers with safe values so the
-core can register and health-check the provider; every *data* method raises
-:class:`DwdNotImplementedError` until its adapter epic lands:
+A protocol-conformant :class:`~bbz_integration_sdk.providers.WeatherProvider` for
+Mittelfranken over DWD's public open-data services (ADR-0026).
 
-* :meth:`get_warnings` — E18-02 (CAP 1.2 feed, ADR-0026)
-* :meth:`get_radar_frames` — E18-03 (GeoServer WMS, ADR-0026)
-* :meth:`get_observations` — E18-04 (POI CSV, ADR-0026)
+* :meth:`get_warnings` — **E18-02**: the CAP 1.2 DISTRICT feed
+  (``opendata.dwd.de/weather/alerts/cap/DISTRICT_DWD_STAT/``), filtered to the
+  configured places' warncells, normalised to the E18-06 item contract.
+* :meth:`get_radar_frames` — E18-03 (GeoServer WMS) — still raises.
+* :meth:`get_observations` — E18-04 (POI CSV) — still raises.
 
 Only outbound HTTPS to ``opendata.dwd.de`` / ``maps.dwd.de``; no credentials, no
-PII (ADR-0026). Every DWD-derived value carries the "Deutscher Wetterdienst"
-attribution (licence condition).
+PII. Every DWD-derived value carries the "Deutscher Wetterdienst" attribution.
+The blocking HTTP/unzip runs in a worker thread so the event loop is free.
 """
 
 from __future__ import annotations
 
+import asyncio
 import datetime as _dt
+import json
 from dataclasses import dataclass, field
+from functools import lru_cache
+from importlib.resources import files
 from typing import Any
 
 from bbz_integration_sdk.capabilities import Capability, CapabilitySet
 from bbz_integration_sdk.diagnostics import DiagnosticsReport, HealthState
 from bbz_integration_sdk.providers.base import ProviderInfo
+from integrations.dwd.warnings import DEFAULT_BASE_URL, DwdWarningsClient
 
 #: DWD open-data capability → the SDK capability it maps to
 _CAPABILITY_BY_KEY = {
@@ -45,13 +50,20 @@ ATTRIBUTION = "Deutscher Wetterdienst"
 
 
 class DwdNotImplementedError(RuntimeError):
-    """A DWD data method was called before its adapter epic (E18-02..04) landed."""
+    """A DWD data method was called before its adapter epic (E18-03/04) landed."""
+
+
+@lru_cache
+def _bundled_places() -> dict[str, dict[str, Any]]:
+    """``mittelfranken.json`` — place name → {warncell_ids, poi_station_id}."""
+    raw = json.loads((files("integrations.dwd.data") / "mittelfranken.json").read_text("utf-8"))
+    return {p["name"]: p for p in raw.get("places", [])}
 
 
 @dataclass(frozen=True)
 class DwdPlace:
     name: str
-    warncell_id: str = ""
+    warncell_ids: tuple[str, ...] = ()
     poi_station_id: str = ""
 
 
@@ -61,18 +73,36 @@ class DwdConfig:
     region: str = "mittelfranken"
     enabled_capabilities: tuple[str, ...] = tuple(_CAPABILITY_BY_KEY)
     places: tuple[DwdPlace, ...] = field(
-        default_factory=lambda: tuple(DwdPlace(name=n) for n in DEFAULT_PLACES)
+        default_factory=lambda: tuple(_place(name) for name in DEFAULT_PLACES)
     )
     warnings: dict[str, Any] = field(default_factory=dict)
     radar: dict[str, Any] = field(default_factory=dict)
     observations: dict[str, Any] = field(default_factory=dict)
 
+    def warncell_ids(self) -> set[str]:
+        return {wc for p in self.places for wc in p.warncell_ids}
+
+
+def _place(name: str, cfg: dict[str, Any] | None = None) -> DwdPlace:
+    bundled = _bundled_places().get(name, {})
+    cfg = cfg or {}
+    ids = cfg.get("warncell_ids") or bundled.get("warncell_ids") or []
+    single = cfg.get("warncell_id") or bundled.get("warncell_id")
+    if single and single not in ids:
+        ids = [*ids, single]
+    return DwdPlace(
+        name=name,
+        warncell_ids=tuple(str(i) for i in ids if i),
+        poi_station_id=str(cfg.get("poi_station_id") or bundled.get("poi_station_id") or ""),
+    )
+
 
 class DwdWeatherProvider:
-    """Scaffold DWD weather provider — lifecycle only (E18-01)."""
-
-    def __init__(self, config: DwdConfig | None = None) -> None:
+    def __init__(
+        self, config: DwdConfig | None = None, *, warnings_client: DwdWarningsClient | None = None
+    ) -> None:
         self._cfg = config or DwdConfig()
+        self._warnings_client = warnings_client
         self._initialized = False
 
     # --- lifecycle ------------------------------------------------------
@@ -82,10 +112,7 @@ class DwdWeatherProvider:
 
     def info(self) -> ProviderInfo:
         return ProviderInfo(
-            integration_id="dwd",
-            provider="dwd",
-            instance_id=self._cfg.instance_id,
-            mock=False,
+            integration_id="dwd", provider="dwd", instance_id=self._cfg.instance_id, mock=False
         )
 
     def capabilities(self) -> CapabilitySet:
@@ -94,14 +121,23 @@ class DwdWeatherProvider:
         )
 
     async def health(self) -> DiagnosticsReport:
+        pending = [
+            k
+            for k in ("weather.radar", "weather.observations")
+            if k in self._cfg.enabled_capabilities
+        ]
         return DiagnosticsReport(
             integration_id="dwd",
-            state=HealthState.UNKNOWN if self._initialized else HealthState.DISABLED,
-            summary="DWD client not implemented yet (E18-02..04); scaffold only",
+            state=HealthState.HEALTHY if self._initialized else HealthState.DISABLED,
+            summary=(
+                "warnings live (E18-02)"
+                + (f"; {', '.join(pending)} pending (E18-03/04)" if pending else "")
+            ),
             checked_at=_dt.datetime.now(_dt.UTC),
             details={
                 "region": self._cfg.region,
                 "places": len(self._cfg.places),
+                "warncells": len(self._cfg.warncell_ids()),
                 "enabled_capabilities": ", ".join(sorted(self._cfg.enabled_capabilities)),
                 "attribution": ATTRIBUTION,
             },
@@ -110,10 +146,15 @@ class DwdWeatherProvider:
     async def shutdown(self) -> None:
         self._initialized = False
 
-    # --- data (WeatherProvider) — E18-02..04 ---------------------------
+    # --- data --------------------------------------------------------
 
-    async def get_warnings(self, *, region: str) -> list[Any]:
-        raise DwdNotImplementedError("get_warnings is E18-02 (DWD CAP feed, ADR-0026)")
+    async def get_warnings(self, *, region: str) -> list[dict[str, object]]:
+        client = self._warnings_client or DwdWarningsClient(
+            self._cfg.warnings.get("base_url") or DEFAULT_BASE_URL
+        )
+        warncells = self._cfg.warncell_ids() or None
+        alerts = await asyncio.to_thread(client.fetch_alerts, warncell_ids=warncells)
+        return [a.as_item() for a in alerts]
 
     async def get_observations(self, *, station_ids: list[str]) -> list[Any]:
         raise DwdNotImplementedError("get_observations is E18-04 (DWD POI CSV, ADR-0026)")
@@ -124,19 +165,15 @@ class DwdWeatherProvider:
 
 def _parse_config(raw: dict[str, Any] | None) -> DwdConfig:
     cfg = raw or {}
-    places = tuple(
-        DwdPlace(
-            name=p["name"],
-            warncell_id=str(p.get("warncell_id", "")),
-            poi_station_id=str(p.get("poi_station_id", "")),
-        )
-        for p in cfg.get("places", [])
-    ) or tuple(DwdPlace(name=n) for n in DEFAULT_PLACES)
-    enabled = tuple(cfg.get("enabled_capabilities", tuple(_CAPABILITY_BY_KEY)))
+    place_cfgs = cfg.get("places") or []
+    if place_cfgs:
+        places = tuple(_place(p["name"], p) for p in place_cfgs)
+    else:
+        places = tuple(_place(name) for name in DEFAULT_PLACES)
     return DwdConfig(
         instance_id=cfg.get("instance_id", "dwd-1"),
         region=cfg.get("region", "mittelfranken"),
-        enabled_capabilities=enabled,
+        enabled_capabilities=tuple(cfg.get("enabled_capabilities", tuple(_CAPABILITY_BY_KEY))),
         places=places,
         warnings=dict(cfg.get("warnings", {})),
         radar=dict(cfg.get("radar", {})),
