@@ -83,9 +83,9 @@ Feature areas whose UI lives in a later epic point at that epic.
 | # | Feature | Delivered by | Status |
 |---|---|---|---|
 | 43 | DWD weather page | Epic 18 · `DWD Weather` | todo |
-| 44 | monitor routing dialog | Epic 19 · `Weytec Monitor Routing` | todo |
-| 45 | 6 workplace monitors + large display, standard layout | Epic 19 | todo |
-| 46 | BBZ-OS fixed on the lower-left monitor | Epic 08 (BBZ Desktop Client) | todo |
+| 44 | monitor routing dialog | Epic 19 · `Weytec Monitor Routing` | backend-done (E19-04/05 API; dialog UI is E19-08 → Epic 07) |
+| 45 | 6 workplace monitors + large display, standard layout | Epic 19 | backend-done (E19-02 catalog + standard layout, E19-04 reset) |
+| 46 | BBZ-OS fixed on the lower-left monitor | Epic 08 (BBZ Desktop Client) | backend-done (E19-03 server-enforced; desktop display is Epic 08) |
 
 ## BKU agent (Epic 10 — separate app)
 
