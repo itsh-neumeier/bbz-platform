@@ -1438,7 +1438,7 @@ API. `integrations/telephony_cucm/` stays a placeholder README.
   no network.** `dwd` test count 43.
 - Only **E18-09** (Wetterlage UI) left → Epic 07 (frontend, blocked).
 
-### Epic 19 – Weytec Monitor Routing: **in progress (8/10)**
+### Epic 19 – Weytec Monitor Routing: **backend complete (9/10; E19-08 dialog UI → Epic 07)**
 - **#395 (E19-01) DB schema** — migration `0041_monitor_schema` +
   `bbz_core.infra.models.monitor`. Four tables (MASTER_PROMPT §9): `monitor_inputs`
   (`key` unique — BBZ-OS / BKU1-4 / Cayuga 1-2), `monitor_outputs` (`key` unique,
@@ -1536,8 +1536,18 @@ API. `integrations/telephony_cucm/` stays a placeholder README.
   `monitor.view`; Nachbearbeitung none; no role grants an unknown `monitor.*`
   key; and a DB-backed check that `seed_rbac` actually wrote those grants.
   `docs/domain/permission-catalog.md` gets the default-grants table.
-- Next: **E19-10** (routing E2E — API-level + a `test.fixme` Playwright scaffold
-  pending the UI). E19-08 (dialog UI) → Epic 07 (blocked).
+- **#412 (E19-10) routing E2E** — `server/tests/test_e2e_monitor_routing.py`
+  walks all four scenarios as one operator session against `monitor_mock`:
+  set a route → the mock reflects it + `MONITOR_ROUTE_CHANGED`; the lower-left
+  reassignment → 422, nothing changes; save a layout profile + apply it → routes
+  match, `workplace4` stays `bbz-os`, `MONITOR_PROFILE_APPLIED`; reset-standard →
+  the documented default. The browser half is scaffolded
+  (`apps/web/e2e/monitor-routing.spec.ts`, `test.fixme`) pending the E19-08
+  dialog. `.ai/TESTING.md` + `docs/mockup-parity-checklist.md` (rows 44–46 →
+  `backend-done`) updated.
+- **Only E19-08** (dialog UI — 3×2 grid, drag & drop **and** keyboard/select
+  alternative, standard-layout button, profile save/load, locked lower-left) is
+  left → Epic 07 (frontend, blocked).
 
 ## Existing reference
 A functional HTML mockup defines important UX/feature behavior. **It is not yet in

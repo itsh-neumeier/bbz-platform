@@ -35,6 +35,10 @@ Additional critical tests:
 - EPK XOR split/join
 - EPK OR split/join
 - workflow publish validation and version pinning
+- monitor routing change reflected on the provider + audited
+- monitor lower-left output stays BBZ-OS (server-enforced)
+- monitor standard-layout reset
+- monitor layout profile save + apply
 
 
 ## HA failure-scenario harness (E06-11)
