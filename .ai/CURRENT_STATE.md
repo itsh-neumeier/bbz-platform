@@ -1438,7 +1438,7 @@ API. `integrations/telephony_cucm/` stays a placeholder README.
   no network.** `dwd` test count 43.
 - Only **E18-09** (Wetterlage UI) left → Epic 07 (frontend, blocked).
 
-### Epic 19 – Weytec Monitor Routing: **in progress (3/10)**
+### Epic 19 – Weytec Monitor Routing: **in progress (4/10)**
 - **#395 (E19-01) DB schema** — migration `0041_monitor_schema` +
   `bbz_core.infra.models.monitor`. Four tables (MASTER_PROMPT §9): `monitor_inputs`
   (`key` unique — BBZ-OS / BKU1-4 / Cayuga 1-2), `monitor_outputs` (`key` unique,
@@ -1473,10 +1473,21 @@ API. `integrations/telephony_cucm/` stays a placeholder README.
   output, `validate_layout` inherits it, `is_fixed_output` / `fixed_input_for`
   for the UI (E19-08). Pure — `test_monitor_domain.py` (14). The "via API direkt"
   rejection is re-verified at the HTTP layer in E19-04.
-- Next (dependency order — **E19-04 needs E19-06**): E19-06 (`monitor_mock` full
-  provider), then E19-04 (routing API + `MONITOR_ROUTE_CHANGED`), E19-05
-  (profiles), E19-07 (`monitor_weytec` scaffold — no invented API), E19-09
-  (permissions seed), E19-10 (E2E). E19-08 (dialog UI) → Epic 07 (blocked).
+- **#404 (E19-06) `monitor_mock` — complete provider** (done ahead of E19-04,
+  which depends on it). `integrations/monitor_mock/adapter.py` `MockMonitorProvider`
+  implements the SDK `MonitorProvider`: `list_inputs`/`list_outputs`/`get_routes`,
+  `set_route(*, output_id, input_id, command_id)`, `apply_layout(*, layout,
+  command_id)`. Deterministic (in-memory map, read straight back);
+  **`command_id`-idempotent** (a repeat replays the first result, never
+  re-applies); `apply_layout` is atomic; config `unreachable_outputs` simulates a
+  dead sink (`OutputUnreachableError`, health `degraded`); unknown port →
+  `UnknownPortError`. Ports default to the E19-02 catalog keys so E19-10 routes
+  them unchanged. **BBZ policy (the lower-left rule) is NOT in the mock** — it is
+  enforced upstream (E19-03 domain). `manifest.json` → v1.0.0.
+  `test_mock_monitor.py` (11).
+- Next: E19-04 (routing API + `MONITOR_ROUTE_CHANGED`), E19-05 (profiles),
+  E19-07 (`monitor_weytec` scaffold — no invented API), E19-09 (permissions
+  seed), E19-10 (E2E). E19-08 (dialog UI) → Epic 07 (blocked).
 
 ## Existing reference
 A functional HTML mockup defines important UX/feature behavior. **It is not yet in
