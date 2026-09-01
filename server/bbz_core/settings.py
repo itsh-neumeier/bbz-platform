@@ -33,6 +33,10 @@ class Settings(BaseSettings):
         description="Logical node identity (e.g. BBZ-SRV01). Written into events/audit later.",
     )
     service_name: str = "bbz-api"
+    #: git revision + build time, injected at container build (E22-04). Empty in
+    #: a source checkout — /health/details then reports "unknown".
+    build_revision: str = ""
+    build_time: str = ""
     log_level: str = "INFO"
     log_json: bool = True
     # --- structured-log pipeline (E22-03) ---

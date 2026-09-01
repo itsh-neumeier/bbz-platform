@@ -17,6 +17,12 @@ RUN pip install /src/packages/integration-sdk /src/packages/rule-dsl \
 
 # --- runtime ---
 FROM base AS runtime
+# Build provenance surfaced by /health/details (E22-04). CI passes
+# --build-arg BBZ_BUILD_REVISION=$GITHUB_SHA --build-arg BBZ_BUILD_TIME=$(date -u +%FT%TZ)
+ARG BBZ_BUILD_REVISION=""
+ARG BBZ_BUILD_TIME=""
+ENV BBZ_BUILD_REVISION=${BBZ_BUILD_REVISION} \
+    BBZ_BUILD_TIME=${BBZ_BUILD_TIME}
 RUN useradd --system --uid 10001 --home /app bbz
 # Copy the whole lib tree so the Python minor version is not hardcoded here
 # (base image bumps must not silently break this multi-stage copy).

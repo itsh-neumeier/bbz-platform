@@ -111,6 +111,22 @@ async def _patroni_readiness_status() -> int | None:
         return -1
 
 
+async def dcs_reachable() -> tuple[bool, str | None]:
+    """Lightweight per-node check for ``/health/details`` (E22-04): can this node
+    reach at least one configured etcd endpoint? The full DCS / quorum picture is
+    ``/cluster/status`` (E06-04)."""
+    if not get_settings().cluster_dcs_endpoints:
+        return True, "no DCS configured (single node)"
+    try:
+        etcd = await _probe_etcd()
+    except Exception as exc:  # pragma: no cover - env dependent
+        return False, f"{type(exc).__name__}: {exc}"
+    if etcd.get("healthy"):
+        detail = None if etcd.get("quorum") else "reachable but no raft leader visible"
+        return True, detail
+    return False, "no configured etcd endpoint responded"
+
+
 async def local_node_ready() -> tuple[bool, str]:
     """Is this node's PostgreSQL role known and *not* mid-rejoin/replay?
 

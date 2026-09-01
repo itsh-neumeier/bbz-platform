@@ -1739,7 +1739,16 @@ API. `integrations/telephony_cucm/` stays a placeholder README.
   link/unlink coverage → Epic 07** (blocked); backend is `test_account_linking.py`
   (12). **Epic 21 backend complete.**
 
-### Epic 22 – Monitoring / Observability: **in progress (3/7)**
+### Epic 22 – Monitoring / Observability: **in progress (4/7)**
+- **#453 (E22-04) `/health/details` enrichment** — now a per-dependency status
+  matrix (`database` / `cluster` / `dcs`, each `ok` + `detail` + `duration_ms`)
+  plus `build: {version, revision, built_at}` from `BBZ_BUILD_REVISION` /
+  `BBZ_BUILD_TIME` (Docker build args, `server/Dockerfile`; `"unknown"` in a
+  checkout). **Now gated on `system.cluster.view`** — it is a diagnostic
+  surface, not an LB probe (the Caddyfiles use `/health/ready`, unchanged).
+  `cluster_status.dcs_reachable()` is a new lightweight per-node etcd-reachability
+  check (the full topology stays `/cluster/status`, E06-04). `/live` + `/ready`
+  unchanged. `docs/observability/health.md`. `test_health.py` (8).
 - **#451 (E22-03) structured-log pipeline** (builds on E04-09 + E22-01).
   `bbz_core.logging` rewritten: every JSON line carries
   `timestamp/level/event/logger/node_id`, plus `correlation_id` / `trace_id` /
