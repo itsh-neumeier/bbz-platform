@@ -2,14 +2,15 @@
 
 ## Current phase
 Working the roadmap issues in order (see `.ai/ROADMAP.md`, tracking issue #18).
-**Epics 02–06 complete; Epic 01 is 5/7** (E01-02 needs client-supplied mockup
-files, E01-06 needs a Node env — both blocked). **The domain epics 11/13–22 are
-backend-complete** (remaining issues are Epic-07 UI or Playwright; Epic 13 is
-1/8 + ADR-0023). **In progress: Epic 23** (security hardening, 7/12 +
-E23-10/E23-11 partial) **and Epic 24** (production deployment, 3/8). Blocked
-until a Node / Electron / Go / Cisco-vendor / SIP-PBX session: Epics 07, 08, 09,
-10, 12, 13-impl, and the E23/E24 issues that chain off them —
-`docs/roadmap-status.md` is the per-issue register.
+**Epics 02–06 complete; Epic 01 is 6/7** (only E01-02 blocked — client-supplied
+mockup files). **The domain epics 11/13–22 are backend-complete** (remaining
+issues are Epic-07 UI or Playwright; Epic 13 is 1/8 + ADR-0023 Accepted). **In
+progress: Epic 23** (security hardening, 7/12 + E23-10/E23-11 partial) **and
+Epic 24** (production deployment, 3/8). Blocked until a Node / Electron / Go /
+Cisco-vendor / SIP-PBX session: Epics 07, 08, 09, 10, 12, 13-impl, and the
+E23/E24 issues that chain off them — `docs/roadmap-status.md` is the per-issue
+register. **One maintainer action left that the agent cannot do: run the
+branch-protection `gh api` call in `docs/repo-settings.md`.**
 
 ### Epic 02 – Identity / RBAC: **COMPLETE (14/14)**
 #20 ADR gate · #27 identity schema · #28 RBAC schema (scoped
@@ -571,10 +572,11 @@ rows point at their epics. `server/tests/test_parity_checklist.py` enforces
 the issue-ref format, the `E07-xx ↔ #issue` map, valid statuses, and
 FEATURES.md coverage.
 
-**#97–#129 are all `Area: frontend` (Vue 3 / PrimeVue / Vitest / Playwright)
-and Node/npm is not available in this environment** — the frontend CI job is
-also `continue-on-error`. Those need a Node-equipped session. Backend work
-continues on Epic 20 in the meantime.
+**#97–#129 are all `Area: frontend` (Vue 3 / PrimeVue / Vitest / Playwright).**
+Node/npm isn't on the host, but the toolchain **does** run in a `node:22-alpine`
+container — E01-06 (#699) used that to regenerate the lockfile and make the
+`frontend` CI job blocking. Writing the 17 Vue components still needs an
+interactive dev loop; the app shell + Vitest/Playwright configs exist.
 
 ### Epic 20 – Archive / Postprocessing: **backend COMPLETE (8/8; 1 Playwright scaffold)**
 - **#414 (E20-01) archive detail model** — decision documented in
@@ -2021,13 +2023,14 @@ Foundation skeleton only — **no domain logic, no productive vendor integration
 - Placeholders (README only): `services/cucm-cti-gateway`,
   `agents/bbz-client-agent`, `agents/bku-agent`, `apps/bbz-kiosk`, `deploy/*`.
 - CI: `.github/workflows/ci.yml` (backend lint/type/import-linter/pytest +
-  Alembic up/down/up; frontend lint/type/test; commitlint; compose config;
-  `actionlint`), `security.yml` (gitleaks, pip-audit, Trivy FS, scan-policy,
-  non-root images), and **`release.yml`** (E01-04 — tag `v*` → build `bbz-api`,
-  semver+SHA tags, Syft SBOM, cosign keyless sign + SPDX attest, Trivy, GHCR,
-  GitHub Release; `cosign verify` runs in the job; `bbz-web` joins once
-  `apps/web` has a Dockerfile — E01-06 / Epic 07). Dependabot, pre-commit,
-  CODEOWNERS, PR/issue templates. Release process: `docs/deploy/releases.md`.
+  Alembic up/down/up; **frontend `npm ci`/lint/type/test — blocking** since
+  E01-06; commitlint; compose config; `actionlint`), `security.yml` (gitleaks,
+  pip-audit, Trivy FS, scan-policy, non-root images), and **`release.yml`**
+  (E01-04 — tag `v*` → build `bbz-api`, semver+SHA tags, Syft SBOM, cosign
+  keyless sign + SPDX attest, Trivy, GHCR, GitHub Release; `cosign verify` runs
+  in the job; `bbz-web` joins once `apps/web` has a Dockerfile — Epic 07).
+  Dependabot, pre-commit, CODEOWNERS, PR/issue templates. Release process:
+  `docs/deploy/releases.md`.
 - Architecture boundaries enforced by `import-linter` — **7 `forbidden`
   contracts**, one per ADR-0008 layer (domain, authorization, workflow engine,
   rule-DSL leaf, integrations-host, core ↛ integrations, `telephony_sip` ↛
@@ -2043,9 +2046,9 @@ Foundation skeleton only — **no domain logic, no productive vendor integration
   `docker compose config`.
 - Security workflow **green**: gitleaks, pip-audit (strict, third-party deps),
   Trivy FS.
-- Frontend job now runs `lint` + `typecheck` + `unit` and all pass, but is still
-  **continue-on-error**; dropping that (the DoD hardening) is tracked with the
-  coordinated frontend upgrade in issue #14.
+- Frontend job runs `npm ci` + `lint` + `typecheck` + `unit` and is
+  **blocking** (E01-06 / #699 — `continue-on-error` removed, lockfile committed).
+  The coordinated frontend dependency upgrade stays with issue #14.
 - Runtime is **Python 3.13** (`python:3.13-slim` image, CI + security workflows);
   ADR-0008 floor stays "3.12+". Bump to 3.14 deferred until `asyncpg`'s pin can
   move (no cp314 wheel below 0.31) — issue #13 / PR #15.
