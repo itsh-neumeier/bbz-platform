@@ -1,7 +1,7 @@
 # ADR-0023: SIP/CTI gateway — Asterisk ARI
 
 ## Status
-Proposed (2026-09-02, review E13-02 / #271)
+Accepted (2026-09-02, review E13-02 / #271)
 
 ## Context
 Epic 13 adds an **optional** SIP telephony provider (`telephony_sip`), parallel

@@ -2507,12 +2507,12 @@ Trunks, alternative PBX, Lab/Test, Migration/Fallback. Quellen: MASTER_PROMPT
 - **Tests:** Compose-Smoke.
 - **Security-Auswirkung:** Trunk-Creds als Secret.
 - **HA-Auswirkung:** — · **Permissions:** — · **Audit Events:** —
-- **Status (2026-09-02):** **ADR-0023 written, `Proposed`** — Asterisk ARI
-  (REST + WebSocket + JSON maps to the codebase's existing transport and to
+- **Status (2026-09-02):** **ADR-0023 `Accepted`** — Asterisk ARI (REST +
+  WebSocket + JSON maps to the codebase's existing transport and to
   `inbound_signal.v1`; FreeSWITCH ESL kept as the documented fallback in
   `config_schema.json`). The **decision half is done**; the compose test-gateway
   + ARI connection point is E13-03+ and still needs a SIP stack in the
-  environment. Move the ADR to `Accepted` (or redirect) on review.
+  environment.
 
 ### E13-03 · SIP-Adapter → normalisiertes Provider-Interface
 **Epic:** 13 · **Phase:** 5 · **Area:** integration · **Branch:** feature/<nr>-sip-adapter
