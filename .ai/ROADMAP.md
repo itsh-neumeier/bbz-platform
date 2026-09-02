@@ -246,6 +246,14 @@ Python 3.13). Es fehlen die unten genannten Punkte.
 - **HA-Auswirkung:** Keine.
 - **Permissions:** —
 - **Audit Events:** —
+- **Status (2026-09-02):** done. Global 70 % floor was already enforced. Added
+  two named `import-linter` contracts (rule-DSL standalone leaf; workflow engine
+  domain-only) → **7 contracts, one per ADR-0008 layer**. New
+  `tools/coverage_gates.py` reads `coverage.json` after pytest and checks the
+  four layers (domain / authorization / rule DSL / workflow engine) against a
+  90 % floor, **report-only** — the owning Phase-1 issue flips its gate to
+  enforced (ratchet). Wired into the `backend` job. `docs/CONVENTIONS.md` gains
+  a "Quality gates" section. The deliberate-violation demo is in the PR.
 
 ---
 

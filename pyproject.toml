@@ -54,7 +54,7 @@ show_missing = true
 fail_under = 70
 
 [tool.importlinter]
-root_packages = ["bbz_core", "integrations"]
+root_packages = ["bbz_core", "integrations", "bbz_rule_dsl", "bbz_event_schemas"]
 include_external_packages = true
 
 [[tool.importlinter.contracts]]
@@ -88,6 +88,34 @@ name = "Authorization layer is storage- and transport-agnostic"
 type = "forbidden"
 source_modules = ["bbz_core.authorization"]
 forbidden_modules = ["bbz_core.infra", "bbz_core.api", "bbz_integration_sdk"]
+
+[[tool.importlinter.contracts]]
+name = "Rule DSL is a standalone leaf (ADR-0008 / ADR-0010)"
+type = "forbidden"
+source_modules = ["bbz_rule_dsl"]
+forbidden_modules = [
+  "bbz_core",
+  "bbz_integration_sdk",
+  "bbz_event_schemas",
+  "integrations",
+]
+# The safe-expression evaluator must depend on nothing but the stdlib so it can
+# never be a vector for domain or I/O code (evaluate() itself raises until the
+# grammar is frozen — ADR-0010).
+
+[[tool.importlinter.contracts]]
+name = "Workflow engine stays in the domain layer (ADR-0005 / ADR-0008)"
+type = "forbidden"
+source_modules = ["bbz_core.domain.workflow", "bbz_core.workflow_engine"]
+forbidden_modules = [
+  "bbz_core.api",
+  "bbz_core.infra",
+  "bbz_core.integrations_host",
+  "bbz_integration_sdk",
+]
+# The EPK runtime evaluates conditions through bbz_rule_dsl, never eval, and
+# never reaches for storage or transport — persistence is the caller's job
+# (bbz_core.infra.repositories.workflow_engine).
 
 [[tool.importlinter.contracts]]
 name = "telephony_sip is independent of Cisco CUCM / JTAPI"

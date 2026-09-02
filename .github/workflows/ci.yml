@@ -45,7 +45,9 @@ jobs:
       - name: Import boundaries
         run: lint-imports
       - name: Pytest
-        run: pytest --cov --cov-report=term-missing
+        run: pytest --cov --cov-report=term-missing --cov-report=json
+      - name: Coverage gates (ADR-0008, E01-07)
+        run: python tools/coverage_gates.py
       - name: Alembic upgrade/downgrade/upgrade (real PostgreSQL)
         run: |
           cd server

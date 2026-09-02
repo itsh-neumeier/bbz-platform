@@ -4,12 +4,45 @@ Binding. `.ai/RULES.md` and the ADRs win over anything here.
 
 ## Module boundaries (enforced by `import-linter`)
 
+Seven `forbidden` contracts in the root `pyproject.toml`, run by `lint-imports`
+in the `backend` CI job. A broken contract fails the build.
+
 - `bbz_core.domain` imports nothing else in `bbz_core` and never
   `bbz_integration_sdk`. It defines its own interfaces (dependency inversion).
+- `bbz_core.authorization` is storage- and transport-agnostic (no `infra`, no
+  `api`).
+- The **workflow engine** (`bbz_core.domain.workflow`, `bbz_core.workflow_engine`)
+  stays in the domain layer — conditions run through `bbz_rule_dsl`, never
+  `eval`; persistence is the caller's job.
+- `bbz_rule_dsl` is a **standalone leaf**: stdlib only, no `bbz_core`, no
+  `integrations`.
 - Only `bbz_core.integrations_host` imports `bbz_integration_sdk`.
 - `bbz_core` never imports anything under `integrations/`.
 - Concrete integrations never import each other; `telephony_sip` must not depend
   on Cisco/JTAPI or `telephony_cucm`.
+
+## Quality gates (ADR-0008)
+
+| gate | scope | where |
+|---|---|---|
+| **coverage — global** | whole `source` set, **≥ 70 %** | `--cov-fail-under = 70` in `pyproject.toml`, `backend` job |
+| **coverage — per layer** | `domain`, `authorization`, rule DSL, workflow engine → **target ≥ 90 %** | `tools/coverage_gates.py` reads `coverage.json` after pytest |
+| **import boundaries** | the seven contracts above | `lint-imports`, `backend` job |
+| **branch coverage** | `bbz_core.domain` aggregates → 100 % (kept green per-PR) | already enforced by the domain issues |
+
+Per-layer coverage is a **ratchet**. Each gate in `tools/coverage_gates.py`
+starts `report-only`: the number is printed but never fails CI. The Phase-1
+issue that makes a package feature-complete flips its gate to `enforced` in the
+same PR, at which point it can only go up. Never lower a floor; never flip a
+gate back to report-only to get a merge through.
+
+Run the whole set locally before pushing:
+
+```sh
+cd server && ruff check .. && ruff format --check .. && mypy bbz_core … && \
+  lint-imports && pytest --cov --cov-report=json && \
+  python ../tools/coverage_gates.py --strict
+```
 
 ## API / commands
 
