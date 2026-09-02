@@ -75,18 +75,18 @@ jobs:
             --severity CRITICAL,HIGH --exit-code 1 --ignore-unfixed --no-progress \
             --ignorefile .trivyignore .
 
-  # apps/web npm advisories. Non-blocking until the deliberate major-upgrade pass
-  # (#14) lands a clean tree; flip continue-on-error to make it a gate (E23-07).
+  # apps/web npm advisories: informational only until #14 (the deliberate
+  # frontend major-upgrade pass) lands a clean tree. E23-07 makes it a gate then
+  # — drop the `|| true` and this comment.
   web-audit:
     name: npm audit (apps/web)
     runs-on: ubuntu-latest
-    continue-on-error: true
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
       - working-directory: apps/web
-        run: npm install --package-lock-only
-      - working-directory: apps/web
-        run: npm audit --audit-level=high
+        run: |
+          npm install --package-lock-only
+          npm audit --audit-level=high || echo "::warning::npm audit findings — gated after #14"
