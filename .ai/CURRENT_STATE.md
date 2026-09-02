@@ -1739,6 +1739,24 @@ API. `integrations/telephony_cucm/` stays a placeholder README.
   link/unlink coverage → Epic 07** (blocked); backend is `test_account_linking.py`
   (12). **Epic 21 backend complete.**
 
+### Epic 23 – Security Hardening: **in progress (1/13)**
+- **#22 (E01-03) ADR-0019** — runtime secret store **Accepted**: target
+  HashiCorp Vault (Raft HA on the 3 nodes); ship the abstraction now.
+- **#461 (E23-01) secret-store integration** — `bbz_core.secrets`:
+  `SecretProvider` (`get`/`version`/`invalidate`); `EnvFileSecretProvider`
+  (default — `BBZ_<NAME>` env then `$BBZ_SECRETS_DIR/<name>` file, 30 s TTL so a
+  rotated mounted file is picked up without a restart); `VaultSecretProvider`
+  raises with an ADR-0019 pointer (`BBZ_SECRET_PROVIDER=vault` not wired yet).
+  **Fail-closed startup** `verify_required_secrets()` in the lifespan — refuses
+  to boot in staging/production when `jwt_secret` is the dev default or
+  `database_url` has no password (`local`/`ci` exempt). **Rotation**:
+  `SecretsRotationService.reload()` re-reads the 5 tracked secret fields,
+  clears the settings cache for the changed ones, audits `SECRET_ROTATED`
+  (name only — new critical action) — `POST /api/v1/system/secrets/reload`
+  (`system.cluster.manage`). `Settings` keeps its native pydantic env/file
+  loading; routing it through the provider lands with the Vault rollout.
+  `test_secret_store.py` (9). `docs/security/secrets.md`.
+
 ### Epic 22 – Monitoring / Observability: **COMPLETE (7/7)**
 - **#459 (E22-07) collector + dashboards + SLO docs** — optional observability
   stack under `docker compose --profile monitoring` (dev only, never on quorum):

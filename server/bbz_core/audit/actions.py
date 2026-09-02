@@ -54,6 +54,8 @@ class AuditAction(enum.StrEnum):
     ROLLING_UPDATE_COMPLETED = "ROLLING_UPDATE_COMPLETED"
     BACKUP_COMPLETED = "BACKUP_COMPLETED"
     RESTORE_PERFORMED = "RESTORE_PERFORMED"
+    #: a runtime secret changed and was reloaded (E23-01) — name only, never the value.
+    SECRET_ROTATED = "SECRET_ROTATED"
     CALL_RINGING = "CALL_RINGING"
     CALL_ANSWERED = "CALL_ANSWERED"
     CALL_ENDED = "CALL_ENDED"
@@ -123,6 +125,7 @@ CRITICAL_ACTIONS: frozenset[AuditAction] = frozenset(
         AuditAction.ROLLING_UPDATE_COMPLETED,
         AuditAction.BACKUP_COMPLETED,
         AuditAction.RESTORE_PERFORMED,
+        AuditAction.SECRET_ROTATED,
         AuditAction.CALL_RINGING,
         AuditAction.CALL_ANSWERED,
         AuditAction.CALL_ENDED,

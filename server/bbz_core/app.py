@@ -19,6 +19,7 @@ from bbz_core.api.v1.router import api_v1
 from bbz_core.api.ws import router as ws_router
 from bbz_core.infra.db import dispose_engine
 from bbz_core.logging import configure_logging, correlation_id, get_logger, user_id
+from bbz_core.secrets import verify_required_secrets
 from bbz_core.settings import get_settings
 from bbz_core.telemetry import instrument_app, record_correlation_id, shutdown_tracing
 from bbz_core.workers.manager import ClusterWorkers
@@ -52,6 +53,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         sample=s.log_sample,
         log_file=s.log_file,
     )
+    verify_required_secrets(s)  # fail-closed: refuse to start on a broken prod secret (E23-01)
     _log.info("startup", service=s.service_name, version=__version__, environment=s.environment)
 
     workers: ClusterWorkers | None = None
