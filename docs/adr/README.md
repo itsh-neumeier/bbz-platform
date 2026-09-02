@@ -38,6 +38,7 @@ a provider contract, a security boundary, a technology choice. `.ai/RULES.md`:
 | 0016 | Canonical naming: Coda Video not "Cayuga" | Accepted |
 | 0017 | Time handling (UTC everywhere) | Proposed |
 | 0018 | Distributed config store (etcd) | Proposed |
+| 0019 | Runtime secret store (Vault target; provider abstraction now) | Accepted |
 | 0020 | Audit / event-log immutability (append-only trigger) | Proposed |
 | 0021 | PostgreSQL replication mode (synchronous + auto fallback) | Accepted |
 | 0024 | Trigger execution worker (leader-elected inbox drain) | Accepted |

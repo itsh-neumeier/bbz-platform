@@ -20,6 +20,19 @@ Security baseline:
 
 No credentials in repo.
 
+## Secret store (ADR-0019)
+- Target: **HashiCorp Vault** (Raft HA co-located on the 2 BBZ nodes + witness,
+  AppRole auth). Not yet rolled out — a later issue.
+- Now: every secret is read through `bbz_core.secrets.SecretProvider`. The
+  default `EnvFileSecretProvider` is the ADR-0015 mechanism (a
+  `$BBZ_SECRETS_DIR/<name>` file, else `$BBZ_<NAME>`), short-TTL cached so a
+  rotated mounted secret is picked up **without a restart**.
+- **Fail-closed**: the app refuses to start if a secret the running config
+  requires is missing (`verify_required_secrets`).
+- **Rotation**: `POST /api/v1/system/secrets/reload` (`system.cluster.manage`)
+  re-reads the tracked secrets and audits `SECRET_ROTATED` (name only) for each
+  that changed.
+
 
 ## MFA policy + step-up (E21-05)
 - MFA is a **role-based** requirement (`mfa_policies`): holding any policy'd role

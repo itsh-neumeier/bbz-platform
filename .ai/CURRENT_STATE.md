@@ -1933,10 +1933,13 @@ store (etcd).
 **Open points recorded on accepted ADRs:**
 - ADR-0013: the coordinated `apps/web` major upgrade (PrimeVue 5 / Pinia 4 /
   vue-router 5 / Vite 8) is evaluated in issue #14; baseline stays PrimeVue 4.
-- ADR-0015: the concrete runtime secret-store product → dedicated **ADR-0019**
-  (E01-03 / #22), required before staging.
+- ADR-0015: the concrete runtime secret-store product → **ADR-0019 Accepted**
+  (E01-03 / #22): target HashiCorp Vault (Raft HA on the 3 nodes); ship the
+  `bbz_core.secrets.SecretProvider` abstraction + `EnvFileSecretProvider` now,
+  Vault rollout is a later issue.
 
-**New ADRs scheduled by the roadmap:** 0019 secret store (E01-03 / #22), 0020
+**New ADRs scheduled by the roadmap:** ~~0019 secret store (E01-03 / #22)~~
+**Accepted**, 0020
 audit immutability (E04-10 / #66, Proposed), **0021 PostgreSQL replication mode
 (E06-02 / #82 — Accepted: synchronous + auto fallback)**, 0022 Electron load
 strategy (E08-07 / #143), 0023 SIP gateway (E13-02 / #271).
