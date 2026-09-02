@@ -58,6 +58,8 @@ class AuditAction(enum.StrEnum):
     SECRET_ROTATED = "SECRET_ROTATED"
     #: a rate limit on an auth path was exceeded (E23-04) — the rule + identifier, no payload.
     RATE_LIMIT_TRIGGERED = "RATE_LIMIT_TRIGGERED"
+    #: the audit hash chain failed verification (E23-09) — the first bad seq + why.
+    AUDIT_INTEGRITY_ALERT = "AUDIT_INTEGRITY_ALERT"
     CALL_RINGING = "CALL_RINGING"
     CALL_ANSWERED = "CALL_ANSWERED"
     CALL_ENDED = "CALL_ENDED"
@@ -129,6 +131,7 @@ CRITICAL_ACTIONS: frozenset[AuditAction] = frozenset(
         AuditAction.RESTORE_PERFORMED,
         AuditAction.SECRET_ROTATED,
         AuditAction.RATE_LIMIT_TRIGGERED,
+        AuditAction.AUDIT_INTEGRITY_ALERT,
         AuditAction.CALL_RINGING,
         AuditAction.CALL_ANSWERED,
         AuditAction.CALL_ENDED,

@@ -23,6 +23,7 @@ SINGLETON_NAMES: tuple[str, ...] = (
     "weather-refresh",
     "directory-sync",
     "integration-health",
+    "audit-chain",
 )
 
 
@@ -126,6 +127,51 @@ async def _integration_health_tick() -> object:
         return len(await IntegrationHealthService(session).refresh())
 
 
+async def _audit_chain_tick() -> object:
+    """Seal new ``audit_events`` rows into the hash chain and re-verify it
+    (E23-09) — once per ``audit_chain_interval_seconds``. A verification failure
+    audits ``AUDIT_INTEGRITY_ALERT`` and logs an error. Returns the number of
+    rows sealed this tick; a no-op when the chain is disabled."""
+    import datetime as _dt
+
+    from sqlalchemy import func, select
+
+    from bbz_core.audit import AuditAction, AuditService
+    from bbz_core.infra.db import session_scope
+    from bbz_core.infra.models.audit import AuditChainLink
+    from bbz_core.infra.repositories.audit_chain import AuditChainService
+    from bbz_core.logging import get_logger
+    from bbz_core.settings import get_settings
+
+    if not get_settings().audit_hash_chain_enabled:
+        return 0
+
+    async with session_scope() as session:
+        last = (
+            await session.execute(select(func.max(AuditChainLink.sealed_at)))
+        ).scalar_one_or_none()
+        if last is not None:
+            age = (_dt.datetime.now(_dt.UTC) - last).total_seconds()
+            if age < get_settings().audit_chain_interval_seconds:
+                return 0
+
+        sealed = (await AuditChainService(session).seal()).sealed
+        result = await AuditChainService(session).verify()
+        if not result.ok:
+            get_logger(__name__).error(
+                "audit_integrity_alert", first_bad_seq=result.first_bad_seq, detail=result.detail
+            )
+            await session.rollback()  # verify() left a read transaction open
+            async with session.begin():
+                await AuditService(session).write(
+                    AuditAction.AUDIT_INTEGRITY_ALERT,
+                    target_type="audit_chain",
+                    target_id=str(result.first_bad_seq),
+                    after={"first_bad_seq": result.first_bad_seq, "detail": result.detail},
+                )
+        return sealed
+
+
 def cluster_singletons() -> list[Singleton]:
     return [
         Singleton("outbox-dispatcher", _outbox_tick),
@@ -134,4 +180,5 @@ def cluster_singletons() -> list[Singleton]:
         Singleton("weather-refresh", _weather_refresh_tick),
         Singleton("directory-sync", _directory_sync_tick),
         Singleton("integration-health", _integration_health_tick),
+        Singleton("audit-chain", _audit_chain_tick),
     ]
