@@ -25,6 +25,7 @@ dependencies = [
   "webauthn>=3.0,<4",  # FIDO2/WebAuthn L2 (E21-06); pulls cbor2, pyasn1-modules, pyOpenSSL
   "cryptography>=46.0.7,<51",
   "structlog>=24.1",
+  "httpx>=0.27,<1.0",  # runtime: etcd/Patroni health probes (cluster_status, leader)
   "prometheus-client>=0.20,<1.0",
   # OpenTelemetry tracing (E22-01, ADR-0028). Core packages track 1.x; the
   # instrumentation packages are permanently beta-versioned (0.NbM) upstream but
@@ -39,7 +40,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest", "pytest-asyncio", "httpx"]
+dev = ["pytest", "pytest-asyncio"]
 
 [tool.setuptools.packages.find]
 include = ["bbz_core*"]
