@@ -1739,6 +1739,21 @@ API. `integrations/telephony_cucm/` stays a placeholder README.
   link/unlink coverage → Epic 07** (blocked); backend is `test_account_linking.py`
   (12). **Epic 21 backend complete.**
 
+### Epic 24 – Production Deployment: **in progress (1/8)**
+- **#488 (E24-03) environment / secret provisioning** — `deploy/node/preflight.sh`:
+  a per-node deploy gate that verifies `.env` (every required `BBZ_*` non-empty,
+  no `CHANGE_ME`, valid `BBZ_ENVIRONMENT`, DSN has a password, prod images not
+  `:latest`), every `secrets/<name>` (present, non-placeholder, ≠ `.example`,
+  `jwt_secret` ≥ 32 B), and the three etcd cert files — exits non-zero listing
+  everything missing. Wired into `tools/rolling-update.sh` (`deploy_node` runs it
+  on each node before `docker compose up`). Complements E23-01's
+  `verify_required_secrets()` (app-startup). `docs/deploy/environments.md`
+  (the local/ci/staging/prod matrix + isolation + provisioning runbook).
+  `test_deploy_preflight.py` (8). No app-code/migration change.
+- Blocked: E24-01/02/04 (dep E12-01 / E24-01), E24-07 (dep E24-02), E24-08
+  (dep ~all). Doable next: **E24-05** (backup/restore automation, deps E06-14 +
+  E22-06 ✓), then **E24-06** (DR runbook, dep E24-05).
+
 ### Epic 23 – Security Hardening: **in progress (6/13)** (E23-02/03 skipped — blocked)
 - **#476 (E23-09) audit-log hash chain** — `audit_events.seq` (BIGINT identity,
   migration **0053**) + append-only `audit_chain_links`. `bbz_core.infra.
