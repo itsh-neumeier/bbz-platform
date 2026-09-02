@@ -100,6 +100,41 @@ async def backup_marker(
     return {"phase": body.phase, "kind": body.kind}
 
 
+class RestoreTestIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    ok: bool
+    checked: list[str] = Field(default_factory=list, max_length=32)
+    detail: str | None = Field(default=None, max_length=2000)
+    rto_seconds: int | None = Field(default=None, ge=0)
+
+
+@router.post("/restore-test", status_code=status.HTTP_202_ACCEPTED)
+async def restore_test_marker(
+    body: RestoreTestIn,
+    ctx: AuthContext = Depends(require("system.cluster.manage")),
+    session: AsyncSession = Depends(db_session),
+) -> dict[str, bool]:
+    """Record the outcome of the automated weekly restore test (E24-05). The
+    `restore-test` job POSTs here; `RESTORE_TEST_COMPLETED` is the audit record
+    and `bbz_restore_test_age_seconds` / `_ok` are derived from the latest one
+    (a `BbzRestoreTestStale` / `BbzRestoreTestFailing` alert watches them)."""
+    await session.rollback()
+    async with session.begin():
+        await AuditService(session).write(
+            AuditAction.RESTORE_TEST_COMPLETED,
+            actor_user_id=ctx.user_id,
+            target_type="restore_test",
+            target_id=get_settings().node_id,
+            after={
+                "ok": body.ok,
+                "checked": body.checked,
+                "detail": body.detail,
+                "rto_seconds": body.rto_seconds,
+            },
+        )
+    return {"ok": body.ok}
+
+
 @router.post("/secrets/reload", status_code=status.HTTP_200_OK)
 async def reload_secrets(
     ctx: AuthContext = Depends(require("system.cluster.manage")),

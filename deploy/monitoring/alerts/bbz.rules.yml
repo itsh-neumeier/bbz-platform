@@ -125,6 +125,32 @@ groups:
             reconnecting to sync results, or a stuck command path.
           runbook_url: https://github.com/itsh-neumeier/bbz-platform/blob/main/docs/runbooks/observability-alerts.md
 
+  - name: bbz-backup
+    rules:
+      - alert: BbzRestoreTestStale
+        expr: bbz_restore_test_age_seconds > 691200
+        for: 1h
+        labels:
+          severity: critical
+        annotations:
+          summary: "no successful restore test in over 8 days"
+          description: >-
+            bbz_restore_test_age_seconds > 8d (or +Inf — never run). The weekly
+            `bbz-restore-test.timer` has not reported, or the backup host is down.
+          runbook_url: https://github.com/itsh-neumeier/bbz-platform/blob/main/docs/runbooks/restore.md
+
+      - alert: BbzRestoreTestFailing
+        expr: bbz_restore_test_ok == 0 and bbz_restore_test_age_seconds < 691200
+        for: 15m
+        labels:
+          severity: critical
+        annotations:
+          summary: "the last restore test did not pass"
+          description: >-
+            The most recent automated restore test reported a failure — a backup
+            is not restorable. See the RESTORE_TEST_COMPLETED audit row.
+          runbook_url: https://github.com/itsh-neumeier/bbz-platform/blob/main/docs/runbooks/restore.md
+
   - name: bbz-api
     rules:
       - alert: BbzApiLatencyHigh

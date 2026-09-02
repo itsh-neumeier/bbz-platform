@@ -1,0 +1,10 @@
+[Unit]
+Description=Weekly BBZ restore test
+
+[Timer]
+OnCalendar=Sun *-*-* 03:00:00
+RandomizedDelaySec=600
+Persistent=true
+
+[Install]
+WantedBy=timers.target

@@ -1739,7 +1739,19 @@ API. `integrations/telephony_cucm/` stays a placeholder README.
   link/unlink coverage → Epic 07** (blocked); backend is `test_account_linking.py`
   (12). **Epic 21 backend complete.**
 
-### Epic 24 – Production Deployment: **in progress (1/8)**
+### Epic 24 – Production Deployment: **in progress (2/8)**
+- **#492 (E24-05) backup/restore automation + tested restore** — extends E06-14.
+  `deploy/backup/restore-test.sh` (weekly on the backup host via
+  `bbz-restore-test.timer`): restore the newest **real** PG base backup to a
+  throwaway instance → `alembic_version` + `pg_amcheck --heapallindexed
+  --parent-check`; `etcdutl snapshot status` on the etcd snapshot. POSTs the
+  outcome to **`POST /api/v1/system/restore-test`** (`system.cluster.manage`) →
+  `RESTORE_TEST_COMPLETED` audit (new critical) + `_refresh_restore_test()` in
+  `metrics.py` derives `bbz_restore_test_age_seconds` / `_ok` from the latest
+  row. Alerts `BbzRestoreTestStale` (>8 d / never) + `BbzRestoreTestFailing`
+  (promtool-tested). Backup units get `OnFailure=bbz-backup-failed@%n` (journal
+  err + `$ALERT_WEBHOOK`). RPO/RTO table in `deploy/backup/README.md`.
+  `test_backup_restore.py` +3. No migration.
 - **#488 (E24-03) environment / secret provisioning** — `deploy/node/preflight.sh`:
   a per-node deploy gate that verifies `.env` (every required `BBZ_*` non-empty,
   no `CHANGE_ME`, valid `BBZ_ENVIRONMENT`, DSN has a password, prod images not
@@ -1751,8 +1763,7 @@ API. `integrations/telephony_cucm/` stays a placeholder README.
   (the local/ci/staging/prod matrix + isolation + provisioning runbook).
   `test_deploy_preflight.py` (8). No app-code/migration change.
 - Blocked: E24-01/02/04 (dep E12-01 / E24-01), E24-07 (dep E24-02), E24-08
-  (dep ~all). Doable next: **E24-05** (backup/restore automation, deps E06-14 +
-  E22-06 ✓), then **E24-06** (DR runbook, dep E24-05).
+  (dep ~all). Doable next: **E24-06** (DR runbook, dep E24-05).
 
 ### Epic 23 – Security Hardening: **in progress (6/13)** (E23-02/03 skipped — blocked)
 - **#476 (E23-09) audit-log hash chain** — `audit_events.seq` (BIGINT identity,

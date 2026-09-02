@@ -1,0 +1,19 @@
+[Unit]
+Description=BBZ weekly automated restore test (E24-05)
+After=network-online.target
+Wants=network-online.target
+OnFailure=bbz-backup-failed@%n.service
+
+[Service]
+Type=oneshot
+User=bbz-backup
+Environment=GPG_RECIPIENT=CHANGE_ME
+Environment=BACKUP_DIR=/var/backups/bbz
+Environment=API=https://bbz.example.internal
+# a bearer token holding system.cluster.manage, mounted read-only
+EnvironmentFile=/etc/bbz/restore-test.env
+Environment=PG_BIN=/usr/lib/postgresql/16/bin
+ExecStart=/opt/bbz/deploy/backup/restore-test.sh
+TimeoutStartSec=1800
+Nice=15
+IOSchedulingClass=idle

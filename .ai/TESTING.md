@@ -125,6 +125,19 @@ Coverage:
 - **clean no-op** — `configure_tracing(Settings(otel_enabled=False))` is `False`
   and `current_trace_ids()` is `None`.
 
+## Backup / restore automation (E24-05)
+
+`test_backup_restore.py` — `restore-test.sh` is valid POSIX sh and, with
+`DRY_RUN=1` + no backups, exits 1 with "no PostgreSQL base backup"; the systemd
+set is exactly the 7 units (backup + restore-test + `bbz-backup-failed@`) and
+each backup/restore-test unit has `OnFailure=bbz-backup-failed@`; the README has
+an RPO/RTO table and names `BbzRestoreTestStale`. `POST /api/v1/system/restore-test`
+→ 401 without a session, 202 with `system.cluster.manage`, writes one
+`RESTORE_TEST_COMPLETED` audit row carrying `ok`/`checked`/`rto_seconds`, and
+`/system/metrics` then shows `bbz_restore_test_ok 1.0` + a small
+`bbz_restore_test_age_seconds`. The two alerts are promtool-tested in
+`deploy/monitoring/alerts/bbz.rules.test.yml`.
+
 ## Audit-log hash chain (E23-09)
 
 `test_audit_hash_chain.py` (8): `seal()` builds a continuous chain (link 1's

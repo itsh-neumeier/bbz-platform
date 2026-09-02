@@ -1,6 +1,7 @@
 [Unit]
 Description=BBZ PostgreSQL encrypted base backup
 After=network-online.target
+OnFailure=bbz-backup-failed@%n.service
 Wants=network-online.target
 
 [Service]

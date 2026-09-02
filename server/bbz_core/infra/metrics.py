@@ -20,6 +20,7 @@ low-cardinality on purpose: the request histogram uses the **route template**
 from __future__ import annotations
 
 import asyncio
+import datetime as _dt
 from typing import Any
 
 from prometheus_client import (
@@ -98,6 +99,14 @@ _COMMANDS_PENDING = Gauge(
 )
 _CALL_LINES = Gauge("bbz_call_lines", "telephony lines by state", ["state"], registry=REGISTRY)
 _CALLS_ACTIVE = Gauge("bbz_calls_active", "calls not in a terminal state", registry=REGISTRY)
+_RESTORE_TEST_AGE = Gauge(
+    "bbz_restore_test_age_seconds",
+    "seconds since the last automated restore test (E24-05); +Inf if none ever ran",
+    registry=REGISTRY,
+)
+_RESTORE_TEST_OK = Gauge(
+    "bbz_restore_test_ok", "last automated restore test passed (1/0)", registry=REGISTRY
+)
 _INTEGRATION_HEALTH = Gauge(
     "bbz_integration_health",
     "loaded integration health: 1 healthy / 0.5 degraded / 0 unavailable|unknown / -1 disabled",
@@ -219,8 +228,31 @@ async def _refresh_app(session: AsyncSession) -> None:
             )
         ).scalar_one()
         _CALLS_ACTIVE.set(active_calls)
+
+        await _refresh_restore_test(session)
     except Exception:
         pass
+
+
+async def _refresh_restore_test(session: AsyncSession) -> None:
+    from bbz_core.infra.models.audit import AuditEvent
+
+    row = (
+        await session.execute(
+            select(AuditEvent.occurred_at_utc, AuditEvent.after)
+            .where(AuditEvent.action == "RESTORE_TEST_COMPLETED")
+            .order_by(AuditEvent.occurred_at_utc.desc())
+            .limit(1)
+        )
+    ).first()
+    if row is None:
+        _RESTORE_TEST_AGE.set(float("inf"))
+        _RESTORE_TEST_OK.set(0)
+        return
+    occurred, after = row
+    age = (_dt.datetime.now(_dt.UTC) - occurred).total_seconds()
+    _RESTORE_TEST_AGE.set(max(age, 0.0))
+    _RESTORE_TEST_OK.set(1 if (after or {}).get("ok") else 0)
 
 
 async def _refresh_integrations() -> None:

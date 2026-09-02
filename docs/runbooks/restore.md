@@ -56,7 +56,21 @@ Prerequisites: the **offline** GPG private key for `$GPG_RECIPIENT`, the etcd
 
 ## The tested part
 
-`deploy/backup/*` + the weekly CI job (`.github/workflows/backup-nightly.yml`)
-prove the *mechanism* — backup, encrypt, decrypt, restore, count match. This
-runbook is the operator procedure for the real cluster; walk it on the
-staging environment at least once per release train.
+Three layers prove restore actually works:
+
+- `.github/workflows/backup-nightly.yml` — weekly CI, the *mechanism* against
+  throwaway data (backup → encrypt → decrypt → restore → count match).
+- **`bbz-restore-test.timer`** (E24-05) — weekly on the backup host, against the
+  **real** newest backups: `restore-test.sh` restores the PG base backup to a
+  throwaway instance and runs `alembic_version` + `pg_amcheck
+  --heapallindexed --parent-check`, and `etcdutl snapshot status` on the etcd
+  snapshot. It POSTs the outcome to `POST /api/v1/system/restore-test`
+  (`RESTORE_TEST_COMPLETED` audit + `bbz_restore_test_{age_seconds,ok}` metrics).
+  **`BbzRestoreTestStale`** (>8 d / never) and **`BbzRestoreTestFailing`** page.
+- This runbook — the operator procedure for the real cluster. Walk it on
+  staging at least once per release train and record the measured RTO.
+
+If `BbzRestoreTestFailing` fires: read the newest `RESTORE_TEST_COMPLETED` audit
+row's `after.detail`, then run `restore-test.sh` by hand on the backup host to
+reproduce. A failing restore test means a backup is **not** restorable — treat
+as a production incident.
