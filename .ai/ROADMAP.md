@@ -210,6 +210,12 @@ Python 3.13). Es fehlen die unten genannten Punkte.
 - **HA-Auswirkung:** Keine.
 - **Permissions:** —
 - **Audit Events:** —
+- **Status (2026-09-02):** done — `docs/repo-settings.md` rewritten: the 12
+  check-runs by exact name (kept in sync with the workflow `name:` values), a
+  `gh api -X PUT …/branches/main/protection` snippet + a read-back one-liner,
+  tag protection for `v*` (E01-04), squash-only / conversation-resolution /
+  linear-history. `frontend` + `npm audit` are documented as *not yet required*
+  (E01-06 / #14). Applying it is the maintainer's one-time action.
 
 ### E01-06 · Frontend-CI härten (Lockfile, `npm ci`, kein continue-on-error)
 **Epic:** 01 Repository Foundation · **Phase:** 0 · **Area:** frontend, infra · **Branch:** feature/<nr>-frontend-ci-hardening
