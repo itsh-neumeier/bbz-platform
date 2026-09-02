@@ -52,6 +52,12 @@ services:
       # so CsrfMiddleware (E23-05) passes cookie-authed writes from the SPA.
       BBZ_CORS_ALLOW_ORIGINS: '["http://localhost:5173"]'
     ports: ["8000:8000"]
+    # container hardening (E23-08). The image already runs as uid 10001; lock the
+    # rest down. read_only works because the app only ever writes to stdout.
+    read_only: true
+    tmpfs: ["/tmp"]
+    cap_drop: ["ALL"]
+    security_opt: ["no-new-privileges:true"]
     depends_on:
       postgres:
         condition: service_healthy

@@ -141,6 +141,12 @@ services:
       - ./etcd/certs:/etc/etcd/certs:ro   # ca.crt + client-bbz-app.{crt,key}
     expose:
       - "8000"
+    # container hardening (E23-08). Image runs as uid 10001; the app writes only
+    # to stdout, so the root FS can be read-only.
+    read_only: true
+    tmpfs: ["/tmp"]
+    cap_drop: ["ALL"]
+    security_opt: ["no-new-privileges:true"]
     depends_on:
       postgres:
         condition: service_started
@@ -151,6 +157,12 @@ services:
     image: ${BBZ_WEB_IMAGE:?set in .env}
     expose:
       - "8080"
+    # container hardening (E23-08). The web image (Epic 07) must ship non-root
+    # and serve static files — these directives are ready for it.
+    read_only: true
+    tmpfs: ["/tmp", "/var/run"]
+    cap_drop: ["ALL"]
+    security_opt: ["no-new-privileges:true"]
     depends_on:
       - api
 

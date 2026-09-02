@@ -81,6 +81,18 @@ No credentials in repo.
   for offline re-check / WORM export. `BBZ_AUDIT_HASH_CHAIN_ENABLED=false` = off.
 - `docs/security/audit-integrity.md`.
 
+## Container hardening (E23-08)
+- **Non-root enforced**: `security.yml` job `non-root images` runs
+  `tools/security/check_dockerfiles.py` (static: every `**/Dockerfile`'s effective
+  final `USER` must be non-root) **and** builds the api image + `docker inspect`s
+  `Config.User`. `server/Dockerfile` is the only one today (`USER bbz`, uid 10001).
+- **Runtime lock-down** (compose, dev + `deploy/node`): the `api` (and the
+  ready-for-Epic-07 `web`) run `read_only: true` + `tmpfs:[/tmp]` +
+  `cap_drop:[ALL]` + `security_opt:[no-new-privileges:true]` — verified working.
+- `bbz-web` / `cucm-cti-gateway` / worker images follow when Epic 07/12 unblock;
+  the `check_dockerfiles.py` gate covers them automatically. Foreign images
+  (postgres/etcd/caddy/…) are a Epic-24 exercise. `docs/security/container-hardening.md`.
+
 ## Threat model / pentest / DPIA (E23-10, partial)
 - `docs/security/threat-model.md` — STRIDE per trust boundary that exists today
   (browser↔API, API↔DB, API↔etcd, API↔integrations); the BKU-agent boundary is

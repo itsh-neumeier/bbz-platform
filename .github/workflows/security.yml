@@ -75,6 +75,26 @@ jobs:
             --severity CRITICAL,HIGH --exit-code 1 --ignore-unfixed --no-progress \
             --ignorefile .trivyignore .
 
+  # Every self-built image must run as a non-root user (E23-08). Static check on
+  # all Dockerfiles + the real answer from `docker inspect` on the built api image.
+  nonroot-images:
+    name: non-root images
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+      - run: python tools/security/check_dockerfiles.py
+      - name: Build + inspect the api image
+        run: |
+          docker build -f server/Dockerfile -t bbz-api:ci .
+          user=$(docker inspect --format '{{.Config.User}}' bbz-api:ci)
+          echo "api image Config.User = '${user}'"
+          case "${user%%:*}" in
+            ""|root|0) echo "::error::api image runs as root"; exit 1 ;;
+          esac
+
   # apps/web npm advisories: informational only until #14 (the deliberate
   # frontend major-upgrade pass) lands a clean tree. E23-07 makes it a gate then
   # — drop the `|| true` and this comment.

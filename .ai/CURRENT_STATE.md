@@ -1772,7 +1772,7 @@ API. `integrations/telephony_cucm/` stays a placeholder README.
 - Blocked: E24-01/02/04 (dep E12-01 / E24-01), E24-07 (dep E24-02), E24-08
   (dep ~all). Doable next: **E24-06** (DR runbook, dep E24-05).
 
-### Epic 23 – Security Hardening: **in progress (6/13)** (E23-02/03 skipped — blocked)
+### Epic 23 – Security Hardening: **in progress (7/13)** (E23-02/03 skipped — blocked)
 - **#476 (E23-09) audit-log hash chain** — `audit_events.seq` (BIGINT identity,
   migration **0053**) + append-only `audit_chain_links`. `bbz_core.infra.
   repositories.audit_chain.AuditChainService`: `seal()` (advisory-lock, chain
@@ -1784,6 +1784,15 @@ API. `integrations/telephony_cucm/` stays a placeholder README.
   re-verify + paged links for offline/WORM export. `BBZ_AUDIT_HASH_CHAIN_ENABLED`
   (default true). Deferred sealing ⇒ **zero** latency on the audited action.
   `test_audit_hash_chain.py` (8), `docs/security/audit-integrity.md`.
+- **#474 (E23-08) non-root container audit** — `server/Dockerfile` is the only
+  self-built image (already `USER bbz` uid 10001). New `security.yml` job
+  `non-root images`: `tools/security/check_dockerfiles.py` (static — every
+  `**/Dockerfile`'s effective final `USER` ≠ root) + build the api image and
+  `docker inspect` `Config.User`. Compose (`docker-compose.yml` + `deploy/node/`):
+  `api` (+ a ready-for-Epic-07 `web`) get `read_only: true` + `tmpfs:[/tmp]` +
+  `cap_drop:[ALL]` + `security_opt:[no-new-privileges:true]` — the api runs fine
+  under all four (verified live). `test_dockerfiles_nonroot.py` (4),
+  `docs/security/container-hardening.md`. No code/migration change.
 - **#472 (E23-07) scanning gates enforced** — `security.yml` was already blocking
   (`pip-audit --strict`, `trivy` CRITICAL/HIGH `--exit-code 1`, weekly cron);
   E23-07 adds the **curated exception process**: `deploy/security/scan-exceptions.toml`
