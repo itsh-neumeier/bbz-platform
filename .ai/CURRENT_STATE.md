@@ -2019,8 +2019,12 @@ Foundation skeleton only — **no domain logic, no productive vendor integration
   Alembic up/down/up; frontend lint/type/test; commitlint; compose config) and
   `security.yml` (gitleaks, pip-audit, Trivy FS). Dependabot, pre-commit,
   CODEOWNERS, PR/issue templates.
-- Architecture boundaries enforced by `import-linter` (core ↛ integrations;
-  api/domain ↛ SDK).
+- Architecture boundaries enforced by `import-linter` — **7 `forbidden`
+  contracts**, one per ADR-0008 layer (domain, authorization, workflow engine,
+  rule-DSL leaf, integrations-host, core ↛ integrations, `telephony_sip` ↛
+  CUCM). Coverage: global 70 % floor (`--cov-fail-under`) + per-layer 90 %
+  targets via `tools/coverage_gates.py` (report-only, ratcheted per Phase-1
+  issue — E01-07, `docs/CONVENTIONS.md` "Quality gates").
 
 ## Test status (`main`, after Phase 0 merge + dependency hygiene)
 - Python: **50 passed** (pytest 9.x), `ruff` + `ruff format` clean, `mypy

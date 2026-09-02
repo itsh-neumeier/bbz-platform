@@ -17,6 +17,7 @@ venv/
 .coverage.*
 htmlcov/
 coverage.xml
+coverage.json
 audit-requirements.txt
 
 # --- Node / frontend ---
