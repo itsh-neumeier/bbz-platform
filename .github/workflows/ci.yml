@@ -110,10 +110,6 @@ jobs:
   frontend:
     name: frontend (lint · type · unit)
     runs-on: ubuntu-latest
-    # The frontend toolchain is scaffolded but not yet verified end-to-end (the
-    # foundation commit was produced without Node). Kept non-blocking until the
-    # first apps/web feature PR hardens it — see PR #2 "Known limitations".
-    continue-on-error: true
     defaults:
       run:
         working-directory: apps/web
@@ -122,7 +118,9 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: "22"
-      - run: npm install
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+      - run: npm ci
       - run: npm run lint
       - run: npm run typecheck
       - run: npm run test
