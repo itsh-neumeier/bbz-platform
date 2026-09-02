@@ -1,0 +1,62 @@
+# OpenTelemetry Collector — optional, opt-in (roadmap E22-07, MASTER_PROMPT §20).
+#
+# Receives OTLP traces from the BBZ API (E22-01: set
+# BBZ_OTEL_TRACES_EXPORTER=otlp + BBZ_OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318).
+# This reference config fans traces out to `debug` (stdout) and to an OTLP
+# endpoint an operator points at their trace backend (Tempo / Jaeger / a SaaS).
+# Running that backend is out of scope (E22-07 "Nicht im Scope").
+#
+# The collector is NOT on the quorum/witness node and is never a SPOF for the
+# Leitstelle — the API drops spans silently if it is unreachable.
+
+receivers:
+  otlp:
+    protocols:
+      http:
+        endpoint: 0.0.0.0:4318
+      grpc:
+        endpoint: 0.0.0.0:4317
+
+processors:
+  batch:
+    timeout: 5s
+    send_batch_size: 512
+  memory_limiter:
+    check_interval: 5s
+    limit_percentage: 75
+    spike_limit_percentage: 15
+  # defence in depth — the API already redacts, this drops anything that slips
+  attributes/scrub:
+    actions:
+      - key: http.request.header.authorization
+        action: delete
+      - key: db.statement.parameters
+        action: delete
+
+exporters:
+  debug:
+    verbosity: normal
+  # point this at your trace backend; commented so the config is valid stand-alone
+  # otlphttp/backend:
+  #   endpoint: ${env:BBZ_TRACES_BACKEND_ENDPOINT}
+
+extensions:
+  health_check:
+    endpoint: 0.0.0.0:13133
+
+service:
+  extensions: [health_check]
+  telemetry:
+    metrics:
+      level: basic
+      readers:
+        - pull:
+            exporter:
+              prometheus:
+                host: 0.0.0.0
+                port: 8888
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [memory_limiter, attributes/scrub, batch]
+      exporters: [debug]

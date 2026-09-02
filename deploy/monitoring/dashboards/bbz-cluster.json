@@ -1,0 +1,104 @@
+{
+  "uid": "bbz-cluster",
+  "title": "BBZ — Cluster & HA",
+  "tags": ["bbz", "cluster"],
+  "schemaVersion": 39,
+  "version": 1,
+  "editable": true,
+  "refresh": "30s",
+  "time": { "from": "now-6h", "to": "now" },
+  "templating": { "list": [] },
+  "annotations": { "list": [] },
+  "panels": [
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "etcd quorum",
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "bbz-prometheus" },
+      "fieldConfig": { "defaults": { "mappings": [{ "type": "value", "options": { "0": { "text": "LOST", "color": "red" }, "1": { "text": "OK", "color": "green" } } }] } },
+      "targets": [{ "refId": "A", "expr": "min(bbz_cluster_quorum)" }]
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "PostgreSQL primaries",
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "bbz-prometheus" },
+      "targets": [{ "refId": "A", "expr": "sum(bbz_cluster_node_is_primary)" }]
+    },
+    {
+      "id": 3,
+      "type": "timeseries",
+      "title": "Replication lag (bytes)",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "bbz-prometheus" },
+      "fieldConfig": { "defaults": { "unit": "bytes", "thresholds": { "steps": [{ "value": null, "color": "green" }, { "value": 1048576, "color": "red" }] } } },
+      "targets": [{ "refId": "A", "expr": "bbz_replication_lag_bytes", "legendFormat": "{{node}}" }]
+    },
+    {
+      "id": 4,
+      "type": "timeseries",
+      "title": "DCS reachable per node",
+      "gridPos": { "h": 4, "w": 12, "x": 0, "y": 4 },
+      "datasource": { "type": "prometheus", "uid": "bbz-prometheus" },
+      "targets": [{ "refId": "A", "expr": "bbz_cluster_dcs_healthy", "legendFormat": "{{node}}" }]
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "domain_events head per node",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "datasource": { "type": "prometheus", "uid": "bbz-prometheus" },
+      "targets": [{ "refId": "A", "expr": "bbz_event_seq_head", "legendFormat": "{{instance}}" }]
+    },
+    {
+      "id": 6,
+      "type": "timeseries",
+      "title": "Cluster singleton leader",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "datasource": { "type": "prometheus", "uid": "bbz-prometheus" },
+      "targets": [{ "refId": "A", "expr": "sum by (singleton) (bbz_worker_leader)", "legendFormat": "{{singleton}}" }]
+    },
+    {
+      "id": 7,
+      "type": "timeseries",
+      "title": "API request rate by status",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
+      "datasource": { "type": "prometheus", "uid": "bbz-prometheus" },
+      "targets": [{ "refId": "A", "expr": "sum by (status) (rate(bbz_http_request_duration_seconds_count[5m]))", "legendFormat": "{{status}}" }]
+    },
+    {
+      "id": 8,
+      "type": "timeseries",
+      "title": "API latency p50 / p95 / p99",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
+      "datasource": { "type": "prometheus", "uid": "bbz-prometheus" },
+      "fieldConfig": { "defaults": { "unit": "s" } },
+      "targets": [
+        { "refId": "A", "expr": "histogram_quantile(0.5, sum by (le) (rate(bbz_http_request_duration_seconds_bucket[5m])))", "legendFormat": "p50" },
+        { "refId": "B", "expr": "histogram_quantile(0.95, sum by (le) (rate(bbz_http_request_duration_seconds_bucket[5m])))", "legendFormat": "p95" },
+        { "refId": "C", "expr": "histogram_quantile(0.99, sum by (le) (rate(bbz_http_request_duration_seconds_bucket[5m])))", "legendFormat": "p99" }
+      ]
+    },
+    {
+      "id": 9,
+      "type": "timeseries",
+      "title": "DB pool connections",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 24 },
+      "datasource": { "type": "prometheus", "uid": "bbz-prometheus" },
+      "targets": [{ "refId": "A", "expr": "bbz_db_pool_connections", "legendFormat": "{{state}}" }]
+    },
+    {
+      "id": 10,
+      "type": "timeseries",
+      "title": "Connected clients / stream connections",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 24 },
+      "datasource": { "type": "prometheus", "uid": "bbz-prometheus" },
+      "targets": [
+        { "refId": "A", "expr": "bbz_connected_clients", "legendFormat": "sessions" },
+        { "refId": "B", "expr": "sum by (transport) (bbz_stream_connections)", "legendFormat": "{{transport}}" }
+      ]
+    }
+  ]
+}
