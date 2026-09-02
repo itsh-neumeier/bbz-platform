@@ -81,6 +81,17 @@ No credentials in repo.
   for offline re-check / WORM export. `BBZ_AUDIT_HASH_CHAIN_ENABLED=false` = off.
 - `docs/security/audit-integrity.md`.
 
+## Threat model / pentest / DPIA (E23-10, partial)
+- `docs/security/threat-model.md` — STRIDE per trust boundary that exists today
+  (browser↔API, API↔DB, API↔etcd, API↔integrations); the BKU-agent boundary is
+  designed but stubbed pending Epic 09/10 (its fuzzing is E23-11).
+- `docs/security/pentest-checklist.md` — a bypass-focused checklist keyed to the
+  implementing module + the test that already covers each control.
+- `docs/security/dpia-input.md` — the personal-data flow register (login,
+  sessions, presence, RBAC/MFA, calls, call documentation, events/notes, audit,
+  logs/traces) with purpose / retention / rights; BKU-session flows pending
+  Epic 10 + co-determination. **Retention values must be set before go-live.**
+
 ## Secret store (ADR-0019)
 - Target: **HashiCorp Vault** (Raft HA co-located on the 2 BBZ nodes + witness,
   AppRole auth). Not yet rolled out — a later issue.

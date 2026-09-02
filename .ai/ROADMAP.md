@@ -3788,6 +3788,11 @@ umsetzen und die weichen CI-Gates scharf schalten. Quellen: MASTER_PROMPT §22,
 - **Tests:** Doc-Review.
 - **Security-Auswirkung:** strukturierte Risikoübersicht.
 - **HA-Auswirkung:** — · **Permissions:** — · **Audit Events:** —
+- **Status (2026-09-02):** *partial.* `docs/security/{threat-model,pentest-checklist,dpia-input}.md`
+  cover every trust boundary + data flow that exists today. The BKU-agent
+  boundary (#5) and the BKU-session data flows are stubbed pending Epic 09/10;
+  the model is completed there. Retention values in the DPIA input must be set
+  before go-live.
 
 ### E23-11 · Security-Review Agent-Kommandofläche + Tür-/DTMF-Secret-Handling
 **Epic:** 23 · **Phase:** fortlaufend · **Area:** security, test · **Branch:** feature/<nr>-security-review-agents-door
