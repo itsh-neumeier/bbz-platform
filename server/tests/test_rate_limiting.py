@@ -117,14 +117,22 @@ async def test_the_window_resets(env: tuple) -> None:
     from bbz_core import settings as settings_mod
 
     await _make_user(s, "u")
-    os.environ["BBZ_RATE_LIMIT_LOGIN"] = "2/1"  # 2 per second
+    os.environ["BBZ_RATE_LIMIT_LOGIN"] = "2/2"  # 2 per 2 seconds
     settings_mod.get_settings.cache_clear()
 
-    assert (await _try_login(client)).status_code == 401
-    assert (await _try_login(client)).status_code == 401
-    assert (await _try_login(client)).status_code == 429
-    await asyncio.sleep(1.2)
-    assert (await _try_login(client)).status_code == 401  # new window
+    # The limiter is a fixed window (floor(now / window) * window). Measure a
+    # burst that lands entirely inside one window — 2 allowed, the 3rd blocked.
+    # If the burst straddled a boundary, wait a full window and try again.
+    codes: list[int] = []
+    for _ in range(6):
+        codes = [(await _try_login(client)).status_code for _ in range(3)]
+        if codes == [401, 401, 429]:
+            break
+        await asyncio.sleep(2.1)
+    assert codes == [401, 401, 429]
+
+    await asyncio.sleep(2.1)  # window rolls over
+    assert (await _try_login(client)).status_code == 401  # counter reset
 
 
 async def test_mfa_activate_is_throttled_per_user(env: tuple) -> None:
