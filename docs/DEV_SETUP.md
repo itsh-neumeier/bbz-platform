@@ -3,7 +3,7 @@
 ## Prerequisites
 
 - Python 3.12+
-- Node.js 20+ (only for `apps/web`)
+- Node.js **22** (only for `apps/web` — the version CI pins)
 - Docker + Docker Compose
 - `just` (optional — every recipe is a plain command below)
 
@@ -53,10 +53,14 @@ docker compose --profile core up --build
 
 ```bash
 cd apps/web
-npm install
+npm ci             # reproducible install from package-lock.json (CI uses this)
 npm run dev        # http://localhost:5173 (proxies /api,/health,/cluster -> :8000)
 npm run lint && npm run typecheck && npm run test
 ```
+
+The `frontend (lint · type · unit)` CI job is **blocking** (E01-06). After a
+dependency change, run `npm install` to refresh `package-lock.json` and commit
+it.
 
 ## What exists today (Phase 0)
 

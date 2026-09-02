@@ -26,7 +26,7 @@ The exact check-run names as they appear on a commit. Keep this list and the
 |---|---|---|
 | `backend (lint · type · imports · test)` | ci | ruff, mypy, import-linter, pytest+cov, Alembic up/down/up |
 | `migration compat (N-1 app × N schema)` | ci | previous app version must read the new schema |
-| `frontend (lint · type · unit)` | ci | **not yet required** — `continue-on-error` until E01-06 wires `npm ci` |
+| `frontend (lint · type · unit)` | ci | `npm ci` + eslint + vue-tsc + vitest — blocking since E01-06 |
 | `conventional commits` | ci | commitlint over the PR range |
 | `docker compose config` | ci | every compose stack + Caddyfile + promtool + otelcol validate |
 | `workflow lint (actionlint)` | ci | added with E01-04 — gates `release.yml`, which has no other PR run |
@@ -49,6 +49,7 @@ gh api -X PUT "repos/$OWNER/$REPO/branches/main/protection" \
     "contexts": [
       "backend (lint · type · imports · test)",
       "migration compat (N-1 app × N schema)",
+      "frontend (lint · type · unit)",
       "conventional commits",
       "docker compose config",
       "workflow lint (actionlint)",
@@ -74,8 +75,7 @@ gh api -X PUT "repos/$OWNER/$REPO/branches/main/protection" \
 JSON
 ```
 
-Add `"frontend (lint · type · unit)"` to `contexts` when E01-06 lands, and
-`"npm audit (apps/web)"` when #14 closes.
+Add `"npm audit (apps/web)"` to `contexts` when #14 closes.
 
 Read the current rule back with:
 

@@ -242,6 +242,14 @@ Python 3.13). Es fehlen die unten genannten Punkte.
 - **HA-Auswirkung:** Keine.
 - **Permissions:** —
 - **Audit Events:** —
+- **Status (2026-09-02):** done. `apps/web/package-lock.json` regenerated
+  (via a `node:22-alpine` container — the stale `primevue ^4.2.0` is now
+  `4.5.4`), un-gitignored and committed. CI `frontend` job: `npm install` →
+  `npm ci` (+ `cache: npm`), `continue-on-error` **removed** — it is now a
+  blocking check. `npm ci && lint && typecheck && test` verified green in the
+  container (3 vitest tests, 0 eslint errors, vue-tsc clean). `docs/DEV_SETUP.md`
+  names Node 22. Add `frontend (lint · type · unit)` to the required-checks
+  list in `docs/repo-settings.md` when applying branch protection.
 
 ### E01-07 · Coverage-Gates & Import-Boundary-Contracts für Phase 1 vorbereiten
 **Epic:** 01 Repository Foundation · **Phase:** 0 · **Area:** backend, infra · **Branch:** feature/<nr>-coverage-boundary-gates
