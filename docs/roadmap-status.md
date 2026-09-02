@@ -103,7 +103,7 @@ All 20 issues are the separate Java `services/cucm-cti-gateway`. Needs
 
 ---
 
-## Epic 23 · Security Hardening — **in progress (7/13)**
+## Epic 23 · Security Hardening — **in progress (7/13 + E23-10 partial)**
 
 | issue | status |
 |---|---|
@@ -116,20 +116,20 @@ All 20 issues are the separate Java `services/cucm-cti-gateway`. Needs
 | E23-09 audit-log hash chain | **done** (#683) |
 | **E23-02** TLS + internal mTLS | **blocked/dep** — API↔`cucm-cti-gateway` and Go-agent mTLS need E09-08 / E12-16. Internal PKI already exists for the DCS plane (`deploy/etcd/gen-certs.sh`, Patroni/etcd mTLS, E06-03). Doable when 09/12 unblock. |
 | **E23-03** strict CSP (Web + Electron) | **blocked/toolchain** — needs the Vue build (nonces) + Electron `webSecurity` + Playwright header tests (Epic 07/08). The Caddy CSP *baseline* already ships (`deploy/*/reverse-proxy/Caddyfile` `(security_headers)`, E06-12). |
-| **E23-10** threat model + pentest checklist + DPIA input | **blocked/dep** — the *complete* model needs the agent/BKU trust boundaries (Epic 09/10). A slice for the current system (login / presence / calls / integrations trust boundaries + DPIA data-flow list) is writeable now; the BKU-session section stays a stub. |
-| **E23-11** agent-command fuzzing + door/DTMF review | **blocked/dep** — the agent-command deserialisation fuzzing needs E10-12/13. The **door/DTMF** half is doable now: E17-06 redaction is in place (`test_redaction.py`), the door-open flow has replay/duplicate guards (`test_siedle_door_open_flow.py`), and no DTMF plaintext reaches any sink. |
+| **E23-10** threat model + pentest checklist + DPIA input | **partial — done** (#688) for the current system: `docs/security/{threat-model,pentest-checklist,dpia-input}.md` cover every trust boundary + data flow that exists today. The BKU-agent boundary (#5) and BKU-session data flows stay stubbed pending Epic 09/10; retention values in the DPIA input must be set before go-live. |
+| **E23-11** agent-command fuzzing + door/DTMF review | **partial — door/DTMF half already covered**, no code needed: `test_siedle_audit_no_dtmf.py` asserts no DTMF plaintext in any audit sink, E17-06 redaction (`test_redaction.py`), replay/duplicate guards (`test_siedle_door_open_flow.py`). The agent-command deserialisation fuzzing half is **blocked/dep** on E10-12/13 (Go agent). |
 | **E23-12** cosign / SBOM verification at deploy | **blocked/dep** — needs `release.yml` producing signatures + SBOMs (E01-04 / E24-01, which is blocked/vendor on E12-01). `tools/rolling-update.sh` already refuses a non-digest `IMAGE`. |
 
-## Epic 24 · Production Deployment — **in progress (2/8)**
+## Epic 24 · Production Deployment — **in progress (3/8)**
 
 | issue | status |
 |---|---|
 | E24-03 env / secret provisioning | **done** (#685) — `deploy/node/preflight.sh` + matrix |
 | E24-05 backup/restore automation + tested restore | **done** (#686) — `restore-test.sh` + alerts |
+| E24-06 DR runbook (both servers / witness lost) | **done** (#689) — `docs/runbooks/disaster-recovery.md` scenario ladder § A–E + RTO targets; staging drill per scenario still owed |
 | **E24-01** complete `release.yml` (SemVer+SHA, SBOM, cosign, GHCR, digests) | **blocked/vendor** — must cover *all* prod images incl. `cucm-cti-gateway` (E12-01). The api-only slice (build + SBOM + cosign + digest manifest for `bbz-api`) is doable once someone decides to ship a partial pipeline; deferred with E12. |
 | **E24-02** production deployment manifests (2 + witness) | **blocked/dep** — E24-01. `deploy/node/` and `deploy/quorum/` composes exist and validate in CI; the digest-pinned, signed variant waits on E24-01. |
 | **E24-04** rolling-update automation + pre-flight | **blocked/dep** — E24-01. `tools/rolling-update.sh` already has the health gates, the audit markers, the digest-only guard, and (E24-03) the per-node `preflight.sh`; what's missing is the signed-image verification step (E24-01/E23-12). |
-| **E24-06** DR runbook (both servers / witness lost) | **doable now** — deps E24-05 ✓ + E06-11 ✓. Next up. |
 | **E24-07** staging environment + smoke suite | **blocked/dep** — E24-02, plus E07-16 / E11-16 / E15-15 for the smoke content. |
 | **E24-08** go-live checklist + acceptance plan + ops manual | **blocked/dep** — references practically every epic; a consolidation pass once 07–12 land. The individual runbooks (`docs/runbooks/*`) and checklists (`docs/mockup-parity-checklist.md`) already exist. |
 

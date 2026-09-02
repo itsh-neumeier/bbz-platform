@@ -1,8 +1,13 @@
 # .ai/CURRENT_STATE.md
 
 ## Current phase
-Phase 0 complete. **Phase 1 – Core Domain in progress**, working the roadmap
-issues in order (see `.ai/ROADMAP.md`, tracking issue #18).
+Working the roadmap issues in order (see `.ai/ROADMAP.md`, tracking issue #18).
+**Epics 01–06 complete; the domain epics 11/13–22 are backend-complete** (their
+remaining issues are Epic-07 UI or Playwright). **In progress: Epic 23**
+(security hardening, 7/13 + E23-10 partial) **and Epic 24** (production
+deployment, 3/8). Blocked until a Node / Electron / Go / Cisco-vendor session:
+Epics 07, 08, 09, 10, 12, and the E23/E24 issues that chain off them —
+`docs/roadmap-status.md` is the per-issue register.
 
 ### Epic 02 – Identity / RBAC: **COMPLETE (14/14)**
 #20 ADR gate · #27 identity schema · #28 RBAC schema (scoped
@@ -668,7 +673,7 @@ All issues need Node/Electron; skipped like Epic 07.
 **Epic 10: 3/16 doable here (E10-01/02/14).** E10-03+ (enrollment, command bus,
 agent, UI) need the Go toolchain / identity lib.
 
-### Epic 11 – Telephony Core: **in progress (12/16)**
+### Epic 11 – Telephony Core: **backend COMPLETE (12/16; E11-13/14/15 UI + E11-16 Playwright → Epic 07)**
 - **#197 (E11-01) telephony core schema** — migration 0026 + `telephony.py`:
   `lines` (provider+external_id unique, state CHECK), `calls` (`bbz_call_id`
   unique + **independent of** `source_call_id`; `direction`/`state` CHECK — the
@@ -1212,7 +1217,7 @@ API. `integrations/telephony_cucm/` stays a placeholder README.
 - **Epic 16 backend complete (12/13).** **E16-12** (camera-view UI) is the only
   open item — needs Epic 07 (E07-08); deferred to the frontend phase.
 
-### Epic 17 – Siedle: **in progress (6/7)**
+### Epic 17 – Siedle: **backend COMPLETE (7/7)** — Siedle UI tracked under Epic 07
 - **#361 (E17-01) Siedle door-station endpoint profile** — migration
   `0035_door_station_fields` adds `technical_endpoints.dtmf_profile_id` (a
   reference id **only** — the code lives encrypted in `door_action_profiles`,
@@ -1314,7 +1319,7 @@ API. `integrations/telephony_cucm/` stays a placeholder README.
   done end-to-end against the mocks; the real CUCM/SIP `send_dtmf` transport is
   E12-05 / E13-06 (blocked).
 
-### Epic 18 – DWD Weather: **in progress (9/10)**
+### Epic 18 – DWD Weather: **backend COMPLETE (9/10; E18-09 Wetterlage UI → Epic 07)**
 - **#375 (E18-01) `integrations/dwd` scaffold + manifest + config** — **ADR-0026**
   (Accepted; amended in E18-02 — warnings feed → DISTRICT) pins the three public
   DWD Open Data services: warnings → CAP 1.2
@@ -1770,9 +1775,21 @@ API. `integrations/telephony_cucm/` stays a placeholder README.
   (the local/ci/staging/prod matrix + isolation + provisioning runbook).
   `test_deploy_preflight.py` (8). No app-code/migration change.
 - Blocked: E24-01/02/04 (dep E12-01 / E24-01), E24-07 (dep E24-02), E24-08
-  (dep ~all). Doable next: **E24-06** (DR runbook, dep E24-05).
+  (dep ~all). **3/8 is the ceiling until Epic 12 (`cucm-cti-gateway`) unblocks
+  E24-01** — every remaining issue chains off the signed-image pipeline.
 
-### Epic 23 – Security Hardening: **in progress (7/13)** (E23-02/03 skipped — blocked)
+### Epic 23 – Security Hardening: **in progress (7/13 + E23-10 partial)**
+Blocked: E23-02 (mTLS → E09-08/E12-16), E23-03 (CSP → Epic 07/08 build),
+E23-12 (deploy-signature → E24-01). E23-11's agent-command-fuzz half → Epic 10;
+its door/DTMF half needs no code (`test_siedle_audit_no_dtmf.py` already proves
+no DTMF plaintext reaches any sink).
+- **#478 (E23-10, partial) threat model + pentest checklist + DPIA input** —
+  `docs/security/threat-model.md` (STRIDE per trust boundary: browser↔API,
+  API↔DB, API↔etcd, API↔integrations — boundary #5 BKU agent stubbed pending
+  Epic 09/10), `docs/security/pentest-checklist.md` (bypass-focused, keyed to
+  module + test), `docs/security/dpia-input.md` (12 personal-data flows —
+  operators / callers / workstation users; purpose / retention / legal basis /
+  rights). Retention values must be set before go-live. Docs only, no code.
 - **#476 (E23-09) audit-log hash chain** — `audit_events.seq` (BIGINT identity,
   migration **0053**) + append-only `audit_chain_links`. `bbz_core.infra.
   repositories.audit_chain.AuditChainService`: `seal()` (advisory-lock, chain
