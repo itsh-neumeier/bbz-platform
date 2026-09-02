@@ -61,6 +61,7 @@ deploy_node() {
   echo "  pulling + starting $IMAGE on $1"
   ssh "$1" "set -e; cd '$DEPLOY_DIR'; \
     sed -i.bak 's|^BBZ_API_IMAGE=.*|BBZ_API_IMAGE=$IMAGE|' .env; \
+    sh preflight.sh; \
     docker compose pull api; \
     docker compose up -d --no-deps api"
 }
