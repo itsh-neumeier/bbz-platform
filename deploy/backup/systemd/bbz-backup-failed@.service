@@ -1,0 +1,15 @@
+[Unit]
+Description=BBZ backup/restore-test failure alert for %i (E24-05)
+
+# Wired as `OnFailure=bbz-backup-failed@%n.service` on the backup + restore-test
+# units. It logs a structured error the log shipper turns into an alert, and —
+# best effort — pings the alert webhook directly so a total backup-host outage
+# is still noticed.
+[Service]
+Type=oneshot
+User=bbz-backup
+EnvironmentFile=-/etc/bbz/restore-test.env
+ExecStart=/usr/bin/logger -t bbz-backup -p daemon.err "backup_job_failed unit=%i host=%H"
+ExecStart=-/bin/sh -c 'test -n "$ALERT_WEBHOOK" && curl -fsS -m 10 -X POST "$ALERT_WEBHOOK" \
+  -H "Content-Type: application/json" \
+  -d "{\"status\":\"firing\",\"labels\":{\"alertname\":\"BbzBackupJobFailed\",\"unit\":\"%i\",\"severity\":\"critical\"}}"'

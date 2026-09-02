@@ -54,6 +54,8 @@ class AuditAction(enum.StrEnum):
     ROLLING_UPDATE_COMPLETED = "ROLLING_UPDATE_COMPLETED"
     BACKUP_COMPLETED = "BACKUP_COMPLETED"
     RESTORE_PERFORMED = "RESTORE_PERFORMED"
+    #: the automated weekly restore test finished (E24-05) — ok + what it checked.
+    RESTORE_TEST_COMPLETED = "RESTORE_TEST_COMPLETED"
     #: a runtime secret changed and was reloaded (E23-01) — name only, never the value.
     SECRET_ROTATED = "SECRET_ROTATED"
     #: a rate limit on an auth path was exceeded (E23-04) — the rule + identifier, no payload.
@@ -129,6 +131,7 @@ CRITICAL_ACTIONS: frozenset[AuditAction] = frozenset(
         AuditAction.ROLLING_UPDATE_COMPLETED,
         AuditAction.BACKUP_COMPLETED,
         AuditAction.RESTORE_PERFORMED,
+        AuditAction.RESTORE_TEST_COMPLETED,
         AuditAction.SECRET_ROTATED,
         AuditAction.RATE_LIMIT_TRIGGERED,
         AuditAction.AUDIT_INTEGRITY_ALERT,

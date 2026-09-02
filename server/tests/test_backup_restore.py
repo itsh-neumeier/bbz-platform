@@ -18,7 +18,14 @@ from bbz_core.infra.models.audit import AuditEvent
 
 _ROOT = Path(__file__).resolve().parents[2]
 _BACKUP = _ROOT / "deploy" / "backup"
-_SCRIPTS = ["common.sh", "pg-backup.sh", "pg-restore.sh", "etcd-backup.sh", "etcd-restore.sh"]
+_SCRIPTS = [
+    "common.sh",
+    "pg-backup.sh",
+    "pg-restore.sh",
+    "etcd-backup.sh",
+    "etcd-restore.sh",
+    "restore-test.sh",
+]
 
 
 @pytest.mark.parametrize("name", _SCRIPTS)
@@ -29,13 +36,36 @@ def test_scripts_are_valid_posix_shell(name: str) -> None:
 def test_systemd_units_and_runbook_exist() -> None:
     units = sorted(p.name for p in (_BACKUP / "systemd").glob("*"))
     assert units == [
+        "bbz-backup-failed@.service",
         "bbz-etcd-backup.service",
         "bbz-etcd-backup.timer",
         "bbz-pg-backup.service",
         "bbz-pg-backup.timer",
+        "bbz-restore-test.service",
+        "bbz-restore-test.timer",
     ]
     rb = (_ROOT / "docs" / "runbooks" / "restore.md").read_text(encoding="utf-8")
     assert "PostgreSQL" in rb and "etcd" in rb and "RPO" in rb
+    # the backup units alert on failure (E24-05)
+    for unit in ("bbz-pg-backup.service", "bbz-etcd-backup.service", "bbz-restore-test.service"):
+        assert "OnFailure=bbz-backup-failed@" in (_BACKUP / "systemd" / unit).read_text("utf-8")
+    readme = (_BACKUP / "README.md").read_text(encoding="utf-8")
+    assert "RPO / RTO" in readme and "BbzRestoreTestStale" in readme
+
+
+def test_restore_test_reports_dry_run_without_an_api() -> None:
+    # DRY_RUN=1 exercises the script's control flow with no backups present:
+    # it must detect the missing artefacts and exit non-zero, not crash.
+    env = {**os.environ, "GPG_RECIPIENT": "x", "BACKUP_DIR": "/nonexistent-bbz", "DRY_RUN": "1"}
+    r = subprocess.run(
+        ["sh", str(_BACKUP / "restore-test.sh")],
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+    assert r.returncode == 1
+    assert "no PostgreSQL base backup" in r.stdout + r.stderr
 
 
 def test_backups_are_encrypted_and_the_key_is_offline() -> None:
@@ -166,3 +196,31 @@ async def test_backup_marker_audits_and_needs_cluster_manage(env: tuple) -> None
         await s.execute(select(AuditEvent).where(AuditEvent.action == "RESTORE_PERFORMED"))
     ).scalar_one()
     assert row.target_type == "backup:etcd" and row.reason == "DR drill"
+
+
+async def test_restore_test_marker_audits_and_drives_the_metric(env: tuple) -> None:
+    from bbz_core.infra.metrics import REGISTRY
+
+    client, s = env
+    assert (await client.post("/api/v1/system/restore-test", json={"ok": True})).status_code == 401
+
+    await _make_user(s, "op", ["system.cluster.manage", "system.cluster.view"])
+    await _login(client, "op")
+
+    r = await client.post(
+        "/api/v1/system/restore-test",
+        json={"ok": True, "checked": ["pg_start", "amcheck"], "rto_seconds": 42},
+    )
+    assert r.status_code == 202
+
+    row = (
+        await s.execute(select(AuditEvent).where(AuditEvent.action == "RESTORE_TEST_COMPLETED"))
+    ).scalar_one()
+    assert row.after["ok"] is True and row.after["rto_seconds"] == 42
+    assert row.after["checked"] == ["pg_start", "amcheck"]
+
+    # the metrics endpoint derives age + ok from that audit row
+    body = (await client.get("/api/v1/system/metrics")).text
+    assert "bbz_restore_test_ok 1.0" in body
+    age = REGISTRY.get_sample_value("bbz_restore_test_age_seconds")
+    assert age is not None and age < 60

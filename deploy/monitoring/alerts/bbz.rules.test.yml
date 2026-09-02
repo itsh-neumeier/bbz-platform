@@ -147,3 +147,38 @@ tests:
               summary: "API 5xx rate over 5%"
               description: "More than 5% of requests have returned 5xx for >10m."
               runbook_url: https://github.com/itsh-neumeier/bbz-platform/blob/main/docs/runbooks/observability-alerts.md
+
+  # --- restore test (E24-05) -----------------------------------------
+  - interval: 1m
+    input_series:
+      - series: "bbz_restore_test_age_seconds"
+        values: "700000x90"
+      - series: "bbz_restore_test_ok"
+        values: "1x90"
+    alert_rule_test:
+      - eval_time: 65m
+        alertname: BbzRestoreTestStale
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+            exp_annotations:
+              summary: "no successful restore test in over 8 days"
+              description: "bbz_restore_test_age_seconds > 8d (or +Inf — never run). The weekly `bbz-restore-test.timer` has not reported, or the backup host is down."
+              runbook_url: https://github.com/itsh-neumeier/bbz-platform/blob/main/docs/runbooks/restore.md
+
+  - interval: 1m
+    input_series:
+      - series: "bbz_restore_test_age_seconds"
+        values: "3600x40"
+      - series: "bbz_restore_test_ok"
+        values: "0x40"
+    alert_rule_test:
+      - eval_time: 20m
+        alertname: BbzRestoreTestFailing
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+            exp_annotations:
+              summary: "the last restore test did not pass"
+              description: "The most recent automated restore test reported a failure — a backup is not restorable. See the RESTORE_TEST_COMPLETED audit row."
+              runbook_url: https://github.com/itsh-neumeier/bbz-platform/blob/main/docs/runbooks/restore.md
