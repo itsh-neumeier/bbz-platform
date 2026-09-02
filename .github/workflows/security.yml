@@ -11,6 +11,19 @@ permissions:
   contents: read
 
 jobs:
+  # Gate: every scanner exception in deploy/security/scan-exceptions.toml must
+  # carry a reason and a future expiry (≤ 90 days). An expired one fails here,
+  # which re-arms the finding in the scans below (E23-07).
+  scan-policy:
+    name: scan-exception policy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+      - run: python tools/security/check_scan_exceptions.py --check
+
   secrets:
     name: gitleaks
     runs-on: ubuntu-latest
@@ -27,6 +40,7 @@ jobs:
 
   python-audit:
     name: pip-audit
+    needs: scan-policy
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -36,12 +50,16 @@ jobs:
       - run: pip install -r requirements-dev.txt
       # Audit third-party dependencies strictly. The repo's own packages are
       # installed editable and are not on PyPI, so exclude them from the set.
+      # Any curated, unexpired exceptions are passed as --ignore-vuln.
       - run: |
           pip freeze --exclude-editable > audit-requirements.txt
-          pip-audit --strict -r audit-requirements.txt --progress-spinner off
+          IGNORE=$(python tools/security/check_scan_exceptions.py --pip-audit-args)
+          echo "pip-audit exceptions: ${IGNORE:-<none>}"
+          pip-audit --strict -r audit-requirements.txt --progress-spinner off $IGNORE
 
   filesystem-scan:
     name: trivy fs
+    needs: scan-policy
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -51,5 +69,24 @@ jobs:
             | sh -s -- -b /usr/local/bin
       - name: Scan
         run: |
+          python3 tools/security/check_scan_exceptions.py --trivyignore > .trivyignore
+          echo "--- .trivyignore ---"; cat .trivyignore
           trivy fs --scanners vuln,secret,misconfig \
-            --severity CRITICAL,HIGH --exit-code 1 --ignore-unfixed --no-progress .
+            --severity CRITICAL,HIGH --exit-code 1 --ignore-unfixed --no-progress \
+            --ignorefile .trivyignore .
+
+  # apps/web npm advisories. Non-blocking until the deliberate major-upgrade pass
+  # (#14) lands a clean tree; flip continue-on-error to make it a gate (E23-07).
+  web-audit:
+    name: npm audit (apps/web)
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - working-directory: apps/web
+        run: npm install --package-lock-only
+      - working-directory: apps/web
+        run: npm audit --audit-level=high

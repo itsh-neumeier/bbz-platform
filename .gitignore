@@ -67,3 +67,6 @@ Thumbs.db
 *.sbom.json
 *.tar
 /apps/web/package-lock.json
+
+# generated at CI time from deploy/security/scan-exceptions.toml (E23-07)
+.trivyignore
