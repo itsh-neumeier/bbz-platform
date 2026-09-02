@@ -42,6 +42,7 @@ from bbz_core.api.errors import (
 from bbz_core.api.idempotency import CommandEnvelope, command_envelope
 from bbz_core.api.pdf import render_text_pdf
 from bbz_core.api.reactivation import ReactivationTokenError, mint_token, verify_token
+from bbz_core.api.schema import StrictModel
 from bbz_core.audit import AuditAction, AuditService
 from bbz_core.domain.events import (
     EventAggregate,
@@ -110,7 +111,7 @@ def _translate() -> Iterator[None]:
         raise ValidationError(str(exc)) from exc
 
 
-class CreateEventIn(BaseModel):
+class CreateEventIn(StrictModel):
     title: str = Field(min_length=1, max_length=300)
     priority: EventPriority
     description: str | None = Field(default=None, max_length=20_000)

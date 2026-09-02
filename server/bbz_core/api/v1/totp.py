@@ -20,6 +20,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from bbz_core.api.deps import AuthContext, current_auth, db_session
 from bbz_core.api.errors import NotFoundError, ValidationError
 from bbz_core.api.rate_limit import rate_limit_by_user
+from bbz_core.api.schema import StrictModel
 from bbz_core.audit import AuditAction, AuditWriter
 from bbz_core.auth.mfa import TotpService
 from bbz_core.auth.totp import TotpNotConfiguredError
@@ -35,7 +36,7 @@ class EnrolOut(BaseModel):
     recovery_codes: list[str]
 
 
-class CodeIn(BaseModel):
+class CodeIn(StrictModel):
     code: str
 
 

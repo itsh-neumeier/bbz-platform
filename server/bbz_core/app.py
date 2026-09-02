@@ -11,6 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 
 from bbz_core import __version__
+from bbz_core.api.body_limit import BodyLimitMiddleware
 from bbz_core.api.cluster import router as cluster_router
 from bbz_core.api.csrf import CsrfMiddleware
 from bbz_core.api.errors import install_error_handlers
@@ -94,6 +95,9 @@ def create_app() -> FastAPI:
             allow_methods=["*"],
             allow_headers=["*"],
         )
+    # Added last -> outermost: an over-cap body is rejected with 413 before any
+    # other middleware or handler touches it (E23-06).
+    app.add_middleware(BodyLimitMiddleware, max_bytes=s.max_request_body_bytes)
 
     install_error_handlers(app)
     app.include_router(health_router)

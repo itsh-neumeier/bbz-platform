@@ -22,6 +22,7 @@ from bbz_core.api.authz import require
 from bbz_core.api.deps import AuthContext, db_session
 from bbz_core.api.errors import ConflictError, NotFoundError, ValidationError
 from bbz_core.api.rate_limit import rate_limit_by_user
+from bbz_core.api.schema import StrictModel
 from bbz_core.auth.policy import PasswordPolicyError
 from bbz_core.infra.repositories.users_admin import (
     LastAdminError,
@@ -51,19 +52,19 @@ class UserOut(BaseModel):
     external_ref: str | None
 
 
-class CreateUserIn(BaseModel):
+class CreateUserIn(StrictModel):
     display_name: str = Field(min_length=1, max_length=200)
     external_ref: str | None = Field(default=None, max_length=255)
     local_username: str | None = Field(default=None, min_length=3, max_length=255)
     initial_password: str | None = None
 
 
-class UpdateUserIn(BaseModel):
+class UpdateUserIn(StrictModel):
     display_name: str | None = Field(default=None, min_length=1, max_length=200)
     external_ref: str | None = Field(default=None, max_length=255)
 
 
-class PasswordResetIn(BaseModel):
+class PasswordResetIn(StrictModel):
     new_password: str
 
 
