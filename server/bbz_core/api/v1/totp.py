@@ -19,6 +19,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from bbz_core.api.deps import AuthContext, current_auth, db_session
 from bbz_core.api.errors import NotFoundError, ValidationError
+from bbz_core.api.rate_limit import rate_limit_by_user
 from bbz_core.audit import AuditAction, AuditWriter
 from bbz_core.auth.mfa import TotpService
 from bbz_core.auth.totp import TotpNotConfiguredError
@@ -64,7 +65,11 @@ async def enrol(
     return EnrolOut(**start.__dict__)
 
 
-@router.post("/activate", status_code=status.HTTP_204_NO_CONTENT)
+@router.post(
+    "/activate",
+    status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[Depends(rate_limit_by_user("mfa"))],
+)
 async def activate(
     body: CodeIn,
     ctx: AuthContext = Depends(current_auth),

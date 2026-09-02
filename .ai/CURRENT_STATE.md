@@ -1739,7 +1739,19 @@ API. `integrations/telephony_cucm/` stays a placeholder README.
   link/unlink coverage → Epic 07** (blocked); backend is `test_account_linking.py`
   (12). **Epic 21 backend complete.**
 
-### Epic 23 – Security Hardening: **in progress (1/13)**
+### Epic 23 – Security Hardening: **in progress (2/13)** (E23-02/03 skipped — blocked)
+- **#466 (E23-04) rate limiting + lockout** — cluster-wide fixed-window counter
+  `rate_limit_hits` (migration `0052`, both nodes write the same
+  `(bucket, window_start)` rows via `INSERT … ON CONFLICT count = count + 1`).
+  `bbz_core.api.rate_limit` dependencies: `login` (per IP, `BBZ_RATE_LIMIT_LOGIN`
+  10/60), `mfa` (per user, 8/60 — `/auth/totp/activate` + `/auth/mfa-policies/
+  step-up`), `password_reset` (per admin, 5/300 — `/users/{id}/password-reset`),
+  `webhook` (per IP, 240/60 — `/telephony/events`). `0` disables a rule. Over
+  the limit → `429` + `Retry-After` (`AppError` gained a `headers` kwarg).
+  `login`/`mfa`/`password_reset` breaches audit `RATE_LIMIT_TRIGGERED` (rule +
+  id + count, never the credential — new critical action). **Fails open** on a
+  store error. `test_rate_limiting.py` (5), `docs/security/rate-limiting.md`.
+  Migration head **0052**.
 - **#22 (E01-03) ADR-0019** — runtime secret store **Accepted**: target
   HashiCorp Vault (Raft HA on the 3 nodes); ship the abstraction now.
 - **#461 (E23-01) secret-store integration** — `bbz_core.secrets`:

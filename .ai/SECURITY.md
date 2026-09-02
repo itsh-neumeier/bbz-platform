@@ -20,6 +20,17 @@ Security baseline:
 
 No credentials in repo.
 
+## Rate limiting (E23-04)
+- Cluster-wide fixed-window counter (`rate_limit_hits`, migration 0052 — both
+  nodes write the same rows). `429` + `Retry-After` over the limit.
+- Rules (`BBZ_RATE_LIMIT_<RULE>`, `0` disables): `login` (per IP, 10/60),
+  `mfa` (per user, 8/60 — TOTP activate + step-up), `password_reset` (per admin,
+  5/300), `webhook` (per IP, 240/60 — inbound integration events).
+- `login` / `mfa` / `password_reset` breaches audit `RATE_LIMIT_TRIGGERED`
+  (rule + identifier + count, never the credential — critical action).
+- Fails **open** if the store is unreachable. Complements the per-account login
+  lockout (E02-03). WAF/DDoS is the edge's job. `docs/security/rate-limiting.md`.
+
 ## Secret store (ADR-0019)
 - Target: **HashiCorp Vault** (Raft HA co-located on the 2 BBZ nodes + witness,
   AppRole auth). Not yet rolled out — a later issue.

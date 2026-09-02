@@ -72,6 +72,7 @@ from bbz_core.infra.models.monitor import (
 )
 from bbz_core.infra.models.oidc import OidcLoginFlow
 from bbz_core.infra.models.outbox import ExternalActionOutbox, OutboxStatus
+from bbz_core.infra.models.rate_limit import RateLimitHit
 from bbz_core.infra.models.rbac import (
     Group,
     GroupRole,
@@ -193,6 +194,7 @@ __all__ = [
     "PermissionDelegation",
     "PresenceState",
     "ProviderEventInbox",
+    "RateLimitHit",
     "Role",
     "RolePermission",
     "Scope",
