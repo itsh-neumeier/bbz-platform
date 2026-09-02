@@ -18,6 +18,39 @@ os.environ.setdefault("BBZ_OTEL_ENABLED", "false")
 os.environ.setdefault("BBZ_DATABASE_URL", "postgresql+asyncpg://x:x@127.0.0.1:1/none")
 
 
+# --- CSRF (E23-05) -----------------------------------------------------------
+# CsrfMiddleware requires every cookie-authenticated write to echo the readable
+# ``bbz_csrf`` cookie in an ``X-CSRF-Token`` header — exactly what the real SPA
+# does. Rather than touch ~80 cookie-login test files, every httpx client made in
+# the suite gets a request hook that mirrors the cookie into the header. A test
+# that deliberately probes a missing/bad token passes an explicit ``x-csrf-token``
+# (even ``""``) and the hook leaves it alone.
+_UNSAFE_METHODS = frozenset({"POST", "PUT", "PATCH", "DELETE"})
+
+
+async def _mirror_csrf_cookie(request: httpx.Request) -> None:
+    if request.method not in _UNSAFE_METHODS or "x-csrf-token" in request.headers:
+        return
+    for chunk in request.headers.get("cookie", "").split(";"):
+        name, _, value = chunk.strip().partition("=")
+        if name == "bbz_csrf" and value:
+            request.headers["x-csrf-token"] = value
+            return
+
+
+_orig_async_client_init = httpx.AsyncClient.__init__
+
+
+def _async_client_init(self, *args, **kwargs):
+    hooks = dict(kwargs.get("event_hooks") or {})
+    hooks["request"] = [*hooks.get("request", []), _mirror_csrf_cookie]
+    kwargs["event_hooks"] = hooks
+    _orig_async_client_init(self, *args, **kwargs)
+
+
+httpx.AsyncClient.__init__ = _async_client_init  # type: ignore[method-assign]
+
+
 @pytest.fixture(autouse=True)
 def _reset_caches() -> Iterator[None]:
     from bbz_core import settings as settings_mod

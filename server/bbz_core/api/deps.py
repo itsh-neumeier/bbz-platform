@@ -1,4 +1,8 @@
-"""Shared FastAPI dependencies: DB session, current auth context, CSRF guard."""
+"""Shared FastAPI dependencies: DB session and the current auth context.
+
+CSRF is enforced centrally by :class:`bbz_core.api.csrf.CsrfMiddleware`, not as a
+per-route dependency.
+"""
 
 from __future__ import annotations
 
@@ -9,7 +13,7 @@ from dataclasses import dataclass
 from fastapi import Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from bbz_core.api.errors import ForbiddenError, UnauthorizedError
+from bbz_core.api.errors import UnauthorizedError
 from bbz_core.auth.sessions import SessionService
 from bbz_core.auth.tokens import TokenError, decode_access_token
 from bbz_core.infra.db import session_scope
@@ -18,8 +22,6 @@ from bbz_core.logging import user_id as _user_id_ctx
 
 ACCESS_COOKIE = "bbz_access"
 REFRESH_COOKIE = "bbz_refresh"
-CSRF_COOKIE = "bbz_csrf"
-CSRF_HEADER = "x-csrf-token"
 
 
 async def db_session() -> AsyncIterator[AsyncSession]:
@@ -55,16 +57,3 @@ async def current_auth(
         raise UnauthorizedError("session is no longer active")
     _user_id_ctx.set(str(claims.user_id))  # -> the `user_id` log field (E22-03)
     return AuthContext(user_id=claims.user_id, session_id=claims.session_id)
-
-
-async def require_csrf(request: Request) -> None:
-    """Double-submit CSRF check — only for cookie-authenticated write requests.
-
-    Bearer-token clients (agents) are not cookie-based and are exempt.
-    """
-    if request.headers.get("authorization", "").lower().startswith("bearer "):
-        return
-    cookie = request.cookies.get(CSRF_COOKIE)
-    header = request.headers.get(CSRF_HEADER)
-    if not cookie or not header or cookie != header:
-        raise ForbiddenError("missing or invalid CSRF token")

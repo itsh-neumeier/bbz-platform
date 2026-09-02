@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import contextlib
 import datetime as _dt
-import secrets
 import uuid
 from collections.abc import Iterator
 from dataclasses import dataclass
@@ -22,12 +21,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from bbz_core.api.deps import (
     ACCESS_COOKIE,
-    CSRF_COOKIE,
     REFRESH_COOKIE,
     AuthContext,
     current_auth,
     db_session,
-    require_csrf,
 )
 from bbz_core.api.errors import (
     MfaRequiredError,
@@ -39,6 +36,7 @@ from bbz_core.api.errors import (
 )
 from bbz_core.api.rate_limit import rate_limit_by_ip
 from bbz_core.audit import AuditAction, AuditWriter
+from bbz_core.auth.csrf import CSRF_COOKIE, issue_csrf_token
 from bbz_core.auth.local import LocalAuthResult
 from bbz_core.auth.mfa import ChallengeResult, TotpService
 from bbz_core.auth.registry import AuthProviderRegistry
@@ -235,7 +233,7 @@ async def _issue_session(
         target_type="session",
         target_id=str(tokens.session_id),
     )
-    csrf = secrets.token_urlsafe(32)
+    csrf = issue_csrf_token(tokens.session_id)  # bound to the session (E23-05)
     _set_cookie(
         response,
         ACCESS_COOKIE,
@@ -482,21 +480,20 @@ async def oidc_callback(
     )
 
 
-@router.post(
-    "/refresh",
-    status_code=status.HTTP_204_NO_CONTENT,
-    dependencies=[Depends(require_csrf)],
-)
+@router.post("/refresh", status_code=status.HTTP_204_NO_CONTENT)
 async def refresh(
     request: Request,
     response: Response,
     session: AsyncSession = Depends(db_session),
 ) -> Response:
+    # CSRF: CsrfMiddleware requires the double-submit token (the access cookie may
+    # be expired here, so the check falls back to signature-only — still bound to
+    # this server). The refresh cookie itself is SameSite=Lax + HttpOnly.
     token = request.cookies.get(REFRESH_COOKIE)
     if not token:
         raise UnauthorizedError("no refresh token")
     try:
-        access, _ = await SessionService(SqlAlchemySessionStore(session)).refresh(token)
+        access, session_id = await SessionService(SqlAlchemySessionStore(session)).refresh(token)
     except (SessionNotFoundError, SessionExpiredError) as exc:
         _clear_cookie(response, ACCESS_COOKIE)
         _clear_cookie(response, REFRESH_COOKIE)
@@ -508,15 +505,20 @@ async def refresh(
         max_age=get_settings().access_token_ttl_seconds,
         http_only=True,
     )
+    # Re-issue the readable CSRF cookie so a session that predates E23-05 (or one
+    # whose cookie is near expiry) self-heals on its next refresh.
+    _set_cookie(
+        response,
+        CSRF_COOKIE,
+        issue_csrf_token(session_id),
+        max_age=get_settings().refresh_token_ttl_seconds,
+        http_only=False,
+    )
     response.status_code = status.HTTP_204_NO_CONTENT
     return response
 
 
-@router.post(
-    "/logout",
-    status_code=status.HTTP_204_NO_CONTENT,
-    dependencies=[Depends(require_csrf)],
-)
+@router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
 async def logout(
     request: Request,
     response: Response,

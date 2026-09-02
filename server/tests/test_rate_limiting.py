@@ -131,6 +131,7 @@ async def test_mfa_activate_is_throttled_per_user(env: tuple) -> None:
     client, s = env
     uid = await _make_user(s, "u")
 
+    from bbz_core.auth.csrf import issue_csrf_token
     from bbz_core.auth.sessions import SessionService
     from bbz_core.infra.repositories.sessions import SqlAlchemySessionStore
 
@@ -139,6 +140,7 @@ async def test_mfa_activate_is_throttled_per_user(env: tuple) -> None:
     )
     await s.commit()
     client.cookies.set("bbz_access", issued.access_token)
+    client.cookies.set("bbz_csrf", issue_csrf_token(issued.session_id))  # conftest mirrors it
 
     codes = [
         (await client.post("/api/v1/auth/totp/activate", json={"code": "000000"})).status_code
