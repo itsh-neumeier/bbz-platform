@@ -47,6 +47,10 @@ services:
       BBZ_CLUSTER_DCS_ENDPOINTS: '["http://etcd:2379"]'
       # single dev node -> local always-leader election; run the singletons here
       BBZ_RUN_BACKGROUND_WORKERS: "true"
+      # the Vite dev server proxies with changeOrigin, so the browser's
+      # Origin (:5173) never matches the forwarded Host — allow it explicitly
+      # so CsrfMiddleware (E23-05) passes cookie-authed writes from the SPA.
+      BBZ_CORS_ALLOW_ORIGINS: '["http://localhost:5173"]'
     ports: ["8000:8000"]
     depends_on:
       postgres:
