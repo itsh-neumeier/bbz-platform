@@ -9,6 +9,10 @@ Quellen: `MASTER_PROMPT_CLAUDE_CODE.md`, `AGENTS.md`, `.ai/*`, alle ADRs
 (`.ai/DECISIONS/ADR-0001…0018`). Bei Widerspruch gewinnt die dokumentierte
 Architekturentscheidung; Änderungen nur per neuer/aktualisierter ADR.
 
+> **Umsetzungsstand:** `docs/roadmap-status.md` führt jeden noch nicht
+> gemergten Punkt mit Status, Blocker und — wo vorhanden — der jetzt noch
+> machbaren Teilaufgabe. `.ai/CURRENT_STATE.md` ist das laufende Detailprotokoll.
+
 ---
 
 ## 1. Wie diese Roadmap zu lesen ist
