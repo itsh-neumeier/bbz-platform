@@ -2016,9 +2016,13 @@ Foundation skeleton only — **no domain logic, no productive vendor integration
 - Placeholders (README only): `services/cucm-cti-gateway`,
   `agents/bbz-client-agent`, `agents/bku-agent`, `apps/bbz-kiosk`, `deploy/*`.
 - CI: `.github/workflows/ci.yml` (backend lint/type/import-linter/pytest +
-  Alembic up/down/up; frontend lint/type/test; commitlint; compose config) and
-  `security.yml` (gitleaks, pip-audit, Trivy FS). Dependabot, pre-commit,
-  CODEOWNERS, PR/issue templates.
+  Alembic up/down/up; frontend lint/type/test; commitlint; compose config;
+  `actionlint`), `security.yml` (gitleaks, pip-audit, Trivy FS, scan-policy,
+  non-root images), and **`release.yml`** (E01-04 — tag `v*` → build `bbz-api`,
+  semver+SHA tags, Syft SBOM, cosign keyless sign + SPDX attest, Trivy, GHCR,
+  GitHub Release; `cosign verify` runs in the job; `bbz-web` joins once
+  `apps/web` has a Dockerfile — E01-06 / Epic 07). Dependabot, pre-commit,
+  CODEOWNERS, PR/issue templates. Release process: `docs/deploy/releases.md`.
 - Architecture boundaries enforced by `import-linter` — **7 `forbidden`
   contracts**, one per ADR-0008 layer (domain, authorization, workflow engine,
   rule-DSL leaf, integrations-host, core ↛ integrations, `telephony_sip` ↛

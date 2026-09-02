@@ -1,0 +1,190 @@
+# Release pipeline (roadmap E01-04, ADR-0014, MASTER_PROMPT §19).
+#
+# A pushed tag `vMAJOR.MINOR.PATCH` builds the production image(s), tagged by
+# **semver and by git SHA** (never `latest`), generates an SBOM (Syft), signs the
+# image and attests the SBOM with cosign (keyless / GitHub OIDC), pushes to GHCR
+# and publishes a GitHub Release carrying the SBOM plus the digest to deploy.
+#
+# Deployments consume the immutable digest only (`tools/rolling-update.sh` refuses
+# anything but `…@sha256:…`). Verify before deploy:
+#
+#   cosign verify ghcr.io/itsh-neumeier/bbz-api@sha256:<digest> \
+#     --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+#     --certificate-identity-regexp \
+#       '^https://github\.com/itsh-neumeier/bbz-platform/\.github/workflows/release\.yml@refs/tags/v'
+#
+# Scope note: `bbz-web` joins the matrix once `apps/web` ships a Dockerfile and a
+# committed lockfile (E01-06 / Epic 07). The `cucm-cti-gateway` image is E24-01.
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  REGISTRY: ghcr.io
+  SYFT_VERSION: "1.18.1"
+  TRIVY_VERSION: "0.58.1"
+
+jobs:
+  images:
+    name: build · sbom · sign · push
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # publish the GitHub Release + SBOM asset
+      packages: write # push to GHCR
+      id-token: write # cosign keyless (OIDC)
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - image: bbz-api
+            dockerfile: server/Dockerfile
+            context: .
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Derive + validate the version
+        id: v
+        run: |
+          tag="${GITHUB_REF_NAME}"
+          case "$tag" in
+            v*[!0-9.]*) echo "::error::tag '$tag' has a non-numeric / pre-release part"; exit 1 ;;
+            v[0-9]*.[0-9]*.[0-9]*) : ;;
+            *) echo "::error::tag '$tag' is not vMAJOR.MINOR.PATCH"; exit 1 ;;
+          esac
+          echo "semver=${tag#v}" >> "$GITHUB_OUTPUT"
+          echo "built_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Image tags + labels (semver + sha, never latest)
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ matrix.image }}
+          flavor: latest=false
+          tags: |
+            type=semver,pattern={{version}}
+            type=sha,format=long,prefix=
+          labels: |
+            org.opencontainers.image.title=${{ matrix.image }}
+            org.opencontainers.image.version=${{ steps.v.outputs.semver }}
+            org.opencontainers.image.revision=${{ github.sha }}
+
+      - name: Build + push
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.dockerfile }}
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          provenance: true
+          build-args: |
+            BBZ_BUILD_REVISION=${{ github.sha }}
+            BBZ_BUILD_TIME=${{ steps.v.outputs.built_at }}
+
+      - name: Resolve the deploy ref
+        id: ref
+        env:
+          REPO_OWNER: ${{ github.repository_owner }}
+        run: |
+          base="${REGISTRY}/${REPO_OWNER}/${{ matrix.image }}"
+          echo "image=${base}" >> "$GITHUB_OUTPUT"
+          echo "pinned=${base}@${{ steps.build.outputs.digest }}" >> "$GITHUB_OUTPUT"
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@v3
+
+      - name: Install syft
+        run: |
+          curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh \
+            | sh -s -- -b /usr/local/bin "v${SYFT_VERSION}"
+          syft version
+
+      - name: Sign the image (keyless)
+        run: cosign sign --yes "${{ steps.ref.outputs.pinned }}"
+
+      - name: Generate + attest the SBOM (SPDX)
+        run: |
+          syft "${{ steps.ref.outputs.pinned }}" \
+            -o spdx-json="${{ matrix.image }}.spdx.json"
+          cosign attest --yes --type spdxjson \
+            --predicate "${{ matrix.image }}.spdx.json" "${{ steps.ref.outputs.pinned }}"
+
+      - name: Verify signature + attestation against this workflow's identity
+        env:
+          IDENTITY: '^https://github\.com/${{ github.repository }}/\.github/workflows/release\.yml@refs/tags/v'
+          ISSUER: https://token.actions.githubusercontent.com
+        run: |
+          cosign verify "${{ steps.ref.outputs.pinned }}" \
+            --certificate-oidc-issuer "$ISSUER" \
+            --certificate-identity-regexp "$IDENTITY" > /dev/null
+          cosign verify-attestation "${{ steps.ref.outputs.pinned }}" --type spdxjson \
+            --certificate-oidc-issuer "$ISSUER" \
+            --certificate-identity-regexp "$IDENTITY" > /dev/null
+          echo "verified ${{ steps.ref.outputs.pinned }}"
+
+      - name: Scan the built image (Trivy, CRITICAL/HIGH, fixable only)
+        run: |
+          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh \
+            | sh -s -- -b /usr/local/bin "v${TRIVY_VERSION}"
+          trivy image --scanners vuln --severity CRITICAL,HIGH \
+            --ignore-unfixed --exit-code 1 "${{ steps.ref.outputs.pinned }}"
+
+      - name: Publish the GitHub Release (SBOM asset + deploy digest)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PINNED: ${{ steps.ref.outputs.pinned }}
+          IMAGE: ${{ steps.ref.outputs.image }}
+          SEMVER: ${{ steps.v.outputs.semver }}
+        run: |
+          notes="$(mktemp)"
+          {
+            echo "## ${{ matrix.image }} ${GITHUB_REF_NAME}"
+            echo
+            echo '```'
+            echo "${IMAGE}:${SEMVER}"
+            echo "${PINNED}"
+            echo '```'
+            echo
+            echo "Signed keyless via this workflow; SBOM attested (SPDX) and attached."
+            echo "Deploy the **digest**. Verify per \`.github/workflows/release.yml\`."
+          } > "$notes"
+          gh release create "${GITHUB_REF_NAME}" \
+            --title "${GITHUB_REF_NAME}" --notes-file "$notes" \
+            "${{ matrix.image }}.spdx.json" \
+            || gh release upload "${GITHUB_REF_NAME}" "${{ matrix.image }}.spdx.json" --clobber
+
+      - name: Job summary
+        env:
+          PINNED: ${{ steps.ref.outputs.pinned }}
+          IMAGE: ${{ steps.ref.outputs.image }}
+          SEMVER: ${{ steps.v.outputs.semver }}
+        run: |
+          {
+            echo "### ${{ matrix.image }}"
+            echo
+            echo "| field | value |"
+            echo "|---|---|"
+            echo "| semver | \`${SEMVER}\` |"
+            echo "| sha tag | \`${GITHUB_SHA}\` |"
+            echo "| digest | \`${{ steps.build.outputs.digest }}\` |"
+            echo "| deploy ref | \`${PINNED}\` |"
+          } >> "$GITHUB_STEP_SUMMARY"

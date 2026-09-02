@@ -55,6 +55,7 @@ jobs:
           pip freeze --exclude-editable > audit-requirements.txt
           IGNORE=$(python tools/security/check_scan_exceptions.py --pip-audit-args)
           echo "pip-audit exceptions: ${IGNORE:-<none>}"
+          # shellcheck disable=SC2086  # $IGNORE is a deliberate list of --ignore-vuln args
           pip-audit --strict -r audit-requirements.txt --progress-spinner off $IGNORE
 
   filesystem-scan:
