@@ -66,6 +66,21 @@ No credentials in repo.
   same script emits the scanner flags, so the list can't drift. Currently empty.
 - `docs/security/vulnerability-scanning.md`.
 
+## Audit-log integrity (E23-09, extends E04-10)
+- `audit_events` is append-only already (ORM guard + `BEFORE UPDATE OR DELETE`
+  trigger, ADR-0020). The hash chain adds tamper **detection** for the rest
+  (a DBA with `session_replication_role=replica`, a doctored restore).
+- `audit_events.seq` (BIGINT identity) + append-only `audit_chain_links`:
+  `row_hash = sha256(prev_hash + sha256(canonical(row)))`, genesis `64×"0"`.
+- The `audit-chain` leader-elected singleton **seals** new rows (deferred — zero
+  latency on the audited action) and **verifies** the whole chain every
+  `BBZ_AUDIT_CHAIN_INTERVAL_SECONDS` (300). A recomputed-hash mismatch, a
+  `prev_hash` break, a `seq` gap, or a vanished row → `AUDIT_INTEGRITY_ALERT`
+  (critical action, first bad `seq` + reason).
+- `GET /api/v1/audit/chain` (`system.audit.view`) re-verifies + pages the links
+  for offline re-check / WORM export. `BBZ_AUDIT_HASH_CHAIN_ENABLED=false` = off.
+- `docs/security/audit-integrity.md`.
+
 ## Secret store (ADR-0019)
 - Target: **HashiCorp Vault** (Raft HA co-located on the 2 BBZ nodes + witness,
   AppRole auth). Not yet rolled out — a later issue.

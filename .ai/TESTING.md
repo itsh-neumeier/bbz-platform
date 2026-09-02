@@ -125,6 +125,20 @@ Coverage:
 - **clean no-op** — `configure_tracing(Settings(otel_enabled=False))` is `False`
   and `current_trace_ids()` is `None`.
 
+## Audit-log hash chain (E23-09)
+
+`test_audit_hash_chain.py` (8): `seal()` builds a continuous chain (link 1's
+`prev_hash` is the genesis, each links off the last) and `verify()` passes; a
+second seal continues it; sealing is idempotent with nothing new. Tamper cases
+use `SET LOCAL session_replication_role = replica` to bypass the append-only
+trigger: rewriting a sealed row's `reason` → `verify()` fails at that `seq` with
+"hashes to row_hash"; deleting a sealed row → fails at that `seq`. The
+`_audit_chain_tick` worker seals cleanly (no alert), then after a break +
+`sealed_at` back-dated → writes one `AUDIT_INTEGRITY_ALERT` with the first bad
+`seq`. `BBZ_AUDIT_HASH_CHAIN_ENABLED=false` → tick seals nothing.
+`GET /api/v1/audit/chain` → 401 without a session, links + `verified:true` with
+`system.audit.view`.
+
 ## Input validation & payload limits (E23-06)
 
 `test_input_validation.py` (5). The contract test walks the router tree and

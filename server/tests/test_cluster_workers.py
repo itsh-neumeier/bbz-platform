@@ -21,6 +21,7 @@ def test_the_registry_lists_the_expected_singletons() -> None:
         "weather-refresh",
         "directory-sync",
         "integration-health",
+        "audit-chain",
     }
 
 

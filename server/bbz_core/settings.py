@@ -225,6 +225,12 @@ class Settings(BaseSettings):
     # singleton re-probes every active integration into `integration_health`. ---
     integration_health_interval_seconds: int = 60
 
+    # --- audit hash chain (E23-09). The `audit-chain` singleton seals new
+    # `audit_events` rows into the tamper-evident chain and re-verifies it; a
+    # break audits `AUDIT_INTEGRITY_ALERT`. Off ⇒ nothing is sealed or checked. ---
+    audit_hash_chain_enabled: bool = True
+    audit_chain_interval_seconds: int = 300
+
     # --- weather (E18-06). Which weather integration the refresh singleton polls,
     # how often it ticks, and how long a data kind may go without a successful
     # refresh before its health is `stale`. ---

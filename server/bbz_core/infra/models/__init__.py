@@ -11,7 +11,7 @@ from bbz_core.infra.models.application_catalog import (
     ApplicationCatalogScope,
     LaunchMode,
 )
-from bbz_core.infra.models.audit import AuditEvent
+from bbz_core.infra.models.audit import AuditChainLink, AuditEvent
 from bbz_core.infra.models.auth_mapping import AuthGroupMapping, ExternalRoleAssignment
 from bbz_core.infra.models.auth_provider_config import AuthProviderConfig
 from bbz_core.infra.models.base import Base
@@ -132,6 +132,7 @@ from bbz_core.infra.models.workflow_runtime import (
 __all__ = [
     "ApplicationCatalogEntry",
     "ApplicationCatalogScope",
+    "AuditChainLink",
     "AuditEvent",
     "AuthGroupMapping",
     "AuthIdentity",

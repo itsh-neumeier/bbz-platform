@@ -1739,7 +1739,18 @@ API. `integrations/telephony_cucm/` stays a placeholder README.
   link/unlink coverage → Epic 07** (blocked); backend is `test_account_linking.py`
   (12). **Epic 21 backend complete.**
 
-### Epic 23 – Security Hardening: **in progress (5/13)** (E23-02/03 skipped — blocked)
+### Epic 23 – Security Hardening: **in progress (6/13)** (E23-02/03 skipped — blocked)
+- **#476 (E23-09) audit-log hash chain** — `audit_events.seq` (BIGINT identity,
+  migration **0053**) + append-only `audit_chain_links`. `bbz_core.infra.
+  repositories.audit_chain.AuditChainService`: `seal()` (advisory-lock, chain
+  new rows — `row_hash = sha256(prev_hash + sha256(canonical(row)))`, genesis
+  `64×"0"`), `verify()` (re-walk: hash mismatch / `prev_hash` break / `seq` gap /
+  vanished row), `export()`. New `audit-chain` cluster singleton seals + verifies
+  every `BBZ_AUDIT_CHAIN_INTERVAL_SECONDS` (300); a break → `AUDIT_INTEGRITY_ALERT`
+  (new critical action). `GET /api/v1/audit/chain` (`system.audit.view`) —
+  re-verify + paged links for offline/WORM export. `BBZ_AUDIT_HASH_CHAIN_ENABLED`
+  (default true). Deferred sealing ⇒ **zero** latency on the audited action.
+  `test_audit_hash_chain.py` (8), `docs/security/audit-integrity.md`.
 - **#472 (E23-07) scanning gates enforced** — `security.yml` was already blocking
   (`pip-audit --strict`, `trivy` CRITICAL/HIGH `--exit-code 1`, weekly cron);
   E23-07 adds the **curated exception process**: `deploy/security/scan-exceptions.toml`
@@ -1796,7 +1807,7 @@ API. `integrations/telephony_cucm/` stays a placeholder README.
   `login`/`mfa`/`password_reset` breaches audit `RATE_LIMIT_TRIGGERED` (rule +
   id + count, never the credential — new critical action). **Fails open** on a
   store error. `test_rate_limiting.py` (5), `docs/security/rate-limiting.md`.
-  Migration head **0052**.
+  Migration head **0053** (E23-09 audit chain).
 - **#22 (E01-03) ADR-0019** — runtime secret store **Accepted**: target
   HashiCorp Vault (Raft HA on the 3 nodes); ship the abstraction now.
 - **#461 (E23-01) secret-store integration** — `bbz_core.secrets`:

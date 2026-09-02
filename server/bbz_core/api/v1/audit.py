@@ -17,6 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from bbz_core.api.authz import require
 from bbz_core.api.deps import AuthContext, db_session
+from bbz_core.infra.repositories.audit_chain import AuditChainService
 from bbz_core.infra.repositories.audit_queries import AuditQueryRepository, AuditRow
 
 router = APIRouter(prefix="/audit", tags=["audit"])
@@ -74,3 +75,46 @@ async def list_audit(
         limit=limit,
     )
     return AuditPageOut(items=[_out(r) for r in page.items], next_cursor=page.next_cursor)
+
+
+class ChainLinkOut(BaseModel):
+    seq: int
+    audit_event_id: uuid.UUID
+    prev_hash: str
+    row_hash: str
+    action: str
+    occurred_at_utc: str
+
+
+class ChainOut(BaseModel):
+    verified: bool
+    checked: int
+    head_seq: int
+    head_hash: str
+    first_bad_seq: int | None
+    links: list[ChainLinkOut]
+    next_after_seq: int | None
+
+
+@router.get("/chain", response_model=ChainOut)
+async def audit_chain(
+    after_seq: int = Query(default=0, ge=0),
+    limit: int = Query(default=500, ge=1, le=2000),
+    _: AuthContext = Depends(require("system.audit.view")),
+    session: AsyncSession = Depends(db_session),
+) -> ChainOut:
+    """The tamper-evident hash chain over the audit log (E23-09) — re-verifies it
+    and returns a page of links for an integrity check or export to external
+    archival. Page with ``after_seq`` = the previous response's ``next_after_seq``."""
+    svc = AuditChainService(session)
+    result = await svc.verify()
+    links = await svc.export(after_seq=after_seq, limit=limit)
+    return ChainOut(
+        verified=result.ok,
+        checked=result.checked,
+        head_seq=result.head_seq,
+        head_hash=result.head_hash,
+        first_bad_seq=result.first_bad_seq,
+        links=[ChainLinkOut(**vars(link)) for link in links],
+        next_after_seq=links[-1].seq if len(links) == limit else None,
+    )
