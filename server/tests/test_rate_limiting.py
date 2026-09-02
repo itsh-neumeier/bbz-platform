@@ -2,15 +2,18 @@
 
 from __future__ import annotations
 
-import asyncio
+import datetime as dt
 import os
 import uuid
 from collections.abc import AsyncIterator, Iterator
+from unittest import mock
 
 import httpx
 import pytest
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+
+import bbz_core.infra.rate_limit as rate_limit_mod
 
 
 @pytest.fixture(autouse=True)
@@ -33,6 +36,22 @@ def _env() -> Iterator[None]:
     hashing._hasher.cache_clear()
     hashing._dummy_hash.cache_clear()
     settings_mod.get_settings.cache_clear()
+
+
+@pytest.fixture(autouse=True)
+def frozen_clock() -> Iterator[list[dt.datetime]]:
+    """Freeze the rate limiter's clock.
+
+    The limiter buckets on a **fixed** window (``floor(now / w) * w``). With a
+    live clock a burst that happens to span a window boundary puts the
+    over-limit request into a fresh, allowed window — an ~1 % flake that does
+    not reflect a real bug. Freezing ``_now`` makes every test in this file
+    deterministic; ``test_the_window_resets`` advances ``holder[0]`` by hand to
+    exercise the roll-over.
+    """
+    holder = [dt.datetime(2026, 6, 1, 12, 0, 0, tzinfo=dt.UTC)]
+    with mock.patch.object(rate_limit_mod, "_now", lambda: holder[0]):
+        yield holder
 
 
 async def _make_user(s: AsyncSession, username: str) -> uuid.UUID:
@@ -112,26 +131,20 @@ async def test_a_disabled_rule_never_throttles(env: tuple) -> None:
     assert codes == {401}
 
 
-async def test_the_window_resets(env: tuple) -> None:
+async def test_the_window_resets(env: tuple, frozen_clock: list[dt.datetime]) -> None:
     client, s = env
     from bbz_core import settings as settings_mod
 
     await _make_user(s, "u")
-    os.environ["BBZ_RATE_LIMIT_LOGIN"] = "2/2"  # 2 per 2 seconds
+    os.environ["BBZ_RATE_LIMIT_LOGIN"] = "2/60"
     settings_mod.get_settings.cache_clear()
 
-    # The limiter is a fixed window (floor(now / window) * window). Measure a
-    # burst that lands entirely inside one window — 2 allowed, the 3rd blocked.
-    # If the burst straddled a boundary, wait a full window and try again.
-    codes: list[int] = []
-    for _ in range(6):
-        codes = [(await _try_login(client)).status_code for _ in range(3)]
-        if codes == [401, 401, 429]:
-            break
-        await asyncio.sleep(2.1)
-    assert codes == [401, 401, 429]
+    assert (await _try_login(client)).status_code == 401
+    assert (await _try_login(client)).status_code == 401
+    assert (await _try_login(client)).status_code == 429
 
-    await asyncio.sleep(2.1)  # window rolls over
+    frozen_clock[0] += dt.timedelta(seconds=61)  # into the next fixed window
+
     assert (await _try_login(client)).status_code == 401  # counter reset
 
 
