@@ -20,6 +20,7 @@ def test_the_registry_lists_the_expected_singletons() -> None:
         "trigger-engine",
         "weather-refresh",
         "directory-sync",
+        "integration-health",
     }
 
 

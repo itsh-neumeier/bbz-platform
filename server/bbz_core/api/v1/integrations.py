@@ -1,11 +1,13 @@
 """Integration-scoped admin / diagnostics API.
 
-E16-10: ``GET /api/v1/integrations/coda_video/diagnostics`` — the admin view of
-the Coda integration's health, capabilities, event throughput / latency,
-unmapped-source count and camera-action state. Aggregated from the provider
-inbox / outbox and the provider's own ``health()``; needs
-``integrations.diagnostics``. The body carries no secrets
-(``.ai/INTEGRATIONS_CODA_VIDEO.md``).
+- ``GET /api/v1/integrations/health`` (E22-05) — the uniform view over **every
+  active** integration: normalised state, check / last-ok / last-error times,
+  consecutive-error count, last observed activity. Live-probes then reads the
+  ``integration_health`` table.
+- ``GET /api/v1/integrations/coda_video/diagnostics`` (E16-10) — the deep,
+  Coda-specific view (throughput / latency / unmapped sources / camera actions).
+
+Both need ``integrations.diagnostics`` and carry no secrets.
 """
 
 from __future__ import annotations
@@ -19,9 +21,39 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from bbz_core.api.authz import require
 from bbz_core.api.deps import AuthContext, db_session
 from bbz_core.infra.repositories.coda_diagnostics import CodaDiagnosticsService
+from bbz_core.infra.repositories.integration_health import IntegrationHealthService
 from bbz_core.integrations_host.providers import NoActiveProvider, active_video_provider
 
 router = APIRouter(prefix="/integrations", tags=["integrations"])
+
+
+class IntegrationHealthOut(BaseModel):
+    integration_id: str
+    domain: str
+    state: str  # ok | degraded | down | disabled
+    summary: str
+    checked_at: _dt.datetime | None
+    last_ok_at: _dt.datetime | None
+    last_error_at: _dt.datetime | None
+    consecutive_errors: int
+    last_activity_at: _dt.datetime | None
+    details: dict[str, object]
+
+
+class IntegrationHealthOverview(BaseModel):
+    integrations: list[IntegrationHealthOut]
+
+
+@router.get("/health", response_model=IntegrationHealthOverview)
+async def integration_health(
+    _: AuthContext = Depends(require("integrations.diagnostics")),
+    session: AsyncSession = Depends(db_session),
+) -> IntegrationHealthOverview:
+    """Live health of every active integration (E22-05). Probes each provider,
+    persists the result to ``integration_health`` and returns the table. The
+    ``integration-health`` singleton keeps it current between calls."""
+    views = await IntegrationHealthService(session).refresh()
+    return IntegrationHealthOverview(integrations=[IntegrationHealthOut(**vars(v)) for v in views])
 
 
 class HealthOut(BaseModel):

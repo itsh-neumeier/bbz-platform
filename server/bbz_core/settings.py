@@ -206,6 +206,10 @@ class Settings(BaseSettings):
     # --- monitor routing (E19-04). Which monitor/KVM integration executes routes. ---
     monitor_integration_id: str = "monitor_mock"
 
+    # --- integration health (E22-05). How often the `integration-health`
+    # singleton re-probes every active integration into `integration_health`. ---
+    integration_health_interval_seconds: int = 60
+
     # --- weather (E18-06). Which weather integration the refresh singleton polls,
     # how often it ticks, and how long a data kind may go without a successful
     # refresh before its health is `stale`. ---
