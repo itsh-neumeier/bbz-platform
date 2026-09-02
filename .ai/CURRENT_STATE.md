@@ -1739,7 +1739,14 @@ API. `integrations/telephony_cucm/` stays a placeholder README.
   link/unlink coverage → Epic 07** (blocked); backend is `test_account_linking.py`
   (12). **Epic 21 backend complete.**
 
-### Epic 24 – Production Deployment: **in progress (2/8)**
+### Epic 24 – Production Deployment: **in progress (3/8)**
+- **#494 (E24-06) disaster-recovery runbook** — `docs/runbooks/disaster-recovery.md`:
+  the scenario ladder § A (rebuild a node) · § B (witness) · § C (both app nodes,
+  DB intact) · § D (DB restore from backup, references E06-14 `pg-restore.sh` /
+  `etcd-restore.sh` + E24-05's weekly proof) · § E (post-recovery verification —
+  `single_primary`, `event_seq` non-regression, `GET /audit/chain` verified,
+  gap-free client reconnect) + an RTO target table. **Staging drill per scenario
+  still owed** (fill the measured RTOs then). Docs only.
 - **#492 (E24-05) backup/restore automation + tested restore** — extends E06-14.
   `deploy/backup/restore-test.sh` (weekly on the backup host via
   `bbz-restore-test.timer`): restore the newest **real** PG base backup to a

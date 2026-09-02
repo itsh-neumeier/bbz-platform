@@ -74,3 +74,8 @@ If `BbzRestoreTestFailing` fires: read the newest `RESTORE_TEST_COMPLETED` audit
 row's `after.detail`, then run `restore-test.sh` by hand on the backup host to
 reproduce. A failing restore test means a backup is **not** restorable — treat
 as a production incident.
+
+For a **total loss** (both app servers / the DB / the witness), this runbook is
+the mechanism; **`docs/runbooks/disaster-recovery.md`** is the scenario ladder
+(§ A rebuild a node · § B rebuild the witness · § C both app nodes lost · § D
+restore the DB · § E post-recovery verification) with RTO targets.
