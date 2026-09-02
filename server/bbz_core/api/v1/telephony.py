@@ -18,6 +18,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from bbz_core.api.authz import require
 from bbz_core.api.deps import AuthContext, db_session
 from bbz_core.api.errors import ValidationError
+from bbz_core.api.rate_limit import rate_limit_by_ip
 from bbz_core.infra.event_stream import notify_event_appended
 from bbz_core.infra.telephony_ingest import (
     TelephonyEventRejected,
@@ -32,7 +33,11 @@ class IngestOut(BaseModel):
     dedupe_key: str
 
 
-@router.post("/events", response_model=IngestOut)
+@router.post(
+    "/events",
+    response_model=IngestOut,
+    dependencies=[Depends(rate_limit_by_ip("webhook"))],
+)
 async def ingest_event(
     event: dict[str, Any],
     _: AuthContext = Depends(require("calls.ingest_provider_events")),

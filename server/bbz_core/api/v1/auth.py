@@ -37,6 +37,7 @@ from bbz_core.api.errors import (
     UnauthorizedError,
     WebauthnRequiredError,
 )
+from bbz_core.api.rate_limit import rate_limit_by_ip
 from bbz_core.audit import AuditAction, AuditWriter
 from bbz_core.auth.local import LocalAuthResult
 from bbz_core.auth.mfa import ChallengeResult, TotpService
@@ -253,7 +254,11 @@ async def _issue_session(
     return csrf
 
 
-@router.post("/login", response_model=LoginResponse)
+@router.post(
+    "/login",
+    response_model=LoginResponse,
+    dependencies=[Depends(rate_limit_by_ip("login"))],
+)
 async def login(
     body: LoginRequest,
     request: Request,

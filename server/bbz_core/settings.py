@@ -190,6 +190,13 @@ class Settings(BaseSettings):
     login_max_failed_attempts: int = 5
     login_lockout_seconds: int = 900
 
+    # --- rate limiting (E23-04). Cluster-wide fixed windows. "<limit>/<seconds>".
+    # 0 as the limit disables that rule. ---
+    rate_limit_login: str = "10/60"
+    rate_limit_mfa: str = "8/60"  # TOTP activate + step-up
+    rate_limit_password_reset: str = "5/300"
+    rate_limit_webhook: str = "240/60"  # inbound integration events
+
     # --- events: reactivation (E20-05) two-step confirm + accidental-series guard ---
     reactivation_token_ttl_seconds: int = 300
     reactivation_cooldown_seconds: int = 60

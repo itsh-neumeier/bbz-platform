@@ -21,6 +21,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from bbz_core.api.authz import require
 from bbz_core.api.deps import AuthContext, db_session
 from bbz_core.api.errors import ConflictError, NotFoundError, ValidationError
+from bbz_core.api.rate_limit import rate_limit_by_user
 from bbz_core.auth.policy import PasswordPolicyError
 from bbz_core.infra.repositories.users_admin import (
     LastAdminError,
@@ -159,7 +160,11 @@ async def activate_user(
     return UserOut.model_validate(user, from_attributes=True)
 
 
-@router.post("/{user_id}/password-reset", response_model=RevokedOut)
+@router.post(
+    "/{user_id}/password-reset",
+    response_model=RevokedOut,
+    dependencies=[Depends(rate_limit_by_user("password_reset"))],
+)
 async def reset_password(
     user_id: uuid.UUID,
     body: PasswordResetIn,

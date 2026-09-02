@@ -125,6 +125,16 @@ Coverage:
 - **clean no-op** — `configure_tracing(Settings(otel_enabled=False))` is `False`
   and `current_trace_ids()` is `None`.
 
+## Rate limiting (E23-04)
+
+`test_rate_limiting.py` (5): `POST /auth/login` past `BBZ_RATE_LIMIT_LOGIN`
+(set to `3/60`) → `429` + numeric `Retry-After` + a `RATE_LIMIT_TRIGGERED` audit
+row carrying the rule but not the attempted password; the counter is **shared**
+across two httpx clients (same DB bucket) — the 4th hit from either is blocked;
+`0/60` disables the rule; a `2/1` window lets requests through again after a
+1.2 s sleep; `/auth/totp/activate` is throttled per user (`2/60` → the 3rd/4th
+are `429`). The `db` fixture drops `rate_limit_hits` per test.
+
 ## Runtime secrets (E23-01)
 
 `test_secret_store.py` (9): `EnvFileSecretProvider` — env beats file, the TTL

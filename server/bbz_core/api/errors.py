@@ -32,10 +32,17 @@ class AppError(Exception):
     code = "internal_error"
     http_status = status.HTTP_500_INTERNAL_SERVER_ERROR
 
-    def __init__(self, message: str, *, details: dict[str, Any] | None = None) -> None:
+    def __init__(
+        self,
+        message: str,
+        *,
+        details: dict[str, Any] | None = None,
+        headers: dict[str, str] | None = None,
+    ) -> None:
         super().__init__(message)
         self.message = message
         self.details = details
+        self.headers = headers
 
 
 class ConflictError(AppError):
@@ -126,7 +133,9 @@ def _render(request: Request, exc: AppError) -> JSONResponse:
             correlation_id=correlation_id.get(),
         )
     )
-    return JSONResponse(status_code=exc.http_status, content=body.model_dump())
+    return JSONResponse(
+        status_code=exc.http_status, content=body.model_dump(), headers=exc.headers or None
+    )
 
 
 def install_error_handlers(app: FastAPI) -> None:

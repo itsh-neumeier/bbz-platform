@@ -17,6 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from bbz_core.api.authz import require, require_stepup
 from bbz_core.api.deps import AuthContext, current_auth, db_session
 from bbz_core.api.errors import NotFoundError, UnauthorizedError, ValidationError
+from bbz_core.api.rate_limit import rate_limit_by_user
 from bbz_core.audit import AuditAction, AuditWriter
 from bbz_core.auth.mfa import ChallengeResult, TotpService
 from bbz_core.infra.models.identity import AuthIdentity
@@ -102,7 +103,11 @@ class StepUpIn(BaseModel):
     webauthn: str | None = None
 
 
-@router.post("/step-up", status_code=status.HTTP_204_NO_CONTENT)
+@router.post(
+    "/step-up",
+    status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[Depends(rate_limit_by_user("mfa"))],
+)
 async def step_up(
     body: StepUpIn,
     ctx: AuthContext = Depends(current_auth),
