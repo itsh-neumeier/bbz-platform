@@ -117,17 +117,17 @@ All 20 issues are the separate Java `services/cucm-cti-gateway`. Needs
 (§8.18). `E12-01` (the gateway image) is the dependency for **E24-01** (complete
 `release.yml`) and transitively **E23-12**, **E24-02**, **E24-04**.
 
-## Epic 13 · SIP Provider — **1/8 + ADR-0023 (`Proposed`)**
+## Epic 13 · SIP Provider — **1/8 + ADR-0023 (`Accepted`)**
 
 - **E13-01 done**: `integrations/telephony_sip/` scaffold — manifest,
   `config_schema.json`, and a `SipTelephonyProvider` that satisfies the whole
   `TelephonyProvider` protocol with safe stubs (`SipNotConfiguredError` on every
   control verb until E13-03+).
-- **E13-02 — decision done, ADR-0023 `Proposed`**: **Asterisk via ARI** (REST +
+- **E13-02 — decision done, ADR-0023 `Accepted`**: **Asterisk via ARI** (REST +
   WebSocket + JSON, the transport the codebase already speaks; the Stasis
   channel model fits the provider verbs; ARI events map straight onto
   `inbound_signal.v1`). FreeSWITCH ESL stays the documented fallback in
-  `config_schema.json`. Move the ADR `Accepted` on review.
+  `config_schema.json`.
 - **E13-02 deployment half + E13-03..08 blocked/toolchain**: the `asterisk`
   compose container + `ari.conf`/dialplan + SIPp smoke test, then the adapter,
   event mapping, call control, DTMF, secrets and PBX integration tests — all
@@ -186,4 +186,3 @@ and unblocking checklists are in `docs/integrations/*` and `docs/auth/*`.
 | `cd apps/web && npm install`, commit the lockfile | regenerates `package-lock.json` in sync with the pinned deps → unblocks E01-06 (and the `bbz-web` release image) |
 | supply the functional HTML mockup files | unblocks E01-02 (`docs/mockup/`) and is the frontend test baseline for Epic 07 |
 | fix GitHub Actions billing, then re-privatise the repo | the repo was made **public** to work around a spending-limit block and is **still public**; CI currently works *because* of that |
-| move ADR-0023 `Proposed → Accepted` (or redirect) | the SIP gateway choice — Asterisk ARI |

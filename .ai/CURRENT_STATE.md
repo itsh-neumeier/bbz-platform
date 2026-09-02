@@ -803,7 +803,7 @@ All 20 issues are the separate Java `services/cucm-cti-gateway` and hinge on
 `jtapi.jar` + real CUCM §8.18 data — no Java toolchain here, no invented Cisco
 API. `integrations/telephony_cucm/` stays a placeholder README.
 
-### Epic 13 – SIP Telephony: **1/8 + ADR-0023 Proposed (rest needs a SIP stack / test PBX)**
+### Epic 13 – SIP Telephony: **1/8 + ADR-0023 Accepted (rest needs a SIP stack / test PBX)**
 - **#269 (E13-01) `telephony_sip` scaffold** — `integrations/telephony_sip/`:
   `manifest.json` (domain `telephony`, capabilities answer/dial/hangup/hold/
   resume/transfer/send_dtmf/monitoring, `mock:false`), `config_schema.json`
@@ -814,7 +814,7 @@ API. `integrations/telephony_cucm/` stays a placeholder README.
   `SipNotConfiguredError` until E13-03+. New import-linter contract
   *"telephony_sip is independent of Cisco CUCM / JTAPI"* (`root_packages` gained
   `integrations`). `integrations/telephony_sip/tests/test_sip_scaffold.py`.
-- **E13-02 decision done** — ADR-0023 (`Proposed`): **Asterisk ARI** (REST + WS +
+- **E13-02 decision done** — ADR-0023 (`Accepted`): **Asterisk ARI** (REST + WS +
   JSON fits the codebase and `inbound_signal.v1`; FreeSWITCH ESL stays the
   documented fallback). The compose test-gateway + ARI connection point is
   E13-03+ and needs a SIP stack in the environment.
@@ -2101,7 +2101,7 @@ store (etcd).
 audit immutability (E04-10 / #66, Proposed), **0021 PostgreSQL replication mode
 (E06-02 / #82 — Accepted: synchronous + auto fallback)**, 0022 Electron load
 strategy (E08-07 / #143 — not written, blocked on the E08-01 Electron scaffold),
-**0023 SIP gateway (E13-02 / #271 — written, `Proposed`: Asterisk ARI)**.
+**0023 SIP gateway (E13-02 / #271 — Accepted: Asterisk ARI)**.
 
 **Added outside the roadmap schedule:** **0024 trigger execution via a
 leader-elected drain worker (E15-15 / #333 — Accepted)** — a normalized inbound
