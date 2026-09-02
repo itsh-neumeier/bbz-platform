@@ -1,0 +1,149 @@
+# promtool test cases for bbz.rules.yml (roadmap E22-06).
+#   promtool test rules deploy/monitoring/alerts/bbz.rules.test.yml
+#
+# Each block drives one rule's expression past (or below) its threshold and
+# asserts whether it fires. `x<N>` means "hold this value for N samples".
+
+rule_files:
+  - bbz.rules.yml
+
+evaluation_interval: 1m
+
+tests:
+  # --- quorum ---------------------------------------------------------------
+  - interval: 1m
+    input_series:
+      - series: 'bbz_cluster_quorum{node="BBZ-SRV01"}'
+        values: "0x10"
+      - series: 'bbz_cluster_quorum{node="BBZ-SRV02"}'
+        values: "0x10"
+    alert_rule_test:
+      - eval_time: 1m
+        alertname: BbzQuorumLost
+        exp_alerts: []
+      - eval_time: 3m
+        alertname: BbzQuorumLost
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+            exp_annotations:
+              summary: "etcd quorum lost — the cluster cannot fail over"
+              description: "No node sees an etcd raft leader for >2m. A DB primary failure now would not be recovered automatically."
+              runbook_url: https://github.com/itsh-neumeier/bbz-platform/blob/main/docs/runbooks/quorum-node.md
+
+  - interval: 1m
+    input_series:
+      - series: 'bbz_cluster_quorum{node="BBZ-SRV01"}'
+        values: "1x10"
+    alert_rule_test:
+      - eval_time: 5m
+        alertname: BbzQuorumLost
+        exp_alerts: []
+
+  # --- split brain -------------------------------------------------------
+  - interval: 1m
+    input_series:
+      - series: 'bbz_cluster_node_is_primary{node="BBZ-SRV01"}'
+        values: "1x10"
+      - series: 'bbz_cluster_node_is_primary{node="BBZ-SRV02"}'
+        values: "1x10"
+    alert_rule_test:
+      - eval_time: 2m
+        alertname: BbzSplitBrain
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+            exp_annotations:
+              summary: "zero or multiple PostgreSQL primaries"
+              description: "sum(bbz_cluster_node_is_primary) = 2 (expected 1). Two primaries = split brain; zero = no writable database."
+              runbook_url: https://github.com/itsh-neumeier/bbz-platform/blob/main/docs/runbooks/db-failover.md
+
+  # --- replication lag -------------------------------------------------
+  - interval: 1m
+    input_series:
+      - series: 'bbz_replication_lag_bytes{node="BBZ-SRV02"}'
+        values: "2000000x10"
+    alert_rule_test:
+      - eval_time: 3m # still pending (for: 5m)
+        alertname: BbzReplicationLagHigh
+        exp_alerts: []
+      - eval_time: 6m
+        alertname: BbzReplicationLagHigh
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+            exp_annotations:
+              summary: "standby replication lag over the failover limit"
+              description: "A standby is >1 MiB behind for >5m — past ADR-0021's maximum_lag_on_failover, so a failover here would drop data."
+              runbook_url: https://github.com/itsh-neumeier/bbz-platform/blob/main/docs/runbooks/db-failover.md
+
+  # --- worker leader missing (templated label) ------------------------
+  - interval: 1m
+    input_series:
+      - series: 'bbz_worker_leader{singleton="outbox-dispatcher",node="BBZ-SRV01"}'
+        values: "0x10"
+      - series: 'bbz_worker_leader{singleton="outbox-dispatcher",node="BBZ-SRV02"}'
+        values: "0x10"
+    alert_rule_test:
+      - eval_time: 6m
+        alertname: BbzWorkerLeaderMissing
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              singleton: outbox-dispatcher
+            exp_annotations:
+              summary: "cluster singleton outbox-dispatcher has no leader"
+              description: "No node holds the etcd lease for outbox-dispatcher for >5m — its background work (outbox dispatch, timers, sync) is not running."
+              runbook_url: https://github.com/itsh-neumeier/bbz-platform/blob/main/docs/runbooks/observability-alerts.md
+
+  # --- integration down (templated labels) ---------------------------
+  - interval: 1m
+    input_series:
+      - series: 'bbz_integration_health{domain="telephony",integration="telephony_sip"}'
+        values: "0x10"
+    alert_rule_test:
+      - eval_time: 6m
+        alertname: BbzIntegrationDown
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              domain: telephony
+              integration: telephony_sip
+            exp_annotations:
+              summary: "integration telephony_sip (telephony) is down"
+              description: "bbz_integration_health for telephony_sip has been 0 (unavailable/unknown) for >5m."
+              runbook_url: https://github.com/itsh-neumeier/bbz-platform/blob/main/docs/runbooks/integration-disable.md
+
+  # --- outbox backlog ---------------------------------------------------
+  - interval: 1m
+    input_series:
+      - series: "bbz_outbox_pending"
+        values: "250x15"
+    alert_rule_test:
+      - eval_time: 11m
+        alertname: BbzOutboxBacklog
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+            exp_annotations:
+              summary: "external-action outbox is not draining"
+              description: "bbz_outbox_pending > 100 for >10m — the outbox-dispatcher singleton is stuck or unelected, or a downstream is failing every attempt."
+              runbook_url: https://github.com/itsh-neumeier/bbz-platform/blob/main/docs/runbooks/observability-alerts.md
+
+  # --- api error rate --------------------------------------------------
+  - interval: 1m
+    input_series:
+      - series: 'bbz_http_request_duration_seconds_count{status="200",route="/api/v1/events"}'
+        values: "0+80x20"
+      - series: 'bbz_http_request_duration_seconds_count{status="500",route="/api/v1/events"}'
+        values: "0+20x20"
+    alert_rule_test:
+      - eval_time: 15m
+        alertname: BbzApiErrorRateHigh
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+            exp_annotations:
+              summary: "API 5xx rate over 5%"
+              description: "More than 5% of requests have returned 5xx for >10m."
+              runbook_url: https://github.com/itsh-neumeier/bbz-platform/blob/main/docs/runbooks/observability-alerts.md

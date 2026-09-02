@@ -1739,7 +1739,18 @@ API. `integrations/telephony_cucm/` stays a placeholder README.
   link/unlink coverage → Epic 07** (blocked); backend is `test_account_linking.py`
   (12). **Epic 21 backend complete.**
 
-### Epic 22 – Monitoring / Observability: **in progress (5/7)**
+### Epic 22 – Monitoring / Observability: **in progress (6/7)**
+- **#457 (E22-06) Prometheus alert-rules baseline** — `deploy/monitoring/alerts/`
+  `bbz.rules.yml` (11 rules across `bbz-cluster` / `bbz-integrations` /
+  `bbz-backlog` / `bbz-api`): quorum loss, DCS degraded, split brain, replication
+  lag over the ADR-0021 1 MiB limit, worker-leader missing, integration
+  down/degraded, outbox backlog, offline-command backlog, API p95 latency, API
+  5xx rate. Each has `severity` + a `runbook_url`. `bbz.rules.test.yml` —
+  8 `promtool test rules` cases (fires above threshold / silent below).
+  `docs/runbooks/observability-alerts.md` for the rules without a dedicated
+  runbook; `deploy/monitoring/README.md` has the threshold table + scrape setup.
+  CI `compose` job gained a `promtool check rules` + `test rules` step
+  (`prom/prometheus:v3.1.0`). No app code. Alertmanager routing is out of scope.
 - **#455 (E22-05) integration-health aggregation API + model** — `integration_health`
   table (migration `0051`, one row per integration: normalised `state`
   `ok/degraded/down/disabled`, `checked_at` / `last_ok_at` / `last_error_at`,

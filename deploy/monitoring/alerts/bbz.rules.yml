@@ -1,0 +1,151 @@
+# BBZ platform alerting rules (roadmap E22-06, MASTER_PROMPT §23).
+#
+# Load into Prometheus via `rule_files:` and validate with
+#   promtool check rules deploy/monitoring/alerts/bbz.rules.yml
+#   promtool test rules deploy/monitoring/alerts/bbz.rules.test.yml
+#
+# Every rule carries `severity` and a `runbook_url`. Thresholds and their
+# rationale are in ../README.md. Alertmanager routing is the operator's job
+# (out of scope, E22-06).
+#
+# Metrics: `GET /api/v1/system/metrics` per node (E06-13 + E22-02,
+# docs/metrics.md). Scrape each node separately; these rules aggregate where a
+# cluster-wide view is meant.
+
+groups:
+  - name: bbz-cluster
+    rules:
+      - alert: BbzQuorumLost
+        expr: min(bbz_cluster_quorum) == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "etcd quorum lost — the cluster cannot fail over"
+          description: >-
+            No node sees an etcd raft leader for >2m. A DB primary failure now
+            would not be recovered automatically.
+          runbook_url: https://github.com/itsh-neumeier/bbz-platform/blob/main/docs/runbooks/quorum-node.md
+
+      - alert: BbzClusterDegradedDcs
+        expr: min(bbz_cluster_dcs_healthy) == 0
+        for: 3m
+        labels:
+          severity: warning
+        annotations:
+          summary: "a node lost contact with etcd"
+          description: >-
+            bbz_cluster_dcs_healthy is 0 on at least one node for >3m — that node
+            cannot take part in leader election.
+          runbook_url: https://github.com/itsh-neumeier/bbz-platform/blob/main/docs/runbooks/quorum-node.md
+
+      - alert: BbzSplitBrain
+        expr: sum(bbz_cluster_node_is_primary) != 1
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "zero or multiple PostgreSQL primaries"
+          description: >-
+            sum(bbz_cluster_node_is_primary) = {{ $value }} (expected 1). Two
+            primaries = split brain; zero = no writable database.
+          runbook_url: https://github.com/itsh-neumeier/bbz-platform/blob/main/docs/runbooks/db-failover.md
+
+      - alert: BbzReplicationLagHigh
+        expr: max(bbz_replication_lag_bytes) > 1048576
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "standby replication lag over the failover limit"
+          description: >-
+            A standby is >1 MiB behind for >5m — past ADR-0021's
+            maximum_lag_on_failover, so a failover here would drop data.
+          runbook_url: https://github.com/itsh-neumeier/bbz-platform/blob/main/docs/runbooks/db-failover.md
+
+      - alert: BbzWorkerLeaderMissing
+        expr: sum by (singleton) (bbz_worker_leader) < 1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "cluster singleton {{ $labels.singleton }} has no leader"
+          description: >-
+            No node holds the etcd lease for {{ $labels.singleton }} for >5m —
+            its background work (outbox dispatch, timers, sync) is not running.
+          runbook_url: https://github.com/itsh-neumeier/bbz-platform/blob/main/docs/runbooks/observability-alerts.md
+
+  - name: bbz-integrations
+    rules:
+      - alert: BbzIntegrationDown
+        expr: max by (domain, integration) (bbz_integration_health) == 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "integration {{ $labels.integration }} ({{ $labels.domain }}) is down"
+          description: >-
+            bbz_integration_health for {{ $labels.integration }} has been 0
+            (unavailable/unknown) for >5m.
+          runbook_url: https://github.com/itsh-neumeier/bbz-platform/blob/main/docs/runbooks/integration-disable.md
+
+      - alert: BbzIntegrationDegraded
+        expr: max by (domain, integration) (bbz_integration_health) == 0.5
+        for: 15m
+        labels:
+          severity: info
+        annotations:
+          summary: "integration {{ $labels.integration }} is degraded"
+          description: "bbz_integration_health = 0.5 for {{ $labels.integration }} for >15m."
+          runbook_url: https://github.com/itsh-neumeier/bbz-platform/blob/main/docs/runbooks/integration-disable.md
+
+  - name: bbz-backlog
+    rules:
+      - alert: BbzOutboxBacklog
+        expr: max(bbz_outbox_pending) > 100
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "external-action outbox is not draining"
+          description: >-
+            bbz_outbox_pending > 100 for >10m — the outbox-dispatcher singleton
+            is stuck or unelected, or a downstream is failing every attempt.
+          runbook_url: https://github.com/itsh-neumeier/bbz-platform/blob/main/docs/runbooks/observability-alerts.md
+
+      - alert: BbzOfflineCommandsPending
+        expr: max(bbz_commands_pending) > 50
+        for: 15m
+        labels:
+          severity: info
+        annotations:
+          summary: "many commands accepted but not completed"
+          description: >-
+            bbz_commands_pending > 50 for >15m — offline clients not
+            reconnecting to sync results, or a stuck command path.
+          runbook_url: https://github.com/itsh-neumeier/bbz-platform/blob/main/docs/runbooks/observability-alerts.md
+
+  - name: bbz-api
+    rules:
+      - alert: BbzApiLatencyHigh
+        expr: >-
+          histogram_quantile(0.95, sum by (le) (rate(bbz_http_request_duration_seconds_bucket[5m]))) > 1
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "API p95 latency over 1s"
+          description: "The 95th-percentile request latency has been >1s for >10m."
+          runbook_url: https://github.com/itsh-neumeier/bbz-platform/blob/main/docs/runbooks/observability-alerts.md
+
+      - alert: BbzApiErrorRateHigh
+        expr: >-
+          sum(rate(bbz_http_request_duration_seconds_count{status=~"5.."}[5m]))
+          / sum(rate(bbz_http_request_duration_seconds_count[5m])) > 0.05
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "API 5xx rate over 5%"
+          description: "More than 5% of requests have returned 5xx for >10m."
+          runbook_url: https://github.com/itsh-neumeier/bbz-platform/blob/main/docs/runbooks/observability-alerts.md

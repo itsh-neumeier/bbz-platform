@@ -40,20 +40,13 @@ returned; `method` by the verbs actually used. `bbz_call_lines{state}` and
 `bbz_integration_health` use small closed label sets. No metric carries a
 user id, path id, or free text.
 
-## What to alert on (starting points — E22-06 makes these real rules)
+## What to alert on
 
-- `bbz_cluster_quorum == 0` for > 30 s — the cluster cannot fail over.
-- `bbz_cluster_dcs_healthy == 0` on a node — that node lost etcd.
-- `sum(bbz_cluster_node_is_primary) != 1` — zero or two primaries (split brain).
-- `bbz_replication_lag_bytes > 1048576` (the `maximum_lag_on_failover`, ADR-0021)
-  sustained — a failover here would drop data.
-- `bbz_outbox_pending` climbing without draining — the dispatcher singleton is
-  stuck or unelected.
-- `delta(bbz_event_seq_head)` diverging between nodes — replication is behind.
-- `histogram_quantile(0.95, rate(bbz_http_request_duration_seconds_bucket[5m]))`
-  rising — API latency regression.
-- `bbz_db_pool_connections{state="in_use"}` pinned at the pool ceiling — DB
-  saturation / a leak.
-- `bbz_commands_pending` climbing — offline clients not reconnecting, or a stuck
-  command path.
-- `bbz_integration_health < 1` for a core integration — telephony / monitor down.
+The Prometheus alerting rules live in **`deploy/monitoring/alerts/bbz.rules.yml`**
+(E22-06) — 11 rules with documented thresholds and a runbook link each,
+`promtool`-tested in CI. See `deploy/monitoring/README.md` for the table and
+`docs/runbooks/observability-alerts.md` for the response steps.
+
+Headline signals: quorum loss, split brain, replication lag over the ADR-0021
+limit, a cluster singleton with no leader, an integration down, an outbox that
+is not draining, offline-command backlog, API p95 latency / 5xx rate.
