@@ -163,3 +163,9 @@ jobs:
             docker run --rm -e BBZ_PUBLIC_NAME=bbz.ci.internal -v "$PWD/$cf:/w/Caddyfile:ro" -w /w \
               caddy:2-alpine sh -c "caddy validate --config Caddyfile && diff -u Caddyfile <(caddy fmt Caddyfile)"
           done
+      - name: Prometheus alert rules are valid + tested (E22-06)
+        run: |
+          docker run --rm -v "$PWD/deploy/monitoring/alerts:/rules:ro" -w /rules \
+            --entrypoint promtool prom/prometheus:v3.1.0 check rules bbz.rules.yml
+          docker run --rm -v "$PWD/deploy/monitoring/alerts:/rules:ro" -w /rules \
+            --entrypoint promtool prom/prometheus:v3.1.0 test rules bbz.rules.test.yml

@@ -125,6 +125,14 @@ Coverage:
 - **clean no-op** — `configure_tracing(Settings(otel_enabled=False))` is `False`
   and `current_trace_ids()` is `None`.
 
+## Alert rules (E22-06)
+
+`deploy/monitoring/alerts/bbz.rules.test.yml` — `promtool test rules`, run in the
+CI `docker compose config` job (`prom/prometheus:v3.1.0`). 8 cases drive one
+rule's expression past / below its threshold and assert the alert fires (with the
+exact rendered labels + annotations) or stays silent. `promtool check rules` on
+`bbz.rules.yml` gates rule validity.
+
 ## Integration health (E22-05)
 
 `test_integration_health_api.py` (5): `GET /api/v1/integrations/health` needs
