@@ -1,0 +1,63 @@
+{
+  "uid": "bbz-triggers",
+  "title": "BBZ — Triggers & Background Work",
+  "tags": ["bbz", "triggers", "workers"],
+  "schemaVersion": 39,
+  "version": 1,
+  "editable": true,
+  "refresh": "30s",
+  "time": { "from": "now-6h", "to": "now" },
+  "templating": { "list": [] },
+  "annotations": { "list": [] },
+  "panels": [
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "Outbox pending",
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "bbz-prometheus" },
+      "fieldConfig": { "defaults": { "thresholds": { "steps": [{ "value": null, "color": "green" }, { "value": 100, "color": "red" }] } } },
+      "targets": [{ "refId": "A", "expr": "max(bbz_outbox_pending)" }]
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Commands pending",
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "bbz-prometheus" },
+      "targets": [{ "refId": "A", "expr": "max(bbz_commands_pending)" }]
+    },
+    {
+      "id": 3,
+      "type": "timeseries",
+      "title": "trigger-engine leader present",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "bbz-prometheus" },
+      "targets": [{ "refId": "A", "expr": "sum(bbz_worker_leader{singleton=\"trigger-engine\"})" }]
+    },
+    {
+      "id": 4,
+      "type": "timeseries",
+      "title": "Outbox pending over time",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "datasource": { "type": "prometheus", "uid": "bbz-prometheus" },
+      "targets": [{ "refId": "A", "expr": "bbz_outbox_pending" }]
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "Commands pending over time",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "datasource": { "type": "prometheus", "uid": "bbz-prometheus" },
+      "targets": [{ "refId": "A", "expr": "bbz_commands_pending" }]
+    },
+    {
+      "id": 6,
+      "type": "timeseries",
+      "title": "All singleton leaders",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 16 },
+      "datasource": { "type": "prometheus", "uid": "bbz-prometheus" },
+      "targets": [{ "refId": "A", "expr": "sum by (singleton) (bbz_worker_leader)", "legendFormat": "{{singleton}}" }]
+    }
+  ]
+}

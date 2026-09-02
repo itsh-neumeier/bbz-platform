@@ -138,7 +138,7 @@ jobs:
       - name: dev stack
         run: |
           cp .env.example .env
-          docker compose --profile core --profile edge config -q
+          docker compose --profile core --profile edge --profile monitoring config -q
       - name: deploy/node stack
         working-directory: deploy/node
         run: |
@@ -169,3 +169,12 @@ jobs:
             --entrypoint promtool prom/prometheus:v3.1.0 check rules bbz.rules.yml
           docker run --rm -v "$PWD/deploy/monitoring/alerts:/rules:ro" -w /rules \
             --entrypoint promtool prom/prometheus:v3.1.0 test rules bbz.rules.test.yml
+      - name: Observability stack config is valid (E22-07)
+        run: |
+          docker run --rm \
+            -v "$PWD/deploy/monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro" \
+            -v "$PWD/deploy/monitoring/alerts:/etc/prometheus/rules:ro" \
+            --entrypoint promtool prom/prometheus:v3.1.0 check config /etc/prometheus/prometheus.yml
+          docker run --rm \
+            -v "$PWD/deploy/monitoring/collector/otel-collector-config.yaml:/cfg.yaml:ro" \
+            otel/opentelemetry-collector-contrib:0.119.0 validate --config=/cfg.yaml

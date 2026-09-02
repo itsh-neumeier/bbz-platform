@@ -1,0 +1,64 @@
+{
+  "uid": "bbz-telephony",
+  "title": "BBZ — Telephony",
+  "tags": ["bbz", "telephony"],
+  "schemaVersion": 39,
+  "version": 1,
+  "editable": true,
+  "refresh": "30s",
+  "time": { "from": "now-6h", "to": "now" },
+  "templating": { "list": [] },
+  "annotations": { "list": [] },
+  "panels": [
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "Active calls",
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "bbz-prometheus" },
+      "targets": [{ "refId": "A", "expr": "max(bbz_calls_active)" }]
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Telephony integration health",
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "bbz-prometheus" },
+      "fieldConfig": { "defaults": { "mappings": [{ "type": "value", "options": { "1": { "text": "ok", "color": "green" }, "0.5": { "text": "degraded", "color": "yellow" }, "0": { "text": "down", "color": "red" } } }] } },
+      "targets": [{ "refId": "A", "expr": "max(bbz_integration_health{domain=\"telephony\"})" }]
+    },
+    {
+      "id": 3,
+      "type": "timeseries",
+      "title": "Lines by state",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "bbz-prometheus" },
+      "targets": [{ "refId": "A", "expr": "bbz_call_lines", "legendFormat": "{{state}}" }]
+    },
+    {
+      "id": 4,
+      "type": "timeseries",
+      "title": "Active calls over time",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "datasource": { "type": "prometheus", "uid": "bbz-prometheus" },
+      "targets": [{ "refId": "A", "expr": "bbz_calls_active" }]
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "Telephony event ingest rate (provider inbox)",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "datasource": { "type": "prometheus", "uid": "bbz-prometheus" },
+      "description": "Derived from the API request rate to the telephony ingest route.",
+      "targets": [{ "refId": "A", "expr": "sum(rate(bbz_http_request_duration_seconds_count{route=\"/api/v1/telephony/events\"}[5m]))" }]
+    },
+    {
+      "id": 6,
+      "type": "timeseries",
+      "title": "All integrations health",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 16 },
+      "datasource": { "type": "prometheus", "uid": "bbz-prometheus" },
+      "targets": [{ "refId": "A", "expr": "bbz_integration_health", "legendFormat": "{{domain}}/{{integration}}" }]
+    }
+  ]
+}

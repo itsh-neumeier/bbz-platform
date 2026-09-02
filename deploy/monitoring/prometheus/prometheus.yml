@@ -1,0 +1,31 @@
+# Prometheus — optional local observability stack (roadmap E22-07).
+# Scrapes the BBZ API's metrics endpoint and loads the E22-06 alert rules.
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    stack: bbz-dev
+
+rule_files:
+  - /etc/prometheus/rules/bbz.rules.yml
+
+scrape_configs:
+  # The BBZ API metrics endpoint is gated on `system.cluster.view` (E06-13), so
+  # this scrape returns 401 until you give it credentials. Add, under this job:
+  #   authorization:
+  #     type: Bearer
+  #     credentials_file: /etc/prometheus/secrets/metrics-token
+  # and drop a token for a machine identity holding `system.cluster.view` into
+  # deploy/monitoring/prometheus/secrets/metrics-token (gitignored). In
+  # production, scrape through the reverse proxy with an internal allow-list.
+  - job_name: bbz-api
+    metrics_path: /api/v1/system/metrics
+    static_configs:
+      - targets: ["api:8000"]
+        labels:
+          node: BBZ-DEV01
+
+  - job_name: otel-collector
+    static_configs:
+      - targets: ["otel-collector:8888"]

@@ -1739,7 +1739,20 @@ API. `integrations/telephony_cucm/` stays a placeholder README.
   link/unlink coverage → Epic 07** (blocked); backend is `test_account_linking.py`
   (12). **Epic 21 backend complete.**
 
-### Epic 22 – Monitoring / Observability: **in progress (6/7)**
+### Epic 22 – Monitoring / Observability: **COMPLETE (7/7)**
+- **#459 (E22-07) collector + dashboards + SLO docs** — optional observability
+  stack under `docker compose --profile monitoring` (dev only, never on quorum):
+  `otel-collector` (`otel/opentelemetry-collector-contrib:0.119.0`, OTLP in →
+  debug + a commented backend exporter, `attributes/scrub` processor),
+  `prometheus` (`v3.1.0`, scrapes `/api/v1/system/metrics`, loads the E22-06
+  rules), `grafana` (`11.5.1`, provisioned datasource `uid: bbz-prometheus` +
+  3 dashboards `deploy/monitoring/dashboards/bbz-{cluster,telephony,triggers}.json`).
+  `docs/observability/slo.md` — target SLOs + "what is healthy" per component.
+  `test_monitoring_stack.py` (8) — collector/prometheus/grafana config validity
+  + **every dashboard panel target queries a `bbz_` metric that
+  `infra/metrics.py` actually exports**. CI `compose` job gained
+  `--profile monitoring config -q` + `promtool check config` + collector
+  `validate`. No app code. **Epic 22 done.**
 - **#457 (E22-06) Prometheus alert-rules baseline** — `deploy/monitoring/alerts/`
   `bbz.rules.yml` (11 rules across `bbz-cluster` / `bbz-integrations` /
   `bbz-backlog` / `bbz-api`): quorum loss, DCS degraded, split brain, replication

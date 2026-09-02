@@ -125,6 +125,17 @@ Coverage:
 - **clean no-op** — `configure_tracing(Settings(otel_enabled=False))` is `False`
   and `current_trace_ids()` is `None`.
 
+## Observability stack (E22-07)
+
+`test_monitoring_stack.py` (8): the collector / Prometheus / Grafana config
+files parse and wire together (collector traces pipeline complete, Prometheus
+loads `bbz.rules.yml` and scrapes the gated `/api/v1/system/metrics`, the
+datasource `uid` matches); **every dashboard panel's `target.expr` references a
+`bbz_` metric that `bbz_core.infra.metrics.REGISTRY` actually exports** (histogram
+`_bucket`/`_count`/`_sum` suffixes stripped). CI also runs
+`docker compose --profile monitoring config -q`, `promtool check config` and the
+collector's own `validate`.
+
 ## Alert rules (E22-06)
 
 `deploy/monitoring/alerts/bbz.rules.test.yml` — `promtool test rules`, run in the
