@@ -3901,6 +3901,11 @@ Checkliste. Quellen: MASTER_PROMPT §19/§20/§21, ADR-0014, `docs/runbooks/*`.
 - **Acceptance Criteria:** jede DR-Prozedur Schritt-für-Schritt dokumentiert und in Staging verifiziert; RTO dokumentiert.
 - **Tests:** Staging-Durchlauf je Szenario (protokolliert).
 - **Security-Auswirkung:** — · **HA-Auswirkung:** definierte Wiederanlauffähigkeit. · **Permissions:** — · **Audit Events:** —
+- **Status (2026-09-02):** `docs/runbooks/disaster-recovery.md` — die Szenario-Leiter
+  (§ A–E) mit Schritt-für-Schritt-Prozeduren, Post-Recovery-Verifikation (inkl.
+  `single_primary`, `event_seq`-Nichtregression, Hash-Chain `verified:true`) und
+  RTO-Zieltabelle. **Der Staging-Durchlauf je Szenario steht noch aus** — beim
+  ersten DR-Drill die gemessenen RTOs in die Tabelle eintragen.
 
 ### E24-07 · Staging-Umgebung + Smoke-Suite
 **Epic:** 24 · **Phase:** fortlaufend · **Area:** infra, test · **Branch:** feature/<nr>-staging-env
