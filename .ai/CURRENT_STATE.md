@@ -1739,7 +1739,17 @@ API. `integrations/telephony_cucm/` stays a placeholder README.
   link/unlink coverage → Epic 07** (blocked); backend is `test_account_linking.py`
   (12). **Epic 21 backend complete.**
 
-### Epic 23 – Security Hardening: **in progress (4/13)** (E23-02/03 skipped — blocked)
+### Epic 23 – Security Hardening: **in progress (5/13)** (E23-02/03 skipped — blocked)
+- **#472 (E23-07) scanning gates enforced** — `security.yml` was already blocking
+  (`pip-audit --strict`, `trivy` CRITICAL/HIGH `--exit-code 1`, weekly cron);
+  E23-07 adds the **curated exception process**: `deploy/security/scan-exceptions.toml`
+  is the only suppression path, gated by `tools/security/check_scan_exceptions.py`
+  (`scan-policy` job — `pip-audit`/`trivy` jobs `needs:` it) — every entry needs
+  a `reason` + a future `expires` (≤ 90 days); expired ⇒ CI fails ⇒ finding
+  re-arms. Same script emits `--ignore-vuln` / writes `.trivyignore` so the list
+  can't drift from what runs. `npm audit` for `apps/web` added `continue-on-error`
+  (blocking after #14). `test_scan_exceptions.py` (8), `docs/security/
+  vulnerability-scanning.md`. No code/migration change.
 - **#470 (E23-06) input-validation audit + payload limits** — `bbz_core.api.schema.
   StrictModel` (`extra="forbid"` base); the 14 write-body models that still
   accepted unknown fields migrated to it (rbac `RoleIn/RoleRename/RoleRef/GroupIn/

@@ -1,0 +1,23 @@
+# Curated vulnerability-scan exceptions (E23-07).
+# Policy + how to add one: docs/security/vulnerability-scanning.md
+#
+# tools/security/check_scan_exceptions.py enforces, as a CI gate:
+#   * every entry has a non-empty `reason` and an `expires` ISO date (YYYY-MM-DD)
+#   * `expires` must be in the future — an expired entry FAILS the build.
+#     Renew it with fresh justification, or delete it once the fix has landed.
+#   * `expires` is at most 90 days out (an exception is a stopgap, not a policy).
+#
+# There are deliberately no entries: nothing is suppressed. `pip-audit --strict`
+# and Trivy CRITICAL/HIGH block every PR (security.yml).
+
+# --- pip-audit (Python advisories: GHSA-… / PYSEC-…) ---
+# [[pip_audit]]
+# id = "GHSA-xxxx-xxxx-xxxx"
+# expires = "2026-01-31"
+# reason = "no fixed release yet; not reachable from our code path — <link>"
+
+# --- Trivy (filesystem: CVE-… / GHSA-…) ---
+# [[trivy]]
+# id = "CVE-2026-00000"
+# expires = "2026-01-31"
+# reason = "base-image package, fix pending upstream — <link>"

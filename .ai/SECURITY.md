@@ -56,6 +56,16 @@ No credentials in repo.
   CSRF / routing, declared `Content-Length` **and** streamed bytes. `0` disables.
 - `docs/security/input-validation.md`.
 
+## Dependency / container scanning (E23-07, ADR-0014)
+- `security.yml` — all **blocking**, per-PR + weekly cron: `gitleaks` ·
+  `pip-audit --strict` (any known vuln) · `trivy fs` (CRITICAL/HIGH, fixable) ·
+  `scan-exception policy`. `npm audit` for `apps/web` runs non-blocking until #14.
+- Exceptions live **only** in `deploy/security/scan-exceptions.toml`, enforced by
+  `tools/security/check_scan_exceptions.py`: every entry needs a `reason` + a
+  future `expires` (≤ 90 days). Expired ⇒ CI fails ⇒ the finding re-arms. The
+  same script emits the scanner flags, so the list can't drift. Currently empty.
+- `docs/security/vulnerability-scanning.md`.
+
 ## Secret store (ADR-0019)
 - Target: **HashiCorp Vault** (Raft HA co-located on the 2 BBZ nodes + witness,
   AppRole auth). Not yet rolled out — a later issue.
