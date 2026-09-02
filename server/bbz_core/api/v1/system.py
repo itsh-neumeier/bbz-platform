@@ -100,6 +100,20 @@ async def backup_marker(
     return {"phase": body.phase, "kind": body.kind}
 
 
+@router.post("/secrets/reload", status_code=status.HTTP_200_OK)
+async def reload_secrets(
+    ctx: AuthContext = Depends(require("system.cluster.manage")),
+    session: AsyncSession = Depends(db_session),
+) -> dict[str, list[str]]:
+    """Re-read the runtime secrets after an out-of-band rotation (E23-01,
+    ADR-0019). Audits ``SECRET_ROTATED`` (name only) per changed secret. Safe to
+    call on a schedule — a no-op when nothing changed."""
+    from bbz_core.infra.repositories.secrets_rotation import SecretsRotationService
+
+    reloaded = await SecretsRotationService(session).reload(actor_id=ctx.user_id)
+    return {"reloaded": reloaded}
+
+
 @router.get("/metrics")
 async def metrics(
     _: AuthContext = Depends(require("system.cluster.view")),

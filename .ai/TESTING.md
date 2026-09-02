@@ -125,6 +125,19 @@ Coverage:
 - **clean no-op** — `configure_tracing(Settings(otel_enabled=False))` is `False`
   and `current_trace_ids()` is `None`.
 
+## Runtime secrets (E23-01)
+
+`test_secret_store.py` (9): `EnvFileSecretProvider` — env beats file, the TTL
+cache and `invalidate()`; `BBZ_SECRET_PROVIDER=vault` raises with an ADR-0019
+pointer; `verify_required_secrets` is a no-op in `ci` but raises
+`SecretsIncompleteError` in `production` on a dev `jwt_secret` / a passwordless
+DSN; `POST /api/v1/system/secrets/reload` needs `system.cluster.manage`; a
+mounted `$BBZ_SECRETS_DIR/bbz_door_dtmf_encryption_key` file rewritten then
+`reload`ed → `{"reloaded": ["door_dtmf_encryption_key"]}`, `get_settings()` sees
+the new value, one `SECRET_ROTATED` audit row (name only, no value).
+`monkeypatch.setitem(Settings.model_config, "secrets_dir", …)` because
+`secrets_dir` is bound at import.
+
 ## Observability stack (E22-07)
 
 `test_monitoring_stack.py` (8): the collector / Prometheus / Grafana config
