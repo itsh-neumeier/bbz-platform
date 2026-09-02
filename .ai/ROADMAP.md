@@ -193,6 +193,14 @@ Python 3.13). Es fehlen die unten genannten Punkte.
 - **HA-Auswirkung:** Keine (Build-Zeit).
 - **Permissions:** —
 - **Audit Events:** —
+- **Status (2026-09-02):** `bbz-api` done — `.github/workflows/release.yml`
+  (tag `v*` → semver+SHA tags, Syft SPDX SBOM, cosign keyless sign + attest,
+  Trivy gate, GHCR push, GitHub Release; `cosign verify` + `verify-attestation`
+  run in-job). `actionlint` CI job added (release.yml has no other pre-merge
+  gate). `docs/deploy/releases.md`. **`bbz-web` deferred**: `apps/web` has no
+  Dockerfile and its lockfile is uncommitted + stale (E01-06 needs Node to
+  regenerate it) — add the `matrix.include` entry once both exist. The operator
+  dry-run on a real tag is the remaining acceptance step.
 
 ### E01-05 · Branch-Protection & Repo-Settings final
 **Epic:** 01 Repository Foundation · **Phase:** 0 · **Area:** infra · **Branch:** docs/<nr>-branch-protection
