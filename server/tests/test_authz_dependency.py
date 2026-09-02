@@ -6,6 +6,7 @@ import os
 import uuid
 from collections.abc import AsyncIterator, Iterator
 
+import fastapi.routing as _fr
 import httpx
 import pytest
 from fastapi.routing import APIRoute
@@ -16,11 +17,17 @@ _EXEMPT: set[tuple[str, str]] = {
     ("POST", "/api/v1/auth/login"),
     ("POST", "/api/v1/auth/refresh"),
     ("POST", "/api/v1/auth/logout"),
+    ("POST", "/api/v1/auth/oidc/{provider}/callback"),  # external login — pre-auth
     ("PUT", "/api/v1/presence"),  # self-service: sets the caller's own presence
     ("POST", "/api/v1/auth/totp/enrol"),  # self-service MFA enrolment
     ("POST", "/api/v1/auth/totp/activate"),
     ("DELETE", "/api/v1/auth/totp"),
     ("POST", "/api/v1/auth/mfa-policies/step-up"),  # self-service: re-verify own MFA
+    # self-service WebAuthn (E21-06) — acts only on the caller's own credentials
+    ("POST", "/api/v1/auth/webauthn/register/options"),
+    ("POST", "/api/v1/auth/webauthn/register/verify"),
+    ("POST", "/api/v1/auth/webauthn/authenticate/options"),
+    ("DELETE", "/api/v1/auth/webauthn/credentials/{credential_id}"),
     # self-service account linking / unlinking (E21-08) — acts on the caller's own account
     ("POST", "/api/v1/auth/identities/local"),
     ("POST", "/api/v1/auth/identities/ldap"),
@@ -29,6 +36,26 @@ _EXEMPT: set[tuple[str, str]] = {
     ("DELETE", "/api/v1/auth/identities/{identity_id}"),
 }
 _WRITE = {"POST", "PUT", "PATCH", "DELETE"}
+_API_V1 = "/api/v1"
+
+
+def _iter_api_routes(router: object) -> list[tuple[str, APIRoute]]:
+    """Every APIRoute reachable from ``router`` with its full ``/api/v1`` path.
+
+    Starlette 1.6 mounts included routers as ``_IncludedRouter`` instead of
+    copying their routes, so ``app.routes`` is not flat and a leaf's ``.path`` is
+    relative to the router that defined it (``/auth/login``, not
+    ``/api/v1/auth/login``). We recurse and prepend the ``/api/v1`` prefix, which
+    is baked into a leaf's path only when the leaf sits directly on the v1 router.
+    """
+    out: list[tuple[str, APIRoute]] = []
+    for route in getattr(router, "routes", []):
+        if isinstance(route, APIRoute):
+            path = route.path if route.path.startswith(_API_V1) else _API_V1 + route.path
+            out.append((path, route))
+        if isinstance(route, _fr._IncludedRouter):
+            out.extend(_iter_api_routes(route.original_router))
+    return out
 
 
 @pytest.fixture(autouse=True)
@@ -57,15 +84,16 @@ def _declares_permission(route: APIRoute) -> bool:
 def test_every_api_v1_write_route_declares_a_permission() -> None:
     from bbz_core.app import create_app
 
-    offenders: list[str] = []
-    for route in create_app().routes:
-        if not isinstance(route, APIRoute) or not route.path.startswith("/api/v1"):
-            continue
-        for method in route.methods & _WRITE:
-            if (method, route.path) in _EXEMPT:
-                continue
-            if not _declares_permission(route):
-                offenders.append(f"{method} {route.path}")
+    routes = _iter_api_routes(create_app().router)
+    writes = [(m, p) for p, r in routes for m in r.methods & _WRITE]
+    assert len(writes) > 80, f"route walker regressed — only found {len(writes)} writes"
+
+    offenders = [
+        f"{method} {path}"
+        for path, route in routes
+        for method in route.methods & _WRITE
+        if (method, path) not in _EXEMPT and not _declares_permission(route)
+    ]
     assert not offenders, f"write routes without require(...): {offenders}"
 
 

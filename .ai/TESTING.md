@@ -125,6 +125,26 @@ Coverage:
 - **clean no-op** — `configure_tracing(Settings(otel_enabled=False))` is `False`
   and `current_trace_ids()` is `None`.
 
+## CSRF (E23-05)
+
+`test_csrf.py` (15). The contract test walks `app.openapi()` and asserts every
+`/api/v1` write is either CSRF-token-guarded by `CsrfMiddleware`, on the
+`_BEARER_ONLY` allow-list (`POST /telephony/events`), or in `CSRF_TOKEN_EXEMPT`
+(`/auth/login`, `/auth/oidc/{provider}/callback`). Unit: the token is bound to
+its session id (a token for session A fails for B; signature-only mode for
+`/refresh`). Integration (needs PostgreSQL): a cookie write with no
+`X-CSRF-Token` → `403 csrf_token_missing`; with the mirrored cookie value →
+passes; a `DELETE` with a wrong header → `csrf_token_mismatch`; a correctly
+signed token for another session → `csrf_token_invalid`; a foreign `Origin` →
+`origin_not_allowed` even with a good token; same-origin `Origin` passes; a
+bearer token with no cookie/CSRF passes; `logout`/`refresh` need the token;
+a cookieless write falls through to `401`; `BBZ_CSRF_ENABLED=false` lets a
+tokenless cookie write through.
+
+`conftest.py` monkeypatches `httpx.AsyncClient` so every test client mirrors the
+readable `bbz_csrf` cookie into `X-CSRF-Token` (what the real SPA does) — a test
+that probes a missing/bad token passes an explicit header and the hook backs off.
+
 ## Rate limiting (E23-04)
 
 `test_rate_limiting.py` (5): `POST /auth/login` past `BBZ_RATE_LIMIT_LOGIN`

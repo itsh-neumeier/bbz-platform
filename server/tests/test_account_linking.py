@@ -100,13 +100,15 @@ async def _login(c: httpx.AsyncClient, username: str) -> None:
 
 
 async def _session_as(c: httpx.AsyncClient, s: AsyncSession, user_id: uuid.UUID) -> None:
-    """Attach a session cookie for a user who may have no local password."""
+    """Attach the session + CSRF cookies for a user who may have no local password."""
+    from bbz_core.auth.csrf import issue_csrf_token
     from bbz_core.auth.sessions import SessionService
     from bbz_core.infra.repositories.sessions import SqlAlchemySessionStore
 
     await s.rollback()
     tokens = await SessionService(SqlAlchemySessionStore(s)).start(user_id)
     c.cookies.set("bbz_access", tokens.access_token)
+    c.cookies.set("bbz_csrf", issue_csrf_token(tokens.session_id))  # conftest mirrors it
 
 
 async def _external_only(s: AsyncSession, username: str, provider: str = "ldap_ad") -> uuid.UUID:

@@ -53,6 +53,11 @@ class Settings(BaseSettings):
     # --- HTTP ---
     api_root_path: str = ""
     cors_allow_origins: list[str] = Field(default_factory=list)
+    #: CSRF protection for cookie-authenticated writes (E23-05). The allowed
+    #: Origin/Referer set is ``cors_allow_origins`` plus the request's own host.
+    #: Set false only as a temporary rollback — it removes the double-submit
+    #: check on every browser-session write.
+    csrf_enabled: bool = True
 
     # --- database ---
     database_url: str = Field(

@@ -31,6 +31,20 @@ No credentials in repo.
 - Fails **open** if the store is unreachable. Complements the per-account login
   lockout (E02-03). WAF/DDoS is the edge's job. `docs/security/rate-limiting.md`.
 
+## CSRF (E23-05)
+- `bbz_core.api.csrf.CsrfMiddleware` guards **every** `POST/PUT/PATCH/DELETE`
+  under `/api/v1` — enforcement is structural, not per-route
+  (`test_csrf.py` walks the OpenAPI schema and fails on any gap).
+- Acts when a session cookie is present and there is **no** `Authorization:
+  Bearer` — bearer clients (agents, integrations) are immune to CSRF and exempt.
+- Three layers: `SameSite=Lax` on all session cookies · a **session-bound**
+  double-submit token (`bbz_csrf` cookie == `X-CSRF-Token` header, value =
+  `b64(sid).b64(HMAC(jwt_secret, sid))`) · an `Origin`/`Referer` allow-list
+  (`cors_allow_origins` + same-origin) checked when the header is present.
+- Token-exempt (pre-auth, Origin still checked): `POST /auth/login`,
+  `POST /auth/oidc/{provider}/callback`. Bearer-only: `POST /telephony/events`.
+- `BBZ_CSRF_ENABLED=false` is the rollback. `docs/security/csrf.md`.
+
 ## Secret store (ADR-0019)
 - Target: **HashiCorp Vault** (Raft HA co-located on the 2 BBZ nodes + witness,
   AppRole auth). Not yet rolled out — a later issue.

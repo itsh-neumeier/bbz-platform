@@ -51,9 +51,9 @@ router: `require("events.create")` + `command_envelope` header dep +
 `idempotent()` (replay / 409 on `CommandConflict`/`InProgress`) +
 `EventAggregate.create` + `EventRepository.add`; 201 + `EventOut` + `Location`.
 `_translate()` maps `VersionConflictError`→409 (+ details), `EventNotFound`→404,
-`EventDomainError`→422 for the coming verbs. Scope-aware `require` and per-route
-CSRF deferred to E23 (matches the other admin routers). Audit-log entry
-deferred to E04 (`domain_events` row is the record). Tests: 201 / 403 / 422 /
+`EventDomainError`→422 for the coming verbs. Scope-aware `require` deferred to
+E23; CSRF now enforced for all `/api/v1` writes by `CsrfMiddleware` (E23-05).
+Audit-log entry deferred to E04 (`domain_events` row is the record). Tests: 201 / 403 / 422 /
 missing X-Command-Id / duplicate replay (one event) / body-mismatch 409.
 
 #47 (E03-07) `POST /events/{id}/accept|acknowledge|open` — three verbs sharing
@@ -1739,7 +1739,31 @@ API. `integrations/telephony_cucm/` stays a placeholder README.
   link/unlink coverage → Epic 07** (blocked); backend is `test_account_linking.py`
   (12). **Epic 21 backend complete.**
 
-### Epic 23 – Security Hardening: **in progress (2/13)** (E23-02/03 skipped — blocked)
+### Epic 23 – Security Hardening: **in progress (3/13)** (E23-02/03 skipped — blocked)
+- **#467 (E23-05) CSRF hardening** — `bbz_core.api.csrf.CsrfMiddleware` (pure
+  ASGI, added first in `create_app` so it runs innermost — after the
+  correlation-id ctxvar is set, before the router). Guards **every**
+  `POST/PUT/PATCH/DELETE` under `/api/v1` when a session cookie is present and
+  there is no `Authorization: Bearer` (bearer clients exempt — immune by
+  construction). Checks: `Origin`/`Referer` vs `cors_allow_origins` + same-origin
+  (only when the header is present); `bbz_csrf` cookie == `X-CSRF-Token` header;
+  the token is **bound to the session** —
+  `bbz_core.auth.csrf.issue_csrf_token(sid)` = `b64(sid).b64(HMAC(jwt_secret,
+  sid))`, verified constant-time (signature-only on `/refresh`, where the access
+  cookie may be expired). Pre-auth token-exempt (Origin still checked):
+  `POST /auth/login`, `POST /auth/oidc/{provider}/callback`. `require_csrf` dep
+  removed from `deps.py` (middleware supersedes it — it was only on
+  `/refresh` + `/logout`); `/refresh` now re-issues the `bbz_csrf` cookie.
+  `BBZ_CSRF_ENABLED=false` = rollback. Contract test walks `app.openapi()`.
+  Also **fixed the sibling contract test** `test_authz_dependency.py::
+  test_every_api_v1_write_route_declares_a_permission` — Starlette 1.6
+  `_IncludedRouter` had made its `app.routes`/`APIRoute` walk match nothing
+  (silently vacuous); now recurses `_IncludedRouter` + a `len(writes) > 80`
+  guard. That surfaced 5 self-service WebAuthn/OIDC-callback writes that were
+  missing from its `_EXEMPT` list (added, with justification — none is an actual
+  gap). `conftest.py` patches `httpx.AsyncClient` to mirror the `bbz_csrf`
+  cookie into the header like the SPA. `test_csrf.py` (15),
+  `docs/security/csrf.md`. No migration.
 - **#466 (E23-04) rate limiting + lockout** — cluster-wide fixed-window counter
   `rate_limit_hits` (migration `0052`, both nodes write the same
   `(bucket, window_start)` rows via `INSERT … ON CONFLICT count = count + 1`).

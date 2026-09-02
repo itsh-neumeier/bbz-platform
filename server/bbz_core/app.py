@@ -12,6 +12,7 @@ from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoin
 
 from bbz_core import __version__
 from bbz_core.api.cluster import router as cluster_router
+from bbz_core.api.csrf import CsrfMiddleware
 from bbz_core.api.errors import install_error_handlers
 from bbz_core.api.health import router as health_router
 from bbz_core.api.request_metrics import RequestMetricsMiddleware
@@ -79,6 +80,10 @@ def create_app() -> FastAPI:
         root_path=s.api_root_path,
         lifespan=lifespan,
     )
+    # Added first so it ends up *innermost* (Starlette prepends): it runs after
+    # CorrelationIdMiddleware has set the correlation-id contextvar and before the
+    # router, rejecting cookie-auth writes that fail the CSRF checks (E23-05).
+    app.add_middleware(CsrfMiddleware)
     app.add_middleware(CorrelationIdMiddleware)
     app.add_middleware(RequestMetricsMiddleware)  # times requests (E22-02)
     if s.cors_allow_origins:

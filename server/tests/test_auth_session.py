@@ -186,8 +186,9 @@ async def test_login_me_logout_flow(
     assert me.json()["user"]["display_name"] == "Alice Operator"
     assert me.json()["permissions"] == []
 
-    # logout without the CSRF header -> 403
-    assert (await client.post("/api/v1/auth/logout")).status_code == 403
+    # logout without a valid CSRF token -> 403 (CsrfMiddleware, E23-05)
+    no_csrf = await client.post("/api/v1/auth/logout", headers={"x-csrf-token": ""})
+    assert no_csrf.status_code == 403
     ok = await client.post("/api/v1/auth/logout", headers={"x-csrf-token": csrf})
     assert ok.status_code == 204
 
