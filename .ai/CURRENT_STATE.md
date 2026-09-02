@@ -2,11 +2,13 @@
 
 ## Current phase
 Working the roadmap issues in order (see `.ai/ROADMAP.md`, tracking issue #18).
-**Epics 01–06 complete; the domain epics 11/13–22 are backend-complete** (their
-remaining issues are Epic-07 UI or Playwright). **In progress: Epic 23**
-(security hardening, 7/13 + E23-10 partial) **and Epic 24** (production
-deployment, 3/8). Blocked until a Node / Electron / Go / Cisco-vendor session:
-Epics 07, 08, 09, 10, 12, and the E23/E24 issues that chain off them —
+**Epics 02–06 complete; Epic 01 is 5/7** (E01-02 needs client-supplied mockup
+files, E01-06 needs a Node env — both blocked). **The domain epics 11/13–22 are
+backend-complete** (remaining issues are Epic-07 UI or Playwright; Epic 13 is
+1/8 + ADR-0023). **In progress: Epic 23** (security hardening, 7/12 +
+E23-10/E23-11 partial) **and Epic 24** (production deployment, 3/8). Blocked
+until a Node / Electron / Go / Cisco-vendor / SIP-PBX session: Epics 07, 08, 09,
+10, 12, 13-impl, and the E23/E24 issues that chain off them —
 `docs/roadmap-status.md` is the per-issue register.
 
 ### Epic 02 – Identity / RBAC: **COMPLETE (14/14)**
@@ -1781,7 +1783,7 @@ API. `integrations/telephony_cucm/` stays a placeholder README.
   (dep ~all). **3/8 is the ceiling until Epic 12 (`cucm-cti-gateway`) unblocks
   E24-01** — every remaining issue chains off the signed-image pipeline.
 
-### Epic 23 – Security Hardening: **in progress (7/13 + E23-10 partial)**
+### Epic 23 – Security Hardening: **in progress (7/12 + E23-10/E23-11 partial)**
 Blocked: E23-02 (mTLS → E09-08/E12-16), E23-03 (CSP → Epic 07/08 build),
 E23-12 (deploy-signature → E24-01). E23-11's agent-command-fuzz half → Epic 10;
 its door/DTMF half needs no code (`test_siedle_audit_no_dtmf.py` already proves

@@ -4,7 +4,7 @@ Companion to `.ai/ROADMAP.md` and `.ai/CURRENT_STATE.md`. It exists so **no
 roadmap issue is an undocumented gap**: every not-yet-merged issue has a status,
 a blocker, and — where one exists — the slice that could still be done now.
 
-_Last swept: 2026-09-02._
+_Last swept: 2026-09-02 (3rd pass — Epic 01 leftovers + ADR-0023)._
 
 ## Legend
 
@@ -23,7 +23,7 @@ _Last swept: 2026-09-02._
 
 | epic | status |
 |---|---|
-| 01 Repository Foundation | **done** |
+| 01 Repository Foundation | **5/7** — E01-01/03/04/05/07 done; E01-02 + E01-06 blocked (see the Epic 01 section) |
 | 02 Identity / RBAC | **done** (14/14) |
 | 03 Event Core | **done** (16/16) |
 | 04 Audit / Domain Events | **done** — append-only trigger + outbox/inbox; hash chain added in E23-09 |
@@ -46,12 +46,25 @@ the operator UI is the only missing piece and every UI issue is an Epic-07 row.
 | epic | UI issues waiting on Epic 07 |
 |---|---|
 | 11 Telephony Core | E11-13, E11-14, E11-15 (UI), E11-16 (Playwright) |
-| 13 SIP Provider | UI + the real SIP transport (E13-06, blocked/vendor) |
 | 14 Contacts / Call Priorities | E14-07..10 (UI) |
 | 15 Technical Trigger Engine | E15-14 (UI) |
 | 16 Coda Video | E16-xx UI; alarm/camera transport is `mock: true` pending Coda docs (blocked/vendor) |
 
+(Epic 13 SIP is **not** backend-done — 1/8 + ADR-0023; see its section below.)
+
 ---
+
+## Epic 01 · Repository Foundation — **5/7**
+
+| issue | status |
+|---|---|
+| E01-01 ADRs 0007–0018 → Accepted | **done** |
+| E01-03 secret-store decision (ADR-0019) | **done** |
+| E01-04 `release.yml` (image build, SBOM, cosign, GHCR) | **done** (#692) — `bbz-api` complete: tag `v*` → semver+SHA tags, Syft SPDX SBOM, cosign keyless sign + attest, Trivy gate, GitHub Release; `cosign verify` in-job. New `actionlint` CI job. `bbz-web` is a one-line matrix add once `apps/web` has a Dockerfile (E01-06 / Epic 07). Maintainer still owes the tag-push dry-run (`docs/deploy/releases.md`). |
+| E01-05 branch-protection settings | **done** (#693) — `docs/repo-settings.md`: 12 check-runs by exact name + a `gh api` recipe + `v*` tag protection. A maintainer applies it once. |
+| E01-07 coverage + import-boundary gates | **done** (#694) — 7 `import-linter` contracts (one per ADR-0008 layer) + `tools/coverage_gates.py` (per-layer 90 % targets, report-only/ratcheted) + `docs/CONVENTIONS.md` "Quality gates". |
+| **E01-02** commit the functional HTML mockup | **blocked/vendor** — the mockup source files are an explicit external dependency (client-supplied) per the issue. `docs/mockup-parity-checklist.md` (the other AC) already exists. |
+| **E01-06** frontend-CI hardening (lockfile, `npm ci`, drop `continue-on-error`) | **blocked/toolchain** — `apps/web/package-lock.json` is gitignored **and** stale (root deps still `primevue ^4.2.0` vs the `4.5.4` pinned in #690). Regenerating it in sync + verifying `npm ci` / lint / typecheck / test needs a Node environment. Then: un-gitignore, commit it, flip CI `npm install`→`npm ci`, drop `continue-on-error`, name the Node version in `docs/DEV_SETUP.md`. |
 
 ## Epic 07 · Web UI / PrimeVue — **blocked/toolchain** (1/19)
 
@@ -72,8 +85,11 @@ the operator UI is the only missing piece and every UI issue is an Epic-07 row.
 
 ## Epic 08 · BBZ Desktop Client (Electron) — **blocked/toolchain**
 
-All 7 issues need Node + Electron. `E08-07` (load-strategy ADR: server-build vs
-bundle) is an open decision. Nothing shippable here without an Electron build
+All 7 issues need Node + Electron. `E08-07` (ADR-0022, load strategy:
+server-build vs bundle) is an open decision — **not drafted**, because it
+depends on the unbuilt E08-01 Electron scaffold and the choice interacts with
+app structure that doesn't exist yet. The lean is *bundle* (offline robustness
+for a critical-infra kiosk). Nothing shippable here without an Electron build
 environment.
 
 ## Epic 09 · BBZ Client Agent (Go) — **blocked/toolchain** (1/10)
@@ -101,9 +117,27 @@ All 20 issues are the separate Java `services/cucm-cti-gateway`. Needs
 (§8.18). `E12-01` (the gateway image) is the dependency for **E24-01** (complete
 `release.yml`) and transitively **E23-12**, **E24-02**, **E24-04**.
 
+## Epic 13 · SIP Provider — **1/8 + ADR-0023 (`Proposed`)**
+
+- **E13-01 done**: `integrations/telephony_sip/` scaffold — manifest,
+  `config_schema.json`, and a `SipTelephonyProvider` that satisfies the whole
+  `TelephonyProvider` protocol with safe stubs (`SipNotConfiguredError` on every
+  control verb until E13-03+).
+- **E13-02 — decision done, ADR-0023 `Proposed`**: **Asterisk via ARI** (REST +
+  WebSocket + JSON, the transport the codebase already speaks; the Stasis
+  channel model fits the provider verbs; ARI events map straight onto
+  `inbound_signal.v1`). FreeSWITCH ESL stays the documented fallback in
+  `config_schema.json`. Move the ADR `Accepted` on review.
+- **E13-02 deployment half + E13-03..08 blocked/toolchain**: the `asterisk`
+  compose container + `ari.conf`/dialplan + SIPp smoke test, then the adapter,
+  event mapping, call control, DTMF, secrets and PBX integration tests — all
+  need a SIP stack / containerized test PBX in the environment. E13-06 (the real
+  `send_dtmf` transport) is also the missing piece for Epic 17's real door
+  opening.
+
 ---
 
-## Epic 23 · Security Hardening — **in progress (7/13 + E23-10 partial)**
+## Epic 23 · Security Hardening — **in progress (7/12 + E23-10/E23-11 partial)**
 
 | issue | status |
 |---|---|
@@ -127,7 +161,7 @@ All 20 issues are the separate Java `services/cucm-cti-gateway`. Needs
 | E24-03 env / secret provisioning | **done** (#685) — `deploy/node/preflight.sh` + matrix |
 | E24-05 backup/restore automation + tested restore | **done** (#686) — `restore-test.sh` + alerts |
 | E24-06 DR runbook (both servers / witness lost) | **done** (#689) — `docs/runbooks/disaster-recovery.md` scenario ladder § A–E + RTO targets; staging drill per scenario still owed |
-| **E24-01** complete `release.yml` (SemVer+SHA, SBOM, cosign, GHCR, digests) | **blocked/vendor** — must cover *all* prod images incl. `cucm-cti-gateway` (E12-01). The api-only slice (build + SBOM + cosign + digest manifest for `bbz-api`) is doable once someone decides to ship a partial pipeline; deferred with E12. |
+| **E24-01** complete `release.yml` (SemVer+SHA, SBOM, cosign, GHCR, digests) | **blocked/vendor for the last mile** — the `bbz-api` pipeline shipped as **E01-04** (#692). E24-01 = extend the `matrix.include` to `bbz-web` (needs the `apps/web` Dockerfile — E01-06 / Epic 07) and `cucm-cti-gateway` (E12-01), and wire deploy-time `cosign verify` (E23-12). |
 | **E24-02** production deployment manifests (2 + witness) | **blocked/dep** — E24-01. `deploy/node/` and `deploy/quorum/` composes exist and validate in CI; the digest-pinned, signed variant waits on E24-01. |
 | **E24-04** rolling-update automation + pre-flight | **blocked/dep** — E24-01. `tools/rolling-update.sh` already has the health gates, the audit markers, the digest-only guard, and (E24-03) the per-node `preflight.sh`; what's missing is the signed-image verification step (E24-01/E23-12). |
 | **E24-07** staging environment + smoke suite | **blocked/dep** — E24-02, plus E07-16 / E11-16 / E15-15 for the smoke content. |
@@ -142,3 +176,14 @@ Cisco CUCM version + CTI config; Weytec API docs; Coda Video partner/API docs;
 Siedle DTMF door profile; Entra ID OIDC params; LDAP/AD connection params. Each
 integration is built strictly from documented vendor interfaces — the scaffolds
 and unblocking checklists are in `docs/integrations/*` and `docs/auth/*`.
+
+## Waiting on a maintainer (not a code task)
+
+| action | why |
+|---|---|
+| apply the branch-protection rule | the `gh api` recipe is in `docs/repo-settings.md`; nothing enforces required checks / reviews until it's run |
+| tag-push dry-run of `release.yml` | E01-04's remaining AC — push a real `vX.Y.Z`, `cosign verify` the digest, clean up (`docs/deploy/releases.md`) |
+| `cd apps/web && npm install`, commit the lockfile | regenerates `package-lock.json` in sync with the pinned deps → unblocks E01-06 (and the `bbz-web` release image) |
+| supply the functional HTML mockup files | unblocks E01-02 (`docs/mockup/`) and is the frontend test baseline for Epic 07 |
+| fix GitHub Actions billing, then re-privatise the repo | the repo was made **public** to work around a spending-limit block and is **still public**; CI currently works *because* of that |
+| move ADR-0023 `Proposed → Accepted` (or redirect) | the SIP gateway choice — Asterisk ARI |
