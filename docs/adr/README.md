@@ -41,6 +41,7 @@ a provider contract, a security boundary, a technology choice. `.ai/RULES.md`:
 | 0019 | Runtime secret store (Vault target; provider abstraction now) | Accepted |
 | 0020 | Audit / event-log immutability (append-only trigger) | Proposed |
 | 0021 | PostgreSQL replication mode (synchronous + auto fallback) | Accepted |
+| 0023 | SIP/CTI gateway — Asterisk ARI | Proposed |
 | 0024 | Trigger execution worker (leader-elected inbox drain) | Accepted |
 | 0025 | Siedle door-open DTMF flow | Accepted |
 | 0026 | DWD Open Data endpoints for the `dwd` integration | Accepted |
