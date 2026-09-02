@@ -17,13 +17,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from bbz_core.api.authz import require
 from bbz_core.api.deps import AuthContext, current_auth, db_session
 from bbz_core.api.errors import ValidationError
+from bbz_core.api.schema import StrictModel
 from bbz_core.infra.models.identity import PresenceState
 from bbz_core.infra.repositories.presence import PresenceRepository
 
 router = APIRouter(prefix="/presence", tags=["presence"])
 
 
-class PresenceIn(BaseModel):
+class PresenceIn(StrictModel):
     state: str
 
 

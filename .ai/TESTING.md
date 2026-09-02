@@ -125,6 +125,17 @@ Coverage:
 - **clean no-op** — `configure_tracing(Settings(otel_enabled=False))` is `False`
   and `current_trace_ids()` is `None`.
 
+## Input validation & payload limits (E23-06)
+
+`test_input_validation.py` (5). The contract test walks the router tree and
+asserts every `/api/v1` write body model (direct, `list[...]`, `... | None`) has
+`extra="forbid"`, with a `> 40` count guard and one allow-listed raw-dict body
+(`POST /telephony/events`). Integration: an oversized declared `Content-Length`
+→ `413 payload_too_large` before auth; an oversized **chunked** body (no length)
+→ `413` via the streaming byte-count; a small body is not capped; an unknown
+field → `422` with an `extra_forbidden` detail. `_env` sets
+`BBZ_MAX_REQUEST_BODY_BYTES=1024` before the app is built.
+
 ## CSRF (E23-05)
 
 `test_csrf.py` (15). The contract test walks `app.openapi()` and asserts every

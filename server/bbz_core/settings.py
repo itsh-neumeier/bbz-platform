@@ -58,6 +58,9 @@ class Settings(BaseSettings):
     #: Set false only as a temporary rollback — it removes the double-submit
     #: check on every browser-session write.
     csrf_enabled: bool = True
+    #: Reject any request body larger than this with 413 (E23-06). 1 MiB is far
+    #: above any legitimate JSON control-plane payload. 0 disables the cap.
+    max_request_body_bytes: int = 1_048_576
 
     # --- database ---
     database_url: str = Field(

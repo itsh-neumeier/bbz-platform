@@ -35,6 +35,7 @@ from bbz_core.api.errors import (
     WebauthnRequiredError,
 )
 from bbz_core.api.rate_limit import rate_limit_by_ip
+from bbz_core.api.schema import StrictModel
 from bbz_core.audit import AuditAction, AuditWriter
 from bbz_core.auth.csrf import CSRF_COOKIE, issue_csrf_token
 from bbz_core.auth.local import LocalAuthResult
@@ -61,7 +62,7 @@ if TYPE_CHECKING:
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 
-class LoginRequest(BaseModel):
+class LoginRequest(StrictModel):
     username: str
     password: str
     totp: str | None = None  # TOTP or recovery code, when the account has MFA
@@ -405,7 +406,7 @@ class OidcStartResponse(BaseModel):
     authorization_url: str
 
 
-class OidcCallbackRequest(BaseModel):
+class OidcCallbackRequest(StrictModel):
     code: str
     state: str
 

@@ -45,6 +45,17 @@ No credentials in repo.
   `POST /auth/oidc/{provider}/callback`. Bearer-only: `POST /telephony/events`.
 - `BBZ_CSRF_ENABLED=false` is the rollback. `docs/security/csrf.md`.
 
+## Input validation & payload limits (E23-06)
+- Every `/api/v1` write body is a Pydantic model with `extra="forbid"` — an
+  unknown field is a `422`, closing over-posting. New models subclass
+  `bbz_core.api.schema.StrictModel`. `test_input_validation.py` walks the route
+  table and fails the build on any non-strict write body. The sole exception is
+  `POST /telephony/events` (raw provider webhook dict, normalised downstream).
+- `BodyLimitMiddleware` (outermost) rejects any write body over
+  `BBZ_MAX_REQUEST_BODY_BYTES` (default 1 MiB) with `413` — checked before auth /
+  CSRF / routing, declared `Content-Length` **and** streamed bytes. `0` disables.
+- `docs/security/input-validation.md`.
+
 ## Secret store (ADR-0019)
 - Target: **HashiCorp Vault** (Raft HA co-located on the 2 BBZ nodes + witness,
   AppRole auth). Not yet rolled out — a later issue.

@@ -1739,8 +1739,19 @@ API. `integrations/telephony_cucm/` stays a placeholder README.
   link/unlink coverage → Epic 07** (blocked); backend is `test_account_linking.py`
   (12). **Epic 21 backend complete.**
 
-### Epic 23 – Security Hardening: **in progress (3/13)** (E23-02/03 skipped — blocked)
-- **#467 (E23-05) CSRF hardening** — `bbz_core.api.csrf.CsrfMiddleware` (pure
+### Epic 23 – Security Hardening: **in progress (4/13)** (E23-02/03 skipped — blocked)
+- **#470 (E23-06) input-validation audit + payload limits** — `bbz_core.api.schema.
+  StrictModel` (`extra="forbid"` base); the 14 write-body models that still
+  accepted unknown fields migrated to it (rbac `RoleIn/RoleRename/RoleRef/GroupIn/
+  PermAssignmentIn`, users `Create/Update/PasswordReset`, `auth.LoginRequest/
+  OidcCallbackRequest`, `totp.CodeIn`, `events.CreateEventIn`, `presence.PresenceIn`)
+  — now 67 strict / 1 raw (`POST /telephony/events`, provider webhook dict).
+  `bbz_core.api.body_limit.BodyLimitMiddleware` (outermost) → `413
+  payload_too_large` over `BBZ_MAX_REQUEST_BODY_BYTES` (default 1 MiB): declared
+  `Content-Length` rejected up front, no/short length caught by a bounded
+  streaming buffer. `test_input_validation.py` (5) — contract walk +
+  oversized/chunked/unknown-field. `docs/security/input-validation.md`. No migration.
+- **#468 (E23-05) CSRF hardening** — `bbz_core.api.csrf.CsrfMiddleware` (pure
   ASGI, added first in `create_app` so it runs innermost — after the
   correlation-id ctxvar is set, before the router). Guards **every**
   `POST/PUT/PATCH/DELETE` under `/api/v1` when a session cookie is present and

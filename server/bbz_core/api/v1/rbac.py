@@ -23,6 +23,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from bbz_core.api.authz import require, require_stepup
 from bbz_core.api.deps import AuthContext, db_session
 from bbz_core.api.errors import ConflictError, NotFoundError, ValidationError
+from bbz_core.api.schema import StrictModel
 from bbz_core.authorization import SCOPES
 from bbz_core.infra.repositories.rbac_admin import (
     LastAdminError,
@@ -44,12 +45,12 @@ def _translate() -> Iterator[None]:
         raise ValidationError(str(exc)) from exc
 
 
-class RoleIn(BaseModel):
+class RoleIn(StrictModel):
     key: str = Field(min_length=2, max_length=64)
     name: str = Field(min_length=1, max_length=120)
 
 
-class RoleRename(BaseModel):
+class RoleRename(StrictModel):
     name: str = Field(min_length=1, max_length=120)
 
 
@@ -60,20 +61,20 @@ class RoleOut(BaseModel):
     builtin: bool
 
 
-class PermAssignmentIn(BaseModel):
+class PermAssignmentIn(StrictModel):
     permission_key: str
     scope: str = "global"
     condition: dict[str, Any] | None = None
 
 
-class RoleRef(BaseModel):
+class RoleRef(StrictModel):
     role_id: uuid.UUID
     #: optional validity window for this assignment (E21-07)
     valid_from: _dt.datetime | None = None
     valid_to: _dt.datetime | None = None
 
 
-class GroupIn(BaseModel):
+class GroupIn(StrictModel):
     key: str = Field(min_length=2, max_length=64)
     name: str = Field(min_length=1, max_length=120)
 
