@@ -3,6 +3,10 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- DB UX v3 tokens resolve light/dark via CSS light-dark(); this signals
+         the accepted schemes before the CSS loads (ADR-0029). useTheme adds
+         data-mode on <html> for the explicit toggle. -->
+    <meta name="color-scheme" content="light dark" />
     <title>BBZ / 3-S-Zentrale</title>
   </head>
   <body>

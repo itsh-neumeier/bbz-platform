@@ -47,3 +47,4 @@ a provider contract, a security boundary, a technology choice. `.ai/RULES.md`:
 | 0026 | DWD Open Data endpoints for the `dwd` integration | Accepted |
 | 0027 | RBAC condition context (clock-only, ADR-0010 field touch) | Accepted |
 | 0028 | OpenTelemetry tracing — activating the no-op seam | Accepted |
+| 0029 | DB UX Design System v3 as the visual foundation (extends 0013) | Accepted |

@@ -1,0 +1,199 @@
+/*
+ * DB brand palette (ADR-0029). Deutsche-Bahn colour values for DB UX Design
+ * System v3, transcribed verbatim from `@db-ux/db-theme@6.2.0`
+ * (`build/styles/rollup.css`, the DB-branded theme). Only the plain-CSS token
+ * values are reproduced here -- `@db-ux/db-theme`'s logo/font *assets* are
+ * license-encrypted (DB Marketingportal `ASSET_PASSWORD` / `ASSET_INIT_VECTOR`)
+ * and are not part of the BBZ build.
+ *
+ * These override the whitelabel `@property` initial-values from
+ * `@db-ux/core-foundations/build/styles/theme/rollup.css`; the DB adaptive /
+ * speaking-colour layers (`--db-adaptive-*`, `--db-neutral-bg-*`) reference the
+ * numbered ramps below, so a single override here re-brands the whole system.
+ *
+ * Regenerate: `npm i @db-ux/db-theme@<v>` in a scratch dir, then re-run the
+ * extraction snippet documented in docs/frontend/db-ux-design.md.
+ */
+:root {
+  /* brand — Deutsche Bahn red */
+  --db-brand-0: #280001;
+  --db-brand-1: #390001;
+  --db-brand-2: #500003;
+  --db-brand-3: #690004;
+  --db-brand-4: #820007;
+  --db-brand-5: #9c000a;
+  --db-brand-6: #c00010;
+  --db-brand-7: #ef0016;
+  --db-brand-8: #ff5357;
+  --db-brand-9: #ff888a;
+  --db-brand-10: #ffb3b4;
+  --db-brand-11: #ffdada;
+  --db-brand-12: #ffe9e9;
+  --db-brand-13: #fff0f0;
+  --db-brand-14: #fff8f8;
+
+  /* neutral — DB cool grey */
+  --db-neutral-0: #0d0e11;
+  --db-neutral-1: #16181b;
+  --db-neutral-2: #222428;
+  --db-neutral-3: #2e3036;
+  --db-neutral-4: #3b3e44;
+  --db-neutral-5: #484b53;
+  --db-neutral-6: #5a5e68;
+  --db-neutral-7: #727782;
+  --db-neutral-8: #8a919e;
+  --db-neutral-9: #a6abb6;
+  --db-neutral-10: #c3c7ce;
+  --db-neutral-11: #e1e2e6;
+  --db-neutral-12: #edeef0;
+  --db-neutral-13: #f3f3f5;
+  --db-neutral-14: #ffffff;
+
+  /* informational — blue */
+  --db-informational-0: #011018;
+  --db-informational-1: #031a25;
+  --db-informational-2: #062736;
+  --db-informational-3: #0a3447;
+  --db-informational-4: #0f4259;
+  --db-informational-5: #14516c;
+  --db-informational-6: #1b6586;
+  --db-informational-7: #257fa8;
+  --db-informational-8: #2e9acb;
+  --db-informational-9: #38b6ef;
+  --db-informational-10: #89cffa;
+  --db-informational-11: #cae6fd;
+  --db-informational-12: #e0f0fe;
+  --db-informational-13: #ebf5fe;
+  --db-informational-14: #f5faff;
+
+  /* successful — green */
+  --db-successful-0: #061100;
+  --db-successful-1: #0c1b01;
+  --db-successful-2: #142901;
+  --db-successful-3: #1d3702;
+  --db-successful-4: #264604;
+  --db-successful-5: #305506;
+  --db-successful-6: #3d6a09;
+  --db-successful-7: #4e850f;
+  --db-successful-8: #60a114;
+  --db-successful-9: #72bf1a;
+  --db-successful-10: #85dd20;
+  --db-successful-11: #99fc26;
+  --db-successful-12: #c3ff9d;
+  --db-successful-13: #d9ffc4;
+  --db-successful-14: #edffe4;
+
+  /* warning — orange */
+  --db-warning-0: #190b00;
+  --db-warning-1: #271300;
+  --db-warning-2: #381d00;
+  --db-warning-3: #4a2800;
+  --db-warning-4: #5c3400;
+  --db-warning-5: #6f4000;
+  --db-warning-6: #8a5100;
+  --db-warning-7: #ad6600;
+  --db-warning-8: #d17d00;
+  --db-warning-9: #f69400;
+  --db-warning-10: #ffb782;
+  --db-warning-11: #ffdbc8;
+  --db-warning-12: #ffeadf;
+  --db-warning-13: #fff1ea;
+  --db-warning-14: #fff8f5;
+
+  /* critical — deep red */
+  --db-critical-0: #280001;
+  --db-critical-1: #390001;
+  --db-critical-2: #500003;
+  --db-critical-3: #690004;
+  --db-critical-4: #820007;
+  --db-critical-5: #9c000a;
+  --db-critical-6: #c00010;
+  --db-critical-7: #ef0016;
+  --db-critical-8: #ff5357;
+  --db-critical-9: #ff888a;
+  --db-critical-10: #ffb3b4;
+  --db-critical-11: #ffdada;
+  --db-critical-12: #ffe9e9;
+  --db-critical-13: #fff0f0;
+  --db-critical-14: #fff8f8;
+
+  /* additional named ramps referenced by the speaking colours */
+  --db-blue-0: #010d29;
+  --db-blue-1: #02153c;
+  --db-blue-2: #042153;
+  --db-blue-3: #072d6c;
+  --db-blue-4: #0a3986;
+  --db-blue-5: #0f46a1;
+  --db-blue-6: #1558c6;
+  --db-blue-7: #1d6ff7;
+  --db-blue-8: #638bfa;
+  --db-blue-9: #90a8fc;
+  --db-blue-10: #b7c4fd;
+  --db-blue-11: #dbe1fe;
+  --db-blue-12: #eaedfe;
+  --db-blue-13: #f1f3ff;
+  --db-blue-14: #f8f9ff;
+
+  --db-yellow-0: #130e00;
+  --db-yellow-1: #1d1700;
+  --db-yellow-2: #2b2300;
+  --db-yellow-3: #3a3000;
+  --db-yellow-4: #493d00;
+  --db-yellow-5: #594a00;
+  --db-yellow-6: #6f5d00;
+  --db-yellow-7: #8c7600;
+  --db-yellow-8: #aa8f00;
+  --db-yellow-9: #c8a900;
+  --db-yellow-10: #e8c400;
+  --db-yellow-11: #ffe17c;
+  --db-yellow-12: #ffedbc;
+  --db-yellow-13: #fff3d5;
+  --db-yellow-14: #fff9eb;
+
+  --db-green-0: #041103;
+  --db-green-1: #091c06;
+  --db-green-2: #10290b;
+  --db-green-3: #173712;
+  --db-green-4: #1f4619;
+  --db-green-5: #275520;
+  --db-green-6: #336a2a;
+  --db-green-7: #428636;
+  --db-green-8: #51a243;
+  --db-green-9: #61c051;
+  --db-green-10: #71de5f;
+  --db-green-11: #96f989;
+  --db-green-12: #c7fbc2;
+  --db-green-13: #dbfcd8;
+  --db-green-14: #eefeec;
+
+  --db-red-0: #280001;
+  --db-red-1: #390001;
+  --db-red-2: #500003;
+  --db-red-3: #690004;
+  --db-red-4: #820007;
+  --db-red-5: #9c000a;
+  --db-red-6: #c00010;
+  --db-red-7: #ef0016;
+  --db-red-8: #ff5357;
+  --db-red-9: #ff888a;
+  --db-red-10: #ffb3b4;
+  --db-red-11: #ffdada;
+  --db-red-12: #ffe9e9;
+  --db-red-13: #fff0f0;
+  --db-red-14: #fff8f8;
+
+  /* brand origin — feeds --db-adaptive-origin / --db-adaptive-on-origin */
+  --db-brand-origin-base: #ec0016;
+  --db-brand-origin-light-default: #ec0016;
+  --db-brand-origin-light-hovered: #7b0006;
+  --db-brand-origin-light-pressed: #bd000f;
+  --db-brand-origin-dark-default: #ec0016;
+  --db-brand-origin-dark-hovered: #7b0006;
+  --db-brand-origin-dark-pressed: #bd000f;
+  --db-brand-on-origin-light-default: #ffffff;
+  --db-brand-on-origin-dark-default: #ffffff;
+
+  /* DB font stack — the licensed face first, then DB's own fallback chain */
+  --db-font-family-sans: 'DB Screen Sans', 'DB Neo Screen Sans', helvetica, arial, sans-serif;
+  --db-font-family-head: 'DB Screen Head', 'DB Screen Sans', 'DB Neo Screen Head', helvetica, arial, sans-serif;
+}

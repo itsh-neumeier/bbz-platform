@@ -1,0 +1,26 @@
+/*
+ * BBZ theme entry (ADR-0029). Import order matters:
+ *   1. db.css        — the DB UX v3 token foundation (@layer db-theme, db-ux, bbz)
+ *   2. semantic-*    — --bbz-* mapped onto --db-* (@layer bbz)
+ *   3. typography    — DB Neo Screen Sans + control-room type scale (@layer bbz)
+ *   4. components    — baseline styling for the plain HTML the app uses (@layer bbz)
+ *   5. motion        — the global prefers-reduced-motion rule (unlayered, wins)
+ */
+@import './db.css';
+@import './fonts.css';
+@import './semantic-tokens.css';
+@import './typography.css';
+@import './components.css';
+
+/* Respect reduced motion globally (MASTER_PROMPT §13.3, RULES.md). Deliberately
+   unlayered so it beats any animation defined in a lower layer. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}

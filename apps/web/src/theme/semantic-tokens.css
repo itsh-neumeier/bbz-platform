@@ -1,0 +1,99 @@
+/*
+ * BBZ semantic tokens (ADR-0029). Every `--bbz-*` the components read is defined
+ * here as a reference into the DB UX v3 token set — no hand-picked hex. Light and
+ * dark resolve through the DB `light-dark()` adaptive tokens, driven by
+ * `color-scheme` + `[data-mode]` (set by useTheme). This layer sits above
+ * `@layer db-ux`; Vue scoped styles (unlayered) still win over it.
+ */
+@layer bbz {
+  :root {
+    color-scheme: light dark;
+
+    /* ---- brand / interactive accent — Deutsche Bahn red ---- */
+    --bbz-db-red: var(--db-brand-origin-base);
+    --bbz-accent: var(--db-adaptive-origin);
+    --bbz-accent-hover: var(--db-brand-origin-light-hovered);
+    --bbz-on-accent: var(--db-adaptive-on-origin);
+
+    /* ---- surfaces (adaptive) ---- */
+    --bbz-bg: var(--db-adaptive-bg-basic-level-1-default);
+    --bbz-surface: var(--db-adaptive-bg-basic-level-2-default);
+    --bbz-surface-alt: var(--db-adaptive-bg-basic-level-3-default);
+    --bbz-surface-inverted: var(--db-adaptive-bg-inverted-contrast-high-default);
+
+    /* ---- text ---- */
+    --bbz-text: var(--db-adaptive-on-bg-basic-emphasis-100-default);
+    --bbz-text-muted: var(--db-adaptive-on-bg-basic-emphasis-70-default);
+    --bbz-text-subtle: var(--db-adaptive-on-bg-basic-emphasis-60-default);
+    --bbz-on-inverted: var(--db-adaptive-on-bg-inverted-default);
+
+    /* ---- lines ---- */
+    --bbz-border: var(--db-adaptive-on-bg-basic-emphasis-50-default);
+    --bbz-border-strong: var(--db-adaptive-on-bg-basic-emphasis-60-default);
+
+    /* ---- semantic status (DB ramps) ---- */
+    --bbz-info: var(--db-informational-7);
+    --bbz-info-bg: var(--db-informational-13);
+    --bbz-warn: var(--db-warning-7);
+    --bbz-warn-bg: var(--db-warning-13);
+    --bbz-danger: var(--db-critical-8);
+    --bbz-danger-bg: var(--db-critical-13);
+    --bbz-success: var(--db-successful-7);
+    --bbz-success-bg: var(--db-successful-13);
+    /* text-on-surface variants used by existing components */
+    --bbz-danger-text: var(--db-critical-9);
+    --bbz-warn-text: var(--db-warning-8);
+    --bbz-success-text: var(--db-successful-8);
+
+    /* ---- BBZ alarm / contact priorities (MASTER_PROMPT §13.3 / §13.9) ----
+       meaning preserved: niedrig=blau, mittel=orange, hoch=rot, kritisch=tiefrot.
+       Re-pointed at the DB semantic ramps; always paired with a label/icon. */
+    --bbz-prio-low: var(--db-informational-7);
+    --bbz-prio-medium: var(--db-warning-8);
+    --bbz-prio-high: var(--db-critical-8);
+    --bbz-prio-critical: var(--db-critical-10);
+    --bbz-prio-low-bg: var(--db-informational-13);
+    --bbz-prio-medium-bg: var(--db-warning-13);
+    --bbz-prio-high-bg: var(--db-critical-13);
+
+    /* ---- shape / depth / motion ---- */
+    --bbz-radius: var(--db-border-radius-xs);
+    --bbz-radius-sm: calc(var(--db-border-radius-xs) / 2);
+    --bbz-border-width: var(--db-border-width-2xs);
+    --bbz-shadow-sm: var(--db-elevation-sm);
+    --bbz-shadow-md: var(--db-elevation-md);
+    --bbz-shadow-lg: var(--db-elevation-lg);
+    --bbz-focus-color: var(--db-focus-outline-color);
+    --bbz-focus-width: var(--db-border-width-xs);
+    --bbz-transition: var(--db-transition-duration-fast) var(--db-transition-timing-functional);
+
+    /* ---- spacing scale (DB fixed) ---- */
+    --bbz-space-3xs: var(--db-spacing-fixed-3xs);
+    --bbz-space-2xs: var(--db-spacing-fixed-2xs);
+    --bbz-space-xs: var(--db-spacing-fixed-xs);
+    --bbz-space-sm: var(--db-spacing-fixed-sm);
+    --bbz-space-md: var(--db-spacing-fixed-md);
+    --bbz-space-lg: var(--db-spacing-fixed-lg);
+    --bbz-space-xl: var(--db-spacing-fixed-xl);
+
+    /* ---- control-room layout ---- */
+    --bbz-sidebar-width: 260px;
+    --bbz-comms-width: 360px;
+
+    /* ---- accent alias kept for legacy component CSS ---- */
+    --bbz-warn: var(--db-warning-8);
+  }
+
+}
+
+/* Dark / light switching (ADR-0029). The DB `light-dark()` tokens resolve
+   against `color-scheme`. `system` (no attribute) leaves the `<meta>`/OS default
+   (`light dark` → follows `prefers-color-scheme`); the explicit toggle sets
+   `data-mode` on <html>. Deliberately UNLAYERED so it beats the DB framework's
+   own `[data-mode]` handling and any layer. */
+html[data-mode='light'] {
+  color-scheme: light;
+}
+html[data-mode='dark'] {
+  color-scheme: dark;
+}

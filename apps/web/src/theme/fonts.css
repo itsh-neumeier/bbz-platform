@@ -1,0 +1,58 @@
+/*
+ * DB Screen Sans (DB Type 2.5) — the Deutsche Bahn corporate screen face
+ * (ADR-0029). The woff2 files are licensed and NOT in the repo; they live in
+ * `public/fonts/db-screen-sans/` on each build host (see the README there).
+ * `font-display: swap` + the fallback stack in typography.css mean a missing
+ * file never blocks or reflows the UI beyond a font swap.
+ */
+@font-face {
+  font-family: 'DB Screen Sans';
+  src: url('/fonts/db-screen-sans/DBScreenSans-Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'DB Screen Sans';
+  src: url('/fonts/db-screen-sans/DBScreenSans-Medium.woff2') format('woff2');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'DB Screen Sans';
+  src: url('/fonts/db-screen-sans/DBScreenSans-SemiBold.woff2') format('woff2');
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'DB Screen Sans';
+  src: url('/fonts/db-screen-sans/DBScreenSans-Bold.woff2') format('woff2');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+/* Digital cut — even-width figures for clocks, counts, IDs */
+@font-face {
+  font-family: 'DB Screen Sans Digital';
+  src: url('/fonts/db-screen-sans/DBScreenSans-DigitalRegular.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+/* Display cut — headings */
+@font-face {
+  font-family: 'DB Screen Head';
+  src: url('/fonts/db-screen-sans/DBScreenHead-Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'DB Screen Head';
+  src: url('/fonts/db-screen-sans/DBScreenHead-Black.woff2') format('woff2');
+  font-weight: 800;
+  font-style: normal;
+  font-display: swap;
+}
