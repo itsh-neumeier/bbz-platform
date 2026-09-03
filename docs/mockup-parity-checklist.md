@@ -40,7 +40,7 @@ Feature areas whose UI lives in a later epic point at that epic.
 | 18 | mandatory E2E — event lifecycle | `e2e/event-lifecycle.spec.ts` | [#123](../../issues/123) (E07-16) | todo |
 | 19 | theme tokens — light / dark, `data-theme` | `src/theme/tokens.css`, `composables/useTheme.ts` | [#125](../../issues/125) (E07-17) | in-progress — tokens + `useTheme` (system/light/dark, persisted, `data-theme`) + toggle in TopBar |
 | 20 | comms sidebar scaffold — tabs phone / call / phonebook / history | `CommSidebar` tabs | [#127](../../issues/127) (E07-18) | todo |
-| 21 | graphical EPK editor (admin) | `/admin/workflows/:id/edit`, `EpkEditor` | [#129](../../issues/129) (E07-19) | todo |
+| 21 | graphical EPK editor (admin) | `/admin/workflows`, `WorkflowAdminPage.vue`, `lib/workflows.ts` | [#129](../../issues/129) (E07-19) | in-progress — structural editor: template + draft-version lifecycle, node/edge forms (event · function · connector), an auto-laid-out SVG preview, validate (E05-06 gate) + publish; drag-to-position on a canvas is a follow-up. `WorkflowAdminPage.spec.ts` |
 
 ## Telephony & comms panel (Epic 11 / 14)
 
