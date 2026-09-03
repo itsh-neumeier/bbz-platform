@@ -1,49 +1,51 @@
 import { expect, test } from '@playwright/test';
 
 /**
- * Mandatory E2E — monitor / KVM routing (roadmap E19-10, MASTER_PROMPT §9).
+ * E2E — monitor / KVM routing (roadmap E19-10 / E19-08, MASTER_PROMPT §9).
+ * Backend flow: `server/tests/test_e2e_monitor_routing.py`. This is the UI half
+ * (`/monitore`); wired into CI with #123.
  *
- * The backend flow is fully covered by
- * `server/tests/test_e2e_monitor_routing.py` (API level, against `monitor_mock`).
- * This browser script is the UI half and is `test.fixme` until the screen it
- * drives exists:
- *   - the monitor-routing dialog (3×2 grid + large display, drag & drop AND a
- *     keyboard / select alternative, standard-layout button, profile save/load,
- *     the lower-left field shown locked) — E19-08 (#408)
- *
- * When it lands, remove `.fixme` and flesh out the selectors. The four scenarios:
- *   1. change a route (drag an input onto an output, or pick it via the select
- *      alternative) → the change is reflected and persisted
- *   2. the lower-left output is shown locked to BBZ-OS and cannot be changed
- *      (UI + server both refuse)
- *   3. save the current layout as a profile, then apply it again later
- *   4. "standard layout" button restores the documented default
+ * Skipped when no backend answers `/api/v1/meta`.
  */
-test.fixme('monitor routing — route, fixed rule, profile save/apply, reset', async ({ page }) => {
-  await page.goto('/monitor');
-  await page.getByRole('button', { name: /Monitor-Layout|Monitorrouting/i }).click();
+const USER = process.env.E2E_USER ?? 'admin';
+const PASS = process.env.E2E_PASS ?? 'Wolke7-Bahnhof!x';
 
-  // 1. change a route via the keyboard / select alternative (must not depend on
-  //    drag & drop — §26.14)
-  const ap3 = page.getByRole('group', { name: /Arbeitsplatzmonitor 3/i });
+test.beforeEach(async ({ request, baseURL, page }) => {
+  const r = await request.get(`${baseURL}/api/v1/meta`).catch(() => null);
+  test.skip(!r || !r.ok(), 'no backend on the dev proxy');
+  await page.goto('/login');
+  await page.getByLabel('Benutzername').fill(USER);
+  await page.getByLabel('Passwort').fill(PASS);
+  await page.getByRole('button', { name: 'Anmelden' }).click();
+  await expect(page).toHaveURL(/\/arbeitsplatz$/);
+});
+
+test('route via the select alternative, BBZ-OS locked, standard layout', async ({ page }) => {
+  await page.getByRole('link', { name: 'Monitore' }).click();
+  await expect(page).toHaveURL(/\/monitore$/);
+
+  // the 3×2 grid + the large display
+  await expect(page.locator('.mon__cell')).toHaveCount(7);
+
+  // 1. change a route via the keyboard-accessible <select> (§26.14 — not drag)
+  const ap3 = page.getByRole('group', { name: 'Arbeitsplatzmonitor 3' });
   await ap3.getByRole('combobox').selectOption({ label: 'Coda 1' });
-  await expect(ap3.getByText(/Coda 1/i)).toBeVisible();
+  await expect(ap3.getByRole('combobox')).toHaveValue('coda1');
 
-  // 2. the lower-left field is locked to BBZ-OS
-  const lowerLeft = page.getByRole('group', { name: /unten links|Arbeitsplatzmonitor 4/i });
-  await expect(lowerLeft.getByText(/BBZ-OS/i)).toBeVisible();
-  await expect(lowerLeft.getByRole('combobox')).toBeDisabled();
+  // 2. the lower-left output is locked to BBZ-OS (E19-03), UI + server
+  const ap4 = page.getByRole('group', { name: 'Arbeitsplatzmonitor 4' });
+  await expect(ap4.getByRole('combobox')).toBeDisabled();
+  await expect(ap4.getByText(/BBZ-OS/)).toBeVisible();
 
-  // 3. save as a profile, then apply it
-  await page.getByRole('button', { name: /Profil speichern/i }).click();
-  await page.getByLabel(/Name/i).fill('Nachtdienst');
-  await page.getByRole('button', { name: /Speichern/i }).click();
-  await page.getByRole('button', { name: /Standard-Layout/i }).click();
-  await page.getByRole('combobox', { name: /Profil/i }).selectOption({ label: 'Nachtdienst' });
-  await page.getByRole('button', { name: /Anwenden/i }).click();
-  await expect(ap3.getByText(/Coda 1/i)).toBeVisible();
+  // 3. save a profile, then 4. reset to the standard layout
+  await page.getByLabel('Profilname').fill('Nachtdienst');
+  await page.getByRole('button', { name: 'Profil speichern' }).click();
 
-  // 4. standard layout button
-  await page.getByRole('button', { name: /Standard-Layout/i }).click();
-  await expect(lowerLeft.getByText(/BBZ-OS/i)).toBeVisible();
+  await page.getByRole('button', { name: 'Standard-Layout' }).click();
+  await expect(ap3.getByRole('combobox')).toHaveValue('bku3'); // documented default
+
+  // 5. re-apply the saved profile
+  await page.getByLabel('Profil', { exact: true }).selectOption({ label: 'Nachtdienst' });
+  await page.getByRole('button', { name: 'Anwenden' }).click();
+  await expect(ap3.getByRole('combobox')).toHaveValue('coda1');
 });

@@ -13,6 +13,19 @@ def _repo_root() -> Path:
 
 
 def integrations_dir() -> Path:
+    """Where the `*/manifest.json` scaffolds live.
+
+    `BBZ_INTEGRATIONS_DIR` wins; otherwise take the first of: the repo checkout
+    (dev / tests), `/app/integrations` (the container image copies it there).
+    """
+    from bbz_core.settings import get_settings
+
+    configured = get_settings().integrations_dir
+    if configured:
+        return Path(configured)
+    for candidate in (_repo_root() / "integrations", Path("/app/integrations")):
+        if candidate.is_dir():
+            return candidate
     return _repo_root() / "integrations"
 
 

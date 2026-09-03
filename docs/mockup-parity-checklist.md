@@ -82,10 +82,10 @@ Feature areas whose UI lives in a later epic point at that epic.
 
 | # | Feature | Delivered by | Status |
 |---|---|---|---|
-| 43 | DWD weather page | Epic 18 · `DWD Weather` | todo |
-| 44 | monitor routing dialog | Epic 19 · `Weytec Monitor Routing` | backend-done (E19-04/05 API; dialog UI is E19-08 → Epic 07) |
-| 45 | 6 workplace monitors + large display, standard layout | Epic 19 | backend-done (E19-02 catalog + standard layout, E19-04 reset) |
-| 46 | BBZ-OS fixed on the lower-left monitor | Epic 08 (BBZ Desktop Client) | backend-done (E19-03 server-enforced; desktop display is Epic 08) |
+| 43 | DWD weather page | `pages/WeatherPage.vue` (`/wetterlage`) — E18-09 (#391) | in-progress — warnings + observations + radar timeline + "Ereignis erzeugen"; health badge; degrades on a `down`/`stale` feed |
+| 44 | monitor routing dialog | `pages/MonitorPage.vue` (`/monitore`) — E19-08 (#408) | in-progress — 3×2 grid + large display, `<select>` keyboard alternative, standard-layout, user profiles |
+| 45 | 6 workplace monitors + large display, standard layout | `pages/MonitorPage.vue` | in-progress — grid from the server catalog + `Standard-Layout` button (E19-04 reset) |
+| 46 | BBZ-OS fixed on the lower-left monitor | `pages/MonitorPage.vue` shows `workplace4` locked + disabled; server-enforced (E19-03). Desktop display is Epic 08. | in-progress |
 
 ## BKU agent (Epic 10 — separate app)
 

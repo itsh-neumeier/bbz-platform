@@ -11,6 +11,7 @@ const links = [
   { to: '/ereignisse', key: 'nav.events' },
   { to: '/archiv', key: 'nav.archive' },
   { to: '/wetterlage', key: 'nav.weather' },
+  { to: '/monitore', key: 'nav.monitors' },
   { to: '/telefonbuch', key: 'nav.phonebook' },
 ];
 </script>
