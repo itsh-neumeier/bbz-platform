@@ -189,12 +189,18 @@
     "numberError": "Die Rufnummer konnte nicht gespeichert werden.",
     "createError": "Der Kontakt konnte nicht angelegt werden."
   },
-  "workplace": {
-    "eventStore": "Ereignisspeicher",
-    "accept": "Annehmen",
-    "acknowledge": "Quittieren",
-    "edit": "Bearbeiten",
-    "archive": "Archivieren"
+  "wp": {
+    "hello": "Angemeldet als {name}",
+    "alert": "{n} unangenommenes Ereignis mit hoher Priorität | {n} unangenommene Ereignisse mit hoher Priorität",
+    "openEvents": "Offene Ereignisse",
+    "unassigned": "{n} ohne Bearbeiter",
+    "byPriority": "Nach Priorität",
+    "waitingCalls": "Wartende Anrufe",
+    "lines": "{up} von {total} Leitungen in Betrieb",
+    "openWeather": "Warnungen & Radar ansehen",
+    "openMonitors": "Monitorrouting öffnen",
+    "openArchive": "Archiv durchsuchen",
+    "node": "Knoten"
   },
   "login": {
     "provider": "Anmeldeverfahren",
@@ -315,9 +321,5 @@
     "reasonRequired": "Bitte einen Grund angeben.",
     "cancel": "Abbrechen",
     "confirm": "Reaktivieren bestätigen"
-  },
-  "foundation": {
-    "notice": "Foundation-Phase: nur Grundgerüst. Fachfunktionen folgen ab Phase 1.",
-    "clusterStub": "Cluster-Status ist ein Platzhalter (Phase 2)."
   }
 }
