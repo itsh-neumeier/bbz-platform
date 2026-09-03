@@ -58,6 +58,9 @@ class AuditAction(enum.StrEnum):
     RESTORE_TEST_COMPLETED = "RESTORE_TEST_COMPLETED"
     #: a runtime secret changed and was reloaded (E23-01) — name only, never the value.
     SECRET_ROTATED = "SECRET_ROTATED"
+    #: an operator changed a runtime app setting via the admin API (ADR-0031 / #720)
+    #: — the key + a redacted before/after diff, never a secret value.
+    SETTING_CHANGED = "SETTING_CHANGED"
     #: a rate limit on an auth path was exceeded (E23-04) — the rule + identifier, no payload.
     RATE_LIMIT_TRIGGERED = "RATE_LIMIT_TRIGGERED"
     #: the audit hash chain failed verification (E23-09) — the first bad seq + why.
@@ -133,6 +136,7 @@ CRITICAL_ACTIONS: frozenset[AuditAction] = frozenset(
         AuditAction.RESTORE_PERFORMED,
         AuditAction.RESTORE_TEST_COMPLETED,
         AuditAction.SECRET_ROTATED,
+        AuditAction.SETTING_CHANGED,
         AuditAction.RATE_LIMIT_TRIGGERED,
         AuditAction.AUDIT_INTEGRITY_ALERT,
         AuditAction.CALL_RINGING,

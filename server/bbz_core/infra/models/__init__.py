@@ -6,6 +6,7 @@ complete - used by Alembic (``target_metadata``) and by tests.
 
 from __future__ import annotations
 
+from bbz_core.infra.models.app_settings import AppSetting
 from bbz_core.infra.models.application_catalog import (
     ApplicationCatalogEntry,
     ApplicationCatalogScope,
@@ -130,6 +131,7 @@ from bbz_core.infra.models.workflow_runtime import (
 )
 
 __all__ = [
+    "AppSetting",
     "ApplicationCatalogEntry",
     "ApplicationCatalogScope",
     "AuditChainLink",

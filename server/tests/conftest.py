@@ -56,17 +56,20 @@ def _reset_caches() -> Iterator[None]:
     from bbz_core import settings as settings_mod
     from bbz_core.infra import db as db_mod
     from bbz_core.infra.repositories import contact_matching as matching_mod
+    from bbz_core.infra.repositories.settings_store import SettingsStore
     from bbz_core.integrations_host import providers as providers_mod
 
     for fn in (settings_mod.get_settings, db_mod.get_engine, db_mod.get_sessionmaker):
         fn.cache_clear()
     providers_mod.reset_provider_cache()
     matching_mod.clear_matcher_cache()
+    SettingsStore.invalidate()
     yield
     for fn in (settings_mod.get_settings, db_mod.get_engine, db_mod.get_sessionmaker):
         fn.cache_clear()
     providers_mod.reset_provider_cache()
     matching_mod.clear_matcher_cache()
+    SettingsStore.invalidate()
 
 
 @pytest.fixture
