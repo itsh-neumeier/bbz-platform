@@ -13,11 +13,16 @@ import PriorityAlertBanner from '@/components/events/PriorityAlertBanner.vue';
 import SyncStatus from '@/components/events/SyncStatus.vue';
 import { useEventStream } from '@/composables/useEventStream';
 import { useEventsStore } from '@/stores/events';
+import { useCallsStore } from '@/stores/calls';
+import { useSessionStore } from '@/stores/session';
 
 const events = useEventsStore();
-const { status: sync, lastSeq } = useEventStream((f) =>
-  events.onStreamFrame(f.type, f.data.aggregate_id as string | undefined),
-);
+const calls = useCallsStore();
+const session = useSessionStore();
+const { status: sync, lastSeq } = useEventStream((f) => {
+  events.onStreamFrame(f.type, f.data.aggregate_id as string | undefined);
+  calls.onStreamFrame(f.type);
+});
 watch([sync, lastSeq], ([s, seq]) => events.setSync(s, seq), { immediate: true });
 
 onMounted(() => events.loadAlert());
@@ -38,7 +43,10 @@ onMounted(() => events.loadAlert());
           />
         </template>
       </TopBar>
-      <div class="shell__body">
+      <div
+        class="shell__body"
+        :style="{ '--bbz-comms-width': session.commsWidth + 'px' }"
+      >
         <main class="shell__content">
           <RouterView />
         </main>
