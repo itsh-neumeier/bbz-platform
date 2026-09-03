@@ -605,16 +605,30 @@ CI — that job is **#123**, still open — so "feature complete" rows read
   open events by priority, the priority alert, waiting calls, line status
   (#711); `/wetterlage` (E18-09, #391), `/monitore` (E19-08, #408),
   `/telefonbuch` (E14-07/08, #297/#299).
-- **DB UX Design System v3** (#713, **ADR-0029**, extends ADR-0013): the whole
-  UI is now visually DB-conformant. `src/theme/` is rebuilt on
-  `@db-ux/core-foundations@5.3.0` + the `@db-ux/db-theme@6.2.0` palette — every
-  `--bbz-*` token references a DB `--db-*` token (surfaces, text, borders, the
-  semantic + priority ramps), adaptive `light-dark()` dark mode driven by
-  `data-mode` + inline `color-scheme` from `useTheme`, DB Screen Sans typography,
-  a brand-red top rule + DB nav pattern in the shell, the DB logo in the
-  sidebar. Licensed assets (DB Screen Sans woff2, the logo SVG) are
-  `.gitignore`d under `apps/web/public/{fonts,brand}/` with a fallback when
-  absent. `docs/frontend/db-ux-design.md`.
+- **DB UX Design System v3** (#713, PR **#714 merged**, **ADR-0029** Accepted,
+  extends ADR-0013): the whole UI is now visually DB-conformant. `src/theme/` is
+  rebuilt on `@db-ux/core-foundations@5.3.0` + the `@db-ux/db-theme@6.2.0`
+  palette — every `--bbz-*` token references a DB `--db-*` token (surfaces, text,
+  borders, the semantic + priority ramps), adaptive `light-dark()` dark mode
+  driven by `data-mode` + inline `color-scheme` from `useTheme`, DB Screen Sans
+  typography, a brand-red top rule + DB nav pattern in the shell, the DB logo in
+  the sidebar. PrimeVue kept, registered with `definePreset(Aura, …)` on the DB
+  tokens. Licensed assets (DB Screen Sans woff2, the logo SVG) are `.gitignore`d
+  under `apps/web/public/{fonts,brand}/` with a fallback when absent.
+  `theme.spec.ts` (6) + `useTheme.spec.ts` guard it; Vitest 56/56.
+  `docs/frontend/db-ux-design.md`.
+  - **Traps for future theme work** (all bit this PR, fixed in commit 4): the DB
+    numbered ramps run **dark → light**, so a status/priority fill wants the
+    `*-origin-base` value or a low single-digit step, never 8–14 (those are the
+    pale end). `--db-adaptive-origin` and `--db-focus-outline-color` are **not
+    declared** by `core-foundations` — use `--db-adaptive-origin-default` /
+    `--db-brand-origin-base` and give `--db-focus-outline-color` DB's own
+    fallback (`--db-informational-on-bg-basic-emphasis-70`). Priorities are fixed
+    (mode-independent) with a paired `--bbz-on-prio-*`; `-bg` tints are
+    `color-mix()` over the adaptive surface; `-text` variants are `light-dark()`.
+  - **Known limitation**: the fixed 3-region AppShell does not reflow at 200 %
+    zoom (~75 px H-scroll at 640 px) — pre-existing, kiosk layout; a responsive
+    shell is a separate concern.
 
 `docs/roadmap-status.md` § "Epic 07" has the per-issue table; its "Completed
 issues still open on the tracker" section lists the 88 merged-but-open backend
