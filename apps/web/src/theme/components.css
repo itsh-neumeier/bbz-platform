@@ -1,0 +1,174 @@
+/*
+ * Baseline element styling (ADR-0029). The BBZ UI is built from plain semantic
+ * HTML; this layer gives every `<button>`, form control, `<table>`, `<dialog>`
+ * and `<fieldset>` a DB-consistent default (radius, borders, focus ring, control
+ * height, spacing) so individual components need little or no CSS of their own.
+ * `@layer bbz` — any component's scoped `<style>` still overrides freely.
+ */
+@layer bbz {
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+
+  body {
+    margin: 0;
+    background: var(--bbz-bg);
+    color: var(--bbz-text);
+  }
+
+  a {
+    color: var(--bbz-accent);
+    text-underline-offset: 0.15em;
+  }
+  a:hover {
+    color: var(--bbz-accent-hover);
+  }
+
+  /* ---- focus: one visible ring everywhere (a11y, ADR-0013) ---- */
+  :where(a, button, input, select, textarea, [tabindex], summary, [role='button'], [role='tab']):focus-visible {
+    outline: var(--bbz-focus-width) solid var(--bbz-focus-color);
+    outline-offset: 2px;
+    border-radius: var(--bbz-radius-sm);
+  }
+
+  /* ---- buttons ---- */
+  button,
+  [role='button'] {
+    font: inherit;
+    font-weight: var(--bbz-weight-medium);
+    color: var(--bbz-text);
+    background: var(--bbz-surface);
+    border: var(--bbz-border-width) solid var(--bbz-border);
+    border-radius: var(--bbz-radius);
+    padding: 0.4rem 0.8rem;
+    min-height: 2.25rem;
+    cursor: pointer;
+    transition:
+      background-color var(--bbz-transition),
+      border-color var(--bbz-transition);
+  }
+  button:hover:not(:disabled),
+  [role='button']:hover {
+    background: var(--bbz-surface-alt);
+  }
+  button:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+  /* the app's convention: a `type="submit"` inside a form is the primary action */
+  button[type='submit'] {
+    background: var(--bbz-accent);
+    border-color: var(--bbz-accent);
+    color: var(--bbz-on-accent);
+  }
+  button[type='submit']:hover:not(:disabled) {
+    background: var(--bbz-accent-hover);
+    border-color: var(--bbz-accent-hover);
+  }
+
+  /* ---- form controls ---- */
+  input,
+  select,
+  textarea {
+    font: inherit;
+    color: var(--bbz-text);
+    background: var(--bbz-bg);
+    border: var(--bbz-border-width) solid var(--bbz-border);
+    border-radius: var(--bbz-radius);
+    padding: 0.4rem 0.55rem;
+    min-height: 2.25rem;
+  }
+  textarea {
+    min-height: 3.5rem;
+    line-height: var(--bbz-leading-normal);
+  }
+  input:hover,
+  select:hover,
+  textarea:hover {
+    border-color: var(--bbz-border-strong);
+  }
+  input:focus,
+  select:focus,
+  textarea:focus {
+    border-color: var(--bbz-accent);
+    outline: var(--bbz-focus-width) solid var(--bbz-focus-color);
+    outline-offset: 1px;
+  }
+  input[type='checkbox'],
+  input[type='radio'] {
+    min-height: 0;
+    accent-color: var(--bbz-accent);
+    width: 1rem;
+    height: 1rem;
+  }
+  input::placeholder,
+  textarea::placeholder {
+    color: var(--bbz-text-subtle);
+  }
+  label {
+    color: var(--bbz-text);
+  }
+
+  /* ---- fieldset / legend ---- */
+  fieldset {
+    border: var(--bbz-border-width) solid var(--bbz-border);
+    border-radius: var(--bbz-radius);
+    padding: 0.6rem 0.8rem;
+    margin: 0;
+  }
+  fieldset:disabled {
+    opacity: 0.7;
+  }
+  legend {
+    padding: 0 0.35rem;
+    font-weight: var(--bbz-weight-semibold);
+    color: var(--bbz-text);
+  }
+
+  /* ---- tables: dense, DB-consistent ---- */
+  table {
+    border-collapse: collapse;
+    width: 100%;
+  }
+  th {
+    text-align: left;
+    font-weight: var(--bbz-weight-semibold);
+    color: var(--bbz-text-muted);
+    border-bottom: var(--bbz-border-width) solid var(--bbz-border-strong);
+    padding: 0.4rem 0.5rem;
+  }
+  td {
+    border-bottom: var(--bbz-border-width) solid var(--bbz-border);
+    padding: 0.4rem 0.5rem;
+  }
+
+  /* ---- native dialog ---- */
+  dialog {
+    border: var(--bbz-border-width) solid var(--bbz-border);
+    border-radius: var(--bbz-radius);
+    background: var(--bbz-surface);
+    color: var(--bbz-text);
+    box-shadow: var(--bbz-shadow-lg);
+    padding: 1rem 1.15rem;
+  }
+  dialog::backdrop {
+    background: rgb(0 0 0 / 45%);
+  }
+
+  hr {
+    border: 0;
+    border-top: var(--bbz-border-width) solid var(--bbz-border);
+  }
+
+  ::selection {
+    background: var(--bbz-prio-low-bg);
+  }
+
+  /* thin, unobtrusive scrollbars for the dense layout */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--bbz-border-strong) transparent;
+  }
+}

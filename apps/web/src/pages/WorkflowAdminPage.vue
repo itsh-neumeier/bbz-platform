@@ -699,7 +699,7 @@ onMounted(loadTemplates);
   text-align: left;
   padding: 0.4rem 0.6rem;
   border: 1px solid var(--bbz-border);
-  border-radius: 4px;
+  border-radius: var(--bbz-radius);
   background: var(--bbz-surface);
   color: var(--bbz-text);
   cursor: pointer;
@@ -711,7 +711,7 @@ onMounted(loadTemplates);
   font-size: 0.75rem;
 }
 .wf__sel {
-  outline: 2px solid var(--bbz-accent);
+  outline: var(--bbz-focus-width) solid var(--bbz-focus-color);
   font-weight: 600;
 }
 .wf__newtpl {
@@ -724,7 +724,7 @@ onMounted(loadTemplates);
 .wf__pub input {
   padding: 0.3rem;
   border: 1px solid var(--bbz-border);
-  border-radius: 4px;
+  border-radius: var(--bbz-radius);
   background: var(--bbz-bg);
   color: var(--bbz-text);
 }
@@ -736,7 +736,7 @@ onMounted(loadTemplates);
   font-size: 0.68rem;
   text-transform: uppercase;
   padding: 0.05rem 0.3rem;
-  border-radius: 3px;
+  border-radius: var(--bbz-radius-sm);
   background: var(--bbz-surface-alt);
   color: var(--bbz-text-muted);
   margin-left: 0.35rem;
@@ -751,7 +751,7 @@ onMounted(loadTemplates);
 .wfp {
   overflow-x: auto;
   border: 1px solid var(--bbz-border);
-  border-radius: 6px;
+  border-radius: var(--bbz-radius);
   background: var(--bbz-surface);
   padding: 0.5rem;
   margin-bottom: 0.75rem;
@@ -779,17 +779,17 @@ onMounted(loadTemplates);
   margin: 0 0 0.75rem;
   padding: 0.5rem 0.75rem;
   border: 1px solid var(--bbz-warn-text);
-  border-radius: 6px;
+  border-radius: var(--bbz-radius);
   font-size: 0.85rem;
 }
 .wf__issues code {
   background: var(--bbz-surface-alt);
   padding: 0 0.25rem;
-  border-radius: 3px;
+  border-radius: var(--bbz-radius-sm);
 }
 .wf__editor fieldset {
   border: 1px solid var(--bbz-border);
-  border-radius: 6px;
+  border-radius: var(--bbz-radius);
   margin: 0 0 0.75rem;
   padding: 0.6rem 0.8rem;
 }
@@ -817,7 +817,7 @@ onMounted(loadTemplates);
   width: 100%;
   padding: 0.25rem;
   border: 1px solid var(--bbz-border);
-  border-radius: 3px;
+  border-radius: var(--bbz-radius-sm);
   background: var(--bbz-bg);
   color: var(--bbz-text);
 }
@@ -839,7 +839,7 @@ onMounted(loadTemplates);
 .wf__actions button {
   padding: 0.35rem 0.7rem;
   border: 1px solid var(--bbz-border);
-  border-radius: 4px;
+  border-radius: var(--bbz-radius);
   background: var(--bbz-bg);
   color: var(--bbz-text);
   cursor: pointer;

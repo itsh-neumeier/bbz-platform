@@ -106,7 +106,7 @@ onMounted(async () => {
 .own__btn {
   padding: 0.25rem 0.6rem;
   border: 1px solid var(--bbz-border);
-  border-radius: 4px;
+  border-radius: var(--bbz-radius);
   background: var(--bbz-bg);
   color: var(--bbz-text);
   cursor: pointer;
@@ -116,7 +116,7 @@ onMounted(async () => {
 }
 .own select {
   border: 1px solid var(--bbz-border);
-  border-radius: 4px;
+  border-radius: var(--bbz-radius);
   padding: 0.15rem 0.3rem;
   background: var(--bbz-bg);
   color: var(--bbz-text);

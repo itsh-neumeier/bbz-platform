@@ -14,22 +14,25 @@ const { t } = useI18n();
 .prio {
   display: inline-block;
   padding: 0.1rem 0.5rem;
-  border-radius: 3px;
+  border-radius: var(--bbz-radius-sm);
   font-size: 0.75rem;
   font-weight: 600;
-  color: #fff;
   white-space: nowrap;
 }
 .prio--critical {
   background: var(--bbz-prio-critical);
+  color: var(--bbz-on-prio-critical);
 }
 .prio--high {
   background: var(--bbz-prio-high);
+  color: var(--bbz-on-prio-high);
 }
 .prio--medium {
   background: var(--bbz-prio-medium);
+  color: var(--bbz-on-prio-medium);
 }
 .prio--low {
   background: var(--bbz-prio-low);
+  color: var(--bbz-on-prio-low);
 }
 </style>

@@ -434,7 +434,7 @@ onMounted(load);
   flex: 1 1 16rem;
   padding: 0.4rem;
   border: 1px solid var(--bbz-border);
-  border-radius: 4px;
+  border-radius: var(--bbz-radius);
   background: var(--bbz-bg);
   color: var(--bbz-text);
 }
@@ -460,7 +460,7 @@ onMounted(load);
   margin: 0;
   padding: 0;
   border: 1px solid var(--bbz-border);
-  border-radius: 6px;
+  border-radius: var(--bbz-radius);
   overflow: hidden;
 }
 .pb__row {
@@ -484,7 +484,7 @@ onMounted(load);
   background: var(--bbz-surface-alt);
 }
 .pb__row:focus-visible {
-  outline: 2px solid var(--bbz-accent);
+  outline: var(--bbz-focus-width) solid var(--bbz-focus-color);
   outline-offset: -2px;
 }
 .pb__prio {
@@ -496,22 +496,24 @@ onMounted(load);
 .pb__prio-btn {
   padding: 0.3rem 0.6rem;
   border: 1px solid var(--bbz-border);
-  border-radius: 4px;
+  border-radius: var(--bbz-radius);
   background: var(--bbz-bg);
   color: var(--bbz-text);
   cursor: pointer;
 }
 .pb__prio-btn--on {
-  outline: 2px solid var(--bbz-accent);
+  outline: var(--bbz-focus-width) solid var(--bbz-focus-color);
   font-weight: 600;
 }
-.prio--low {
+/* the list marker (a dot) carries the priority colour; the edit-panel priority
+   buttons stay plain and show selection with an outline (.pb__prio-btn--on). */
+.pb__prio.prio--low {
   background: var(--bbz-prio-low);
 }
-.prio--medium {
+.pb__prio.prio--medium {
   background: var(--bbz-prio-medium);
 }
-.prio--high {
+.pb__prio.prio--high {
   background: var(--bbz-prio-high);
 }
 .pb__name {
@@ -536,7 +538,7 @@ onMounted(load);
 }
 .pb__detail {
   border: 1px solid var(--bbz-border);
-  border-radius: 6px;
+  border-radius: var(--bbz-radius);
   padding: 1rem;
   background: var(--bbz-surface);
 }
@@ -546,7 +548,7 @@ onMounted(load);
 }
 .pb__detail fieldset {
   border: 1px solid var(--bbz-border);
-  border-radius: 4px;
+  border-radius: var(--bbz-radius);
   margin: 0 0 0.75rem;
   padding: 0.6rem 0.75rem;
 }
@@ -565,7 +567,7 @@ onMounted(load);
   width: 100%;
   padding: 0.35rem;
   border: 1px solid var(--bbz-border);
-  border-radius: 4px;
+  border-radius: var(--bbz-radius);
   background: var(--bbz-bg);
   color: var(--bbz-text);
 }
@@ -573,7 +575,7 @@ onMounted(load);
   margin-top: 0.6rem;
   padding: 0.35rem 0.7rem;
   border: 1px solid var(--bbz-border);
-  border-radius: 4px;
+  border-radius: var(--bbz-radius);
   background: var(--bbz-bg);
   color: var(--bbz-text);
   cursor: pointer;
@@ -627,7 +629,7 @@ onMounted(load);
   gap: 0.4rem 0.75rem;
   align-items: center;
   border: 1px solid var(--bbz-border);
-  border-radius: 6px;
+  border-radius: var(--bbz-radius);
   padding: 0.75rem;
   margin-bottom: 1rem;
   background: var(--bbz-surface);
@@ -635,7 +637,7 @@ onMounted(load);
 .pb__create input {
   padding: 0.35rem;
   border: 1px solid var(--bbz-border);
-  border-radius: 4px;
+  border-radius: var(--bbz-radius);
   background: var(--bbz-bg);
   color: var(--bbz-text);
 }
@@ -644,7 +646,7 @@ onMounted(load);
   justify-self: start;
   padding: 0.35rem 0.8rem;
   border: 1px solid var(--bbz-border);
-  border-radius: 4px;
+  border-radius: var(--bbz-radius);
   background: var(--bbz-bg);
   color: var(--bbz-text);
   cursor: pointer;

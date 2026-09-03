@@ -605,6 +605,16 @@ CI — that job is **#123**, still open — so "feature complete" rows read
   open events by priority, the priority alert, waiting calls, line status
   (#711); `/wetterlage` (E18-09, #391), `/monitore` (E19-08, #408),
   `/telefonbuch` (E14-07/08, #297/#299).
+- **DB UX Design System v3** (#713, **ADR-0029**, extends ADR-0013): the whole
+  UI is now visually DB-conformant. `src/theme/` is rebuilt on
+  `@db-ux/core-foundations@5.3.0` + the `@db-ux/db-theme@6.2.0` palette — every
+  `--bbz-*` token references a DB `--db-*` token (surfaces, text, borders, the
+  semantic + priority ramps), adaptive `light-dark()` dark mode driven by
+  `data-mode` + inline `color-scheme` from `useTheme`, DB Screen Sans typography,
+  a brand-red top rule + DB nav pattern in the shell, the DB logo in the
+  sidebar. Licensed assets (DB Screen Sans woff2, the logo SVG) are
+  `.gitignore`d under `apps/web/public/{fonts,brand}/` with a fallback when
+  absent. `docs/frontend/db-ux-design.md`.
 
 `docs/roadmap-status.md` § "Epic 07" has the per-issue table; its "Completed
 issues still open on the tracker" section lists the 88 merged-but-open backend

@@ -168,7 +168,7 @@ onBeforeUnmount(() => clearInterval(poll));
 .wp__alert {
   margin: 0.75rem 0;
   padding: 0.5rem 0.8rem;
-  border-radius: 6px;
+  border-radius: var(--bbz-radius);
   border-left: 4px solid var(--bbz-prio-high);
   background: var(--bbz-surface-alt);
 }
@@ -194,7 +194,7 @@ onBeforeUnmount(() => clearInterval(poll));
   gap: 0.15rem;
   padding: 0.9rem 1rem;
   border: 1px solid var(--bbz-border);
-  border-radius: 8px;
+  border-radius: var(--bbz-radius);
   background: var(--bbz-surface);
   color: var(--bbz-text);
   text-decoration: none;

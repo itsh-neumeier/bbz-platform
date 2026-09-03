@@ -130,7 +130,7 @@ onMounted(() => {
   background: var(--bbz-surface-alt);
 }
 .queue__row:focus-visible {
-  outline: 2px solid var(--bbz-accent);
+  outline: var(--bbz-focus-width) solid var(--bbz-focus-color);
   outline-offset: -2px;
 }
 .queue__title {

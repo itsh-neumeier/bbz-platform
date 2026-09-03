@@ -71,10 +71,11 @@ async function logout(): Promise<void> {
 .topbar {
   display: flex;
   align-items: center;
-  gap: 1rem;
-  padding: 0.5rem 1.25rem;
-  border-bottom: 1px solid var(--bbz-border);
+  gap: var(--bbz-space-md);
+  padding: var(--bbz-space-2xs) var(--bbz-space-xl);
+  border-bottom: var(--bbz-border-width) solid var(--bbz-border);
   background: var(--bbz-surface);
+  min-height: 3.25rem;
 }
 .topbar__spacer {
   flex: 1;
@@ -83,21 +84,29 @@ async function logout(): Promise<void> {
   display: none;
 }
 .topbar__clock {
+  font-family: var(--bbz-font-head);
   font-variant-numeric: tabular-nums;
-  font-size: 1.6rem;
-  font-weight: 600;
+  font-size: 1.65rem;
+  font-weight: var(--bbz-weight-bold);
+  letter-spacing: 0.01em;
+  color: var(--bbz-text);
 }
 .topbar__btn {
-  padding: 0.35rem 0.7rem;
-  border: 1px solid var(--bbz-border);
-  border-radius: 4px;
+  padding: 0.4rem 0.8rem;
+  border: var(--bbz-border-width) solid var(--bbz-border);
+  border-radius: var(--bbz-radius);
   background: var(--bbz-bg);
   color: var(--bbz-text);
-  font-size: 0.85rem;
+  font-size: var(--bbz-text-sm);
+  font-weight: var(--bbz-weight-medium);
   cursor: pointer;
+  transition: background-color var(--bbz-transition);
+}
+.topbar__btn:hover {
+  background: var(--bbz-surface-alt);
 }
 .topbar__btn:focus-visible {
-  outline: 2px solid var(--bbz-accent);
+  outline: var(--bbz-focus-width) solid var(--bbz-focus-color);
   outline-offset: 2px;
 }
 </style>

@@ -40,7 +40,7 @@ const worst = computed(() => events.topPriority ?? 'high');
   gap: 0.6rem;
   padding: 0.35rem 0.75rem;
   border: 0;
-  border-radius: 4px;
+  border-radius: var(--bbz-radius);
   color: #fff;
   cursor: pointer;
   font-size: 0.9rem;

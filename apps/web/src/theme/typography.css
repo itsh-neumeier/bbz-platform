@@ -1,0 +1,75 @@
+/*
+ * Typography (ADR-0029). DB Neo Screen Sans as the corporate face, with a system
+ * fallback so a blocked font download never leaves the UI unstyled. The DB type
+ * scale is the reference; headings are held to control-room sizes (dense,
+ * fast to scan) rather than the marketing-scale DB headline tokens.
+ */
+@layer bbz {
+  :root {
+    /* the licensed DB face if present (public/fonts/db-screen-sans/), otherwise
+       DB's own helvetica/arial fallback via --db-font-family-sans, then system */
+    --bbz-font-sans: var(--db-font-family-sans), system-ui, -apple-system, 'Segoe UI', sans-serif;
+    --bbz-font-head: var(--db-font-family-head), var(--bbz-font-sans);
+    --bbz-font-numeric: 'DB Screen Sans Digital', var(--bbz-font-sans);
+
+    --bbz-text-xs: 0.75rem;
+    --bbz-text-sm: 0.8125rem;
+    --bbz-text-base: 0.875rem;
+    --bbz-text-md: 1rem;
+    --bbz-text-lg: 1.125rem;
+    --bbz-text-xl: 1.375rem;
+
+    --bbz-weight-regular: 400;
+    --bbz-weight-medium: 500;
+    --bbz-weight-semibold: 600;
+    --bbz-weight-bold: 700;
+
+    --bbz-leading-tight: 1.25;
+    --bbz-leading-normal: 1.45;
+  }
+
+  html {
+    font-family: var(--bbz-font-sans);
+    font-size: 100%;
+  }
+
+  body {
+    font-family: var(--bbz-font-sans);
+    font-size: var(--bbz-text-base);
+    line-height: var(--bbz-leading-normal);
+    font-synthesis: none;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-family: var(--bbz-font-head);
+    font-weight: var(--bbz-weight-semibold);
+    line-height: var(--bbz-leading-tight);
+    color: var(--bbz-text);
+    margin: 0;
+  }
+  h1 {
+    font-size: var(--bbz-text-xl);
+  }
+  h2 {
+    font-size: var(--bbz-text-lg);
+  }
+  h3 {
+    font-size: var(--bbz-text-md);
+  }
+  h4 {
+    font-size: var(--bbz-text-base);
+  }
+
+  /* numbers, clocks, IDs — even-width figures, easy to scan at a glance */
+  .bbz-tnum,
+  time,
+  [data-numeric] {
+    font-family: var(--bbz-font-numeric);
+    font-variant-numeric: tabular-nums;
+  }
+}

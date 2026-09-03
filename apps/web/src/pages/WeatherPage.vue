@@ -188,18 +188,20 @@ onMounted(load);
 .wx__health {
   font-size: 0.78rem;
   padding: 0.1rem 0.45rem;
-  border-radius: 3px;
-  color: #fff;
+  border-radius: var(--bbz-radius-sm);
 }
 .wx__health--ok {
-  background: var(--bbz-success-text);
+  background: var(--bbz-success);
+  color: var(--bbz-on-success);
 }
 .wx__health--degraded,
 .wx__health--stale {
   background: var(--bbz-prio-medium);
+  color: var(--bbz-on-prio-medium);
 }
 .wx__health--down {
   background: var(--bbz-prio-high);
+  color: var(--bbz-on-prio-high);
 }
 .wx__grid {
   display: grid;
@@ -236,7 +238,7 @@ onMounted(load);
 .wx__alert button {
   padding: 0.25rem 0.6rem;
   border: 1px solid var(--bbz-border);
-  border-radius: 4px;
+  border-radius: var(--bbz-radius);
   background: var(--bbz-accent);
   color: #fff;
   cursor: pointer;
@@ -258,7 +260,7 @@ onMounted(load);
 .wx__radar-img {
   max-width: 100%;
   border: 1px solid var(--bbz-border);
-  border-radius: 4px;
+  border-radius: var(--bbz-radius);
 }
 .wx__empty {
   color: var(--bbz-text-muted);

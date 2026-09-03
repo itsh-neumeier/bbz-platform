@@ -61,10 +61,13 @@ onMounted(() => events.loadAlert());
   display: grid;
   grid-template-columns: var(--bbz-sidebar-width) 1fr;
   min-height: 100vh;
+  /* the DB signature: a thin brand-red rule across the top of the application */
+  border-top: 3px solid var(--bbz-db-red);
 }
 .shell__sidebar {
-  background: var(--bbz-surface);
-  border-right: 1px solid var(--bbz-border);
+  background: var(--bbz-bg);
+  border-right: var(--bbz-border-width) solid var(--bbz-border);
+  overflow-y: auto;
 }
 .shell__main {
   display: flex;
@@ -78,12 +81,13 @@ onMounted(() => events.loadAlert());
   min-height: 0;
 }
 .shell__content {
-  padding: 1rem 1.25rem;
+  padding: var(--bbz-space-lg) var(--bbz-space-xl);
   overflow: auto;
+  background: var(--bbz-bg);
 }
 .shell__comms {
-  background: var(--bbz-surface);
-  border-left: 1px solid var(--bbz-border);
+  background: var(--bbz-bg);
+  border-left: var(--bbz-border-width) solid var(--bbz-border);
   overflow: auto;
 }
 </style>

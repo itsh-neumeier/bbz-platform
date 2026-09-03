@@ -518,7 +518,7 @@ onBeforeUnmount(() => clearInterval(poll));
   background: transparent;
 }
 .comms__handle:focus-visible {
-  outline: 2px solid var(--bbz-accent);
+  outline: var(--bbz-focus-width) solid var(--bbz-focus-color);
 }
 .comms__tabs {
   display: flex;
@@ -529,7 +529,7 @@ onBeforeUnmount(() => clearInterval(poll));
   padding: 0.35rem 0.2rem;
   border: 1px solid var(--bbz-border);
   border-bottom: 0;
-  border-radius: 4px 4px 0 0;
+  border-radius: var(--bbz-radius) 4px 0 0;
   background: var(--bbz-surface-alt);
   color: var(--bbz-text-muted);
   font-size: 0.78rem;
@@ -541,7 +541,7 @@ onBeforeUnmount(() => clearInterval(poll));
   font-weight: 600;
 }
 .comms__tab:focus-visible {
-  outline: 2px solid var(--bbz-accent);
+  outline: var(--bbz-focus-width) solid var(--bbz-focus-color);
 }
 .comms__badge {
   display: inline-block;
@@ -560,7 +560,7 @@ onBeforeUnmount(() => clearInterval(poll));
   flex: 1;
   overflow: auto;
   border: 1px solid var(--bbz-border);
-  border-radius: 0 4px 4px 4px;
+  border-radius: 0 var(--bbz-radius) var(--bbz-radius) var(--bbz-radius);
   padding: 0.6rem;
 }
 .comms__h {
@@ -585,7 +585,7 @@ onBeforeUnmount(() => clearInterval(poll));
 .comms__line {
   font-size: 0.7rem;
   padding: 0.1rem 0.35rem;
-  border-radius: 3px;
+  border-radius: var(--bbz-radius-sm);
   background: var(--bbz-surface-alt);
   color: var(--bbz-text-muted);
 }
@@ -612,7 +612,7 @@ onBeforeUnmount(() => clearInterval(poll));
   font-size: 1.1rem;
   text-align: center;
   border: 1px solid var(--bbz-border);
-  border-radius: 4px;
+  border-radius: var(--bbz-radius);
   background: var(--bbz-bg);
   color: var(--bbz-text);
 }
@@ -625,13 +625,13 @@ onBeforeUnmount(() => clearInterval(poll));
   padding: 0.5rem;
   font-size: 1rem;
   border: 1px solid var(--bbz-border);
-  border-radius: 4px;
+  border-radius: var(--bbz-radius);
   background: var(--bbz-surface);
   color: var(--bbz-text);
   cursor: pointer;
 }
 .tp__key:focus-visible {
-  outline: 2px solid var(--bbz-accent);
+  outline: var(--bbz-focus-width) solid var(--bbz-focus-color);
 }
 .tp__row {
   display: flex;
@@ -640,15 +640,15 @@ onBeforeUnmount(() => clearInterval(poll));
 .tp__row button {
   padding: 0.45rem 0.6rem;
   border: 1px solid var(--bbz-border);
-  border-radius: 4px;
+  border-radius: var(--bbz-radius);
   background: var(--bbz-surface);
   color: var(--bbz-text);
   cursor: pointer;
 }
 .tp__call {
   flex: 1;
-  background: var(--bbz-accent) !important;
-  color: #fff !important;
+  background: var(--bbz-call) !important;
+  color: var(--bbz-on-call) !important;
   font-weight: 600;
 }
 .tp__call:disabled {
@@ -669,7 +669,7 @@ onBeforeUnmount(() => clearInterval(poll));
   align-items: center;
   gap: 0.4rem;
   padding: 0.35rem 0.5rem;
-  border-radius: 4px;
+  border-radius: var(--bbz-radius);
   border-left: 4px solid var(--bbz-border);
   background: var(--bbz-surface-alt);
 }
@@ -708,7 +708,7 @@ onBeforeUnmount(() => clearInterval(poll));
   margin-left: auto;
   padding: 0.25rem 0.6rem;
   border: 1px solid var(--bbz-accent);
-  border-radius: 4px;
+  border-radius: var(--bbz-radius);
   background: var(--bbz-accent);
   color: #fff;
   cursor: pointer;
@@ -732,7 +732,7 @@ onBeforeUnmount(() => clearInterval(poll));
 .ac__docreq {
   margin: 0.5rem 0;
   padding: 0.4rem 0.6rem;
-  border-radius: 4px;
+  border-radius: var(--bbz-radius);
   background: color-mix(in srgb, var(--bbz-prio-medium) 18%, var(--bbz-surface));
   color: var(--bbz-warn-text);
   font-size: 0.85rem;
@@ -747,7 +747,7 @@ onBeforeUnmount(() => clearInterval(poll));
 .ac__doc button {
   padding: 0.35rem 0.7rem;
   border: 1px solid var(--bbz-border);
-  border-radius: 4px;
+  border-radius: var(--bbz-radius);
   background: var(--bbz-surface);
   color: var(--bbz-text);
   cursor: pointer;
@@ -767,13 +767,13 @@ onBeforeUnmount(() => clearInterval(poll));
   flex: 1;
   padding: 0.3rem;
   border: 1px solid var(--bbz-border);
-  border-radius: 4px;
+  border-radius: var(--bbz-radius);
   background: var(--bbz-bg);
   color: var(--bbz-text);
 }
 .ac__doc fieldset {
   border: 1px solid var(--bbz-border);
-  border-radius: 4px;
+  border-radius: var(--bbz-radius);
   margin: 0 0 0.5rem;
   padding: 0.4rem 0.6rem;
 }
@@ -790,7 +790,7 @@ onBeforeUnmount(() => clearInterval(poll));
   width: 100%;
   padding: 0.3rem;
   border: 1px solid var(--bbz-border);
-  border-radius: 4px;
+  border-radius: var(--bbz-radius);
   background: var(--bbz-bg);
   color: var(--bbz-text);
 }

@@ -1,0 +1,26 @@
+/*
+ * DB UX Design System v3 — the official token foundation (ADR-0029).
+ *
+ * `@db-ux/core-foundations` (Apache-2.0) is imported wholesale for the real DB
+ * UX v3 token machinery:
+ *   theme/rollup.css : the numbered palette + scales as typed `@property`
+ *                      declarations (spacing, sizing, radius, elevation, type).
+ *   bundle.css       : the adaptive `light-dark()` tokens (`--db-adaptive-*`),
+ *                      `[data-mode]` colour-scheme switching, helpers, and DB's
+ *                      element reset.
+ * Both resolve their own (freely-licensed) font/icon assets.
+ *
+ * `db-brand.css` then re-points the palette at the Deutsche-Bahn values. The DB
+ * brand *assets* (`@db-ux/db-theme` logo SVGs, DB Neo Screen Sans) are
+ * license-encrypted and NOT bundled — the shell draws its own "DB" wordmark and
+ * the font stack degrades past the licensed face. See ADR-0029 + the header of
+ * db-brand.css for provenance.
+ *
+ * Cascade layers, lowest → highest: db-tokens < db-ux < bbz. Vue scoped
+ * `<style>` blocks are unlayered and win over all of them.
+ */
+@layer db-tokens, db-ux, bbz;
+
+@import '@db-ux/core-foundations/build/styles/theme/rollup.css' layer(db-tokens);
+@import './db-brand.css' layer(db-tokens);
+@import '@db-ux/core-foundations/build/styles/bundle.css' layer(db-ux);

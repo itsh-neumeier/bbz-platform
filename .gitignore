@@ -26,6 +26,15 @@ apps/web/dist/
 apps/web/coverage/
 apps/web/playwright-report/
 apps/web/test-results/
+# DB Type / DB Screen Sans is licensed per-organisation (DB Type
+# Lizenzvereinbarung) and must not be redistributed via this public repo. Drop
+# the woff2 files into apps/web/public/fonts/db-screen-sans/ on each build host;
+# without them the UI uses the --db-font-family-sans fallback. See
+# docs/frontend/db-ux-design.md.
+apps/web/public/fonts/db-screen-sans/*.woff2
+apps/web/public/fonts/db-screen-sans/*.woff
+# DB logo — registered trademark, licensed asset, must not be redistributed here.
+apps/web/public/brand/db-logo.svg
 apps/bbz-kiosk/dist/
 apps/bbz-kiosk/out/
 *.tsbuildinfo

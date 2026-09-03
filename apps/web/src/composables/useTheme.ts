@@ -1,10 +1,12 @@
 import { onMounted, ref, watch } from 'vue';
 
 /**
- * Theme selection (E07-17 / #125). `system` follows `prefers-color-scheme`;
- * `light` / `dark` force it via `data-theme` on `<html>` (the CSS in
- * `theme/tokens.css` makes an explicit choice win in both directions). The
- * choice persists per browser.
+ * Theme selection (E07-17 / #125, ADR-0029). `system` follows
+ * `prefers-color-scheme`; `light` / `dark` force it. Two attributes are written
+ * on `<html>`: `data-theme` (legacy BBZ CSS) and `data-mode` (DB UX v3 —
+ * `[data-mode]` sets `color-scheme`, which is what the DB `light-dark()` tokens
+ * resolve against). `system` = neither attribute set. The choice persists per
+ * browser.
  */
 export type ThemeChoice = 'system' | 'light' | 'dark';
 
@@ -22,8 +24,17 @@ function readStored(): ThemeChoice {
 
 function apply(c: ThemeChoice): void {
   const root = document.documentElement;
-  if (c === 'system') root.removeAttribute('data-theme');
-  else root.setAttribute('data-theme', c);
+  if (c === 'system') {
+    root.removeAttribute('data-theme');
+    root.removeAttribute('data-mode');
+    root.style.removeProperty('color-scheme');
+  } else {
+    root.setAttribute('data-theme', c);
+    root.setAttribute('data-mode', c);
+    // inline `color-scheme` is what the DB `light-dark()` tokens resolve against
+    // — set it directly so nothing in the cascade can disagree (ADR-0029).
+    root.style.setProperty('color-scheme', c);
+  }
 }
 
 export function useTheme() {
