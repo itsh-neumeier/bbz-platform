@@ -20,7 +20,6 @@ const SECTION: Record<string, string> = {
   workplace: 'nav.workplace',
   events: 'nav.events',
   'event-detail': 'nav.events',
-  archive: 'nav.archive',
   'archive-detail': 'nav.archive',
   weather: 'nav.weather',
   monitors: 'nav.monitors',

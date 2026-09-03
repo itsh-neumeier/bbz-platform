@@ -29,7 +29,6 @@ const waitingCalls = computed(() => calls.ringing.length);
 const links = computed(() => [
   { to: '/arbeitsplatz', key: 'nav.workplace', icon: '⌂' },
   { to: '/ereignisse', key: 'nav.events', icon: '◉', badge: openEvents.value },
-  { to: '/archiv', key: 'nav.archive', icon: '▣' },
   { to: '/telefonbuch', key: 'nav.phonebook', icon: '▤', badge: waitingCalls.value },
   { to: '/wetterlage', key: 'nav.weather', icon: '☁', badge: weatherWarnings.value },
   { to: '/monitore', key: 'nav.monitors', icon: '▦' },
