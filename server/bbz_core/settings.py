@@ -221,6 +221,10 @@ class Settings(BaseSettings):
     # --- monitor routing (E19-04). Which monitor/KVM integration executes routes. ---
     monitor_integration_id: str = "monitor_mock"
 
+    # --- integration discovery. The directory holding `*/manifest.json`. Unset =
+    # auto-detect (the repo checkout in dev, `/app/integrations` in the image). ---
+    integrations_dir: str | None = None
+
     # --- integration health (E22-05). How often the `integration-health`
     # singleton re-probes every active integration into `integration_health`. ---
     integration_health_interval_seconds: int = 60

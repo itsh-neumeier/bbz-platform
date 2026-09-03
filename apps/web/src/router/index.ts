@@ -41,8 +41,12 @@ const routes: RouteRecordRaw[] = [
       {
         path: 'wetterlage',
         name: 'weather',
-        component: () => import('@/pages/PlaceholderPage.vue'),
-        props: { titleKey: 'nav.weather' },
+        component: () => import('@/pages/WeatherPage.vue'),
+      },
+      {
+        path: 'monitore',
+        name: 'monitors',
+        component: () => import('@/pages/MonitorPage.vue'),
       },
       {
         path: 'telefonbuch',

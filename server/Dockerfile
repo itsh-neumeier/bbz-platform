@@ -30,6 +30,9 @@ COPY --from=deps /usr/local/lib/ /usr/local/lib/
 COPY --from=deps /usr/local/bin /usr/local/bin
 COPY server/alembic.ini /app/alembic.ini
 COPY server/alembic /app/alembic
+# The vendor-neutral integration scaffolds are discovered at runtime from
+# /app/integrations (registry.integrations_dir()). Ship them with the image.
+COPY integrations /app/integrations
 USER bbz
 EXPOSE 8000
 HEALTHCHECK --interval=15s --timeout=3s --retries=3 \
