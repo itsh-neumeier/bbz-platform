@@ -24,6 +24,7 @@ from bbz_core.api.errors import ConflictError, NotFoundError, ValidationError
 from bbz_core.api.rate_limit import rate_limit_by_user
 from bbz_core.api.schema import StrictModel
 from bbz_core.auth.policy import PasswordPolicyError
+from bbz_core.infra.models.identity import User
 from bbz_core.infra.repositories.users_admin import (
     LastAdminError,
     NewUser,
@@ -50,6 +51,10 @@ class UserOut(BaseModel):
     display_name: str
     status: str
     external_ref: str | None
+    #: directly-granted role keys (E02-09) and the login providers this account
+    #: has an identity for (local / ldap_ad / oidc / …) — for the admin table
+    roles: list[str] = []
+    providers: list[str] = []
 
 
 class CreateUserIn(StrictModel):
@@ -76,6 +81,14 @@ def _repo(session: AsyncSession = Depends(db_session)) -> UsersAdminRepository:
     return UsersAdminRepository(session)
 
 
+async def _out(repo: UsersAdminRepository, user: User) -> UserOut:
+    roles = (await repo.roles_by_user([user.id])).get(user.id, [])
+    providers = (await repo.providers_by_user([user.id])).get(user.id, [])
+    return UserOut.model_validate(user, from_attributes=True).model_copy(
+        update={"roles": roles, "providers": providers}
+    )
+
+
 @router.get("", response_model=list[UserOut])
 async def list_users(
     include_disabled: bool = True,
@@ -83,7 +96,15 @@ async def list_users(
     repo: UsersAdminRepository = Depends(_repo),
 ) -> list[UserOut]:
     users = await repo.list_users(include_disabled=include_disabled)
-    return [UserOut.model_validate(u, from_attributes=True) for u in users]
+    ids = [u.id for u in users]
+    roles = await repo.roles_by_user(ids)
+    providers = await repo.providers_by_user(ids)
+    return [
+        UserOut.model_validate(u, from_attributes=True).model_copy(
+            update={"roles": roles.get(u.id, []), "providers": providers.get(u.id, [])}
+        )
+        for u in users
+    ]
 
 
 @router.post("", response_model=UserOut, status_code=status.HTTP_201_CREATED)
@@ -103,7 +124,7 @@ async def create_user(
                 initial_password=body.initial_password,
             )
         )
-    return UserOut.model_validate(user, from_attributes=True)
+    return await _out(repo, user)
 
 
 @router.get("/{user_id}", response_model=UserOut)
@@ -115,7 +136,7 @@ async def get_user(
     user = await repo.get(user_id)
     if user is None:
         raise NotFoundError("user not found")
-    return UserOut.model_validate(user, from_attributes=True)
+    return await _out(repo, user)
 
 
 @router.patch("/{user_id}", response_model=UserOut)
@@ -131,7 +152,7 @@ async def update_user(
     updated = await repo.update(
         user, display_name=body.display_name, external_ref=body.external_ref
     )
-    return UserOut.model_validate(updated, from_attributes=True)
+    return await _out(repo, updated)
 
 
 @router.post("/{user_id}/deactivate", response_model=RevokedOut)
@@ -158,7 +179,7 @@ async def activate_user(
     if user is None:
         raise NotFoundError("user not found")
     await repo.set_active(user, active=True)
-    return UserOut.model_validate(user, from_attributes=True)
+    return await _out(repo, user)
 
 
 @router.post(

@@ -42,7 +42,7 @@ async def _seed_admin(session: AsyncSession, client: httpx.AsyncClient) -> None:
     role = Role(key="administrator", name="Administrator")
     session.add(role)
     await session.flush()
-    for key in ("users.view", "users.manage", "permissions.manage"):
+    for key in ("users.view", "users.manage", "permissions.manage", "roles.manage"):
         p = Permission(key=key, area=key.split(".")[0])
         session.add(p)
         await session.flush()
@@ -76,8 +76,31 @@ async def test_create_user_with_local_login(admin_client: tuple) -> None:
         },
     )
     assert r.status_code == 201
-    uid = r.json()["id"]
+    body = r.json()
+    uid = body["id"]
+    # UserOut carries the login providers + directly-granted roles (#722)
+    assert body["providers"] == ["local"] and body["roles"] == []
     assert (await client.get(f"/api/v1/users/{uid}")).json()["status"] == "active"
+
+
+async def test_user_out_reflects_a_role_assigned_via_rbac(admin_client: tuple) -> None:
+    client, s = admin_client
+    from sqlalchemy import select
+
+    from bbz_core.infra.models.rbac import Role
+
+    await s.rollback()
+    role_id = (await s.execute(select(Role.id).where(Role.key == "administrator"))).scalar_one()
+
+    uid = (
+        await client.post("/api/v1/users", json={"display_name": "Cara", "local_username": "cara"})
+    ).json()["id"]
+    assert (await client.get(f"/api/v1/users/{uid}")).json()["roles"] == []
+
+    assert (
+        await client.post(f"/api/v1/users/{uid}/roles", json={"role_id": str(role_id)})
+    ).status_code == 204
+    assert (await client.get(f"/api/v1/users/{uid}")).json()["roles"] == ["administrator"]
 
 
 async def test_deactivate_blocks_login_and_revokes_sessions(admin_client: tuple) -> None:
