@@ -1,16 +1,16 @@
 <script setup lang="ts">
 import { onMounted } from 'vue';
 import { useSessionStore } from '@/stores/session';
-import AppShell from '@/app/AppShell.vue';
+import { useTheme } from '@/composables/useTheme';
 
 const session = useSessionStore();
+useTheme(); // applies the persisted light/dark/system choice
 
 onMounted(() => {
-  // Best-effort; the shell renders regardless of backend availability.
-  session.loadMeta().catch(() => undefined);
+  session.loadMeta();
 });
 </script>
 
 <template>
-  <AppShell />
+  <RouterView />
 </template>

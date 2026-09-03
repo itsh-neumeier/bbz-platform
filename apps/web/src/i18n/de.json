@@ -7,6 +7,7 @@
   "nav": {
     "workplace": "Arbeitsplatz",
     "events": "Ereignisse",
+    "archive": "Archiv",
     "weather": "Wetterlage",
     "phonebook": "Telefonbuch",
     "admin": "Administration"
@@ -24,6 +25,126 @@
     "acknowledge": "Quittieren",
     "edit": "Bearbeiten",
     "archive": "Archivieren"
+  },
+  "login": {
+    "provider": "Anmeldeverfahren",
+    "providerLocal": "Lokales Konto",
+    "username": "Benutzername",
+    "password": "Passwort",
+    "submit": "Anmelden",
+    "working": "Anmeldung läuft …",
+    "back": "Zurück",
+    "totpPrompt": "Bitte den Code aus Ihrer Authenticator-App eingeben.",
+    "totpCode": "Einmalcode",
+    "expiredNotice": "Ihre Sitzung ist abgelaufen. Bitte melden Sie sich erneut an.",
+    "mustChange": "Ihr Passwort muss geändert werden. Bitte wenden Sie sich an eine Administratorin oder einen Administrator.",
+    "networkError": "Der Server ist nicht erreichbar. Bitte erneut versuchen.",
+    "webauthnUnsupported": "Sicherheitsschlüssel werden in dieser Ansicht noch nicht unterstützt.",
+    "err": {
+      "unauthorized": "Benutzername oder Passwort ist falsch.",
+      "totp_required": "Ein zweiter Faktor ist erforderlich.",
+      "mfa_required": "Für dieses Konto ist eine Zwei-Faktor-Anmeldung eingerichtet, aber noch kein Faktor hinterlegt.",
+      "rate_limited": "Zu viele Versuche. Bitte kurz warten und erneut versuchen.",
+      "service_unavailable": "Der Anmeldedienst ist derzeit nicht verfügbar."
+    }
+  },
+  "session": {
+    "logout": "Abmelden",
+    "theme": "Darstellung",
+    "themeSystem": "System",
+    "themeLight": "Hell",
+    "themeDark": "Dunkel"
+  },
+  "sync": {
+    "connected": "verbunden",
+    "connecting": "Verbindung …",
+    "reconnecting": "Neuverbindung …",
+    "offline": "getrennt",
+    "lastSeq": "Ereignis {seq}"
+  },
+  "event": {
+    "priority": {
+      "critical": "kritisch",
+      "high": "hoch",
+      "medium": "mittel",
+      "low": "niedrig"
+    },
+    "status": {
+      "new": "neu",
+      "accepted": "angenommen",
+      "acknowledged": "quittiert",
+      "opened": "in Bearbeitung",
+      "archived": "archiviert"
+    },
+    "action": {
+      "accept": "Annehmen",
+      "acknowledge": "Quittieren",
+      "open": "Öffnen",
+      "archive": "Archivieren",
+      "edit": "Bearbeiten"
+    },
+    "conflict": "Zwischenzeitlich geändert — bitte erneut versuchen.",
+    "alertBanner": "{n} Ereignis wartet auf Annahme | {n} Ereignisse warten auf Annahme"
+  },
+  "queue": {
+    "count": "kein Ereignis | {n} Ereignis | {n} Ereignisse",
+    "empty": "Die Warteschlange ist leer.",
+    "loadError": "Die Ereignisliste konnte nicht geladen werden.",
+    "col": {
+      "priority": "Priorität",
+      "title": "Titel",
+      "status": "Status",
+      "actions": "Aktion"
+    }
+  },
+  "detail": {
+    "loading": "Wird geladen …",
+    "notFound": "Ereignis nicht gefunden.",
+    "history": "Verlauf",
+    "notes": "Notizen",
+    "postprocessNotes": "Nachbearbeitungsnotizen",
+    "noNotes": "Noch keine Notizen.",
+    "noteVersion": "Version {v}",
+    "addNote": "Notiz hinzufügen",
+    "saveNote": "Speichern"
+  },
+  "ownership": {
+    "assignee": "Verantwortlich",
+    "you": "Sie",
+    "other": "andere Person",
+    "none": "niemand",
+    "takeover": "Übernehmen",
+    "presence": "Präsenz"
+  },
+  "presence": {
+    "available": "verfügbar",
+    "busy": "im Gespräch",
+    "away": "abwesend"
+  },
+  "workflow": {
+    "title": "Maßnahmen",
+    "none": "Kein Ablauf verknüpft.",
+    "nothingYet": "Noch keine Schritte ausgeführt.",
+    "auto": "automatisch",
+    "status": {
+      "running": "läuft",
+      "completed": "abgeschlossen",
+      "aborted": "abgebrochen"
+    }
+  },
+  "archive": {
+    "empty": "Keine archivierten Ereignisse.",
+    "loadError": "Das Archiv konnte nicht geladen werden.",
+    "archivedAt": "Archiviert am"
+  },
+  "reactivate": {
+    "open": "Reaktivieren",
+    "title": "Ereignis reaktivieren",
+    "lead": "Das Ereignis kehrt in die aktive Warteschlange zurück. Nichts wird gelöscht.",
+    "reason": "Grund (Pflicht)",
+    "reasonRequired": "Bitte einen Grund angeben.",
+    "cancel": "Abbrechen",
+    "confirm": "Reaktivieren bestätigen"
   },
   "foundation": {
     "notice": "Foundation-Phase: nur Grundgerüst. Fachfunktionen folgen ab Phase 1.",

@@ -8,7 +8,9 @@ const { t } = useI18n();
 <template>
   <section>
     <h1>{{ t(props.titleKey) }}</h1>
-    <p class="note">{{ t('foundation.notice') }}</p>
+    <p class="note">
+      {{ t('foundation.notice') }}
+    </p>
   </section>
 </template>
 

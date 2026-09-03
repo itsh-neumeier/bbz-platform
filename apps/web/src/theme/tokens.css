@@ -6,6 +6,7 @@
 :root {
   --bbz-bg: #f4f5f7;
   --bbz-surface: #ffffff;
+  --bbz-surface-alt: #eef0f3;
   --bbz-text: #1c1f23;
   --bbz-text-muted: #5b6470;
   --bbz-border: #d6dae0;
@@ -17,6 +18,10 @@
   --bbz-prio-high: #d1242f; /* red */
   --bbz-prio-critical: #b3001b;
 
+  --bbz-danger-text: #b00020;
+  --bbz-warn-text: #8a5a00;
+  --bbz-success-text: #0a6b3c;
+
   --bbz-sidebar-width: 260px;
   --bbz-comms-width: 360px;
 }
@@ -25,18 +30,26 @@
   :root:not([data-theme='light']) {
     --bbz-bg: #14171a;
     --bbz-surface: #1d2125;
+    --bbz-surface-alt: #242a30;
     --bbz-text: #e7eaee;
     --bbz-text-muted: #9aa4b0;
     --bbz-border: #333a42;
+    --bbz-danger-text: #ff6b81;
+    --bbz-warn-text: #f0b74a;
+    --bbz-success-text: #4ecb8a;
   }
 }
 
 :root[data-theme='dark'] {
   --bbz-bg: #14171a;
   --bbz-surface: #1d2125;
+  --bbz-surface-alt: #242a30;
   --bbz-text: #e7eaee;
   --bbz-text-muted: #9aa4b0;
   --bbz-border: #333a42;
+  --bbz-danger-text: #ff6b81;
+  --bbz-warn-text: #f0b74a;
+  --bbz-success-text: #4ecb8a;
 }
 
 /* Respect reduced-motion globally (MASTER_PROMPT §13.3, RULES.md). */

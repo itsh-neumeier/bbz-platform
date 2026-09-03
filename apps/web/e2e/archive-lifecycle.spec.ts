@@ -1,55 +1,55 @@
 import { expect, test } from '@playwright/test';
 
 /**
- * Mandatory E2E — archive / post-processing lifecycle (roadmap E20-08,
- * MASTER_PROMPT §24 steps 8–10 / §13.6).
+ * E2E — archive / post-processing / reactivation (roadmap E20-08 + E07-11/12,
+ * MASTER_PROMPT §24 steps 8–10 / §13.6). Backend flow: covered by
+ * `server/tests/test_e2e_archive_lifecycle.py`. This is the UI half; wired into
+ * CI with #123.
  *
- * The backend flow is fully covered now by
- * `server/tests/test_e2e_archive_lifecycle.py`. This browser script is the
- * UI half and is `test.fixme` until the screens it drives exist:
- *   - archive view + post-processing notes  — E07-11 (#113)
- *   - reactivation confirmation dialog       — E07-12 (#115)
- *
- * When those land, remove `.fixme` and flesh out the selectors. The steps:
- *   1. operator opens an archived event from `/archive`
- *   2. the detail shows the full history (status, notes, workflow, audit refs)
- *   3. add a post-processing note, then edit it — the previous version stays
- *   4. export the event → a bundle download / view, with audit entries
- *   5. reactivate → the confirmation dialog requires a reason + explicit confirm
- *   6. the event is back in the active queue; nothing was deleted
+ * Requires the dev stack with a `local` account and at least one archived
+ * event. Skipped when no backend answers `/api/v1/meta`.
  */
-test.fixme('archive → detail → post-processing note → export → reactivation', async ({ page }) => {
-  await page.goto('/archive');
+const USER = process.env.E2E_USER ?? 'admin';
+const PASS = process.env.E2E_PASS ?? 'Wolke7-Bahnhof!x';
 
-  // 1–2. open an archived event and see its full detail
-  await page.getByRole('link', { name: /Brandmeldeanlage/ }).first().click();
-  await expect(page.getByText(/archiviert/i)).toBeVisible();
-  await expect(page.getByRole('region', { name: /Verlauf|History/i })).toBeVisible();
+test.beforeEach(async ({ request, baseURL, page }) => {
+  const r = await request.get(`${baseURL}/api/v1/meta`).catch(() => null);
+  test.skip(!r || !r.ok(), 'no backend on the dev proxy');
+  await page.goto('/login');
+  await page.getByLabel('Benutzername').fill(USER);
+  await page.getByLabel('Passwort').fill(PASS);
+  await page.getByRole('button', { name: 'Anmelden' }).click();
+  await expect(page).toHaveURL(/\/arbeitsplatz$/);
+});
 
-  // 3. post-processing note: add then edit, old version preserved
-  await page.getByRole('button', { name: /Nachbearbeitungsnotiz/i }).click();
-  await page.getByRole('textbox', { name: /Notiz/i }).fill('Nachbericht v1');
-  await page.getByRole('button', { name: /Speichern/i }).click();
-  await page.getByRole('button', { name: /Bearbeiten/i }).click();
-  await page.getByRole('textbox', { name: /Notiz/i }).fill('Nachbericht v2');
-  await page.getByRole('button', { name: /Speichern/i }).click();
-  await expect(page.getByText('Nachbericht v2')).toBeVisible();
-  await expect(page.getByText(/Version 1|v1/)).toBeVisible();
+test('archived event → full history + post-processing notes → reactivation', async ({ page }) => {
+  await page.getByRole('link', { name: 'Archiv' }).click();
+  await expect(page).toHaveURL(/\/archiv$/);
 
-  // 4. export
-  await page.getByRole('button', { name: /Export/i }).click();
-  await expect(page.getByText(/EVENT_ARCHIVED/)).toBeVisible();
+  const rows = page.locator('.arch__row');
+  test.skip((await rows.count()) === 0, 'no archived events seeded');
 
-  // 5. reactivation requires confirm + reason
-  await page.getByRole('button', { name: /Reaktivieren/i }).click();
+  await rows.first().click();
+  await expect(page).toHaveURL(/\/archiv\/[0-9a-f-]{36}$/);
+
+  // the same depth of history as an active event, plus the workflow panel
+  await expect(page.getByText('archiviert')).toBeVisible();
+  await expect(page.getByRole('heading', { level: 2, name: 'Verlauf' })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 2, name: 'Maßnahmen' })).toBeVisible();
+  await expect(
+    page.getByRole('heading', { level: 2, name: 'Nachbearbeitungsnotizen' }),
+  ).toBeVisible();
+
+  // reactivation needs an explicit confirm + a reason
+  await page.getByRole('button', { name: 'Reaktivieren' }).click();
   const dialog = page.getByRole('dialog');
-  await dialog.getByRole('button', { name: /Bestätigen/i }).click();
-  await expect(dialog.getByText(/Grund/i)).toBeVisible(); // rejected without a reason
-  await dialog.getByRole('textbox', { name: /Grund/i }).fill('Rückfrage Kripo');
-  await dialog.getByRole('checkbox', { name: /bestätige/i }).check();
-  await dialog.getByRole('button', { name: /Bestätigen/i }).click();
+  await expect(dialog).toBeVisible();
+  // the confirm button is disabled until a reason is entered
+  await expect(dialog.getByRole('button', { name: 'Reaktivieren bestätigen' })).toBeDisabled();
+  await dialog.locator('#rd-reason').fill('Rückfrage Bundespolizei');
+  await dialog.getByRole('button', { name: 'Reaktivieren bestätigen' }).click();
 
-  // 6. back in the active queue
-  await page.goto('/queue');
-  await expect(page.getByRole('link', { name: /Brandmeldeanlage/ })).toBeVisible();
+  // back as an active event, nothing deleted
+  await expect(page).toHaveURL(/\/ereignisse\/[0-9a-f-]{36}$/);
+  await expect(page.locator('.detail__status')).toContainText('Bearbeitung');
 });

@@ -52,7 +52,9 @@ onBeforeUnmount(onPointerUp);
     />
     <div class="comms__body">
       <h2>{{ t('comms.phone') }}</h2>
-      <p class="comms__note">{{ t('foundation.notice') }}</p>
+      <p class="comms__note">
+        {{ t('foundation.notice') }}
+      </p>
     </div>
   </aside>
 </template>

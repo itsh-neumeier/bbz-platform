@@ -26,6 +26,13 @@ export default tseslint.config(
     },
     rules: {
       'vue/multi-word-component-names': 'off',
+      // A <label for> / <input id> pair is a valid, accessible association even
+      // when the control is a sibling. The default `every: [nesting, id]` also
+      // demands physical nesting; `some` accepts either. Still error-level.
+      'vuejs-accessibility/label-has-for': [
+        'error',
+        { required: { some: ['nesting', 'id'] }, allowChildren: false },
+      ],
     },
   },
 );

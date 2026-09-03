@@ -21,18 +21,20 @@ export default defineConfig({
       : true,
     // Dev proxy so the SPA talks to a running bbz-api. Host dev uses the
     // default; inside docker-compose set VITE_API_PROXY_TARGET=http://api:8000.
+    // `changeOrigin: false` keeps the browser's Host header on the proxied
+    // request, so the API sees the SPA and itself as the *same origin* (as it
+    // does in production behind Caddy) and the CSRF origin check (E23-05) passes
+    // for whatever hostname the operator used.
     proxy: (() => {
       const target = process.env.VITE_API_PROXY_TARGET ?? 'http://localhost:8000';
-      return {
-        '/api': { target, changeOrigin: true },
-        '/health': { target, changeOrigin: true },
-        '/cluster': { target, changeOrigin: true },
-      };
+      const opts = { target, changeOrigin: false };
+      return { '/api': opts, '/health': opts, '/cluster': opts, '/ws': { ...opts, ws: true } };
     })(),
   },
   test: {
     environment: 'jsdom',
     globals: true,
     include: ['tests/**/*.spec.ts'],
+    setupFiles: ['tests/setup.ts'],
   },
 });
