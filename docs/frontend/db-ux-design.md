@@ -72,16 +72,24 @@ BBZ kiosk is a current Chromium/Electron build.
 
 | BBZ token | DB source |
 |---|---|
-| `--bbz-accent` / `--bbz-db-red` | `--db-adaptive-origin` / `--db-brand-origin-base` (`#ec0016`) |
-| `--bbz-bg` / `--bbz-surface` / `--bbz-surface-alt` | `--db-adaptive-bg-basic-level-1/2/3` |
-| `--bbz-text` / `--bbz-text-muted` | `--db-adaptive-on-bg-basic-emphasis-100/70` |
-| `--bbz-border` | `--db-adaptive-on-bg-basic-emphasis-50` |
-| `--bbz-info` / `--bbz-success` / `--bbz-warn` / `--bbz-danger` | `--db-informational-7` / `--db-successful-7` / `--db-warning-7` / `--db-critical-8` |
-| `--bbz-prio-low` / `-medium` / `-high` / `-critical` | `--db-informational-7` / `--db-warning-8` / `--db-critical-8` / `--db-critical-10` |
+| `--bbz-accent` / `--bbz-db-red` | `--db-brand-origin-base` (`#ec0016`) — the DB brand, **not** `--db-adaptive-origin` (that is neutral grey in the default colour context) |
+| `--bbz-bg` / `--bbz-surface` / `--bbz-surface-alt` | `--db-adaptive-bg-basic-level-1/2/3-default` |
+| `--bbz-text` / `--bbz-text-muted` | `--db-adaptive-on-bg-basic-emphasis-100/70-default` (50/60 are DB's line tiers, never text) |
+| `--bbz-border` | `--db-adaptive-on-bg-basic-emphasis-50-default` |
+| `--bbz-focus-color` | `var(--db-focus-outline-color, …informational-on-bg-basic-emphasis-70)` — DB's own reset uses this exact fallback; the custom prop is only *declared* per-component |
+| `--bbz-info` / `--bbz-success` / `--bbz-warn` / `--bbz-danger` | `--db-{informational,successful,warning,critical}-origin-base` — the vivid, mode-independent value; the numbered ramps run dark→light so their mid steps are pale |
+| `--bbz-*-text` (on a normal surface) | `light-dark()` of two ramp steps, so it clears WCAG AA against `--bbz-bg` in both modes |
+| `--bbz-*-bg` (subtle surface) | `color-mix()` of the semantic colour over `--bbz-surface` — the tint follows light / dark |
+| `--bbz-prio-low` / `-medium` / `-high` | `--db-{informational,warning,critical}-origin-base` |
+| `--bbz-prio-critical` | `--db-critical-6` — a deeper red, so it still outranks `-high` by colour |
+| `--bbz-call` | `--db-successful-6` — green connects, `--bbz-prio-high` (red) ends the call |
+
+Each `--bbz-prio-*` fill has a matching `--bbz-on-prio-*` (DB's `on-origin`
+colour) so button text has contrast — dark on orange/blue, white on red.
 
 The four **BBZ alarm / contact priorities** (MASTER_PROMPT §13.3, §13.9 —
 niedrig blau / mittel orange / hoch rot / kritisch tiefrot) keep their meaning,
-re-pointed at the DB semantic ramps, and are always shown with a label or icon —
+re-pointed at the DB semantic origins, and are always shown with a label or icon —
 never colour alone.
 
 **No hand-picked hex** in `semantic-tokens.css` (enforced by `theme.spec.ts`).
@@ -119,4 +127,7 @@ while((m=re.exec(s))){const v=/initial-value:\s*(#[0-9a-fA-F]{3,8})/.exec(m[2]);
 ```
 
 Filter to the `brand`, `neutral`, `informational`, `successful`, `warning`,
-`critical`, `blue`, `yellow`, `green`, `red` numbered ramps + `brand-origin-*`.
+`critical`, `blue`, `yellow`, `green`, `red` numbered ramps, plus the
+`*-origin-base` / `*-origin-{light,dark}-*` / `*-on-origin-*` semantic values
+(`db-theme`'s `rollup.css` carries these as multi-line `@property` blocks — widen
+the regex to `initial-value:\s*([^;]+);`).

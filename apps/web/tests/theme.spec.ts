@@ -25,6 +25,15 @@ describe('DB UX theme (ADR-0029)', () => {
     expect(brand).toMatch(/--db-neutral-14:\s*#ffffff/);
   });
 
+  it('carries the DB semantic origin colours (vivid, mode-independent)', () => {
+    const brand = code('db-brand.css');
+    // the numbered ramps run dark -> light; status fills use the "origin" value
+    expect(brand).toMatch(/--db-critical-origin-base:\s*#ec0016/);
+    expect(brand).toMatch(/--db-warning-origin-base:\s*#f39200/);
+    expect(brand).toMatch(/--db-successful-origin-base:\s*#63a615/);
+    expect(brand).toMatch(/--db-informational-origin-base:\s*#309fd1/);
+  });
+
   it('defines every --bbz-* colour token as a reference into the DB set', () => {
     const sem = code('semantic-tokens.css');
     const decls = [...sem.matchAll(/(--bbz-[\w-]+)\s*:\s*([^;]+);/g)];
@@ -33,10 +42,23 @@ describe('DB UX theme (ADR-0029)', () => {
       .filter(([, , value]) => /#[0-9a-f]{3,8}/i.test(value))
       .map(([, name]) => name);
     expect(rawHex).toEqual([]);
-    // §13.9 priority meaning preserved, re-pointed at the DB semantic ramps
-    expect(sem).toMatch(/--bbz-prio-low:\s*var\(--db-informational/);
-    expect(sem).toMatch(/--bbz-prio-medium:\s*var\(--db-warning/);
-    expect(sem).toMatch(/--bbz-prio-high:\s*var\(--db-critical/);
+    // §13.9 priority meaning preserved, re-pointed at the DB semantic origins
+    expect(sem).toMatch(/--bbz-prio-low:\s*var\(--db-informational-origin/);
+    expect(sem).toMatch(/--bbz-prio-medium:\s*var\(--db-warning-origin/);
+    expect(sem).toMatch(/--bbz-prio-high:\s*var\(--db-critical-origin/);
+    // kritisch is a deeper red than hoch so it still outranks it by colour
+    expect(sem).toMatch(/--bbz-prio-critical:\s*var\(--db-critical-6\)/);
+    // every priority fill has an explicit on-colour for text contrast
+    for (const p of ['low', 'medium', 'high', 'critical']) {
+      expect(sem).toMatch(new RegExp(`--bbz-on-prio-${p}:\\s*var\\(--db-`));
+    }
+    // the interactive accent is the DB brand, not the (neutral) adaptive origin
+    expect(sem).toMatch(/--bbz-accent:\s*var\(--db-brand-origin-base\)/);
+    expect(sem).not.toMatch(/--bbz-accent:\s*var\(--db-adaptive-origin\)/);
+    // the focus colour carries DB's own fallback (the custom prop is opt-in)
+    expect(sem).toMatch(/--bbz-focus-color:\s*var\(\s*--db-focus-outline-color\s*,/);
+    // green connects, red ends — telephony keeps its convention
+    expect(sem).toMatch(/--bbz-call:\s*var\(--db-successful/);
   });
 
   it('switches colour scheme on data-mode, unlayered so it always wins', () => {

@@ -9,11 +9,14 @@
   :root {
     color-scheme: light dark;
 
-    /* ---- brand / interactive accent — Deutsche Bahn red ---- */
+    /* ---- brand / interactive accent — Deutsche Bahn red ----
+       The BBZ accent is the DB brand, not the DB "adaptive origin" (that
+       resolves to neutral grey in the default colour context). Fixed value —
+       the brand reads the same in light and dark. */
     --bbz-db-red: var(--db-brand-origin-base);
-    --bbz-accent: var(--db-adaptive-origin);
+    --bbz-accent: var(--db-brand-origin-base);
     --bbz-accent-hover: var(--db-brand-origin-light-hovered);
-    --bbz-on-accent: var(--db-adaptive-on-origin);
+    --bbz-on-accent: var(--db-brand-on-origin-light-default);
 
     /* ---- surfaces (adaptive) ---- */
     --bbz-bg: var(--db-adaptive-bg-basic-level-1-default);
@@ -21,40 +24,62 @@
     --bbz-surface-alt: var(--db-adaptive-bg-basic-level-3-default);
     --bbz-surface-inverted: var(--db-adaptive-bg-inverted-contrast-high-default);
 
-    /* ---- text ---- */
+    /* ---- text ---- (emphasis 100 = body, 70 = muted-but-legible; 50/60 are
+       DB's line/decoration tiers, never text) ---- */
     --bbz-text: var(--db-adaptive-on-bg-basic-emphasis-100-default);
     --bbz-text-muted: var(--db-adaptive-on-bg-basic-emphasis-70-default);
-    --bbz-text-subtle: var(--db-adaptive-on-bg-basic-emphasis-60-default);
+    --bbz-text-subtle: var(--db-adaptive-on-bg-basic-emphasis-70-default);
     --bbz-on-inverted: var(--db-adaptive-on-bg-inverted-default);
 
     /* ---- lines ---- */
     --bbz-border: var(--db-adaptive-on-bg-basic-emphasis-50-default);
     --bbz-border-strong: var(--db-adaptive-on-bg-basic-emphasis-60-default);
 
-    /* ---- semantic status (DB ramps) ---- */
-    --bbz-info: var(--db-informational-7);
-    --bbz-info-bg: var(--db-informational-13);
-    --bbz-warn: var(--db-warning-7);
-    --bbz-warn-bg: var(--db-warning-13);
-    --bbz-danger: var(--db-critical-8);
-    --bbz-danger-bg: var(--db-critical-13);
-    --bbz-success: var(--db-successful-7);
-    --bbz-success-bg: var(--db-successful-13);
-    /* text-on-surface variants used by existing components */
-    --bbz-danger-text: var(--db-critical-9);
-    --bbz-warn-text: var(--db-warning-8);
-    --bbz-success-text: var(--db-successful-8);
+    /* ---- semantic status ----
+       The fill + its on-colour come from the DB semantic "origin" (the vivid,
+       mode-independent value of each ramp). The DB numbered ramps run
+       dark -> light, so their mid steps are pale — not a status fill. */
+    --bbz-info: var(--db-informational-origin-base);
+    --bbz-on-info: var(--db-informational-on-origin-light-default);
+    --bbz-warn: var(--db-warning-origin-base);
+    --bbz-on-warn: var(--db-warning-on-origin-light-default);
+    --bbz-danger: var(--db-critical-origin-base);
+    --bbz-on-danger: var(--db-critical-on-origin-light-default);
+    --bbz-success: var(--db-successful-origin-base);
+    --bbz-on-success: var(--db-successful-on-origin-light-default);
+    /* telephony — green connects, red ends the call (the phone convention).
+       A deeper green than the status origin so white button text clears AA. */
+    --bbz-call: var(--db-successful-6);
+    --bbz-on-call: var(--db-neutral-14);
+    /* subtle status surfaces — the semantic colour tinted onto the adaptive
+       surface, so the tint follows light / dark automatically. */
+    --bbz-info-bg: color-mix(in srgb, var(--bbz-info) 12%, var(--bbz-surface));
+    --bbz-warn-bg: color-mix(in srgb, var(--bbz-warn) 14%, var(--bbz-surface));
+    --bbz-danger-bg: color-mix(in srgb, var(--bbz-danger) 12%, var(--bbz-surface));
+    --bbz-success-bg: color-mix(in srgb, var(--bbz-success) 14%, var(--bbz-surface));
+    /* status as text on a normal surface — flips per mode so it always clears
+       WCAG AA against --bbz-bg / --bbz-surface (uses ramp steps only). */
+    --bbz-info-text: light-dark(var(--db-informational-6), var(--db-informational-9));
+    --bbz-danger-text: light-dark(var(--db-critical-6), var(--db-critical-9));
+    --bbz-warn-text: light-dark(var(--db-warning-6), var(--db-warning-9));
+    --bbz-success-text: light-dark(var(--db-successful-6), var(--db-successful-10));
 
     /* ---- BBZ alarm / contact priorities (MASTER_PROMPT §13.3 / §13.9) ----
        meaning preserved: niedrig=blau, mittel=orange, hoch=rot, kritisch=tiefrot.
-       Re-pointed at the DB semantic ramps; always paired with a label/icon. */
-    --bbz-prio-low: var(--db-informational-7);
-    --bbz-prio-medium: var(--db-warning-8);
-    --bbz-prio-high: var(--db-critical-8);
-    --bbz-prio-critical: var(--db-critical-10);
-    --bbz-prio-low-bg: var(--db-informational-13);
-    --bbz-prio-medium-bg: var(--db-warning-13);
-    --bbz-prio-high-bg: var(--db-critical-13);
+       DB semantic origins; kritisch a deeper red (--db-critical-6) so it outranks
+       hoch. Fixed value in both modes — an alarm colour must not shift mode to
+       mode — and always paired with a label / icon, never colour alone. */
+    --bbz-prio-low: var(--db-informational-origin-base);
+    --bbz-prio-medium: var(--db-warning-origin-base);
+    --bbz-prio-high: var(--db-critical-origin-base);
+    --bbz-prio-critical: var(--db-critical-6);
+    --bbz-on-prio-low: var(--db-informational-on-origin-light-default);
+    --bbz-on-prio-medium: var(--db-warning-on-origin-light-default);
+    --bbz-on-prio-high: var(--db-critical-on-origin-light-default);
+    --bbz-on-prio-critical: var(--db-critical-on-origin-light-default);
+    --bbz-prio-low-bg: color-mix(in srgb, var(--bbz-prio-low) 14%, var(--bbz-surface));
+    --bbz-prio-medium-bg: color-mix(in srgb, var(--bbz-prio-medium) 16%, var(--bbz-surface));
+    --bbz-prio-high-bg: color-mix(in srgb, var(--bbz-prio-high) 14%, var(--bbz-surface));
 
     /* ---- shape / depth / motion ---- */
     --bbz-radius: var(--db-border-radius-xs);
@@ -63,8 +88,14 @@
     --bbz-shadow-sm: var(--db-elevation-sm);
     --bbz-shadow-md: var(--db-elevation-md);
     --bbz-shadow-lg: var(--db-elevation-lg);
-    --bbz-focus-color: var(--db-focus-outline-color);
-    --bbz-focus-width: var(--db-border-width-xs);
+    /* DB's own reset uses this exact pair (with the same fallback) — the
+       `--db-focus-outline-color` custom prop is only *declared* when a
+       component opts in, so the fallback is what normally paints. */
+    --bbz-focus-color: var(
+      --db-focus-outline-color,
+      var(--db-informational-on-bg-basic-emphasis-70-default)
+    );
+    --bbz-focus-width: var(--db-border-width-2xs);
     --bbz-transition: var(--db-transition-duration-fast) var(--db-transition-timing-functional);
 
     /* ---- spacing scale (DB fixed) ---- */

@@ -560,7 +560,7 @@ onBeforeUnmount(() => clearInterval(poll));
   flex: 1;
   overflow: auto;
   border: 1px solid var(--bbz-border);
-  border-radius: 0 4px 4px 4px;
+  border-radius: 0 var(--bbz-radius) var(--bbz-radius) var(--bbz-radius);
   padding: 0.6rem;
 }
 .comms__h {
@@ -647,8 +647,8 @@ onBeforeUnmount(() => clearInterval(poll));
 }
 .tp__call {
   flex: 1;
-  background: var(--bbz-accent) !important;
-  color: #fff !important;
+  background: var(--bbz-call) !important;
+  color: var(--bbz-on-call) !important;
   font-weight: 600;
 }
 .tp__call:disabled {

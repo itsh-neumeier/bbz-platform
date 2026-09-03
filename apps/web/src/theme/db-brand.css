@@ -193,6 +193,32 @@
   --db-brand-on-origin-light-default: #ffffff;
   --db-brand-on-origin-dark-default: #ffffff;
 
+  /* semantic "origin" colours — the canonical vivid value of each status ramp,
+     with its matching on-colour (text/icon). These are what a status indicator
+     should use: the numbered ramps above run dark->light, so their mid steps are
+     pale. Same value in light and dark by design — a status must not shift mode
+     to mode. Transcribed from @db-ux/db-theme@6.2.0. */
+  --db-informational-origin-base: #309fd1;
+  --db-informational-origin-light-default: #309fd1;
+  --db-informational-origin-dark-default: #309fd1;
+  --db-informational-on-origin-light-default: #01080f;
+  --db-informational-on-origin-dark-default: #01080f;
+  --db-warning-origin-base: #f39200;
+  --db-warning-origin-light-default: #f39200;
+  --db-warning-origin-dark-default: #f39200;
+  --db-warning-on-origin-light-default: #100500;
+  --db-warning-on-origin-dark-default: #100500;
+  --db-successful-origin-base: #63a615;
+  --db-successful-origin-light-default: #63a615;
+  --db-successful-origin-dark-default: #63a615;
+  --db-successful-on-origin-light-default: #030900;
+  --db-successful-on-origin-dark-default: #030900;
+  --db-critical-origin-base: #ec0016;
+  --db-critical-origin-light-default: #ec0016;
+  --db-critical-origin-dark-default: #ec0016;
+  --db-critical-on-origin-light-default: #ffffff;
+  --db-critical-on-origin-dark-default: #ffffff;
+
   /* DB font stack — the licensed face first, then DB's own fallback chain */
   --db-font-family-sans: 'DB Screen Sans', 'DB Neo Screen Sans', helvetica, arial, sans-serif;
   --db-font-family-head: 'DB Screen Head', 'DB Screen Sans', 'DB Neo Screen Head', helvetica, arial, sans-serif;

@@ -505,13 +505,15 @@ onMounted(load);
   outline: var(--bbz-focus-width) solid var(--bbz-focus-color);
   font-weight: 600;
 }
-.prio--low {
+/* the list marker (a dot) carries the priority colour; the edit-panel priority
+   buttons stay plain and show selection with an outline (.pb__prio-btn--on). */
+.pb__prio.prio--low {
   background: var(--bbz-prio-low);
 }
-.prio--medium {
+.pb__prio.prio--medium {
   background: var(--bbz-prio-medium);
 }
-.prio--high {
+.pb__prio.prio--high {
   background: var(--bbz-prio-high);
 }
 .pb__name {

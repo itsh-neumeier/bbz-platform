@@ -189,17 +189,19 @@ onMounted(load);
   font-size: 0.78rem;
   padding: 0.1rem 0.45rem;
   border-radius: var(--bbz-radius-sm);
-  color: #fff;
 }
 .wx__health--ok {
-  background: var(--bbz-success-text);
+  background: var(--bbz-success);
+  color: var(--bbz-on-success);
 }
 .wx__health--degraded,
 .wx__health--stale {
   background: var(--bbz-prio-medium);
+  color: var(--bbz-on-prio-medium);
 }
 .wx__health--down {
   background: var(--bbz-prio-high);
+  color: var(--bbz-on-prio-high);
 }
 .wx__grid {
   display: grid;
