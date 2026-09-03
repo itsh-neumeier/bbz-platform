@@ -20,8 +20,8 @@ Feature areas whose UI lives in a later epic point at that epic.
 
 | # | Feature (mockup ref) | Target route / component | Issue | Status |
 |---|---|---|---|---|
-| 1 | app shell — sidebar / topbar / content / resizable comms sidebar | `App.vue`, `AppShell`, `CommSidebar` | [#98](../../issues/98) (E07-03) | backend-done |
-| 2 | topbar clock, line status, sidebar resize (drag + keyboard) | `Topbar`, `LineStatus`, `useSidebarResize` | [#98](../../issues/98) | backend-done |
+| 1 | app shell — sidebar / topbar / content / resizable comms sidebar | `App.vue`, `AppShell`, `CommsSidebar` | [#98](../../issues/98) (E07-03) | in-progress — shell + topbar (clock · theme toggle · logout) + `SidebarLeft` + resizable `CommsSidebar` (drives `--bbz-comms-width` on the grid) |
+| 2 | topbar clock, line status, sidebar resize (drag + keyboard) | `Topbar`, `LineStatus`, `useSidebarResize` | [#98](../../issues/98) | in-progress — clock + keyboard/drag resize done; the full line-status readout is the comms sidebar's line strip |
 | 3 | login, provider choice (`local` only), session handling, logout | `features/auth/LoginView.vue`, `stores/session` | [#97](../../issues/97) (E07-02) | in-progress — login / TOTP step / session-expiry redirect / logout done + `e2e/auth.spec.ts`; force-password-change needs a backend self-service endpoint |
 | 4 | TOTP challenge step, force-password-change | `LoginView` (TOTP step) | [#97](../../issues/97) | in-progress — TOTP step done; force-change is a stub until the backend endpoint |
 | 5 | generic API client — command envelope, `X-Command-Id`, 409, correlation id echo | `lib/apiClient.ts` | [#99](../../issues/99) (E07-04) | in-progress — client + `ApiError`/`ConflictError`/`AuthExpiredError` + vitest done |
@@ -39,20 +39,20 @@ Feature areas whose UI lives in a later epic point at that epic.
 | 17 | accessibility baseline — keyboard paths, a11y-lint `error`, axe in E2E | `eslint.config.js` (`vuejs-accessibility` error), `e2e/a11y.spec.ts` | [#121](../../issues/121) (E07-15) | in-progress — a11y-lint at error level; axe-in-E2E is #123 |
 | 18 | mandatory E2E — event lifecycle | `e2e/event-lifecycle.spec.ts` | [#123](../../issues/123) (E07-16) | todo |
 | 19 | theme tokens — light / dark, `data-theme` | `src/theme/tokens.css`, `composables/useTheme.ts` | [#125](../../issues/125) (E07-17) | in-progress — tokens + `useTheme` (system/light/dark, persisted, `data-theme`) + toggle in TopBar |
-| 20 | comms sidebar scaffold — tabs phone / call / phonebook / history | `CommSidebar` tabs | [#127](../../issues/127) (E07-18) | todo |
+| 20 | comms sidebar scaffold — tabs phone / call / phonebook / history | `CommsSidebar` tabs, `stores/calls.ts`, `lib/telephony.ts` | [#127](../../issues/127) (E07-18) | in-progress — the four tabs, keypad + line picker, waiting-call queue, active-call controls + documentation, mini phone-book, call history, line strip; `CommsSidebar.spec.ts` |
 | 21 | graphical EPK editor (admin) | `/admin/workflows`, `WorkflowAdminPage.vue`, `lib/workflows.ts` | [#129](../../issues/129) (E07-19) | in-progress — structural editor: template + draft-version lifecycle, node/edge forms (event · function · connector), an auto-laid-out SVG preview, validate (E05-06 gate) + publish; drag-to-position on a canvas is a follow-up. `WorkflowAdminPage.spec.ts` |
 
 ## Telephony & comms panel (Epic 11 / 14)
 
 | # | Feature | Delivered by | Status |
 |---|---|---|---|
-| 22 | phone panel, keypad, incoming call queue | Epic 11 · #221 (`Komm-Sidebar-UI`) | todo |
+| 22 | phone panel, keypad, incoming call queue | Epic 11 · #221 (`Komm-Sidebar-UI`) | in-progress — keypad + line picker + `POST /calls/dial`, waiting-call queue from `GET /calls/ringing` (comms sidebar Telefon tab) |
 | 23 | contact priority blue / orange / red, call-priority animation | Epic 14 · #299, #301 | in-progress — contact priority blue/orange/red on the phone-book (`prio--low/medium/high` = `--bbz-prio-*` tokens); the call-priority pulse is the comms sidebar (#301) |
-| 24 | mandatory call categorization, optional call free text | Epic 11 · #223 (`Anrufdokumentations-UI`) | todo |
+| 24 | mandatory call categorization, optional call free text | Epic 11 · #223 (`Anrufdokumentations-UI`) | in-progress — the Gespräch tab's documentation form (category radios + free text), `PUT /calls/{id}/documentation`; a "Dokumentation erforderlich" banner while the E11-10 hangup guard is open |
 | 25 | phonebook (list, search, CRUD) | Epic 14 · #297 (`Telefonbuch-UI`) | in-progress — `/telefonbuch` `PhonebookPage.vue`: substring search (name/org/number) + quick-dial filter, create / edit fields / manage numbers / assign priority / soft-delete, all permission-gated; `PhonebookPage.spec.ts` |
 | 26 | quick-dial dialog ("Kurzwahl öffnen" overlay) | Epic 11 · #225 | todo |
 | 27 | contact ↔ call-history link (UI) | Epic 14 · #303 | todo |
-| 28 | multiple waiting calls + priority sort | Epic 11 · #221 (UI) / #219 (backend) | todo |
+| 28 | multiple waiting calls + priority sort | Epic 11 · #221 (UI) / #219 (backend) | in-progress — the waiting-call queue sorts by caller priority (high→low, unknown last) then wait time, priority-coloured with a reduced-motion-safe pulse |
 
 ## Technical triggers, Siedle, video, doorbell (Epic 15 / 16 / 17)
 
