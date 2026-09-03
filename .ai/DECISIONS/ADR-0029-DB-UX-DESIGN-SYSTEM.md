@@ -81,8 +81,13 @@ BBZ UI
   DB tokens, so any PrimeVue component added later is DB-styled by default.
   `primeicons` stays for now; DB icons (`@db-ux/db-theme-icons`) are a follow-up.
 - **`prefers-reduced-motion`.** The existing global rule is kept.
-- **Fonts.** DB Screen Sans via `@db-ux/db-theme-fonts`, with a system stack
-  fallback so a blocked font download never leaves the app unstyled.
+- **Fonts.** DB Screen Sans (DB Type 2.5, client-licensed woff2) via
+  `theme/fonts.css`, `font-display: swap`, with `--db-font-family-sans`
+  (DB's own helvetica/arial chain) then a system stack behind it so a missing /
+  blocked font never leaves the app unstyled. The files are `.gitignore`d
+  (licensed — must not be redistributed via a public repo);
+  `@db-ux/db-theme-fonts` is **not** a dependency (its assets are
+  license-encrypted). Newer DB Neo Screen Sans (v3) drops in the same way.
 
 ### Not adopted (and why)
 
@@ -94,15 +99,27 @@ BBZ UI
 - **`bundle.css` density / adaptive-container (`data-color`) machinery** beyond
   the token layer. The app maps `--bbz-*` straight onto `--db-adaptive-*`; it
   does not wrap regions in `data-color`/`DBSection`. Keeps the integration flat.
+- **`@db-ux/db-theme-fonts`** (all assets `.enc`) and **`@db-ux/core-vite-plugin`**
+  (tree-shakes token declarations the `--bbz-*` layer references only through
+  `var()`, so it emitted an empty bundle). The DB CSS is imported directly with
+  explicit `@layer` assignment instead.
 
 ## Consequences
 
-- `apps/web` gains `@db-ux/core-foundations`, `@db-ux/db-theme`,
-  `@db-ux/db-theme-fonts` (exact-pinned, like `primevue`).
-- `src/theme/tokens.css` is replaced by a `src/theme/` folder; the file is kept
+- `apps/web` gains `@db-ux/core-foundations` + `@db-ux/db-theme` (exact-pinned,
+  like `primevue`). `@db-ux/db-theme` is imported for the palette **values only**
+  (plain CSS) — its logo/font *assets* are license-encrypted and neutralised; the
+  `db-brand.css` palette is transcribed with provenance.
+- `src/theme/tokens.css` is replaced by a `src/theme/` folder (`db.css`,
+  `db-brand.css`, `semantic-tokens.css`, `typography.css`, `fonts.css`,
+  `components.css`, `index.css`, `primevue-db-preset.ts`); the old file is kept
   as `src/theme/legacy-tokens.css` for the documented rollback.
-- Bundle size grows by the DB token CSS (~150 KB uncompressed, mostly
-  `@property` declarations, small gzipped) + the DB Screen Sans woff2 faces.
+- Bundle grows by the DB token CSS (~280 KB uncompressed, mostly `@property`
+  declarations + `light-dark()`, small gzipped) + the DB Screen Sans woff2 faces
+  when present.
+- Licensed assets (DB Screen Sans, the DB logo SVG) live `.gitignore`d under
+  `apps/web/public/{fonts/db-screen-sans,brand}/` with a README + a graceful
+  fallback; a public clone renders with the fallback.
 - `light-dark()` needs Chromium ≥ 123 / Safari ≥ 17.5 / Firefox ≥ 120. The BBZ
   kiosk is a current Chromium/Electron build — fine. jsdom (Vitest) does not
   evaluate `light-dark()`; component tests assert DOM/behaviour, not computed
@@ -112,10 +129,10 @@ BBZ UI
 
 ## Rollback
 
-`main.ts` imports `./theme/index.css`. Reverting this PR, or pointing that import
-back at `./theme/legacy-tokens.css` and restoring the `Aura` preset, returns the
-previous appearance with no data or API impact. Documented in
-`docs/frontend/db-ux-design.md`.
+`main.ts` imports `./theme/index.css` and `DbPreset`. Reverting this PR — or, for
+a hot fix, pointing that import at `./theme/legacy-tokens.css` and swapping
+`DbPreset` back for `@primevue/themes/aura` — returns the previous appearance
+with no data or API impact. Documented in `docs/frontend/db-ux-design.md`.
 
 ## Alternatives considered
 
