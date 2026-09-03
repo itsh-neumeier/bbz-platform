@@ -21,18 +21,16 @@ const routes: RouteRecordRaw[] = [
       {
         path: 'ereignisse',
         name: 'events',
-        component: () => import('@/pages/QueuePage.vue'),
+        component: () => import('@/pages/EventsPage.vue'),
       },
       {
         path: 'ereignisse/:id',
         name: 'event-detail',
         component: () => import('@/pages/EventDetailPage.vue'),
       },
-      {
-        path: 'archiv',
-        name: 'archive',
-        component: () => import('@/pages/ArchivePage.vue'),
-      },
+      // Archiv is folded into the Ereignisübersicht (§13.6) — keep the paths as
+      // deep links: /archiv → the list filtered to archived, /archiv/:id → detail.
+      { path: 'archiv', redirect: { name: 'events', query: { archiv: '1' } } },
       {
         path: 'archiv/:id',
         name: 'archive-detail',
