@@ -1,51 +1,52 @@
 <script setup lang="ts">
 /**
- * Arbeitsplatz — the landing view (MASTER_PROMPT §13.1). A compact status board:
- * open events by priority, the unaccepted high/critical alert, waiting calls,
- * line status. Everything links into the screen that acts on it. Read-only —
- * degrades to zeros when a feed is unavailable.
+ * Arbeitsplatz (MASTER_PROMPT §13.3): the **Ereignisspeicher** — the shared
+ * work queue as a table with the four always-visible lifecycle actions — over
+ * the inline processing panel for the selected event. Critical / high rows
+ * pulse (the global `prefers-reduced-motion` rule stills them).
  */
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
-import { RouterLink } from 'vue-router';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { useEventsStore } from '@/stores/events';
 import { useSessionStore } from '@/stores/session';
-import { eventsApi, PRIORITY_RANK, type EventListItem, type EventPriority } from '@/lib/events';
-import { telephonyApi } from '@/lib/telephony';
+import { type EventListItem } from '@/lib/events';
+import PriorityPulse from '@/components/events/PriorityPulse.vue';
+import EventActions from '@/components/events/EventActions.vue';
+import EventProcessingPanel from '@/components/events/EventProcessingPanel.vue';
 
-const { t } = useI18n();
+const { t, d } = useI18n();
+const events = useEventsStore();
 const session = useSessionStore();
 
-const queue = ref<EventListItem[]>([]);
-const alertCount = ref(0);
-const ringing = ref(0);
-const linesUp = ref(0);
-const linesTotal = ref(0);
+const selectedId = ref<string | null>(null);
+const processingRef = ref<HTMLElement | null>(null);
 
-const PRIORITIES: EventPriority[] = ['critical', 'high', 'medium', 'low'];
-const byPriority = computed(() => {
-  const m: Record<EventPriority, number> = { critical: 0, high: 0, medium: 0, low: 0 };
-  for (const e of queue.value) m[e.priority] += 1;
-  return m;
-});
+const queue = computed(() => events.sortedQueue);
 const openTotal = computed(() => queue.value.length);
-const unassigned = computed(() => queue.value.filter((e) => !e.assignee_id).length);
-const worst = computed<EventPriority | null>(() => {
-  const present = PRIORITIES.filter((p) => byPriority.value[p] > 0);
-  return present.sort((a, b) => PRIORITY_RANK[a] - PRIORITY_RANK[b])[0] ?? null;
-});
+const unhandled = computed(() => queue.value.filter((e) => e.status === 'new').length);
+const mine = computed(
+  () => queue.value.filter((e) => e.assignee_id && e.assignee_id === session.user?.id).length,
+);
+
+function ownerLabel(e: EventListItem): string {
+  if (!e.assignee_id) return t('ownership.none');
+  return e.assignee_id === session.user?.id ? t('ownership.you') : t('ownership.other');
+}
+function entryTime(e: EventListItem): string {
+  return d(new Date(e.created_at), 'time');
+}
+
+function select(id: string): void {
+  selectedId.value = id;
+  void events.loadDetail(id);
+  setTimeout(() => {
+    processingRef.value?.scrollIntoView?.({ behavior: 'smooth', block: 'start' });
+  }, 30);
+}
 
 async function load(): Promise<void> {
-  const [q, alert, calls, lines] = await Promise.all([
-    eventsApi.workQueue().catch(() => ({ items: [] as EventListItem[] })),
-    eventsApi.priorityAlert().catch(() => ({ active: false, events: [] })),
-    telephonyApi.ringing().catch(() => ({ items: [], next_cursor: null })),
-    telephonyApi.lines().catch(() => ({ lines: [] })),
-  ]);
-  queue.value = q.items;
-  alertCount.value = alert.events.length;
-  ringing.value = calls.items.length;
-  linesTotal.value = lines.lines.length;
-  linesUp.value = lines.lines.filter((l) => l.state === 'in_service').length;
+  await events.loadQueue();
+  await events.loadAlert();
 }
 
 let poll: ReturnType<typeof setInterval> | undefined;
@@ -54,210 +55,319 @@ onMounted(() => {
   poll = setInterval(() => void load(), 15_000);
 });
 onBeforeUnmount(() => clearInterval(poll));
+// the shell's SSE stream advances lastSeq — refresh, and drop a vanished selection
+watch(
+  () => events.lastSeq,
+  () => {
+    void events.loadQueue();
+    if (selectedId.value && !queue.value.some((e) => e.id === selectedId.value)) {
+      // keep it — an archived event still has a detail; the panel shows it read-only
+    }
+  },
+);
 </script>
 
 <template>
   <section class="wp">
-    <header class="wp__head">
-      <h1>{{ t('nav.workplace') }}</h1>
-      <p
-        v-if="session.user"
-        class="wp__hello"
-      >
-        {{ t('wp.hello', { name: session.user.display_name }) }}
-      </p>
-    </header>
-
-    <p
-      v-if="alertCount"
-      class="wp__alert"
-      :class="worst ? 'wp__alert--' + worst : ''"
-      role="alert"
+    <section
+      class="card wp__store"
+      aria-labelledby="wp-store-h"
     >
-      <RouterLink to="/ereignisse">
-        {{ t('wp.alert', alertCount) }}
-      </RouterLink>
-    </p>
-
-    <div class="wp__grid">
-      <RouterLink
-        to="/ereignisse"
-        class="wp__card"
-      >
-        <span class="wp__n">{{ openTotal }}</span>
-        <span class="wp__label">{{ t('wp.openEvents') }}</span>
-        <span class="wp__sub">{{ t('wp.unassigned', { n: unassigned }) }}</span>
-      </RouterLink>
-
-      <div class="wp__card wp__card--prio">
-        <span class="wp__label">{{ t('wp.byPriority') }}</span>
-        <ul>
-          <li
-            v-for="p in PRIORITIES"
-            :key="p"
-          >
+      <div class="card-head wp__store-head">
+        <div>
+          <div class="section-kicker">
+            {{ t('wp.store.kicker') }}
+          </div>
+          <div class="wp__store-titleline">
             <span
-              class="wp__dot"
-              :class="'wp__dot--' + p"
-            />
-            {{ t('event.priority.' + p) }}
-            <b>{{ byPriority[p] }}</b>
-          </li>
-        </ul>
+              id="wp-store-h"
+              class="card-title"
+            >{{ t('wp.store.title') }}</span>
+            <span class="tag blue">3-S-Zentrale</span>
+          </div>
+          <div class="card-subtitle">
+            {{ t('wp.store.subtitle') }}
+          </div>
+        </div>
+        <div
+          class="wp__counters"
+          :aria-label="t('wp.store.title')"
+        >
+          <div class="wp__counter">
+            <span>{{ t('wp.store.open') }}</span><strong>{{ openTotal }}</strong>
+          </div>
+          <div class="wp__counter">
+            <span>{{ t('wp.store.new') }}</span><strong>{{ unhandled }}</strong>
+          </div>
+          <div class="wp__counter">
+            <span>{{ t('wp.store.mine') }}</span><strong>{{ mine }}</strong>
+          </div>
+        </div>
       </div>
 
-      <RouterLink
-        to="/telefonbuch"
-        class="wp__card"
-      >
-        <span class="wp__n">{{ ringing }}</span>
-        <span class="wp__label">{{ t('wp.waitingCalls') }}</span>
-        <span class="wp__sub">{{ t('wp.lines', { up: linesUp, total: linesTotal }) }}</span>
-      </RouterLink>
+      <div class="wp__table-wrap">
+        <table class="table">
+          <thead>
+            <tr>
+              <th scope="col">
+                {{ t('queue.col.priority') }}
+              </th>
+              <th scope="col">
+                {{ t('queue.col.title') }}
+              </th>
+              <th scope="col">
+                {{ t('wp.store.colStation') }}
+              </th>
+              <th scope="col">
+                {{ t('wp.store.colEntry') }}
+              </th>
+              <th scope="col">
+                {{ t('queue.col.status') }}
+              </th>
+              <th scope="col">
+                {{ t('wp.store.colResponsible') }}
+              </th>
+              <th
+                scope="col"
+                class="wp__col-action"
+              >
+                {{ t('wp.store.colAction') }}
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr
+              v-for="e in queue"
+              :key="e.id"
+              class="wp__row"
+              :class="{
+                'wp__row--selected': e.id === selectedId,
+                'wp__row--critical': e.priority === 'critical',
+                'wp__row--high': e.priority === 'high',
+              }"
+              tabindex="0"
+              @click="select(e.id)"
+              @keydown.enter="select(e.id)"
+            >
+              <td>
+                <span class="wp__prio">
+                  <PriorityPulse :priority="e.priority" />
+                  {{ t('event.priority.' + e.priority) }}
+                </span>
+              </td>
+              <td class="wp__title">
+                {{ e.title }}
+              </td>
+              <td class="muted">
+                —
+              </td>
+              <td class="wp__num">
+                {{ entryTime(e) }}
+              </td>
+              <td>{{ t('event.status.' + e.status) }}</td>
+              <td :class="e.assignee_id === session.user?.id ? 'wp__owner-me' : 'muted'">
+                {{ ownerLabel(e) }}
+              </td>
+              <td @click.stop>
+                <EventActions
+                  :event="e"
+                  all
+                />
+              </td>
+            </tr>
+            <tr v-if="queue.length === 0">
+              <td
+                colspan="7"
+                class="wp__empty"
+              >
+                {{ t('wp.store.empty') }}
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
 
-      <RouterLink
-        to="/wetterlage"
-        class="wp__card wp__card--link"
-      >
-        <span class="wp__label">{{ t('nav.weather') }}</span>
-        <span class="wp__sub">{{ t('wp.openWeather') }}</span>
-      </RouterLink>
-
-      <RouterLink
-        to="/monitore"
-        class="wp__card wp__card--link"
-      >
-        <span class="wp__label">{{ t('nav.monitors') }}</span>
-        <span class="wp__sub">{{ t('wp.openMonitors') }}</span>
-      </RouterLink>
-
-      <RouterLink
-        to="/archiv"
-        class="wp__card wp__card--link"
-      >
-        <span class="wp__label">{{ t('nav.archive') }}</span>
-        <span class="wp__sub">{{ t('wp.openArchive') }}</span>
-      </RouterLink>
-    </div>
-
-    <p
-      v-if="session.meta"
-      class="wp__meta"
+    <section
+      ref="processingRef"
+      class="card wp__processing"
     >
-      {{ t('wp.node') }}: {{ session.meta.node_id }}
-      <span v-if="session.meta.version">· v{{ session.meta.version }}</span>
-    </p>
+      <div
+        v-if="!selectedId"
+        class="wp__processing-empty"
+      >
+        <span
+          class="wp__processing-icon"
+          aria-hidden="true"
+        >☑</span>
+        <p>{{ t('wp.store.selectPrompt') }}</p>
+      </div>
+      <div
+        v-else
+        class="wp__processing-body"
+      >
+        <EventProcessingPanel
+          :key="selectedId"
+          :event-id="selectedId"
+        />
+      </div>
+    </section>
   </section>
 </template>
 
 <style scoped>
-.wp__head {
-  display: flex;
-  align-items: baseline;
-  gap: 1rem;
+.wp {
+  display: grid;
+  gap: 0.9rem;
+  align-content: start;
+}
+.wp__store {
+  overflow: hidden;
+}
+.wp__store-head {
+  align-items: flex-start;
   flex-wrap: wrap;
 }
-.wp h1 {
-  margin: 0 0 0.25rem;
-  font-size: 1.25rem;
-}
-.wp__hello {
-  color: var(--bbz-text-muted);
-  margin: 0;
-}
-.wp__alert {
-  margin: 0.75rem 0;
-  padding: 0.5rem 0.8rem;
-  border-radius: var(--bbz-radius);
-  border-left: 4px solid var(--bbz-prio-high);
-  background: var(--bbz-surface-alt);
-}
-.wp__alert--critical {
-  border-left-color: var(--bbz-prio-critical);
-}
-.wp__alert--high {
-  border-left-color: var(--bbz-prio-high);
-}
-.wp__alert a {
-  color: var(--bbz-text);
-  font-weight: 600;
-}
-.wp__grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr));
-  gap: 0.75rem;
-  margin-top: 1rem;
-}
-.wp__card {
+.wp__store-titleline {
   display: flex;
-  flex-direction: column;
-  gap: 0.15rem;
-  padding: 0.9rem 1rem;
-  border: 1px solid var(--bbz-border);
-  border-radius: var(--bbz-radius);
-  background: var(--bbz-surface);
-  color: var(--bbz-text);
-  text-decoration: none;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 2px 0;
 }
-a.wp__card:hover,
-a.wp__card:focus-visible {
-  border-color: var(--bbz-accent);
-  outline: none;
+.wp__counters {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
 }
-.wp__n {
-  font-size: 2rem;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  line-height: 1;
-}
-.wp__label {
-  font-weight: 600;
-}
-.wp__sub {
-  color: var(--bbz-text-muted);
-  font-size: 0.85rem;
-}
-.wp__card--prio ul {
-  list-style: none;
-  margin: 0.4rem 0 0;
-  padding: 0;
-  display: grid;
-  gap: 0.2rem;
-  font-size: 0.9rem;
-}
-.wp__card--prio li {
+.wp__counter {
   display: flex;
   align-items: center;
   gap: 0.4rem;
+  border: var(--bbz-border-width) solid var(--bbz-border);
+  border-radius: var(--bbz-radius);
+  background: var(--bbz-surface-alt);
+  padding: 0.4rem 0.6rem;
+  font-size: 0.78rem;
+  color: var(--bbz-text-muted);
 }
-.wp__card--prio b {
-  margin-left: auto;
+.wp__counter strong {
+  color: var(--bbz-text);
+  font-size: 1rem;
   font-variant-numeric: tabular-nums;
 }
-.wp__dot {
-  width: 0.7rem;
-  height: 0.7rem;
-  border-radius: 50%;
-  flex: none;
+.wp__table-wrap {
+  overflow: auto;
+  max-height: 22rem;
 }
-.wp__dot--critical {
-  background: var(--bbz-prio-critical);
+.wp__table-wrap th {
+  position: sticky;
+  top: 0;
+  background: var(--bbz-surface);
+  z-index: 1;
 }
-.wp__dot--high {
-  background: var(--bbz-prio-high);
+.wp__col-action {
+  text-align: right;
 }
-.wp__dot--medium {
-  background: var(--bbz-prio-medium);
+.wp__row td:last-child {
+  min-width: 19rem;
 }
-.wp__dot--low {
-  background: var(--bbz-prio-low);
+.wp__table-wrap td {
+  vertical-align: middle;
 }
-.wp__card--link {
-  justify-content: center;
+.wp__row {
+  cursor: pointer;
 }
-.wp__meta {
-  margin-top: 1.25rem;
+.wp__row:hover {
+  background: var(--bbz-surface-alt);
+}
+.wp__row:focus-visible {
+  outline: var(--bbz-focus-width) solid var(--bbz-focus-color);
+  outline-offset: -2px;
+}
+.wp__row--selected {
+  background: var(--bbz-info-bg);
+  box-shadow: inset 3px 0 0 var(--bbz-info);
+}
+.wp__row--critical {
+  animation: wp-critical 1.5s ease-in-out infinite;
+}
+.wp__row--high {
+  animation: wp-high 2.1s ease-in-out infinite;
+}
+@keyframes wp-critical {
+  0%,
+  100% {
+    box-shadow: inset 4px 0 0 var(--bbz-prio-critical);
+  }
+  50% {
+    box-shadow:
+      inset 4px 0 0 var(--bbz-prio-critical),
+      0 0 16px color-mix(in srgb, var(--bbz-prio-critical) 25%, transparent);
+  }
+}
+@keyframes wp-high {
+  0%,
+  100% {
+    box-shadow: inset 3px 0 0 var(--bbz-prio-high);
+  }
+  50% {
+    box-shadow: inset 6px 0 0 var(--bbz-prio-high);
+  }
+}
+.wp__row--selected.wp__row--critical,
+.wp__row--selected.wp__row--high {
+  animation: none;
+  box-shadow: inset 3px 0 0 var(--bbz-info);
+}
+.wp__prio {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  white-space: nowrap;
+}
+.wp__title {
+  font-weight: var(--bbz-weight-semibold);
+}
+.wp__num {
+  font-variant-numeric: tabular-nums;
+}
+.wp__owner-me {
+  color: var(--bbz-success-text);
+  font-weight: var(--bbz-weight-semibold);
+}
+.wp__row td:last-child {
+  text-align: right;
+}
+.wp__empty {
+  text-align: center;
+  padding: 1.5rem;
   color: var(--bbz-text-muted);
-  font-size: 0.8rem;
+}
+.wp__processing {
+  min-height: 14rem;
+}
+.wp__processing-empty {
+  min-height: 14rem;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 0.5rem;
+  text-align: center;
+  padding: 2rem;
+  color: var(--bbz-text-muted);
+}
+.wp__processing-icon {
+  width: 3rem;
+  height: 3rem;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--bbz-surface-alt);
+  border: var(--bbz-border-width) solid var(--bbz-border);
+  font-size: 1.4rem;
+  color: var(--bbz-info);
+}
+.wp__processing-body {
+  padding: var(--bbz-space-md);
 }
 </style>
