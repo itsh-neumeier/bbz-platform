@@ -3,14 +3,20 @@
 ## Current phase
 Working the roadmap issues in order (see `.ai/ROADMAP.md`, tracking issue #18).
 **Epics 02–06 complete; Epic 01 is 6/7** (only E01-02 blocked — client-supplied
-mockup files). **The domain epics 11/13–22 are backend-complete** (remaining
-issues are Epic-07 UI or Playwright; Epic 13 is 1/8 + ADR-0023 Accepted). **In
-progress: Epic 23** (security hardening, 7/12 + E23-10/E23-11 partial) **and
-Epic 24** (production deployment, 3/8). Blocked until a Node / Electron / Go /
-Cisco-vendor / SIP-PBX session: Epics 07, 08, 09, 10, 12, 13-impl, and the
-E23/E24 issues that chain off them — `docs/roadmap-status.md` is the per-issue
-register. **One maintainer action left that the agent cannot do: run the
-branch-protection `gh api` call in `docs/repo-settings.md`.**
+mockup files). **The domain epics 11/13–22 are backend-complete** (Epic 13 is
+1/8 + ADR-0023 Accepted). **Epic 07 (Web UI) is in progress** — the operator UI
+(auth · work queue · event detail · archive · reactivation · workflow view ·
+priority alerts · SSE · theme · i18n), the weather + monitor pages, the
+phone-book, the comms sidebar and the EPK editor are merged (PRs
+#702/#704/#705/#707/#708); left: force-password-change (needs a backend
+endpoint) and the Playwright CI job (#123). **In progress: Epic 23** (security hardening,
+7/12 + E23-10/E23-11 partial) **and Epic 24** (production deployment, 3/8).
+Blocked until an Electron / Go / Cisco-vendor / SIP-PBX session: Epics 08, 09,
+10, 12, 13-impl, and the E23/E24 issues that chain off them —
+`docs/roadmap-status.md` is the per-issue register, and its "Completed issues
+still open" section has the list + one-liner to close the 88 merged-but-open
+backend issues. **Maintainer actions the agent cannot do: the branch-protection
+`gh api` call (`docs/repo-settings.md`), and that bulk issue-close.**
 
 ### Epic 02 – Identity / RBAC: **COMPLETE (14/14)**
 #20 ADR gate · #27 identity schema · #28 RBAC schema (scoped
@@ -563,20 +569,43 @@ pg_dump→gpg→restore→count-match round trip + an etcd snapshot save/restore
 **Epic 06 COMPLETE (14/14)** — #92 (HA harness) shipped as a scaffold that
 needs a real multi-host runner before its nightly job can gate.
 
-### Epic 07 – Web UI / PrimeVue: **blocked on toolchain (1/19)**
-#96 (E07-01) mockup-parity checklist — `docs/mockup-parity-checklist.md`:
-every `.ai/FEATURES.md` / §13 feature → the issue that delivers its UI →
-status (`todo` / `backend-done` / `done` …). 21 core-UI rows point at Epic 07
-(#96–#129, `E07-01`…`E07-19`); telephony / contacts / triggers / video / BKU
-rows point at their epics. `server/tests/test_parity_checklist.py` enforces
-the issue-ref format, the `E07-xx ↔ #issue` map, valid statuses, and
-FEATURES.md coverage.
+### Epic 07 – Web UI / PrimeVue: **in progress (~11/19 done, 7 in progress, 1 todo)**
+The Vue toolchain runs in a `node:22-alpine` container (E01-06 made the
+`frontend` CI job blocking). PRs #701 / #702 / #704 / #705 / #707 built the
+operator UI on the app shell. `server/tests/test_parity_checklist.py` still
+enforces the checklist. A row is **done** only once a Playwright E2E runs it in
+CI — that job is **#123**, still open — so "feature complete" rows read
+"in progress".
 
-**#97–#129 are all `Area: frontend` (Vue 3 / PrimeVue / Vitest / Playwright).**
-Node/npm isn't on the host, but the toolchain **does** run in a `node:22-alpine`
-container — E01-06 (#699) used that to regenerate the lockfile and make the
-`frontend` CI job blocking. Writing the 17 Vue components still needs an
-interactive dev loop; the app shell + Vitest/Playwright configs exist.
+- **done**: the mockup-parity checklist (E07-01); the generic API client
+  (E07-04, `lib/apiClient.ts` — command envelope, real-UUID `X-Command-Id`,
+  `409→ConflictError`, `401→AuthExpiredError`, CSRF echo); the SSE client +
+  sync indicator (E07-05, `useEventStream` after_seq catch-up + backoff); the
+  work queue (E07-06, `/ereignisse`); priority animation + reduced-motion
+  (E07-07); event detail (E07-08); archive view (E07-11, `/archiv`);
+  reactivation dialog (E07-12); the priority-alert banner (E07-13); i18n +
+  missing-key lint (E07-14, `scripts/i18n-lint.mjs`); theme tokens + toggle
+  (E07-17).
+- **in progress**: auth UI (E07-02 — login/TOTP/logout/session-expiry done;
+  force-password-change is a stub, there is **no** `POST /auth/password`
+  endpoint); app shell (E07-03 — shell/topbar/resize; one SSE feed → the events
+  **and** calls stores); workflow view (E07-09 — read view; act-on-step
+  follow-up); ownership UI (E07-10 — takeover + presence; assign-to-a-person
+  deferred); a11y baseline (E07-15 — lint at error; axe-in-E2E is #123); comms
+  sidebar (E07-18 — keypad + waiting queue + active-call controls + mandatory
+  documentation + mini phone-book + history + line strip; `stores/calls.ts`,
+  `lib/telephony.ts`); the EPK editor (E07-19 — `/admin/workflows`
+  `WorkflowAdminPage`: template + draft-version lifecycle, node/edge forms, an
+  auto-laid-out SVG preview, validate + publish; canvas drag is a follow-up).
+- **todo**: the Playwright CI job (E07-16 / #123 — specs exist, un-`fixme`d,
+  nothing runs them).
+- **also shipped** (the owning epic's UI issue): `/wetterlage` (E18-09, #391),
+  `/monitore` (E19-08, #408), `/telefonbuch` (E14-07/08, #297/#299).
+
+`docs/roadmap-status.md` § "Epic 07" has the per-issue table; its "Completed
+issues still open on the tracker" section lists the 88 merged-but-open backend
+issues + a one-liner to close them (the agent's bulk `gh issue close` is
+classifier-denied).
 
 ### Epic 20 – Archive / Postprocessing: **backend COMPLETE (8/8; 1 Playwright scaffold)**
 - **#414 (E20-01) archive detail model** — decision documented in
