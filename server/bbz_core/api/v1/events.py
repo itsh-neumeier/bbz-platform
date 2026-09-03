@@ -28,7 +28,7 @@ from typing import Literal
 from fastapi import APIRouter, Depends, Query, Request, Response, status
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, ConfigDict, Field
-from sqlalchemy import or_, select
+from sqlalchemy import Text, cast, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from bbz_core.api.authz import require
@@ -447,6 +447,67 @@ async def list_events(
         created_to=_as_utc(created_to),
     )
     return EventPageOut(items=[_item_out(i) for i in page.items], next_cursor=page.next_cursor)
+
+
+class LogbookEntryOut(BaseModel):
+    event_seq: int
+    event_id: uuid.UUID
+    occurred_at_utc: _dt.datetime
+    event_type: str
+    title: str
+    priority: str
+    status: str
+    actor: str | None
+
+
+class LogbookOut(BaseModel):
+    items: list[LogbookEntryOut]
+
+
+@router.get("/logbook", response_model=LogbookOut)
+async def event_logbook(
+    limit: int = Query(default=40, ge=1, le=200),
+    _: AuthContext = Depends(require("events.view")),
+    session: AsyncSession = Depends(db_session),
+) -> LogbookOut:
+    """The cross-workplace activity log (MASTER_PROMPT §13.1 right column): the
+    most recent event-lifecycle domain events across *all* events, newest first.
+    Read over the append-only ``domain_events`` — nothing new is written.
+    """
+    rows = (
+        await session.execute(
+            select(
+                DomainEvent.event_seq,
+                DomainEvent.aggregate_id,
+                DomainEvent.occurred_at_utc,
+                DomainEvent.event_type,
+                Event.title,
+                Event.priority,
+                Event.status,
+                User.display_name,
+            )
+            .join(Event, cast(Event.id, Text) == DomainEvent.aggregate_id)
+            .outerjoin(User, User.id == DomainEvent.user_id)
+            .where(DomainEvent.aggregate_type == "event")
+            .order_by(DomainEvent.event_seq.desc())
+            .limit(limit)
+        )
+    ).all()
+    return LogbookOut(
+        items=[
+            LogbookEntryOut(
+                event_seq=r.event_seq,
+                event_id=uuid.UUID(r.aggregate_id),
+                occurred_at_utc=_as_utc(r.occurred_at_utc) or r.occurred_at_utc,
+                event_type=r.event_type,
+                title=r.title,
+                priority=r.priority,
+                status=r.status,
+                actor=r.display_name,
+            )
+            for r in rows
+        ]
+    )
 
 
 @router.get("/stream")

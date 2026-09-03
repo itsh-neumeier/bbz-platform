@@ -85,6 +85,20 @@ describe('DB UX theme (ADR-0029)', () => {
       'semantic-tokens.css',
       'typography.css',
       'components.css',
+      'mockup-surfaces.css',
     ]);
+  });
+
+  it('keeps the V10 mockup chrome on DB tokens — no raw hex colours', () => {
+    const css = code('mockup-surfaces.css');
+    // the mockup's ad-hoc navy palette must not leak in — every colour is a token
+    const colourProps = [
+      ...css.matchAll(/(?:^|[;{])\s*(background|color|border-color|fill|stroke)\s*:\s*([^;}]+)/g),
+    ];
+    const rawHex = colourProps
+      .filter(([, , value]) => /#[0-9a-f]{3,8}\b/i.test(value))
+      .map(([, prop, value]) => `${prop}: ${value.trim()}`);
+    expect(rawHex).toEqual([]);
+    expect(css).toMatch(/@layer bbz\s*\{/);
   });
 });
