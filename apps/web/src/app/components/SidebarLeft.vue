@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { computed } from 'vue';
 import { RouterLink } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { useSessionStore } from '@/stores/session';
@@ -6,14 +7,17 @@ import { useSessionStore } from '@/stores/session';
 const { t } = useI18n();
 const session = useSessionStore();
 
-const links = [
+const links = computed(() => [
   { to: '/arbeitsplatz', key: 'nav.workplace' },
   { to: '/ereignisse', key: 'nav.events' },
   { to: '/archiv', key: 'nav.archive' },
   { to: '/wetterlage', key: 'nav.weather' },
   { to: '/monitore', key: 'nav.monitors' },
   { to: '/telefonbuch', key: 'nav.phonebook' },
-];
+  ...(session.can('workflows.manage_templates')
+    ? [{ to: '/admin/workflows', key: 'nav.workflows' }]
+    : []),
+]);
 </script>
 
 <template>

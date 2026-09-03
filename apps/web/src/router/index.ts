@@ -53,6 +53,11 @@ const routes: RouteRecordRaw[] = [
         name: 'phonebook',
         component: () => import('@/pages/PhonebookPage.vue'),
       },
+      {
+        path: 'admin/workflows',
+        name: 'workflow-admin',
+        component: () => import('@/pages/WorkflowAdminPage.vue'),
+      },
     ],
   },
 ];
