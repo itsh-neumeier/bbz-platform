@@ -15,6 +15,53 @@
     "workflows": "Workflow-Vorlagen",
     "label": "Hauptnavigation"
   },
+  "admin": {
+    "kicker": "Verwaltung",
+    "title": "Administration",
+    "subtitle": "Instanz, Benutzer, Verzeichnis, Integrationen und Handlungsanweisungen dieser BBZ.",
+    "navLabel": "Verwaltungsbereiche",
+    "loading": "Wird geladen …",
+    "save": "Speichern",
+    "saving": "Speichern …",
+    "section": {
+      "instance": "Instanz",
+      "users": "Benutzer",
+      "directory": "Verzeichnis",
+      "integrations": "Integrationen",
+      "workflows": "Handlungsanweisungen",
+      "triggers": "Trigger-Regeln",
+      "endpoints": "Technische Endpunkte",
+      "system": "System"
+    },
+    "source": {
+      "database": "in der Datenbank gesetzt",
+      "environment": "aus der Umgebung",
+      "default": "Standardwert"
+    },
+    "instance": {
+      "title": "Instanz-Einstellungen",
+      "subtitle": "Anzeigename dieser BBZ — erscheint in Kopfzeile, Seitenleiste, Anmeldung und Browser-Tab.",
+      "loadError": "Die Einstellungen konnten nicht geladen werden.",
+      "saveError": "Speichern fehlgeschlagen.",
+      "savedHint": "Gespeichert. Der Name ist sofort überall sichtbar."
+    },
+    "placeholder": {
+      "lead": "Dieser Verwaltungsbereich wird in Kürze ergänzt.",
+      "issue": "Geplant in Issue #{n}."
+    },
+    "system": {
+      "title": "Systeminformation",
+      "subtitle": "Nur-Lesen-Sicht auf Build, Umgebung und erkannte Integrationen.",
+      "instance": "Instanz",
+      "service": "Dienst",
+      "version": "Version",
+      "environment": "Umgebung",
+      "node": "Knoten",
+      "apiVersion": "API-Version",
+      "integrations": "Erkannte Integrationen",
+      "noIntegrations": "Keine Integrationen erkannt."
+    }
+  },
   "shell": {
     "breadcrumb": "BBZ / 3SZ",
     "monitorLayout": "Monitore",
@@ -32,7 +79,14 @@
       "monitors": "Monitorrouting",
       "phonebook": "Telefonbuch",
       "admin": "Administration",
-      "workflow-admin": "Workflow-Vorlagen (EPK)"
+      "admin-instance": "Instanz-Einstellungen",
+      "admin-users": "Benutzerverwaltung",
+      "admin-directory": "Verzeichnis-Anbindung",
+      "admin-integrations": "Integrationen",
+      "admin-triggers": "Trigger-Regeln",
+      "admin-endpoints": "Technische Endpunkte",
+      "admin-system": "Systeminformation",
+      "workflow-admin": "Handlungsanweisungen (EPK)"
     }
   },
   "versionbar": {

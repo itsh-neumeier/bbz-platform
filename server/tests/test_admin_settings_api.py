@@ -247,6 +247,22 @@ async def test_secret_keys_are_read_only_and_never_leak(env: tuple, monkeypatch)
     assert "hunter2" not in (await client.get("/api/v1/admin/settings")).text
 
 
+async def test_meta_reflects_the_instance_name_override(env: tuple) -> None:
+    client, s = env
+    await _make_user(s, "st9", _MANAGE)
+    await _login(client, "st9")
+
+    assert (await client.get("/api/v1/meta")).json()["instance_name"] == "BBZ / 3-S-Zentrale"
+
+    await client.put(
+        "/api/v1/admin/settings/instance",
+        json={"values": {"instance.name": "BBZ Nürnberg", "instance.short_name": "NBG"}},
+    )
+    meta = (await client.get("/api/v1/meta")).json()
+    assert meta["instance_name"] == "BBZ Nürnberg"
+    assert meta["instance_short_name"] == "NBG"
+
+
 async def test_requires_the_manage_permission(env: tuple) -> None:
     client, s = env
     await _make_user(s, "st8", ["system.audit.view"])

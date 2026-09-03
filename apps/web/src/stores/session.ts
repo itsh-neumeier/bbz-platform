@@ -8,9 +8,16 @@ export interface Meta {
   api_version: string;
   environment: string;
   node_id: string;
+  /** operator-facing name of this BBZ instance (runtime setting, ADR-0031) */
+  instance_name: string;
+  instance_short_name: string;
   capabilities: string[];
   known_integrations: string[];
 }
+
+/** fallback until `/meta` has answered (matches the backend catalog default) */
+const DEFAULT_INSTANCE_NAME = 'BBZ / 3-S-Zentrale';
+const DEFAULT_INSTANCE_SHORT = 'BBZ';
 
 export interface User {
   id: string;
@@ -64,6 +71,9 @@ export const useSessionStore = defineStore('session', {
       (s) =>
       (perm: string): boolean =>
         s.permissions.includes(perm),
+    /** the configured BBZ instance name, or the default until `/meta` answers */
+    instanceName: (s): string => s.meta?.instance_name || DEFAULT_INSTANCE_NAME,
+    instanceShortName: (s): string => s.meta?.instance_short_name || DEFAULT_INSTANCE_SHORT,
   },
   actions: {
     async loadMeta(): Promise<void> {

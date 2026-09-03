@@ -13,6 +13,7 @@ import { useEventsStore } from '@/stores/events';
 import { useCallsStore } from '@/stores/calls';
 import { useTheme } from '@/composables/useTheme';
 import { weatherApi } from '@/lib/weather';
+import { canSeeAdmin } from '@/lib/admin';
 
 const { t } = useI18n();
 const router = useRouter();
@@ -32,9 +33,7 @@ const links = computed(() => [
   { to: '/telefonbuch', key: 'nav.phonebook', icon: '▤', badge: waitingCalls.value },
   { to: '/wetterlage', key: 'nav.weather', icon: '☁', badge: weatherWarnings.value },
   { to: '/monitore', key: 'nav.monitors', icon: '▦' },
-  ...(session.can('workflows.manage_templates')
-    ? [{ to: '/admin/workflows', key: 'nav.workflows', icon: '☑' }]
-    : []),
+  ...(canSeeAdmin(session.can) ? [{ to: '/admin', key: 'nav.admin', icon: '⚙' }] : []),
 ]);
 
 const initials = computed(() => {
@@ -95,7 +94,7 @@ watch(
       />
       <div>
         <b>{{ t('app.workplaceActive') }}</b>
-        <small>{{ t('shell.leitplatz') }}</small>
+        <small>{{ session.instanceName }}</small>
         <span class="sidebar__ready">
           <span
             class="sidebar__ready-dot"
@@ -132,7 +131,7 @@ watch(
       >{{ initials }}</span>
       <div class="sidebar__user-copy">
         <b>{{ session.user?.display_name ?? '—' }}</b>
-        <small>{{ t('shell.leitplatz') }}</small>
+        <small>{{ session.instanceName }}</small>
         <span class="sidebar__user-actions">
           <button
             type="button"

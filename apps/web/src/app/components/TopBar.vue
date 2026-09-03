@@ -10,10 +10,12 @@ import { computed, onMounted, onUnmounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 import { telephonyApi } from '@/lib/telephony';
+import { useSessionStore } from '@/stores/session';
 
 const { t } = useI18n();
 const route = useRoute();
 const router = useRouter();
+const session = useSessionStore();
 
 /** route name → the sidebar section it belongs to, for the breadcrumb tail */
 const SECTION: Record<string, string> = {
@@ -24,7 +26,14 @@ const SECTION: Record<string, string> = {
   weather: 'nav.weather',
   monitors: 'nav.monitors',
   phonebook: 'nav.phonebook',
-  'workflow-admin': 'nav.workflows',
+  'workflow-admin': 'nav.admin',
+  'admin-instance': 'nav.admin',
+  'admin-users': 'nav.admin',
+  'admin-directory': 'nav.admin',
+  'admin-integrations': 'nav.admin',
+  'admin-triggers': 'nav.admin',
+  'admin-endpoints': 'nav.admin',
+  'admin-system': 'nav.admin',
 };
 
 const now = ref(new Date());
@@ -66,7 +75,8 @@ const pageTitle = computed(() =>
   t('shell.pageTitle.' + String(route.name ?? 'workplace'), t('shell.pageTitle.workplace')),
 );
 const crumb = computed(
-  () => `${t('shell.breadcrumb')} · ${t(SECTION[String(route.name ?? 'workplace')] ?? 'nav.workplace')}`,
+  () =>
+    `${session.instanceShortName} · ${t(SECTION[String(route.name ?? 'workplace')] ?? 'nav.workplace')}`,
 );
 </script>
 
