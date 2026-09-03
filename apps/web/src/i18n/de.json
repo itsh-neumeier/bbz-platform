@@ -9,8 +9,43 @@
     "events": "Ereignisse",
     "archive": "Archiv",
     "weather": "Wetterlage",
+    "monitors": "Monitore",
     "phonebook": "Telefonbuch",
     "admin": "Administration"
+  },
+  "monitor": {
+    "title": "Monitorrouting",
+    "loadError": "Das Monitorrouting konnte nicht geladen werden.",
+    "routeError": "Die Zuordnung konnte nicht gesetzt werden.",
+    "providerPending": "Kein Monitor-Provider aktiv — Änderungen werden gespeichert, aber nicht an die Hardware gesendet.",
+    "fixed": "fest auf BBZ-OS",
+    "standardLayout": "Standard-Layout",
+    "profileName": "Profilname",
+    "saveProfile": "Profil speichern",
+    "profile": "Profil",
+    "apply": "Anwenden"
+  },
+  "weather": {
+    "alerts": "Warnungen",
+    "observations": "Messwerte",
+    "radar": "Niederschlagsradar",
+    "radarAlt": "Radarbild Niederschlag",
+    "createEvent": "Ereignis erzeugen",
+    "noAlerts": "Keine aktiven Warnungen.",
+    "noObservations": "Keine Messwerte verfügbar.",
+    "noRadar": "Kein Radarbild verfügbar.",
+    "loadError": "Die Wetterdaten konnten nicht geladen werden.",
+    "health": {
+      "ok": "aktuell",
+      "degraded": "eingeschränkt",
+      "stale": "veraltet",
+      "down": "nicht verfügbar"
+    },
+    "metric": {
+      "temperature": "Temperatur",
+      "wind_speed": "Windgeschwindigkeit",
+      "precipitation": "Niederschlag"
+    }
   },
   "comms": {
     "phone": "Telefon",
