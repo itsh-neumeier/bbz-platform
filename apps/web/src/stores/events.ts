@@ -96,8 +96,8 @@ export const useEventsStore = defineStore('events', {
       await this.loadAlert();
     },
 
-    async addNote(id: string, body: string): Promise<void> {
-      await eventsApi.addNote(id, body);
+    async addNote(id: string, body: string, kind: 'work' | 'postprocess' = 'work'): Promise<void> {
+      await eventsApi.addNote(id, body, kind);
       await this.loadDetail(id);
     },
 
