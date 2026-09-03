@@ -51,8 +51,7 @@ const routes: RouteRecordRaw[] = [
       {
         path: 'telefonbuch',
         name: 'phonebook',
-        component: () => import('@/pages/PlaceholderPage.vue'),
-        props: { titleKey: 'nav.phonebook' },
+        component: () => import('@/pages/PhonebookPage.vue'),
       },
     ],
   },

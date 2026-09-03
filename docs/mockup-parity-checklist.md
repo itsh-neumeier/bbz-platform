@@ -47,9 +47,9 @@ Feature areas whose UI lives in a later epic point at that epic.
 | # | Feature | Delivered by | Status |
 |---|---|---|---|
 | 22 | phone panel, keypad, incoming call queue | Epic 11 · #221 (`Komm-Sidebar-UI`) | todo |
-| 23 | contact priority blue / orange / red, call-priority animation | Epic 14 · #299, #301 | todo |
+| 23 | contact priority blue / orange / red, call-priority animation | Epic 14 · #299, #301 | in-progress — contact priority blue/orange/red on the phone-book (`prio--low/medium/high` = `--bbz-prio-*` tokens); the call-priority pulse is the comms sidebar (#301) |
 | 24 | mandatory call categorization, optional call free text | Epic 11 · #223 (`Anrufdokumentations-UI`) | todo |
-| 25 | phonebook (list, search, CRUD) | Epic 14 · #297 (`Telefonbuch-UI`) | todo |
+| 25 | phonebook (list, search, CRUD) | Epic 14 · #297 (`Telefonbuch-UI`) | in-progress — `/telefonbuch` `PhonebookPage.vue`: substring search (name/org/number) + quick-dial filter, create / edit fields / manage numbers / assign priority / soft-delete, all permission-gated; `PhonebookPage.spec.ts` |
 | 26 | quick-dial dialog ("Kurzwahl öffnen" overlay) | Epic 11 · #225 | todo |
 | 27 | contact ↔ call-history link (UI) | Epic 14 · #303 | todo |
 | 28 | multiple waiting calls + priority sort | Epic 11 · #221 (UI) / #219 (backend) | todo |

@@ -54,6 +54,36 @@
     "history": "Historie",
     "availableLines": "Verfügbare Leitungen"
   },
+  "phonebook": {
+    "new": "Neuer Kontakt",
+    "search": "Suche",
+    "searchHint": "Name, Organisation oder Rufnummer",
+    "quickOnly": "Nur Kurzwahl",
+    "quick": "Kurzwahl",
+    "none": "Keine Kontakte gefunden.",
+    "name": "Name",
+    "org": "Organisation",
+    "number": "Rufnummer",
+    "notes": "Notizen",
+    "create": "Anlegen",
+    "fields": "Stammdaten",
+    "save": "Speichern",
+    "priority": "Anrufpriorität",
+    "numbers": "Rufnummern",
+    "primary": "primär",
+    "addNumber": "Nummer hinzufügen",
+    "removeNumber": "entfernen",
+    "delete": "Kontakt löschen",
+    "prio": {
+      "low": "niedrig",
+      "medium": "mittel",
+      "high": "hoch"
+    },
+    "loadError": "Das Telefonbuch konnte nicht geladen werden.",
+    "saveError": "Die Änderung konnte nicht gespeichert werden.",
+    "numberError": "Die Rufnummer konnte nicht gespeichert werden.",
+    "createError": "Der Kontakt konnte nicht angelegt werden."
+  },
   "workplace": {
     "eventStore": "Ereignisspeicher",
     "accept": "Annehmen",
