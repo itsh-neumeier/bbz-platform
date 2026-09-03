@@ -7,9 +7,11 @@ mockup files). **The domain epics 11/13–22 are backend-complete** (Epic 13 is
 1/8 + ADR-0023 Accepted). **Epic 07 (Web UI) is in progress** — the operator UI
 (auth · work queue · event detail · archive · reactivation · workflow view ·
 priority alerts · SSE · theme · i18n), the weather + monitor pages, the
-phone-book, the comms sidebar and the EPK editor are merged (PRs
-#702/#704/#705/#707/#708); left: force-password-change (needs a backend
-endpoint) and the Playwright CI job (#123). **In progress: Epic 23** (security hardening,
+phone-book, the comms sidebar, the EPK editor and the `/arbeitsplatz` status
+board are merged (PRs #702/#704/#705/#707/#708/#711; migration head is **0054**,
+PR #710 — a uuid-PK-default gap that only bites a migrated DB); left:
+force-password-change (needs a backend endpoint) and the Playwright CI job
+(#123). **In progress: Epic 23** (security hardening,
 7/12 + E23-10/E23-11 partial) **and Epic 24** (production deployment, 3/8).
 Blocked until an Electron / Go / Cisco-vendor / SIP-PBX session: Epics 08, 09,
 10, 12, 13-impl, and the E23/E24 issues that chain off them —
@@ -599,8 +601,10 @@ CI — that job is **#123**, still open — so "feature complete" rows read
   auto-laid-out SVG preview, validate + publish; canvas drag is a follow-up).
 - **todo**: the Playwright CI job (E07-16 / #123 — specs exist, un-`fixme`d,
   nothing runs them).
-- **also shipped** (the owning epic's UI issue): `/wetterlage` (E18-09, #391),
-  `/monitore` (E19-08, #408), `/telefonbuch` (E14-07/08, #297/#299).
+- **also shipped**: the `/arbeitsplatz` landing page is a live status board —
+  open events by priority, the priority alert, waiting calls, line status
+  (#711); `/wetterlage` (E18-09, #391), `/monitore` (E19-08, #408),
+  `/telefonbuch` (E14-07/08, #297/#299).
 
 `docs/roadmap-status.md` § "Epic 07" has the per-issue table; its "Completed
 issues still open on the tracker" section lists the 88 merged-but-open backend
@@ -1902,7 +1906,10 @@ no DTMF plaintext reaches any sink).
   `login`/`mfa`/`password_reset` breaches audit `RATE_LIMIT_TRIGGERED` (rule +
   id + count, never the credential — new critical action). **Fails open** on a
   store error. `test_rate_limiting.py` (5), `docs/security/rate-limiting.md`.
-  Migration head **0053** (E23-09 audit chain).
+  Migration head **0054** (`0053` E23-09 audit chain; `0054` backfills the
+  `gen_random_uuid()` default onto 14 `id uuid` PKs that migrations
+  0024–0033 created without it — `create_all` masked the gap, a
+  migration-provisioned DB fails every `INSERT` on `id`; PR #710).
 - **#22 (E01-03) ADR-0019** — runtime secret store **Accepted**: target
   HashiCorp Vault (Raft HA on the 3 nodes); ship the abstraction now.
 - **#461 (E23-01) secret-store integration** — `bbz_core.secrets`:
