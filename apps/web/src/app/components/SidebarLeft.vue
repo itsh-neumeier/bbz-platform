@@ -9,27 +9,41 @@ const session = useSessionStore();
 const links = [
   { to: '/arbeitsplatz', key: 'nav.workplace' },
   { to: '/ereignisse', key: 'nav.events' },
+  { to: '/archiv', key: 'nav.archive' },
   { to: '/wetterlage', key: 'nav.weather' },
   { to: '/telefonbuch', key: 'nav.phonebook' },
 ];
 </script>
 
 <template>
-  <nav class="sidebar" :aria-label="t('app.title')">
+  <nav
+    class="sidebar"
+    :aria-label="t('app.title')"
+  >
     <div class="sidebar__brand">
-      <span class="sidebar__db" aria-hidden="true">DB</span>
+      <span
+        class="sidebar__db"
+        aria-hidden="true"
+      >DB</span>
       <span>{{ t('app.title') }}</span>
     </div>
 
     <ul class="sidebar__nav">
-      <li v-for="l in links" :key="l.to">
-        <RouterLink :to="l.to">{{ t(l.key) }}</RouterLink>
+      <li
+        v-for="l in links"
+        :key="l.to"
+      >
+        <RouterLink :to="l.to">
+          {{ t(l.key) }}
+        </RouterLink>
       </li>
     </ul>
 
     <div class="sidebar__foot">
       <p>{{ t('app.workplaceActive') }}</p>
-      <p v-if="session.meta">node: {{ session.meta.node_id }} · v{{ session.meta.version }}</p>
+      <p v-if="session.meta">
+        node: {{ session.meta.node_id }} · v{{ session.meta.version }}
+      </p>
     </div>
   </nav>
 </template>

@@ -8,4 +8,16 @@ export const i18n = createI18n({
   locale: 'de',
   fallbackLocale: 'de',
   messages: { de },
+  datetimeFormats: {
+    de: {
+      short: {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      },
+      time: { hour: '2-digit', minute: '2-digit', second: '2-digit' },
+    },
+  },
 });

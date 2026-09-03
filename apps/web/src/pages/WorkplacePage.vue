@@ -9,17 +9,27 @@ const session = useSessionStore();
 <template>
   <section>
     <h1>{{ t('nav.workplace') }}</h1>
-    <p class="note">{{ t('foundation.notice') }}</p>
+    <p class="note">
+      {{ t('foundation.notice') }}
+    </p>
 
-    <section aria-labelledby="event-store-heading" class="card">
-      <h2 id="event-store-heading">{{ t('workplace.eventStore') }}</h2>
+    <section
+      aria-labelledby="event-store-heading"
+      class="card"
+    >
+      <h2 id="event-store-heading">
+        {{ t('workplace.eventStore') }}
+      </h2>
       <p class="note">
         {{ t('workplace.accept') }} · {{ t('workplace.acknowledge') }} ·
         {{ t('workplace.edit') }} · {{ t('workplace.archive') }}
       </p>
     </section>
 
-    <section v-if="session.meta" class="card">
+    <section
+      v-if="session.meta"
+      class="card"
+    >
       <h2>meta</h2>
       <dl>
         <dt>node</dt>

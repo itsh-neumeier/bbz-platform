@@ -42,6 +42,9 @@ services:
       BBZ_ENVIRONMENT: local
       BBZ_NODE_ID: BBZ-DEV01
       BBZ_LOG_JSON: "true"
+      # the dev stack is plain HTTP (no TLS on :5173 / :8443) — session cookies
+      # must not be Secure or the browser drops them and every request 401s.
+      BBZ_SESSION_COOKIE_SECURE: "false"
       BBZ_DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-bbz}:${POSTGRES_PASSWORD:-bbz}@postgres:5432/${POSTGRES_DB:-bbz}
       BBZ_CLUSTER_DCS: etcd
       BBZ_CLUSTER_DCS_ENDPOINTS: '["http://etcd:2379"]'
