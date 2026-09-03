@@ -5,6 +5,7 @@ from pydantic import BaseModel
 
 from bbz_core import __version__
 from bbz_core.api.v1.account_linking import router as account_linking_router
+from bbz_core.api.v1.admin_settings import router as admin_settings_router
 from bbz_core.api.v1.audit import router as audit_router
 from bbz_core.api.v1.auth import router as auth_router
 from bbz_core.api.v1.auth_mappings import router as auth_mappings_router
@@ -66,6 +67,7 @@ api_v1.include_router(door_action_profiles_router)
 api_v1.include_router(doors_router)
 api_v1.include_router(weather_router)
 api_v1.include_router(monitor_router)
+api_v1.include_router(admin_settings_router)
 
 
 class MetaResponse(BaseModel):

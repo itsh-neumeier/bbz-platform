@@ -1979,6 +1979,24 @@ no DTMF plaintext reaches any sink).
   (`system.cluster.manage`). `Settings` keeps its native pydantic env/file
   loading; routing it through the provider lands with the Vault rollout.
   `test_secret_store.py` (9). `docs/security/secrets.md`.
+- **#720 (ADR-0031) runtime settings store** — the DB overlay over env config
+  that the Administration build-out (#718) needs. New `app_settings` table
+  (key/JSONB/updated_by/updated_at, migration **0055**). `SettingsStore`
+  (`bbz_core.infra.repositories.settings_store`): `effective(key)` resolves
+  **DB override → env → code default** with a 10 s process-wide TTL cache;
+  `snapshot()` for the admin view (effective value + `source`
+  database/environment/default); `apply(group, values, actor)` validates
+  against the `settings_catalog.py` whitelist, upserts, emits one
+  `SETTING_CHANGED` audit row (new critical action), invalidates the cache.
+  `GET /api/v1/admin/settings` + `PUT /api/v1/admin/settings/{group}`, both
+  `system.settings.manage`. **Secrets stay out**: secret-valued keys (LDAP bind
+  pw, …) are `configured: true|false` only on GET and 422 on PUT — they remain
+  with the `SecretProvider` (ADR-0019). Catalog today: `instance.name` /
+  `.short_name` (store-only), the non-secret LDAP fields, the four
+  `*_integration_id` provider selectors. Nothing reads through the store yet —
+  consumers opt in per follow-up issue (#721 instance name → `/meta`, #723
+  LDAP, #724 providers). `test_admin_settings_api.py` (8). **ADR-0031** Accepted
+  (extends ADR-0015).
 
 ### Epic 22 – Monitoring / Observability: **COMPLETE (7/7)**
 - **#459 (E22-07) collector + dashboards + SLO docs** — optional observability

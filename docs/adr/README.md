@@ -49,3 +49,4 @@ a provider contract, a security boundary, a technology choice. `.ai/RULES.md`:
 | 0028 | OpenTelemetry tracing — activating the no-op seam | Accepted |
 | 0029 | DB UX Design System v3 as the visual foundation (extends 0013) | Accepted |
 | 0030 | No manual event creation in the operator UI (V10-mockup deviation) | Accepted |
+| 0031 | Runtime settings store (DB overlay over env; extends 0015) | Accepted |
