@@ -126,7 +126,7 @@ async function submitReactivation(): Promise<void> {
 .rd {
   width: min(28rem, 92vw);
   border: 1px solid var(--bbz-border);
-  border-radius: 8px;
+  border-radius: var(--bbz-radius);
   padding: 0;
   background: var(--bbz-surface);
   color: var(--bbz-text);
@@ -151,7 +151,7 @@ async function submitReactivation(): Promise<void> {
 }
 .rd textarea {
   border: 1px solid var(--bbz-border);
-  border-radius: 4px;
+  border-radius: var(--bbz-radius);
   padding: 0.45rem;
   background: var(--bbz-bg);
   color: var(--bbz-text);
@@ -171,7 +171,7 @@ async function submitReactivation(): Promise<void> {
 .rd__cancel,
 .rd__confirm {
   padding: 0.4rem 0.9rem;
-  border-radius: 4px;
+  border-radius: var(--bbz-radius);
   cursor: pointer;
   border: 1px solid var(--bbz-border);
   background: var(--bbz-bg);

@@ -217,7 +217,7 @@ watch(id, load);
 .detail__reactivate {
   padding: 0.35rem 0.8rem;
   border: 1px solid var(--bbz-border);
-  border-radius: 4px;
+  border-radius: var(--bbz-radius);
   background: var(--bbz-accent);
   color: #fff;
   cursor: pointer;
@@ -270,7 +270,7 @@ watch(id, load);
 }
 .detail__noteform textarea {
   border: 1px solid var(--bbz-border);
-  border-radius: 4px;
+  border-radius: var(--bbz-radius);
   padding: 0.4rem;
   background: var(--bbz-bg);
   color: var(--bbz-text);
@@ -281,7 +281,7 @@ watch(id, load);
   align-self: flex-start;
   padding: 0.35rem 0.8rem;
   border: 1px solid var(--bbz-border);
-  border-radius: 4px;
+  border-radius: var(--bbz-radius);
   background: var(--bbz-accent);
   color: #fff;
   cursor: pointer;

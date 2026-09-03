@@ -235,7 +235,7 @@ onMounted(load);
 }
 .mon__cell {
   border: 1px solid var(--bbz-border);
-  border-radius: 6px;
+  border-radius: var(--bbz-radius);
   padding: 0.6rem;
   display: flex;
   flex-direction: column;
@@ -250,7 +250,7 @@ onMounted(load);
 .mon__cell select {
   padding: 0.35rem;
   border: 1px solid var(--bbz-border);
-  border-radius: 4px;
+  border-radius: var(--bbz-radius);
   background: var(--bbz-bg);
   color: var(--bbz-text);
 }
@@ -275,7 +275,7 @@ onMounted(load);
 .mon__actions button {
   padding: 0.4rem 0.8rem;
   border: 1px solid var(--bbz-border);
-  border-radius: 4px;
+  border-radius: var(--bbz-radius);
   background: var(--bbz-bg);
   color: var(--bbz-text);
   cursor: pointer;
@@ -294,7 +294,7 @@ onMounted(load);
 .mon__profile-apply select {
   padding: 0.3rem;
   border: 1px solid var(--bbz-border);
-  border-radius: 4px;
+  border-radius: var(--bbz-radius);
   background: var(--bbz-bg);
   color: var(--bbz-text);
 }

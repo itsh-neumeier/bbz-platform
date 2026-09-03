@@ -1,10 +1,11 @@
 /*
- * BBZ theme entry (ADR-0029). Import order matters:
- *   1. db.css        — the DB UX v3 token foundation (@layer db-theme, db-ux, bbz)
- *   2. semantic-*    — --bbz-* mapped onto --db-* (@layer bbz)
- *   3. typography    — DB Neo Screen Sans + control-room type scale (@layer bbz)
- *   4. components    — baseline styling for the plain HTML the app uses (@layer bbz)
- *   5. motion        — the global prefers-reduced-motion rule (unlayered, wins)
+ * BBZ theme entry (ADR-0029). Order matters:
+ *   db.css            the DB UX v3 token foundation (@layer db-tokens, db-ux)
+ *   fonts.css         DB Screen Sans @font-face (unlayered)
+ *   semantic-tokens   --bbz-* mapped onto --db-* (@layer bbz) + data-mode switch
+ *   typography        DB type scale, control-room sizing (@layer bbz)
+ *   components        baseline styling for the plain HTML the app uses (@layer bbz)
+ *   motion            the global prefers-reduced-motion rule (unlayered, wins)
  */
 @import './db.css';
 @import './fonts.css';

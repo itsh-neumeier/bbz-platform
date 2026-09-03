@@ -78,7 +78,7 @@ async function run(): Promise<void> {
 .acts__primary,
 .acts__secondary {
   padding: 0.3rem 0.7rem;
-  border-radius: 4px;
+  border-radius: var(--bbz-radius);
   font-size: 0.85rem;
   cursor: pointer;
   border: 1px solid var(--bbz-border);
@@ -98,7 +98,7 @@ async function run(): Promise<void> {
 }
 .acts__primary:focus-visible,
 .acts__secondary:focus-visible {
-  outline: 2px solid var(--bbz-accent);
+  outline: var(--bbz-focus-width) solid var(--bbz-focus-color);
   outline-offset: 2px;
 }
 .acts__conflict {

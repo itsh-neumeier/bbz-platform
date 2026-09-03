@@ -112,7 +112,7 @@ onMounted(async () => {
   background: var(--bbz-surface-alt);
 }
 .arch__row:focus-visible {
-  outline: 2px solid var(--bbz-accent);
+  outline: var(--bbz-focus-width) solid var(--bbz-focus-color);
   outline-offset: -2px;
 }
 .arch__title {

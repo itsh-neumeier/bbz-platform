@@ -14,7 +14,7 @@ const { t } = useI18n();
 .prio {
   display: inline-block;
   padding: 0.1rem 0.5rem;
-  border-radius: 3px;
+  border-radius: var(--bbz-radius-sm);
   font-size: 0.75rem;
   font-weight: 600;
   color: #fff;

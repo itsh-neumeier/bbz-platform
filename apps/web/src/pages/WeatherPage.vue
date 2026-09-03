@@ -188,7 +188,7 @@ onMounted(load);
 .wx__health {
   font-size: 0.78rem;
   padding: 0.1rem 0.45rem;
-  border-radius: 3px;
+  border-radius: var(--bbz-radius-sm);
   color: #fff;
 }
 .wx__health--ok {
@@ -236,7 +236,7 @@ onMounted(load);
 .wx__alert button {
   padding: 0.25rem 0.6rem;
   border: 1px solid var(--bbz-border);
-  border-radius: 4px;
+  border-radius: var(--bbz-radius);
   background: var(--bbz-accent);
   color: #fff;
   cursor: pointer;
@@ -258,7 +258,7 @@ onMounted(load);
 .wx__radar-img {
   max-width: 100%;
   border: 1px solid var(--bbz-border);
-  border-radius: 4px;
+  border-radius: var(--bbz-radius);
 }
 .wx__empty {
   color: var(--bbz-text-muted);

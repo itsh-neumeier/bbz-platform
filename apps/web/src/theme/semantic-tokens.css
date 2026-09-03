@@ -79,11 +79,7 @@
     /* ---- control-room layout ---- */
     --bbz-sidebar-width: 260px;
     --bbz-comms-width: 360px;
-
-    /* ---- accent alias kept for legacy component CSS ---- */
-    --bbz-warn: var(--db-warning-8);
   }
-
 }
 
 /* Dark / light switching (ADR-0029). The DB `light-dark()` tokens resolve

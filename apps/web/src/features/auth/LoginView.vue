@@ -216,7 +216,7 @@ function restart(): void {
   padding: 1.75rem;
   background: var(--bbz-surface);
   border: 1px solid var(--bbz-border);
-  border-radius: 8px;
+  border-radius: var(--bbz-radius);
 }
 .login__title {
   margin: 0 0 0.25rem;
@@ -232,7 +232,7 @@ function restart(): void {
 .login__field select {
   padding: 0.5rem;
   border: 1px solid var(--bbz-border);
-  border-radius: 4px;
+  border-radius: var(--bbz-radius);
   background: var(--bbz-bg);
   color: var(--bbz-text);
   font-size: 1rem;
@@ -240,13 +240,13 @@ function restart(): void {
 .login__field input:focus-visible,
 .login__submit:focus-visible,
 .login__link:focus-visible {
-  outline: 2px solid var(--bbz-accent);
+  outline: var(--bbz-focus-width) solid var(--bbz-focus-color);
   outline-offset: 2px;
 }
 .login__submit {
   padding: 0.6rem;
   border: 0;
-  border-radius: 4px;
+  border-radius: var(--bbz-radius);
   background: var(--bbz-accent);
   color: #fff;
   font-size: 1rem;
