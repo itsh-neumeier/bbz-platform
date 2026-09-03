@@ -88,23 +88,23 @@ const routes: RouteRecordRaw[] = [
             meta: { perm: 'integrations.configure', adminIssue: 724 },
           },
           {
-            // #725 renames this to `handlungsanweisungen` + redirects the old path
-            path: 'workflows',
+            path: 'handlungsanweisungen',
             name: 'workflow-admin',
             component: () => import('@/pages/WorkflowAdminPage.vue'),
             meta: { perm: 'workflows.manage_templates' },
           },
+          { path: 'workflows', redirect: { name: 'workflow-admin' } },
           {
             path: 'trigger-regeln',
             name: 'admin-triggers',
-            component: () => import('@/pages/admin/AdminPlaceholderPage.vue'),
-            meta: { perm: 'technical_endpoints.manage', adminIssue: 725 },
+            component: () => import('@/pages/admin/AdminTriggerRulesPage.vue'),
+            meta: { perm: 'technical_endpoints.manage' },
           },
           {
             path: 'technische-endpunkte',
             name: 'admin-endpoints',
-            component: () => import('@/pages/admin/AdminPlaceholderPage.vue'),
-            meta: { perm: 'technical_endpoints.manage', adminIssue: 725 },
+            component: () => import('@/pages/admin/AdminTechnicalEndpointsPage.vue'),
+            meta: { perm: 'technical_endpoints.manage' },
           },
           {
             path: 'system',
