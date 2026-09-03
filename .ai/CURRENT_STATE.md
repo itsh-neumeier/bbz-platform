@@ -605,6 +605,23 @@ CI — that job is **#123**, still open — so "feature complete" rows read
   open events by priority, the priority alert, waiting calls, line status
   (#711); `/wetterlage` (E18-09, #391), `/monitore` (E19-08, #408),
   `/telefonbuch` (E14-07/08, #297/#299).
+- **V10 mockup parity — Phase 1: the shell** (#98 / E07-03, mockup-alignment
+  work requested 2026-09-03). The client supplied `docs/mockup/bbz-3sz-v10.html`
+  — the binding UX reference per MASTER_PROMPT §13 / `.ai/FEATURES.md` (closes
+  the long-open **E01-02**). `AppShell` is now the V10 grid: `LogoCell` +
+  shared `TopBar` (breadcrumb · page title · priority pill before the clock ·
+  big clock · available lines · monitor button) / `SidebarLeft` (workspace
+  status · nav with live badges · user card with theme + logout) / content /
+  `VersionBar` / a resizable right column = `CommsSidebar` over the new
+  `GlobalLog` ("Ereignisse · Logbuch", `GET /api/v1/events/logbook` — recent
+  domain events across all events, `events.view`). `theme/mockup-surfaces.css`
+  ports the V10 card/tag/btn/timeline/modal chrome onto DB tokens (no raw hex,
+  `theme.spec.ts` enforced). Priority alert adopts the animated V10 pill
+  (`prefers-reduced-motion` stills it). Design tokens (ADR-0029) unchanged.
+  **Remaining: #716** Arbeitsplatz = Ereignisspeicher + inline processing (§13.3),
+  **#717** merge Ereignisse + Archiv (§13.6), **#718** the Administration
+  build-out (runtime settings store, users, LDAP, integrations). Trigger-only
+  event creation stays — new **ADR-0030** to be written.
 - **DB UX Design System v3** (#713, PR **#714 merged**, **ADR-0029** Accepted,
   extends ADR-0013): the whole UI is now visually DB-conformant. `src/theme/` is
   rebuilt on `@db-ux/core-foundations@5.3.0` + the `@db-ux/db-theme@6.2.0`

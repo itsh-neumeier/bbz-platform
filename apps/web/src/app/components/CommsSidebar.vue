@@ -503,19 +503,37 @@ onBeforeUnmount(() => clearInterval(poll));
   flex-direction: column;
   padding: 0.5rem 0.75rem 0.5rem 1rem;
   gap: 0.5rem;
-  min-width: 280px;
-  max-width: 640px;
+  width: 100%;
+  min-width: 0;
+  height: 100%;
+  overflow: auto;
+  background: var(--bbz-bg);
 }
 .comms__handle {
   position: absolute;
-  left: 0;
+  left: -5px;
   top: 0;
   bottom: 0;
-  width: 10px;
+  width: 12px;
   padding: 0;
   border: 0;
   cursor: col-resize;
   background: transparent;
+  z-index: 5;
+}
+.comms__handle::before {
+  content: '';
+  position: absolute;
+  left: 5px;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: transparent;
+  transition: background-color var(--bbz-transition);
+}
+.comms__handle:hover::before,
+.comms__handle:focus-visible::before {
+  background: var(--bbz-info);
 }
 .comms__handle:focus-visible {
   outline: var(--bbz-focus-width) solid var(--bbz-focus-color);

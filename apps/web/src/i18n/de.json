@@ -12,7 +12,56 @@
     "monitors": "Monitore",
     "phonebook": "Telefonbuch",
     "admin": "Administration",
-    "workflows": "Workflow-Vorlagen"
+    "workflows": "Workflow-Vorlagen",
+    "label": "Hauptnavigation"
+  },
+  "shell": {
+    "breadcrumb": "BBZ / 3SZ",
+    "monitorLayout": "Monitore",
+    "monitorLayoutOpen": "Monitor-Layout öffnen",
+    "availableLines": "Verfügbare Leitungen",
+    "group": "Gruppe",
+    "leitplatz": "BBZ / 3-S-Zentrale",
+    "pageTitle": {
+      "workplace": "Leitstellenmanagement",
+      "events": "Ereignisübersicht",
+      "event-detail": "Ereignis bearbeiten",
+      "archive": "Archiv",
+      "archive-detail": "Archiviertes Ereignis",
+      "weather": "Wetterlage & Niederschlagsradar",
+      "monitors": "Monitorrouting",
+      "phonebook": "Telefonbuch",
+      "admin": "Administration",
+      "workflow-admin": "Workflow-Vorlagen (EPK)"
+    }
+  },
+  "versionbar": {
+    "version": "Version {v}",
+    "node": "Hauptserver: {node}",
+    "offline": "Serverinformationen nicht verfügbar",
+    "env": {
+      "local": "Entwicklungsumgebung",
+      "ci": "Testumgebung",
+      "staging": "Staging-Umgebung",
+      "production": "Produktionsumgebung"
+    }
+  },
+  "logbook": {
+    "title": "Ereignisse · Logbuch",
+    "subtitle": "arbeitsplatzübergreifend",
+    "empty": "Noch keine Einträge im Logbuch.",
+    "failed": "Logbuch konnte nicht geladen werden.",
+    "type": {
+      "EVENT_CREATED": "angelegt",
+      "EVENT_ACCEPTED": "angenommen",
+      "EVENT_ACKNOWLEDGED": "quittiert",
+      "EVENT_OPENED": "in Bearbeitung",
+      "EVENT_ARCHIVED": "archiviert",
+      "EVENT_ASSIGNED": "übertragen",
+      "EVENT_TAKEN_OVER": "übernommen",
+      "EVENT_REACTIVATED": "reaktiviert",
+      "EVENT_NOTE_ADDED": "Notiz ergänzt"
+    }
   },
   "wf": {
     "title": "Workflow-Vorlagen (EPK)",

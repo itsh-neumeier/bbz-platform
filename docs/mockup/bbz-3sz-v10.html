@@ -1,0 +1,965 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>DB InfraGO AG · BBZ / 3SZ Leitstellenmanagement · V10</title>
+<style>
+:root{
+  --bg:#07111d;
+  --bg-2:#0a1624;
+  --panel:#0f1d2b;
+  --panel-2:#122335;
+  --panel-3:#162a3f;
+  --line:#26384b;
+  --line-2:#324a60;
+  --text:#f3f6f9;
+  --muted:#98a9ba;
+  --muted-2:#708396;
+  --db:#ec0016;
+  --db-dark:#a90011;
+  --blue:#2784e8;
+  --blue-2:#175da7;
+  --green:#35b96f;
+  --amber:#f29f26;
+  --yellow:#f4c542;
+  --danger:#e93a45;
+  --shadow:0 10px 28px rgba(0,0,0,.24);
+  --radius:10px;
+  --sidebar:228px;
+  --right:410px;
+  --header:84px;
+  --footer:34px;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,"Segoe UI",Arial,sans-serif;overflow:hidden;font-size:13px}
+button,input,textarea{font:inherit}
+button{color:inherit}
+.app{
+  height:100vh;
+  display:grid;
+  grid-template-columns:var(--sidebar) minmax(520px,1fr) var(--right);
+  grid-template-rows:var(--header) 1fr var(--footer);
+  background:linear-gradient(180deg,#081522 0%,#07111d 100%);
+}
+/* global cells */
+.logo-cell{grid-column:1;grid-row:1;border-right:1px solid var(--line);border-bottom:1px solid var(--line);background:#07111c;display:flex;align-items:center;padding:14px 18px}
+.topbar{grid-column:2/4;grid-row:1;border-bottom:1px solid var(--line);background:linear-gradient(90deg,#0a1623 0%,#0a1725 56%,#07111c 100%);display:flex;align-items:center;justify-content:space-between;padding:0 16px 0 22px;gap:18px;box-shadow:0 4px 18px rgba(0,0,0,.16);min-width:0}
+.topbar-left{min-width:0;display:flex;align-items:center;gap:18px}
+.topbar-title{min-width:0}
+.topbar-right{display:flex;align-items:center;justify-content:flex-end;gap:16px;min-width:max-content}
+.topbar-separator{width:1px;height:44px;background:var(--line);flex:0 0 1px}
+.sidebar{grid-column:1;grid-row:2/4;border-right:1px solid var(--line);background:#08131f;display:grid;grid-template-rows:78px 1fr 112px;min-height:0}
+.content{grid-column:2;grid-row:2;min-width:0;min-height:0;overflow:auto;padding:16px 18px 18px;background:radial-gradient(circle at 50% -20%,rgba(39,132,232,.08),transparent 42%)}
+.versionbar{grid-column:2;grid-row:3;border-top:1px solid var(--line);border-right:1px solid var(--line);height:var(--footer);display:flex;align-items:center;justify-content:center;gap:12px;color:#91a4b8;background:#091522;font-size:11px;letter-spacing:.01em}
+.right-column{grid-column:3;grid-row:2/4;min-height:0;display:grid;grid-template-rows:54% 46%;background:#08131f;position:relative;container-type:inline-size;container-name:rightcol}
+.right-resizer{position:absolute;left:-7px;top:0;bottom:0;width:14px;z-index:40;cursor:col-resize;touch-action:none;outline:none;display:flex;align-items:center;justify-content:center}
+.right-resizer:before{content:"";position:absolute;left:6px;top:0;bottom:0;width:2px;background:#31485d;transition:.15s}
+.right-resizer:after{content:"⋮";position:relative;width:18px;height:54px;border:1px solid #3a556d;border-radius:9px;background:#102133;color:#9fc1dd;display:grid;place-items:center;font-size:18px;line-height:1;box-shadow:0 5px 14px rgba(0,0,0,.28);opacity:.72;transition:.15s}
+.right-resizer:hover:before,.right-resizer:focus-visible:before,.right-resizer.dragging:before{background:#3a9cff;width:3px}
+.right-resizer:hover:after,.right-resizer:focus-visible:after,.right-resizer.dragging:after{border-color:#3a9cff;color:#d9eeff;opacity:1;box-shadow:0 0 0 3px rgba(58,156,255,.12),0 6px 16px rgba(0,0,0,.3)}
+body.resizing{cursor:col-resize;user-select:none}
+.resize-a11y-note{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+.call-workspace{border-bottom:1px solid var(--line);min-height:0;display:flex;flex-direction:column}
+.global-log{min-height:0;display:flex;flex-direction:column}
+/* logo */
+.logo-wrap{display:flex;align-items:center;gap:12px;min-width:0}
+.db-logo-img{width:58px;height:41px;object-fit:contain;display:block;background:white;border-radius:3px}
+.db-fallback{width:58px;height:34px;background:white;border:4px solid var(--db);border-radius:5px;display:none;align-items:center;justify-content:center;color:var(--db);font-size:22px;font-weight:900;font-family:Arial Black,Arial,sans-serif;letter-spacing:-3px;padding-right:3px}
+.brand-copy{min-width:0}.brand-copy strong{font-size:15px;display:block;white-space:nowrap}.brand-copy small{color:var(--muted);display:block;margin-top:3px;white-space:nowrap}
+/* topbar */
+.crumbs{color:#7f92a5;font-size:11px;margin-bottom:4px}.page-title{font-size:21px;font-weight:700;letter-spacing:-.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.top-actions{display:flex;align-items:center;gap:8px}.status-pill{display:flex;align-items:center;gap:7px;padding:7px 10px;border:1px solid #24523a;border-radius:8px;background:#10291c;color:#83dda8;font-size:11px;white-space:nowrap}.status-dot{width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 0 4px rgba(53,185,111,.12)}
+.clock{text-align:right;line-height:1.05;min-width:155px}.clock-date{font-size:11px;color:#91a4b8;margin-bottom:5px}.clock-time{font-size:25px;font-weight:700;font-variant-numeric:tabular-nums;letter-spacing:.03em;white-space:nowrap}
+.lines-card{min-width:128px;border:1px solid var(--line);background:#0f1d2b;border-radius:10px;padding:9px 11px;display:grid;grid-template-columns:34px 1fr;align-items:center;gap:9px;box-shadow:var(--shadow)}
+.lines-icon{width:34px;height:34px;border-radius:8px;background:#17283a;display:grid;place-items:center;font-size:17px}.lines-card small{display:block;color:#92a4b6;font-size:10px}.lines-card strong{display:block;font-size:20px;margin-top:2px;font-variant-numeric:tabular-nums}.lines-card strong span{color:var(--green)}
+/* sidebar */
+.workspace-status{border-bottom:1px solid var(--line);padding:12px 14px;display:flex;align-items:center;gap:10px}.status-orb{width:12px;height:12px;border-radius:50%;background:var(--green);box-shadow:0 0 0 5px rgba(53,185,111,.12)}.workspace-status b{display:block;font-size:12px}.workspace-status small{display:block;color:#8da0b2;font-size:10px;margin-top:3px}
+.nav{padding:10px 8px;overflow:auto}.nav-item{width:100%;border:0;background:transparent;border-left:3px solid transparent;border-radius:7px;padding:11px 10px;color:#a9b7c5;display:grid;grid-template-columns:24px 1fr auto;align-items:center;gap:8px;cursor:pointer;text-align:left;margin-bottom:4px;transition:.15s}.nav-item:hover{background:#102034;color:#fff}.nav-item.active{background:linear-gradient(90deg,#15365e,#173153);border-left-color:#3a9cff;color:white}.nav-icon{font-size:17px;text-align:center;opacity:.95}.nav-badge{min-width:22px;height:22px;border-radius:11px;background:var(--db);display:grid;place-items:center;font-size:10px;font-weight:700;color:#fff;padding:0 6px}
+.user-card{border-top:1px solid var(--line);padding:13px 12px;display:flex;gap:10px;align-items:center;background:#091521}.avatar{width:40px;height:40px;border-radius:50%;background:linear-gradient(145deg,#233a51,#142637);display:grid;place-items:center;border:1px solid #355169;font-weight:800;position:relative}.avatar:after{content:"";position:absolute;right:0;bottom:1px;width:9px;height:9px;background:var(--green);border-radius:50%;border:2px solid #091521}.user-card b{display:block;font-size:12px}.user-card small{display:block;color:#98a9ba;font-size:10px;margin-top:4px;line-height:1.35}
+/* generic */
+.card{background:linear-gradient(180deg,var(--panel),#0c1926);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow)}
+.card-head{min-height:48px;padding:11px 14px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:10px}.card-title{font-size:14px;font-weight:700}.card-subtitle{font-size:10px;color:var(--muted);margin-top:2px}.card-body{padding:13px}
+.section-title{font-size:15px;font-weight:700}.section-kicker{text-transform:uppercase;letter-spacing:.08em;color:#7f93a7;font-size:9px;font-weight:800}.muted{color:var(--muted)}
+.tag{display:inline-flex;align-items:center;gap:5px;border-radius:6px;padding:4px 7px;font-size:9px;font-weight:800;white-space:nowrap}.tag.red{background:#4c171d;color:#ff9aa3;border:1px solid #7c252e}.tag.green{background:#133825;color:#85e6aa;border:1px solid #245438}.tag.blue{background:#15375c;color:#89c1ff;border:1px solid #24527f}.tag.amber{background:#483116;color:#f9c778;border:1px solid #6a481e}.tag.gray{background:#1b2b3b;color:#b5c3d0;border:1px solid #304356}
+.btn{border:1px solid var(--line-2);background:#152537;border-radius:7px;padding:8px 10px;cursor:pointer;font-weight:650;font-size:11px;transition:.15s}.btn:hover{filter:brightness(1.13)}.btn.primary{background:#1767b5;border-color:#2584df}.btn.success{background:#249955;border-color:#36bd70}.btn.danger{background:#7c1e28;border-color:#b62a36}.btn.db{background:var(--db-dark);border-color:var(--db)}.btn.ghost{background:transparent}.btn.sm{padding:5px 8px;font-size:10px}.btn.icon{width:32px;height:32px;padding:0;display:grid;place-items:center}
+.input,.textarea{width:100%;background:#091522;border:1px solid #31475c;border-radius:7px;color:#eef3f7;padding:9px 10px;outline:none}.input:focus,.textarea:focus{border-color:#2a8bec;box-shadow:0 0 0 3px rgba(42,139,236,.1)}.textarea{resize:vertical;min-height:72px}
+/* default workspace */
+.dashboard-grid{display:grid;grid-template-columns:minmax(420px,1.2fr) minmax(330px,.8fr);gap:14px;align-items:start}.hero{grid-column:1/-1;overflow:hidden}.hero-top{padding:14px;display:grid;grid-template-columns:52px 1.2fr repeat(4,minmax(90px,.45fr));gap:14px;align-items:center}.alarm-icon{width:52px;height:52px;border-radius:10px;background:linear-gradient(180deg,#6b1d26,#3b161b);display:grid;place-items:center;font-size:25px;border:1px solid #912b35}.hero h2{font-size:18px;margin:0 0 7px}.hero-field span{display:block;color:#7f93a7;font-size:9px;margin-bottom:4px}.hero-field b{font-size:11px}.alertbar{padding:11px 14px;background:linear-gradient(90deg,#651a23,#47171d);border-top:1px solid #a52835;color:#ffd4d8;display:flex;align-items:center;gap:10px}.alertbar strong{font-size:12px}
+.task-list{display:grid;gap:7px}.task-row{border:1px solid #263b4e;border-radius:8px;padding:9px;display:grid;grid-template-columns:30px 1fr auto;gap:9px;align-items:center;background:#0d1a28}.task-number{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;border:1px solid #526a7e;color:#a9b8c5;font-weight:800}.task-row.done .task-number{background:#269957;border-color:#269957;color:white}.task-row.current{border-color:#276faf;background:#10243a}.task-row.current .task-number{background:#1d77d4;border-color:#2b90f4;color:#fff}.task-row b{display:block;font-size:11px}.task-row small{display:block;color:#8fa1b2;font-size:9px;margin-top:3px;line-height:1.35}.progress-wrap{display:flex;align-items:center;gap:8px}.progress{height:7px;background:#253546;border-radius:10px;overflow:hidden;flex:1}.progress>span{display:block;height:100%;background:linear-gradient(90deg,#2dba68,#57cc87)}
+.timeline{display:grid;gap:0}.timeline-row{display:grid;grid-template-columns:58px 24px 1fr;gap:9px;min-height:56px}.timeline-row time{font-size:9px;color:#8395a7;padding-top:4px;font-variant-numeric:tabular-nums}.tl-line{position:relative;display:flex;justify-content:center}.tl-line:before{content:"";position:absolute;top:0;bottom:-2px;width:1px;background:#3a5064}.tl-dot{position:relative;z-index:1;width:22px;height:22px;border-radius:50%;display:grid;place-items:center;background:#1b73cc;border:2px solid #6ab2fb;font-size:10px}.timeline-row:last-child .tl-line:before{bottom:34px}.timeline-row b{display:block;font-size:10px}.timeline-row small{display:block;color:#8093a6;font-size:9px;margin-top:3px;line-height:1.3}
+.kpi-row{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px}.kpi{padding:11px 12px}.kpi span{color:#8295a8;font-size:9px}.kpi strong{display:block;font-size:21px;margin-top:4px}.kpi small{font-size:9px;color:#778b9f}
+/* tables */
+.table-wrap{overflow:auto}.table{width:100%;border-collapse:collapse;min-width:650px}.table th,.table td{padding:9px 10px;border-bottom:1px solid #22364a;text-align:left;font-size:10px;white-space:nowrap}.table th{color:#8194a7;background:#0d1a28;font-size:9px;text-transform:uppercase;letter-spacing:.04em;position:sticky;top:0}.table tbody tr{cursor:pointer}.table tbody tr:hover{background:#112238}.prio-dot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:6px}.p-red{background:#f23b4a}.p-amber{background:#f29f26}.p-yellow{background:#e8c23a}.p-blue{background:#318ddd}
+/* right phone */
+.tabs{display:grid;grid-template-columns:repeat(4,1fr);border-bottom:1px solid var(--line);background:#0a1724}.tab-btn{height:40px;border:0;border-bottom:2px solid transparent;background:transparent;color:#8ea1b4;font-size:10px;cursor:pointer}.tab-btn.active{color:#fff;border-bottom-color:#2e8ff0;background:#0d1d2d}.phone-content{padding:11px;overflow:auto;min-height:0;flex:1}.phone-layout{display:grid;grid-template-columns:150px 1fr;gap:10px}.phone-box{background:#0c1926;border:1px solid #24384a;border-radius:8px;padding:9px}.phone-box h4{margin:0 0 8px;font-size:11px}.dial-display{display:flex;gap:5px;margin-bottom:7px}.dial-display input{font-size:13px;text-align:center;padding:8px 6px}.dial-display .btn{padding:0;width:30px}.keypad{display:grid;grid-template-columns:repeat(3,1fr);gap:5px}.key{height:40px;border:1px solid #2e4356;background:#102031;border-radius:6px;cursor:pointer;font-size:15px;font-weight:600;display:flex;flex-direction:column;align-items:center;justify-content:center}.key span{font-size:7px;color:#8396a7;font-weight:500;margin-top:1px}.dial-actions{display:grid;grid-template-columns:1fr 42px;gap:6px;margin-top:7px}.incoming-list{display:grid;gap:6px}.incoming{border:1px solid #263c4f;background:#102031;border-radius:7px;padding:7px;display:grid;grid-template-columns:30px 1fr auto;gap:7px;align-items:center}.incoming-icon{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;background:#d62936}.incoming.known:nth-child(2) .incoming-icon{background:#d77b1a}.incoming.known:nth-child(3) .incoming-icon{background:#2274ca}.incoming.unknown .incoming-icon{background:#526274}.incoming b{font-size:9px;display:block}.incoming small{font-size:8px;color:#8da0b2;display:block;margin-top:2px}.incoming-actions{display:flex;gap:4px}.incoming-actions .btn{font-size:8px;padding:6px}.phone-footer-actions{display:flex;gap:7px;margin-top:9px}.phone-footer-actions .btn{flex:1}
+.active-call{display:grid;gap:10px}.call-banner{border:1px solid #2e724c;background:#102a1e;border-radius:9px;padding:13px;display:grid;grid-template-columns:42px 1fr auto;align-items:center;gap:10px}.call-avatar{width:42px;height:42px;border-radius:50%;background:#20995a;display:grid;place-items:center;font-size:18px}.call-banner h3{font-size:13px;margin:0 0 3px}.call-banner small{color:#94a8b8}.call-duration{font-size:16px;font-weight:800;font-variant-numeric:tabular-nums}.call-actions-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}.call-actions-grid .btn{min-height:40px}
+.phonebook-mini{display:grid;gap:6px}.contact-row{display:grid;grid-template-columns:31px 1fr auto;align-items:center;gap:8px;padding:8px;border:1px solid #263a4d;border-radius:7px;background:#0e1c2b}.contact-avatar{width:31px;height:31px;border-radius:7px;background:#1c4f7e;display:grid;place-items:center;font-size:10px;font-weight:800}.contact-row b{display:block;font-size:9px}.contact-row small{display:block;color:#8799aa;font-size:8px;margin-top:2px}.contact-actions{display:flex;gap:4px}
+/* global log */
+.global-log-head{height:46px;min-height:46px;padding:10px 12px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;background:#0a1724}.global-log-title b{font-size:12px;display:block}.global-log-title small{display:block;color:#8294a5;font-size:8px;margin-top:2px}.log-list{padding:8px 9px;overflow:auto;display:grid;gap:6px}.log-entry{border:1px solid #24394b;border-radius:7px;background:#0d1b29;padding:8px;display:grid;grid-template-columns:52px 1fr;gap:8px}.log-entry time{font-size:8px;color:#7e91a3;font-variant-numeric:tabular-nums}.log-entry b{font-size:9px;display:block}.log-entry p{font-size:8px;color:#8ea0b2;margin:3px 0 0;line-height:1.35}.log-meta{display:flex;gap:5px;margin-top:5px;flex-wrap:wrap}.mini-chip{font-size:7px;border:1px solid #344b5f;border-radius:5px;padding:2px 4px;color:#9db0c0;background:#142333}
+/* center detailed views */
+.view{display:none}.view.active{display:block}.view-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:13px}.view-head h2{margin:2px 0 3px;font-size:19px}.view-head p{margin:0;color:#8fa2b3;font-size:10px}.two-col{display:grid;grid-template-columns:1fr 1fr;gap:13px}.three-col{display:grid;grid-template-columns:repeat(3,1fr);gap:13px}.stat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.stat-card{padding:13px}.stat-card strong{font-size:24px;display:block}.stat-card span{font-size:9px;color:#8da0b2}.detail-grid{display:grid;grid-template-columns:1.15fr .85fr;gap:13px}.info-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}.info-tile{padding:9px;border:1px solid #273b4f;background:#0d1b2a;border-radius:7px}.info-tile span{display:block;font-size:8px;color:#7f92a5}.info-tile b{display:block;font-size:10px;margin-top:4px}.searchbar{display:flex;gap:8px}.searchbar .input{flex:1}.list-stack{display:grid;gap:7px}.list-card{border:1px solid #273b4e;background:#0d1a28;border-radius:8px;padding:10px;display:flex;align-items:center;justify-content:space-between;gap:10px}.list-card b{font-size:10px}.list-card small{display:block;color:#8497a9;font-size:8px;margin-top:3px}
+.admin-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}.switch-row{display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #24384b;padding:10px 0}.switch{width:36px;height:20px;border-radius:10px;background:#1d3f2d;border:1px solid #2e704d;position:relative}.switch:before{content:"";position:absolute;right:2px;top:2px;width:14px;height:14px;border-radius:50%;background:#4fd083}
+/* modal/toast */
+.modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;align-items:center;justify-content:center;z-index:50}.modal-backdrop.show{display:flex}.modal{width:min(620px,90vw);max-height:80vh;overflow:auto;background:#0c1927;border:1px solid #3c5368;border-radius:12px;box-shadow:0 30px 70px rgba(0,0,0,.45)}.modal-head{padding:12px 14px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center}.modal-body{padding:13px}.quick-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.quick-btn{min-height:78px;border:1px solid #2f465c;background:#102133;border-radius:9px;padding:9px;text-align:left;cursor:pointer}.quick-btn:hover{background:#17304b;border-color:#3c78aa}.quick-btn b{font-size:10px;display:block}.quick-btn small{font-size:8px;color:#8497a9;display:block;margin-top:5px}.quick-btn strong{font-size:15px;display:block;margin-top:8px;color:#8ec5ff}
+.toast{position:fixed;right:18px;bottom:18px;z-index:60;min-width:260px;background:#102235;border:1px solid #31516e;border-radius:9px;padding:10px 12px;box-shadow:0 15px 35px rgba(0,0,0,.35);display:none}.toast.show{display:block}.toast b{display:block;font-size:11px}.toast small{display:block;color:#8ea1b2;margin-top:3px;font-size:9px}
+@container rightcol (max-width:390px){.phone-layout{grid-template-columns:1fr}.incoming{grid-template-columns:30px 1fr}.incoming-actions{grid-column:1/-1;justify-content:flex-end}.phone-footer-actions{flex-direction:column}.tab-btn{font-size:9px}}
+@container rightcol (min-width:560px){.phone-layout{grid-template-columns:185px 1fr}.incoming b{font-size:10px}.incoming small{font-size:9px}.log-entry{grid-template-columns:62px 1fr}.log-entry b{font-size:10px}.log-entry p{font-size:9px}}
+@media(max-width:1250px){:root{--sidebar:205px}.hero-top{grid-template-columns:46px 1fr repeat(2,minmax(90px,.5fr))}.hero-field:nth-last-child(-n+2){display:none}.status-pill{display:none}.topbar{padding-left:16px;gap:10px}.topbar-right{gap:10px}.clock{min-width:140px}.clock-time{font-size:22px}}
+@media(max-width:980px){:root{--sidebar:185px}.brand-copy{display:none}.app{grid-template-columns:var(--sidebar) minmax(430px,1fr) var(--right)}.topbar-separator{display:none}.lines-card{min-width:112px}.clock-date{display:none}}
+
+/* V6: Ereignisspeicher + verbesserte Lesbarkeit */
+body{font-size:14px}
+.card-head{min-height:54px;padding:12px 15px}.card-title{font-size:15px}.card-subtitle{font-size:11px;line-height:1.4}
+.btn{font-size:12px;min-height:38px;padding:9px 12px}.btn.sm{font-size:11px;min-height:34px;padding:7px 10px}.btn.icon{width:38px;height:38px}
+.btn:disabled{opacity:.42;cursor:not-allowed;filter:none}
+.tag{font-size:10px;padding:5px 8px}
+.table{min-width:720px}.table th,.table td{padding:11px 12px;font-size:12.5px}.table th{font-size:10.5px}.table tbody tr{height:46px}
+.view-head h2{font-size:21px}.view-head p{font-size:12px;line-height:1.45}.section-kicker{font-size:10px}
+.list-card{padding:12px}.list-card b{font-size:12.5px}.list-card small{font-size:10.5px;line-height:1.4;margin-top:4px}
+.info-tile{padding:11px}.info-tile span{font-size:10px}.info-tile b{font-size:12px;line-height:1.35}
+.input,.textarea{font-size:13px;padding:10px 11px}.textarea{min-height:88px}
+
+/* Ereignisspeicher im Arbeitsplatz */
+.workspace-flow{display:grid;gap:14px;align-content:start}
+.event-store{overflow:hidden}
+.event-store-toolbar{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap}
+.event-store-titleline{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.event-store-counters{display:flex;gap:8px;flex-wrap:wrap}
+.store-counter{display:flex;align-items:center;gap:6px;border:1px solid #30475b;border-radius:8px;background:#102032;padding:7px 10px;font-size:11px;color:#a9bac9}
+.store-counter strong{color:#fff;font-size:14px;font-variant-numeric:tabular-nums}
+.event-store-table{max-height:300px;overflow:auto}
+.event-store-table .table{min-width:1040px}
+.event-store-table .table td{vertical-align:middle}
+.event-store-table tr.selected{background:#132d49;box-shadow:inset 4px 0 #3598f3}
+.event-store-table tr.critical{box-shadow:inset 4px 0 #ec3342}
+.event-store-table tr.selected.critical{box-shadow:inset 4px 0 #3598f3}
+.event-maincell b{display:block;font-size:13px}.event-maincell small{display:block;color:#90a3b5;font-size:10.5px;margin-top:3px}
+.event-actions{display:flex;align-items:center;justify-content:flex-end;gap:6px;white-space:nowrap}
+.owner-me{color:#82dfa8;font-weight:700}.owner-other{color:#f6c373}.owner-none{color:#93a5b6}
+.event-status{display:inline-flex;align-items:center;gap:6px}.event-status:before{content:"";width:8px;height:8px;border-radius:50%;background:#6d8296}.event-status.new:before{background:#ec3342}.event-status.accepted:before{background:#f29f26}.event-status.acked:before,.event-status.working:before{background:#2b91ee}.event-status.done:before{background:#35b96f}
+.processing-card{overflow:hidden}
+.processing-empty{min-height:260px;display:grid;place-items:center;text-align:center;padding:30px;color:#8ea1b3}
+.processing-empty .empty-icon{width:62px;height:62px;border-radius:50%;display:grid;place-items:center;margin:0 auto 12px;background:#102337;border:1px solid #2e4b65;font-size:26px;color:#6eaee8}
+.processing-empty b{display:block;color:#dbe7f0;font-size:16px;margin-bottom:6px}.processing-empty p{margin:0;max-width:560px;font-size:12px;line-height:1.55}
+.processing-head{padding:14px 15px;border-bottom:1px solid var(--line);background:linear-gradient(90deg,#0f2031,#0d1a28)}
+.processing-title-row{display:flex;align-items:flex-start;justify-content:space-between;gap:14px}
+.processing-title-row h2{font-size:18px;margin:3px 0 7px}.processing-tags{display:flex;gap:6px;flex-wrap:wrap}
+.event-facts{display:grid;grid-template-columns:repeat(5,minmax(100px,1fr));gap:8px;margin-top:12px}
+.event-fact{border:1px solid #2a4053;border-radius:8px;background:#0b1927;padding:9px 10px}.event-fact span{display:block;color:#8398ab;font-size:9.5px;margin-bottom:4px}.event-fact b{font-size:11.5px;line-height:1.35}
+.processing-grid{display:grid;grid-template-columns:minmax(420px,1.08fr) minmax(330px,.92fr);gap:12px;padding:12px}
+.processing-grid>.card{box-shadow:none}
+.processing-grid .task-row{padding:11px}.processing-grid .task-row b{font-size:12.5px}.processing-grid .task-row small{font-size:10.5px;line-height:1.45}
+.processing-grid .timeline-row{min-height:66px;grid-template-columns:70px 28px 1fr}.processing-grid .timeline-row time{font-size:10px}.processing-grid .timeline-row b{font-size:12px}.processing-grid .timeline-row small{font-size:10.5px;line-height:1.4}
+
+/* Telefonie / Anrufe / Telefonbuch deutlich größer */
+.tabs{min-height:46px}.tab-btn{height:46px;font-size:12px;font-weight:700}
+.phone-content{padding:13px}.phone-layout{grid-template-columns:180px 1fr;gap:12px}.phone-box{padding:12px}.phone-box h4{font-size:13px;margin-bottom:10px}
+.dial-display input{font-size:15px;padding:10px 8px}.dial-display .btn{width:38px}.keypad{gap:7px}.key{height:47px;font-size:17px}.key span{font-size:9px;margin-top:2px}.dial-actions{grid-template-columns:1fr 48px;gap:7px;margin-top:9px}
+.incoming-list{gap:8px}.incoming{padding:10px;grid-template-columns:38px minmax(0,1fr) auto;gap:10px;border-radius:9px}.incoming-icon{width:38px;height:38px;font-size:16px}.incoming b{font-size:12.5px;line-height:1.3}.incoming small{font-size:10.5px;line-height:1.35;margin-top:3px}.incoming-actions{gap:6px}.incoming-actions .btn{font-size:11px;padding:8px 10px;min-height:38px}
+.phone-footer-actions{gap:9px;margin-top:11px}.phone-footer-actions .btn{min-height:40px}
+.call-banner{padding:14px}.call-banner h3{font-size:15px}.call-banner small{font-size:11px}.call-duration{font-size:19px}.call-actions-grid .btn{min-height:42px}
+.phonebook-mini{gap:8px}.contact-row{grid-template-columns:38px minmax(0,1fr) auto;gap:10px;padding:10px}.contact-avatar{width:38px;height:38px;font-size:11px}.contact-row b{font-size:12.5px;line-height:1.3}.contact-row small{font-size:10.5px;line-height:1.4;margin-top:3px}
+.global-log-head{height:52px;min-height:52px;padding:11px 13px}.global-log-title b{font-size:13px}.global-log-title small{font-size:10px}.log-list{padding:9px 10px;gap:8px}.log-entry{padding:10px;grid-template-columns:62px 1fr;gap:10px}.log-entry time{font-size:10px}.log-entry b{font-size:11.5px;line-height:1.35}.log-entry p{font-size:10px;line-height:1.45;margin-top:4px}.mini-chip{font-size:9px;padding:3px 5px}
+.quick-btn{min-height:92px;padding:11px}.quick-btn b{font-size:12px}.quick-btn small{font-size:10px}.quick-btn strong{font-size:17px}
+
+@container rightcol (max-width:430px){.phone-layout{grid-template-columns:1fr}.incoming{grid-template-columns:38px minmax(0,1fr)}.incoming-actions{grid-column:1/-1;justify-content:flex-end}.phone-footer-actions{flex-direction:column}.tab-btn{font-size:11px}.contact-row{grid-template-columns:38px minmax(0,1fr) auto}}
+@container rightcol (min-width:560px){.phone-layout{grid-template-columns:210px 1fr}.incoming b{font-size:13px}.incoming small{font-size:11px}.contact-row b{font-size:13px}.contact-row small{font-size:11px}.log-entry b{font-size:12px}.log-entry p{font-size:10.5px}}
+@media(max-width:1250px){.processing-grid{grid-template-columns:1fr}.event-facts{grid-template-columns:repeat(3,1fr)}}
+
+
+/* V6: einheitliche Scrollbars, Prioritätsanimationen, feste Aktionen, Maßnahmenverantwortung, Monitorrouting */
+*{scrollbar-width:thin;scrollbar-color:#3b5870 #0a1624}
+*::-webkit-scrollbar{width:10px;height:10px}*::-webkit-scrollbar-track{background:#0a1624;border-radius:8px}*::-webkit-scrollbar-thumb{background:#35526a;border:2px solid #0a1624;border-radius:8px}*::-webkit-scrollbar-thumb:hover{background:#4b7190}*::-webkit-scrollbar-corner{background:#0a1624}
+.event-store-table{overflow:auto;position:relative;max-height:310px}.event-store-table .table thead th{position:sticky;top:0;z-index:6;background:#13263a}.event-store-table .table th:last-child,.event-store-table .table td:last-child{position:sticky;right:0;z-index:4;background:#102033;box-shadow:-8px 0 14px rgba(3,10,17,.45)}.event-store-table .table th:last-child{z-index:7;background:#13263a}.event-store-table .table tr.selected td:last-child{background:#15304b}.event-store-table .event-actions{min-width:285px;justify-content:flex-end;white-space:nowrap}.event-store-table .table th,.event-store-table .table td{font-size:12.5px}.event-store-table .event-maincell b{font-size:13px}.event-store-table .event-maincell small{font-size:10.5px}
+@keyframes criticalPulse{0%,100%{box-shadow:inset 4px 0 0 #e93a45,0 0 0 rgba(233,58,69,0)}50%{box-shadow:inset 4px 0 0 #ff5360,0 0 20px rgba(233,58,69,.22)}}
+@keyframes highPulse{0%,100%{box-shadow:inset 3px 0 0 #f29f26}50%{box-shadow:inset 6px 0 0 #ffc15f}}
+.event-store-table tr.priority-critical{animation:criticalPulse 1.5s ease-in-out infinite}.event-store-table tr.priority-high{animation:highPulse 2.1s ease-in-out infinite}.event-store-table tr.priority-critical td:first-child b{color:#ff8d96}.event-store-table tr.priority-high td:first-child b{color:#ffc56f}
+@media (prefers-reduced-motion:reduce){.event-store-table tr.priority-critical,.event-store-table tr.priority-high{animation:none}.status-dot{box-shadow:none}}
+.task-row{grid-template-columns:34px minmax(0,1fr) minmax(210px,auto)!important;align-items:center}.measure-actions{display:flex;align-items:center;justify-content:flex-end;gap:6px;flex-wrap:wrap}.measure-owner{display:flex;align-items:center;gap:6px;padding:5px 7px;border:1px solid #30475b;border-radius:7px;background:#0d1b29;font-size:10.5px}.user-status{width:8px;height:8px;border-radius:50%}.user-status.available{background:var(--green)}.user-status.pause{background:var(--amber)}.user-status.offline{background:#6c7884}.owner-select{background:#102133;color:#eaf0f5;border:1px solid #35516a;border-radius:6px;padding:6px 7px;font-size:10.5px}.takeover-btn{background:#704e14!important;border-color:#b57d20!important}.measure-blocked{opacity:.72}.measure-blocked .task-number{border-color:#7b5d28!important;color:#f8c879!important}
+.monitor-layout-btn{height:54px;min-width:92px;border:1px solid var(--line);background:#0f1d2b;border-radius:10px;color:#e8eef4;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;cursor:pointer}.monitor-layout-btn:hover,.monitor-layout-btn:focus-visible{border-color:#3a9cff;background:#14283c;outline:none}.monitor-layout-icon{font-size:20px;line-height:1}.monitor-layout-btn span:last-child{font-size:10px;color:#9db0c2}
+.call-doc-inline{margin-top:10px}.required-label,.field-label{display:block;font-size:11px;font-weight:700;margin:8px 0 6px}.required-label span{color:#ff929a;font-size:9px;margin-left:4px}.field-label span{color:#8da0b3;font-weight:500}.call-category-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}.category-option{border:1px solid #34516a;background:#102133;border-radius:8px;padding:9px 10px;cursor:pointer;text-align:left;font-size:11px}.category-option:hover{border-color:#5b87aa}.category-option.selected{border-color:#2b8fea;background:#153d63;box-shadow:0 0 0 2px rgba(43,143,234,.13)}.call-doc-error{min-height:18px;color:#ff929a;font-size:10px;margin-top:6px}.call-doc-modal{width:min(640px,calc(100vw - 32px))}
+.monitor-modal{width:min(1100px,calc(100vw - 34px));max-height:92vh}.monitor-modal-body{overflow:auto}.monitor-toolbar{display:flex;justify-content:space-between;gap:15px;align-items:flex-end;margin-bottom:16px}.input-palette{display:flex;gap:8px;flex-wrap:wrap;margin-top:7px}.monitor-source{border:1px solid #3a566e;background:#12263a;border-radius:8px;padding:9px 12px;font-size:11px;font-weight:700;cursor:grab;user-select:none}.monitor-source:active{cursor:grabbing}.monitor-layout-area{display:grid;grid-template-columns:minmax(560px,1fr) minmax(260px,.42fr);gap:22px;align-items:start}.monitor-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:8px}.monitor-output,.big-monitor-screen{position:relative;min-height:138px;border:2px solid #36536b;border-radius:10px;background:linear-gradient(180deg,#101e2c,#08131e);padding:11px;display:flex;flex-direction:column;justify-content:space-between;transition:.15s}.monitor-output.dragover,.big-monitor-screen.dragover{border-color:#4ca4f7;box-shadow:0 0 0 4px rgba(76,164,247,.12)}.monitor-output.fixed{border-color:#5a6c7d;background:#0d1924}.monitor-screen-title{font-size:10px;color:#8ea2b5;text-transform:uppercase;letter-spacing:.05em}.monitor-source-label{font-size:18px;font-weight:800;text-align:center;margin:auto 0}.monitor-lock{font-size:9px;color:#9baaba;text-align:right}.monitor-output select,.big-monitor-screen select{width:100%;background:#0d1c2a;color:#eff4f8;border:1px solid #35516a;border-radius:6px;padding:7px;font-size:10px}.big-monitor{margin-top:8px}.big-monitor-screen{min-height:288px}.big-monitor-screen .monitor-source-label{font-size:25px}.monitor-help{margin-top:14px;border:1px solid #294359;background:#0c1b29;border-radius:8px;padding:9px 11px;color:#99acbd;font-size:10px}
+@media(max-width:1200px){.monitor-layout-area{grid-template-columns:1fr}.big-monitor-screen{min-height:170px}}@media(max-width:780px){.monitor-grid{grid-template-columns:1fr 1fr}.call-category-grid{grid-template-columns:1fr}}
+
+/* V8: Verantwortlichkeit auf Ereignisebene + Archiv */
+.event-store-table .event-actions{min-width:430px}
+.event-store-table tbody tr{cursor:pointer}
+.event-owner-inline{display:inline-flex;align-items:center;gap:7px;font-weight:700}
+.event-owner-inline .user-status{flex:0 0 auto}
+.event-responsibility{margin-top:12px;padding:12px;border:1px solid #2c4760;border-radius:9px;background:#0b1b2a;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.event-responsibility-main{display:flex;align-items:center;gap:10px}.event-responsibility-main b{display:block;font-size:13px}.event-responsibility-main small{display:block;color:#8fa3b5;font-size:10px;margin-top:2px}
+.event-responsibility-actions{display:flex;align-items:center;gap:7px;flex-wrap:wrap}.event-responsibility-actions select{min-width:210px}
+.event-message{margin-top:12px;border:1px solid #29445d;background:#0c1b29;border-radius:9px;padding:12px}.event-message span{display:block;color:#7f95a8;font-size:9.5px;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px}.event-message b{font-size:13px;line-height:1.45}
+.work-lock-banner{margin:12px 14px 0;padding:10px 12px;border-radius:8px;border:1px solid #654d22;background:#2b2112;color:#ffd07b;font-size:11px;line-height:1.4}
+.task-action{display:flex;align-items:center;justify-content:flex-end;min-width:145px}.task-action .tag{white-space:nowrap}
+.archive-chip{display:inline-flex;align-items:center;gap:5px;border:1px solid #506071;background:#202c38;color:#c3d0dc;border-radius:6px;padding:4px 7px;font-size:9px;font-weight:700}
+.event-archived-row{opacity:.7}
+.event-detail-actions{display:flex;gap:7px;margin-top:12px;flex-wrap:wrap}
+@container rightcol (max-width:390px){.event-responsibility{align-items:flex-start}.event-responsibility-actions{width:100%}.event-responsibility-actions select{width:100%}}
+
+/* V8: Sidebar-Systemstatus, globale Prioritätswarnung, sichere Archiv-Reaktivierung */
+.sidebar-system-ready{display:flex!important;align-items:center;gap:6px;margin-top:6px!important;color:#83dda8!important;font-size:9.5px!important;font-weight:700}.mini-ready-dot{width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:0 0 0 3px rgba(53,185,111,.11)}
+.priority-top-alert{border:1px solid #a82a36;background:linear-gradient(180deg,#6b1721,#43131a);color:#fff;border-radius:10px;padding:8px 11px;display:flex;align-items:center;gap:9px;min-width:230px;max-width:300px;cursor:pointer;box-shadow:0 0 0 1px rgba(233,58,69,.08),0 7px 24px rgba(130,15,28,.25);animation:priorityTopPulse 1.45s ease-in-out infinite}.priority-top-alert[hidden]{display:none!important}.priority-top-alert:hover,.priority-top-alert:focus-visible{border-color:#ff6570;outline:2px solid rgba(255,101,112,.25);outline-offset:2px}.priority-alert-icon{width:30px;height:30px;flex:0 0 30px;border-radius:50%;background:#d82635;display:grid;place-items:center;font-size:19px;font-weight:900}.priority-top-alert b{display:block;font-size:11px;line-height:1.2;text-align:left}.priority-top-alert small{display:block;font-size:9.5px;color:#ffc3c8;margin-top:3px;line-height:1.25;text-align:left}@keyframes priorityTopPulse{0%,100%{box-shadow:0 0 0 0 rgba(233,58,69,.12),0 7px 24px rgba(130,15,28,.25)}50%{box-shadow:0 0 0 6px rgba(233,58,69,.10),0 9px 30px rgba(181,21,38,.38)}}
+.reactivate-modal{width:min(650px,calc(100vw - 32px))}.reactivate-warning{display:grid;grid-template-columns:48px 1fr;gap:12px;align-items:start;border:1px solid #7d2d35;background:#32151a;border-radius:10px;padding:13px}.reactivate-warning-icon{width:48px;height:48px;border-radius:50%;background:#a51e2b;display:grid;place-items:center;font-size:25px;font-weight:900}.reactivate-warning b{font-size:13px}.reactivate-warning p{margin:6px 0 0;color:#e2b9bd;font-size:11px;line-height:1.5}.reactivate-summary{margin-top:12px;border:1px solid #31495d;background:#0e1d2b;border-radius:9px;padding:11px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.reactivate-summary .info-tile{margin:0}
+.archive-review{margin-top:12px;border-top:1px solid var(--line);padding-top:12px}.archive-review h4{margin:0 0 8px;font-size:12px}.archive-review-grid{display:grid;gap:9px}.archive-review-item{border:1px solid #2d4357;background:#0d1a28;border-radius:8px;padding:9px}.archive-review-item b{font-size:11px;display:block}.archive-review-item small{font-size:9.5px;color:#91a4b6;line-height:1.4;display:block;margin-top:3px}.archive-measures{display:grid;gap:6px}.archive-measure{display:grid;grid-template-columns:24px 1fr auto;gap:8px;align-items:center;padding:7px 8px;border:1px solid #2a4053;border-radius:7px;background:#0c1926}.archive-measure .mark{width:22px;height:22px;border-radius:50%;display:grid;place-items:center;border:1px solid #40576a;font-size:10px}.archive-measure.done .mark{background:#1d7040;border-color:#2f9e5c}.archive-measure b{font-size:10.5px}.archive-measure small{font-size:9px;color:#8ea1b3}.archive-log-mini{max-height:260px;overflow:auto;display:grid;gap:6px}.archive-log-row{display:grid;grid-template-columns:58px 1fr;gap:8px;padding:7px 8px;border-bottom:1px solid #22384b}.archive-log-row time{font-size:9px;color:#84a1ba;font-variant-numeric:tabular-nums}.archive-log-row b{font-size:10.5px}.archive-log-row small{font-size:9px;color:#8fa3b5;line-height:1.4}.archived-readonly-note{border:1px solid #4b5965;background:#18232d;color:#b9c5cf;border-radius:8px;padding:9px 10px;font-size:10px;line-height:1.45;margin-top:10px}
+@media (prefers-reduced-motion:reduce){.priority-top-alert{animation:none}}
+@media(max-width:1280px){.priority-top-alert{min-width:0;max-width:210px}.priority-top-alert small{display:none}}
+
+/* V9: Kontaktprioritäten & priorisierte Anrufwarteschlange */
+.priority-legend{display:flex;gap:9px;flex-wrap:wrap;margin:-2px 0 12px}.priority-legend-item{display:grid;grid-template-columns:11px auto;grid-template-rows:auto auto;column-gap:7px;align-items:center;border:1px solid var(--line);border-radius:9px;background:#0c1a28;padding:8px 10px;min-width:155px}.priority-legend-item i{grid-row:1/3;width:10px;height:10px;border-radius:50%}.priority-legend-item b{font-size:11px}.priority-legend-item small{font-size:9.5px;color:#8fa3b5;margin-top:2px}.priority-legend-item.low i{background:#318ddd}.priority-legend-item.medium i{background:#f29f26}.priority-legend-item.high i{background:#e93a45}
+.call-priority-badge{display:inline-flex;align-items:center;gap:5px;border-radius:999px;padding:4px 7px;font-size:9.5px;font-weight:800;white-space:nowrap;border:1px solid}.call-priority-badge.low{color:#9bcdff;background:#102f4f;border-color:#275c8c}.call-priority-badge.medium{color:#ffd28e;background:#452e12;border-color:#82541c}.call-priority-badge.high{color:#ffabb2;background:#48151c;border-color:#842731}
+@keyframes callLowPulse{0%,100%{background:linear-gradient(90deg,rgba(39,132,232,.15),#102031 68%);box-shadow:inset 4px 0 #318ddd,0 0 0 rgba(49,141,221,0)}50%{background:linear-gradient(90deg,rgba(39,132,232,.28),#102031 72%);box-shadow:inset 5px 0 #5aa9f3,0 0 18px rgba(49,141,221,.16)}}
+@keyframes callMediumPulse{0%,100%{background:linear-gradient(90deg,rgba(242,159,38,.14),#102031 68%);box-shadow:inset 4px 0 #f29f26,0 0 0 rgba(242,159,38,0)}50%{background:linear-gradient(90deg,rgba(242,159,38,.30),#102031 72%);box-shadow:inset 6px 0 #ffc25f,0 0 20px rgba(242,159,38,.18)}}
+@keyframes callHighPulse{0%,100%{background:linear-gradient(90deg,rgba(233,58,69,.17),#102031 66%);box-shadow:inset 4px 0 #e93a45,0 0 0 rgba(233,58,69,0)}50%{background:linear-gradient(90deg,rgba(233,58,69,.34),#102031 72%);box-shadow:inset 7px 0 #ff5d68,0 0 24px rgba(233,58,69,.25)}}
+.incoming.call-priority-low{border-color:#285c87;animation:callLowPulse 2.7s ease-in-out infinite}.incoming.call-priority-medium{border-color:#78501e;animation:callMediumPulse 2.0s ease-in-out infinite}.incoming.call-priority-high{border-color:#852832;animation:callHighPulse 1.35s ease-in-out infinite}.incoming.call-priority-low .incoming-icon{background:#277fcf!important}.incoming.call-priority-medium .incoming-icon{background:#d9891f!important}.incoming.call-priority-high .incoming-icon{background:#d62d3b!important}
+.center-waiting-call{position:relative;overflow:hidden}.center-waiting-call.call-priority-low{border-color:#285c87;animation:callLowPulse 2.7s ease-in-out infinite}.center-waiting-call.call-priority-medium{border-color:#78501e;animation:callMediumPulse 2.0s ease-in-out infinite}.center-waiting-call.call-priority-high{border-color:#852832;animation:callHighPulse 1.35s ease-in-out infinite}.waiting-call-main{min-width:0}.waiting-call-meta{display:flex;gap:7px;align-items:center;flex-wrap:wrap;margin-top:5px}
+@media (prefers-reduced-motion:reduce){.incoming.call-priority-low,.incoming.call-priority-medium,.incoming.call-priority-high,.center-waiting-call.call-priority-low,.center-waiting-call.call-priority-medium,.center-waiting-call.call-priority-high{animation:none}}
+.contact-modal{width:min(760px,calc(100vw - 34px))}.contact-form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:11px}.contact-form-grid label{display:block}.required-star{color:#ff818b!important}.contact-priority-fieldset{border:1px solid #30475b;border-radius:9px;margin:15px 0 0;padding:11px}.contact-priority-fieldset legend{padding:0 6px;font-size:11px;font-weight:800;color:#dbe7f1}.contact-priority-options{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.contact-priority-choice{min-height:67px;border:1px solid #314a60;background:#0d1d2c;border-radius:9px;padding:10px;display:flex;align-items:center;gap:9px;cursor:pointer}.contact-priority-choice input{position:absolute;opacity:0;pointer-events:none}.contact-priority-choice:has(input:checked){outline:2px solid rgba(89,166,235,.24);outline-offset:1px}.contact-priority-choice.low:has(input:checked){border-color:#318ddd;background:#102e49}.contact-priority-choice.medium:has(input:checked){border-color:#f29f26;background:#35270f}.contact-priority-choice.high:has(input:checked){border-color:#e93a45;background:#38151b}.priority-choice-dot{width:12px;height:12px;border-radius:50%;flex:0 0 12px;background:#318ddd}.contact-priority-choice.medium .priority-choice-dot{background:#f29f26}.contact-priority-choice.high .priority-choice-dot{background:#e93a45}.contact-priority-choice b{display:block;font-size:11px}.contact-priority-choice small{display:block;color:#91a5b7;font-size:9.5px;margin-top:3px}.contact-form-error{min-height:19px;color:#ff929a;font-size:10.5px;margin-top:8px}.contact-form-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:8px}.contact-row-priority{margin-top:5px}.phonebook-action-group{display:flex;gap:5px;justify-content:flex-end}
+@media(max-width:720px){.contact-form-grid{grid-template-columns:1fr}.contact-priority-options{grid-template-columns:1fr}}
+
+/* V10: Wetterlage / Radar-Mockup */
+.weather-nav-badge{min-width:22px;height:22px;border-radius:11px;background:#b46d13;color:#ffe2ad;display:grid;place-items:center;font-size:10px;font-weight:800;padding:0 6px;border:1px solid #d08b28}
+.weather-view-head{align-items:center}.weather-head-actions{display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:wrap}.weather-demo-badge{display:inline-flex;align-items:center;min-height:32px;padding:6px 9px;border:1px solid #36526a;border-radius:8px;background:#102133;color:#9fc2de;font-size:9px;font-weight:800;letter-spacing:.04em;white-space:nowrap}
+.weather-layout{display:grid;grid-template-columns:minmax(560px,1.6fr) minmax(310px,.7fr);gap:13px;align-items:start}.weather-side-stack{display:grid;gap:13px}.weather-radar-card{overflow:hidden}.weather-radar-body{padding:12px}.weather-radar-status{display:flex;align-items:center;gap:8px;font-variant-numeric:tabular-nums}.weather-radar-status b{font-size:11px}.radar-stage{position:relative;aspect-ratio:1.62/1;min-height:390px;max-height:600px;border:1px solid #365067;border-radius:10px;overflow:hidden;background:radial-gradient(circle at 74% 18%,rgba(27,66,96,.34),transparent 24%),linear-gradient(145deg,#0a1a28,#0b2230 58%,#0a1926);isolation:isolate}.radar-grid-lines{position:absolute;inset:0;background-image:linear-gradient(rgba(87,130,160,.09) 1px,transparent 1px),linear-gradient(90deg,rgba(87,130,160,.09) 1px,transparent 1px);background-size:9% 12%;z-index:1}.radar-region{position:absolute;inset:4%;width:92%;height:92%;z-index:2;filter:drop-shadow(0 7px 10px rgba(0,0,0,.28))}.radar-region path{fill:#102a35;stroke:#547187;stroke-width:3}.radar-region .radar-inner{fill:none;stroke:#304f61;stroke-width:2;stroke-dasharray:7 7}.radar-cells{position:absolute;inset:0;z-index:3;overflow:hidden;filter:saturate(1.12) contrast(1.05)}.radar-cell{position:absolute;border-radius:50%;opacity:.78;filter:blur(2px);transform:rotate(var(--rot,0deg));transition:all .35s ease,opacity .35s ease;mix-blend-mode:screen}.radar-cell.intensity-1{background:radial-gradient(ellipse,#1ea55b 0 42%,rgba(30,165,91,.4) 63%,transparent 74%)}.radar-cell.intensity-2{background:radial-gradient(ellipse,#79c943 0 35%,#e4d839 48%,rgba(115,194,65,.25) 69%,transparent 76%)}.radar-cell.intensity-3{background:radial-gradient(ellipse,#ffca3a 0 26%,#f28b28 47%,rgba(242,139,40,.33) 66%,transparent 76%)}.radar-cell.intensity-4{background:radial-gradient(ellipse,#ffdc45 0 12%,#ef4a35 35%,#d62736 51%,rgba(214,39,54,.28) 69%,transparent 78%)}.radar-cell.intensity-5{background:radial-gradient(ellipse,#fff0aa 0 9%,#ff4d69 26%,#b52bd8 47%,rgba(181,43,216,.28) 69%,transparent 78%)}
+.radar-city{position:absolute;z-index:5;display:grid;grid-template-columns:10px auto;grid-template-rows:auto auto;column-gap:5px;align-items:center;pointer-events:none;text-shadow:0 1px 2px #000}.radar-city i{grid-row:1/3;width:8px;height:8px;border-radius:50%;background:#eaf5ff;border:2px solid #0b1b28;box-shadow:0 0 0 2px rgba(255,255,255,.18)}.radar-city b{font-size:10px;white-space:nowrap}.radar-city small{font-size:8px;color:#adbecb}.city-ansbach{left:24%;top:56%}.city-nuernberg{left:61%;top:51%}.city-fuerth{left:55%;top:45%}.city-erlangen{left:58%;top:34%}.city-schwabach{left:58%;top:64%}.city-neustadt{left:36%;top:29%}.radar-north{position:absolute;right:13px;top:11px;z-index:6;color:#a8c1d4;font-size:10px;font-weight:800}.radar-frame-label{position:absolute;left:12px;bottom:12px;z-index:6;padding:6px 9px;border-radius:7px;background:rgba(4,13,21,.78);border:1px solid #426078;color:#e4f1fa;font-size:10px;font-weight:800;letter-spacing:.04em;backdrop-filter:blur(4px)}
+.radar-controls{display:grid;grid-template-columns:36px 120px 36px minmax(180px,1fr);gap:8px;align-items:center;margin-top:11px}.weather-play-btn{min-width:120px}.weather-slider{width:100%;accent-color:#2784e8}.radar-ticks{grid-column:4;display:grid;grid-template-columns:repeat(5,1fr);font-size:8.5px;color:#8298aa;text-align:center;margin-top:-4px}.radar-legend{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:9px;padding:8px 9px;background:#0a1723;border:1px solid #243c50;border-radius:8px}.radar-legend>span{font-size:9px;color:#9bb0c0;margin-right:4px}.radar-legend i{width:17px;height:8px;border-radius:3px}.radar-legend small{font-size:8px;color:#879cad}.radar-legend .r1{background:#1ea55b}.radar-legend .r2{background:#d9d331}.radar-legend .r3{background:#f28b28}.radar-legend .r4{background:#e63842}.radar-legend .r5{background:#b52bd8}.weather-source-note{margin-top:9px;color:#8197a9;font-size:9px;line-height:1.45}.weather-source-note b{color:#b8c8d4}
+.weather-level{display:inline-flex;align-items:center;padding:5px 8px;border-radius:6px;font-size:9px;font-weight:900;letter-spacing:.05em;border:1px solid}.weather-level.amber{background:#4a3215;border-color:#80541e;color:#ffd08a}.weather-level.red{background:#48171c;border-color:#7e2931;color:#ff9ca5}.weather-level.green{background:#153721;border-color:#28583a;color:#8de5ae}.weather-operational-main{display:grid;grid-template-columns:48px 1fr;gap:10px;align-items:start}.weather-symbol{width:46px;height:46px;border-radius:10px;display:grid;place-items:center;background:#203047;border:1px solid #3b5268;font-size:23px}.weather-operational-main b{font-size:13px}.weather-operational-main p{margin:5px 0 0;color:#91a5b6;font-size:10px;line-height:1.45}.weather-impact-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:11px}.weather-impact-grid>div{padding:8px;border:1px solid #2a4054;background:#0b1926;border-radius:8px}.weather-impact-grid span{display:block;font-size:8px;color:#7e94a6}.weather-impact-grid b{display:block;font-size:10px;margin-top:4px}.amber-text{color:#ffc66f!important}
+.weather-warning-list{display:grid;gap:8px}.weather-warning{border:1px solid #66441c;background:linear-gradient(90deg,rgba(242,159,38,.15),#0d1b28 66%);border-radius:9px;padding:10px}.weather-warning.red{border-color:#75252d;background:linear-gradient(90deg,rgba(233,58,69,.14),#0d1b28 66%)}.weather-warning-top{display:flex;align-items:flex-start;justify-content:space-between;gap:8px}.weather-warning b{font-size:11px}.weather-warning p{margin:5px 0;color:#9dafbd;font-size:9.5px;line-height:1.4}.weather-warning-meta{display:flex;gap:5px;flex-wrap:wrap}.weather-warning-meta span{font-size:8px;border:1px solid #354c5f;background:#102232;color:#a8bdcc;border-radius:5px;padding:3px 5px}.weather-warning-actions{display:flex;gap:6px;margin-top:8px}
+.weather-lower-grid{display:grid;grid-template-columns:1.3fr .7fr;gap:13px;margin-top:13px}.weather-stations{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}.weather-station{border:1px solid #2a4054;background:#0c1a28;border-radius:9px;padding:10px}.weather-station-top{display:flex;justify-content:space-between;gap:6px;align-items:start}.weather-station h4{margin:0;font-size:11px}.weather-station .weather-icon{font-size:20px}.weather-temp{font-size:22px;font-weight:800;margin:7px 0 4px}.weather-station small{display:block;color:#8499aa;font-size:8.5px;line-height:1.4}.weather-station-data{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-top:8px}.weather-station-data div{background:#101f2e;border-radius:6px;padding:5px}.weather-station-data span{display:block;color:#7890a2;font-size:7.5px}.weather-station-data b{display:block;font-size:9px;margin-top:2px}.weather-observation-list{display:grid;gap:7px}.weather-observation{display:grid;grid-template-columns:55px 1fr;gap:8px;padding:8px;border-bottom:1px solid #24394b}.weather-observation time{font-size:9px;color:#82a0b6;font-variant-numeric:tabular-nums}.weather-observation b{display:block;font-size:10px}.weather-observation small{display:block;color:#8499aa;font-size:9px;margin-top:3px;line-height:1.4}
+@media(max-width:1300px){.weather-layout{grid-template-columns:1fr}.weather-side-stack{grid-template-columns:1fr 1fr}.weather-lower-grid{grid-template-columns:1fr}.weather-stations{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:900px){.weather-side-stack{grid-template-columns:1fr}.weather-stations{grid-template-columns:1fr}.radar-controls{grid-template-columns:36px 1fr 36px}.weather-slider{grid-column:1/-1}.radar-ticks{grid-column:1/-1}.radar-stage{min-height:310px}.weather-head-actions{justify-content:flex-start}}
+@media(prefers-reduced-motion:reduce){.radar-cell{transition:none}}
+
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="logo-cell">
+    <div class="logo-wrap">
+      <!-- Committed copy: the DB logo is a licensed asset (see apps/web/public/brand/README.md).
+           Referenced by path, not embedded; the #dbFallback wordmark shows when it is absent. -->
+      <img id="dbLogo" class="db-logo-img" alt="DB Logo" src="/brand/db-logo.svg">
+      <div id="dbFallback" class="db-fallback">DB</div>
+      <div class="brand-copy"><strong>DB InfraGO AG</strong><small>Personenbahnhöfe</small></div>
+    </div>
+  </header>
+
+  <header class="topbar">
+    <div class="topbar-left">
+      <div class="topbar-title">
+        <div class="crumbs" id="crumbs">BBZ / 3SZ · Arbeitsplatz</div>
+        <div class="page-title" id="pageTitle">Leitstellenmanagement</div>
+      </div>
+
+    </div>
+    <div class="topbar-right">
+      <button class="priority-top-alert" id="priorityTopAlert" type="button" onclick="openFirstUnacceptedPriorityEvent()" aria-live="polite" hidden>
+        <span class="priority-alert-icon">!</span><span><b id="priorityAlertTitle">Unangenommene Priorität</b><small id="priorityAlertText">Hohes oder kritisches Ereignis wartet</small></span>
+      </button>
+      <div class="clock" aria-label="Datum und Uhrzeit"><div class="clock-date" id="dateText">Fr, 28.08.2026</div><div class="clock-time" id="timeText">14:08:37</div></div>
+      <div class="topbar-separator" aria-hidden="true"></div>
+      <div class="lines-card" aria-label="Verfügbare Telefonleitungen"><div class="lines-icon">☎</div><div><small>Verfügbare Leitungen</small><strong><span id="freeLines">3</span>/10</strong></div></div><button class="monitor-layout-btn" type="button" onclick="openMonitorModal()" aria-label="Monitor-Layout öffnen" title="Monitor-Layout"><span class="monitor-layout-icon">▦</span><span>Monitore</span></button>
+    </div>
+  </header>
+
+  <aside class="sidebar">
+    <div class="workspace-status"><span class="status-orb"></span><div><b>Arbeitsplatz aktiv</b><small>BBZ / 3-S-Zentrale · Leitplatz 03</small><span class="sidebar-system-ready"><span class="mini-ready-dot"></span>Systeme betriebsbereit</span></div></div>
+    <nav class="nav" id="nav">
+      <button class="nav-item active" data-view="arbeitsplatz"><span class="nav-icon">⌂</span><span>Arbeitsplatz</span></button>
+      <button class="nav-item" data-view="ereignisse"><span class="nav-icon">◉</span><span>Ereignisse</span><span class="nav-badge" id="eventNavBadge">7</span></button>
+      <button class="nav-item" data-view="anrufe"><span class="nav-icon">☎</span><span>Anrufe</span><span class="nav-badge" id="callBadge">4</span></button>
+      <button class="nav-item" data-view="massnahmen"><span class="nav-icon">☑</span><span>Handlungsanweisungen</span></button>
+      <button class="nav-item" data-view="telefonbuch"><span class="nav-icon">▤</span><span>Telefonbuch</span></button>
+      <button class="nav-item" data-view="schichtbuch"><span class="nav-icon">▣</span><span>Schichtbuch</span></button>
+      <button class="nav-item" data-view="auswertung"><span class="nav-icon">▥</span><span>Auswertung</span></button>
+      <button class="nav-item" data-view="wetter"><span class="nav-icon">☁</span><span>Wetterlage</span><span class="weather-nav-badge" id="weatherNavBadge">2</span></button>
+      <button class="nav-item" data-view="administration"><span class="nav-icon">⚙</span><span>Administration</span></button>
+    </nav>
+    <div class="user-card"><div class="avatar">TN</div><div><b>Timo Neumeier</b><small>Gruppe: 3SZ Nürnberg Sichtleiter</small></div></div>
+  </aside>
+
+  <main class="content">
+    <!-- ARBEITSPLATZ -->
+    <section class="view active" id="view-arbeitsplatz">
+      <div class="workspace-flow">
+        <section class="card event-store" aria-labelledby="eventStoreTitle">
+          <div class="card-head">
+            <div class="event-store-toolbar" style="width:100%">
+              <div>
+                <div class="section-kicker">Gemeinsame Arbeitswarteschlange</div>
+                <div class="event-store-titleline"><div class="card-title" id="eventStoreTitle">Ereignisspeicher</div><span class="tag blue">LEITSTELLE</span></div>
+                <div class="card-subtitle">Meldung anklicken, unten sichten und anschließend annehmen, quittieren oder bearbeiten. Archivierte Ereignisse werden aus der Warteschlange entfernt.</div>
+              </div>
+              <div class="event-store-counters" aria-label="Status Ereignisspeicher">
+                <div class="store-counter"><span>Offen</span><strong id="storeOpenCount">0</strong></div>
+                <div class="store-counter"><span>Unbearbeitet</span><strong id="storeNewCount">0</strong></div>
+                <div class="store-counter"><span>Mein Arbeitsplatz</span><strong id="storeMineCount">0</strong></div>
+              </div>
+            </div>
+          </div>
+          <div class="event-store-table">
+            <table class="table" aria-label="Ereignisspeicher">
+              <thead><tr><th>Priorität</th><th>Ereignis</th><th>Bahnhof</th><th>Eingang</th><th>Status</th><th>Verantwortlich</th><th style="text-align:right">Arbeitsplatzaktion</th></tr></thead>
+              <tbody id="eventStoreBody"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="card processing-card" aria-labelledby="processingTitle">
+          <div id="eventProcessingArea"></div>
+        </section>
+      </div>
+    </section>
+
+    <!-- EREIGNISSE -->
+    <section class="view" id="view-ereignisse">
+      <div class="view-head"><div><div class="section-kicker">Leitstellenereignisse</div><h2>Ereignisübersicht</h2><p>Chronologische Gesamtsicht inklusive archivierter Ereignisse. Archivierte Meldungen bleiben vollständig nachvollziehbar.</p></div><button class="btn db" onclick="createIncident()">+ Ereignis anlegen</button></div>
+      <div class="detail-grid">
+        <div class="card"><div class="card-head"><div><div class="card-title">Alle Ereignisse</div><div class="card-subtitle">Aktiv + Archiv · neueste Meldung zuerst</div></div><div class="searchbar" style="width:270px"><input class="input" id="eventSearch" placeholder="ID, Bahnhof, Typ ..." oninput="renderAllEvents()"></div></div><div class="table-wrap" style="max-height:63vh"><table class="table"><thead><tr><th>Prio</th><th>ID</th><th>Typ</th><th>Bahnhof</th><th>Eingang</th><th>Status</th><th>Archiv</th></tr></thead><tbody id="allEventsBody"></tbody></table></div></div>
+        <div class="card"><div class="card-head"><div><div class="card-title">Ereignisdetails</div><div class="card-subtitle" id="eventDetailId">EV-2026-08142</div></div></div><div class="card-body" id="eventDetail"></div></div>
+      </div>
+    </section>
+
+    <!-- ANRUFE -->
+    <section class="view" id="view-anrufe">
+      <div class="view-head"><div><div class="section-kicker">Kommunikation</div><h2>Anrufübersicht</h2><p>Eingehende, aktive und abgeschlossene Gespräche mit Ereignisbezug.</p></div><button class="btn primary" onclick="setPhoneTab('telefon')">Telefon öffnen</button></div>
+      <div class="two-col"><div class="card"><div class="card-head"><div class="card-title">Wartende Anrufe</div></div><div class="card-body"><div class="list-stack" id="centerIncomingCalls"></div></div></div><div class="card"><div class="card-head"><div class="card-title">Letzte Gespräche</div></div><div class="card-body"><div class="list-stack" id="centerHistory"></div></div></div></div>
+    </section>
+
+    <!-- MASSNAHMEN -->
+    <section class="view" id="view-massnahmen">
+      <div class="view-head"><div><div class="section-kicker">Geführte Bearbeitung</div><h2>Handlungsanweisungen</h2><p>Vorlagen und laufende Abarbeitungen.</p></div><button class="btn">Vorlagen verwalten</button></div>
+      <div class="two-col"><div class="card"><div class="card-head"><div class="card-title">Aktive Handlungsanweisungen</div></div><div class="card-body"><div class="list-stack"><div class="list-card"><div><b>BMA – Brandmeldealarm im Empfangsgebäude</b><small>EV-2026-08142 · Nürnberg Hbf · 2/6 erledigt</small></div><span class="tag red">KRITISCH</span></div><div class="list-card"><div><b>Aufzugsnotruf – eingeschlossene Person</b><small>EV-2026-08139 · Fürth (Bay) Hbf · 4/7 erledigt</small></div><span class="tag amber">HOCH</span></div></div></div></div><div class="card"><div class="card-head"><div class="card-title">Verfügbare Vorlagen</div></div><div class="card-body"><div class="list-stack"><div class="list-card"><div><b>BMA – Personenbahnhof</b><small>Version 4.2 · freigegeben</small></div><button class="btn sm">Öffnen</button></div><div class="list-card"><div><b>Aufzug / Notruf</b><small>Version 3.6 · freigegeben</small></div><button class="btn sm">Öffnen</button></div><div class="list-card"><div><b>Technische Störung Reisendeninformation</b><small>Version 2.1 · freigegeben</small></div><button class="btn sm">Öffnen</button></div></div></div></div></div>
+    </section>
+
+    <!-- TELEFONBUCH -->
+    <section class="view" id="view-telefonbuch">
+      <div class="view-head"><div><div class="section-kicker">Kontakte</div><h2>Telefonbuch</h2><p>Kontakte zentral pflegen und mit einer Priorität für die Anrufwarteschlange versehen.</p></div><button class="btn primary" onclick="openContactModal()">+ Kontakt hinzufügen</button></div>
+      <div class="priority-legend" aria-label="Prioritätsstufen für Kontakte"><span class="priority-legend-item low"><i></i><b>Niedrig</b><small>Standardanruf</small></span><span class="priority-legend-item medium"><i></i><b>Mittel</b><small>Wichtiger Kontakt</small></span><span class="priority-legend-item high"><i></i><b>Hoch</b><small>Betriebsrelevanter Kontakt</small></span></div>
+      <div class="card"><div class="card-head"><div class="searchbar" style="width:430px"><input class="input" id="phonebookSearch" placeholder="Name, Funktion, Bahnhof oder Rufnummer ..." oninput="renderCenterPhonebook()"></div><span class="tag green">Synchronisiert</span></div><div class="table-wrap"><table class="table"><thead><tr><th>Name</th><th>Funktion</th><th>Standort</th><th>Rufnummer</th><th>Kurzwahl</th><th>Priorität</th><th>Aktion</th></tr></thead><tbody id="centerPhonebookBody"></tbody></table></div></div>
+    </section>
+
+    <!-- SCHICHTBUCH -->
+    <section class="view" id="view-schichtbuch">
+      <div class="view-head"><div><div class="section-kicker">Übergabe & Betrieb</div><h2>Schichtbuch</h2><p>Schichtbezogene Hinweise, Übergaben und betriebliche Besonderheiten.</p></div><button class="btn primary" onclick="newShiftEntry()">+ Eintrag</button></div>
+      <div class="detail-grid"><div class="card"><div class="card-head"><div class="card-title">Aktuelle Schicht · 28.08.2026</div></div><div class="card-body"><div class="timeline" id="shiftTimeline"></div></div></div><div class="card"><div class="card-head"><div class="card-title">Schichtbesetzung</div></div><div class="card-body"><div class="list-stack"><div class="list-card"><div><b>Leitplatz 01 · M. Schneider</b><small>3SZ Nürnberg · aktiv</small></div><span class="tag green">ONLINE</span></div><div class="list-card"><div><b>Leitplatz 02 · S. Bauer</b><small>3SZ Nürnberg · aktiv</small></div><span class="tag green">ONLINE</span></div><div class="list-card"><div><b>Leitplatz 03 · Timo Neumeier</b><small>3SZ Nürnberg Sichtleiter</small></div><span class="tag blue">AKTUELL</span></div></div></div></div></div>
+    </section>
+
+    <!-- AUSWERTUNG -->
+    <section class="view" id="view-auswertung">
+      <div class="view-head"><div><div class="section-kicker">Reporting</div><h2>Auswertung</h2><p>Kennzahlen für Leitstellenereignisse und Telefonie.</p></div><button class="btn">Bericht exportieren</button></div>
+      <div class="stat-grid"><div class="card stat-card"><span>Ereignisse heute</span><strong>38</strong><span>+8 % ggü. 7-Tage-Mittel</span></div><div class="card stat-card"><span>Anrufe heute</span><strong>126</strong><span>Ø Annahmezeit 00:09</span></div><div class="card stat-card"><span>Abgeschlossene Maßnahmen</span><strong>91 %</strong><span>innerhalb Zielzeit</span></div></div>
+      <div class="two-col" style="margin-top:13px"><div class="card"><div class="card-head"><div class="card-title">Ereignisse nach Kategorie</div></div><div class="card-body"><div class="list-stack"><div class="list-card"><b>Brandmeldeanlagen</b><strong>9</strong></div><div class="list-card"><b>Aufzüge / Notrufe</b><strong>7</strong></div><div class="list-card"><b>Reisendeninformation</b><strong>12</strong></div><div class="list-card"><b>Sonstige technische Störungen</b><strong>10</strong></div></div></div></div><div class="card"><div class="card-head"><div class="card-title">Servicelevel</div></div><div class="card-body"><div class="list-stack"><div class="list-card"><div><b>Anrufannahme &lt; 15 s</b><small>Ziel 90 %</small></div><strong>94 %</strong></div><div class="list-card"><div><b>Ereignisübernahme &lt; 60 s</b><small>Ziel 95 %</small></div><strong>97 %</strong></div><div class="list-card"><div><b>Dokumentation vollständig</b><small>Ziel 98 %</small></div><strong>99 %</strong></div></div></div></div></div>
+    </section>
+
+    <!-- WETTERLAGE -->
+    <section class="view" id="view-wetter">
+      <div class="view-head weather-view-head"><div><div class="section-kicker">Betriebliche Lage · Mittelfranken</div><h2>Wetterlage & Niederschlagsradar</h2><p>Radar-, Warn- und Stationslage für den Leitstellenbereich. Die V10-Demo visualisiert den vorgesehenen DWD-Datenanschluss mit lokalen Mockup-Daten.</p></div><div class="weather-head-actions"><span class="weather-demo-badge">DEMO · DWD-ANBINDUNG VORBEREITET</span><button class="btn" type="button" onclick="refreshWeatherDemo()">↻ Aktualisieren</button><button class="btn db" type="button" onclick="createWeatherIncident()">+ Wetterereignis anlegen</button></div></div>
+
+      <div class="weather-layout">
+        <section class="card weather-radar-card">
+          <div class="card-head"><div><div class="card-title">Niederschlagsradar · Mittelfranken</div><div class="card-subtitle" id="weatherRadarSubtitle">Radarbild · schematischer Mockup-Frame</div></div><div class="weather-radar-status"><span class="status-dot"></span><b id="weatherRadarTime">Aktuell</b></div></div>
+          <div class="weather-radar-body">
+            <div class="radar-stage" id="radarStage" aria-label="Schematisches Niederschlagsradar für Mittelfranken">
+              <div class="radar-grid-lines" aria-hidden="true"></div>
+              <svg class="radar-region" viewBox="0 0 1000 620" role="img" aria-label="Schematische Umrisskarte Mittelfrankens"><path d="M124 110 L252 70 L366 92 L451 54 L588 82 L688 67 L812 131 L884 221 L851 315 L905 398 L827 504 L690 541 L576 575 L440 547 L326 579 L222 530 L150 440 L91 351 L116 262 L78 188 Z"/><path d="M214 184 L337 213 L430 180 L522 229 L622 196 L733 242 L800 333 L713 382 L617 358 L521 407 L424 366 L328 410 L224 348 L176 272 Z" class="radar-inner"/></svg>
+              <div id="radarCells" class="radar-cells" aria-hidden="true"></div>
+              <div class="radar-city city-ansbach"><i></i><b>Ansbach</b></div><div class="radar-city city-nuernberg"><i></i><b>Nürnberg</b><small>Hbf</small></div><div class="radar-city city-fuerth"><i></i><b>Fürth</b></div><div class="radar-city city-erlangen"><i></i><b>Erlangen</b></div><div class="radar-city city-schwabach"><i></i><b>Schwabach</b></div><div class="radar-city city-neustadt"><i></i><b>Neustadt a.d.A.</b></div>
+              <div class="radar-north">N ↑</div><div class="radar-frame-label" id="radarFrameLabel">AKTUELL</div>
+            </div>
+            <div class="radar-controls" aria-label="Radar-Zeitsteuerung"><button class="btn icon" type="button" onclick="stepWeatherFrame(-1)" aria-label="Vorheriger Radarframe">‹</button><button class="btn primary weather-play-btn" id="weatherPlayBtn" type="button" onclick="toggleWeatherAnimation()" aria-label="Radaranimation starten">▶ Animation</button><button class="btn icon" type="button" onclick="stepWeatherFrame(1)" aria-label="Nächster Radarframe">›</button><input id="weatherFrameSlider" class="weather-slider" type="range" min="0" max="4" step="1" value="4" aria-label="Radarzeit" oninput="setWeatherFrame(Number(this.value))"><div class="radar-ticks"><span>-60</span><span>-45</span><span>-30</span><span>-15</span><span>Jetzt</span></div></div>
+            <div class="radar-legend"><span>Niederschlag</span><i class="r1"></i><small>leicht</small><i class="r2"></i><small>mäßig</small><i class="r3"></i><small>stark</small><i class="r4"></i><small>sehr stark</small><i class="r5"></i><small>extrem</small></div>
+            <div class="weather-source-note"><b>Mockup-Hinweis:</b> Das Radarbild ist in dieser HTML-Demo simuliert. Für den Produktivbetrieb ist die Einbindung der offenen DWD-Radar-/Geodienste vorgesehen.</div>
+          </div>
+        </section>
+        <div class="weather-side-stack">
+          <section class="card weather-operational-card"><div class="card-head"><div><div class="card-title">Betriebliche Wetterlage</div><div class="card-subtitle">Automatische Zusammenfassung für die Sichtleitung</div></div><span class="weather-level amber" id="weatherOperationalLevel">BEOBACHTUNG</span></div><div class="card-body"><div class="weather-operational-main"><div class="weather-symbol">⛈</div><div><b id="weatherOperationalTitle">Gewitterzellen westlich Nürnberg</b><p id="weatherOperationalText">Zugrichtung Ost/Nordost. Lokale Starkregenbereiche im westlichen Mittelfranken möglich.</p></div></div><div class="weather-impact-grid"><div><span>Bahnhofsbetrieb</span><b>Keine Einschränkung</b></div><div><span>Außenanlagen</span><b class="amber-text">Beobachten</b></div><div><span>Wind/Böen</span><b>bis 62 km/h</b></div><div><span>Niederschlag</span><b>lokal stark</b></div></div></div></section>
+          <section class="card weather-warning-card"><div class="card-head"><div><div class="card-title">DWD-Warnlage</div><div class="card-subtitle">Mockup-Warnungen · nicht als Live-Warnung verwenden</div></div><span class="tag amber" id="weatherWarningCount">2 WARNUNGEN</span></div><div class="card-body"><div class="weather-warning-list" id="weatherWarningList"></div></div></section>
+        </div>
+      </div>
+      <div class="weather-lower-grid">
+        <section class="card"><div class="card-head"><div><div class="card-title">Wetter an wichtigen Standorten</div><div class="card-subtitle">Leitstellenbereich · Messwerte im Mockup</div></div><span class="tag gray" id="weatherUpdatedAt">Stand —</span></div><div class="card-body"><div class="weather-stations" id="weatherStations"></div></div></section>
+        <section class="card"><div class="card-head"><div><div class="card-title">Betriebliche Wetterbeobachtung</div><div class="card-subtitle">Hinweise für die laufende Schicht</div></div><button class="btn sm" type="button" onclick="addWeatherObservation()">+ Beobachtung</button></div><div class="card-body"><div class="weather-observation-list" id="weatherObservations"></div></div></section>
+      </div>
+    </section>
+
+    <!-- ADMIN -->
+    <section class="view" id="view-administration">
+      <div class="view-head"><div><div class="section-kicker">System</div><h2>Administration</h2><p>Mockup für Arbeitsplatz- und Systemeinstellungen.</p></div></div>
+      <div class="admin-grid"><div class="card"><div class="card-head"><div class="card-title">Arbeitsplatz</div></div><div class="card-body"><div class="switch-row"><span>Telefonie aktiviert</span><span class="switch"></span></div><div class="switch-row"><span>Ereignisbus verbunden</span><span class="switch"></span></div><div class="switch-row"><span>Akustische Signalisierung</span><span class="switch"></span></div></div></div><div class="card"><div class="card-head"><div class="card-title">Systeminformation</div></div><div class="card-body"><div class="info-grid"><div class="info-tile"><span>Frontend</span><b>BBZ Console 0.10.0</b></div><div class="info-tile"><span>Backend</span><b>hauptserver-bbz-01</b></div><div class="info-tile"><span>Telefonie</span><b>SIP Gateway verbunden</b></div><div class="info-tile"><span>Letzte Synchronisation</span><b>14:07:52</b></div></div></div></div></div>
+    </section>
+  </main>
+
+  <footer class="versionbar"><span>Current Version 0.10.0</span><span>·</span><span>Produktionsumgebung</span><span>·</span><span>Hauptserver in Verwendung: <b>hauptserver-bbz-01</b></span></footer>
+
+  <aside class="right-column" id="rightColumn">
+    <div id="rightResizer" class="right-resizer" role="separator" aria-orientation="vertical" aria-label="Breite der rechten Kommunikationsspalte ändern" aria-valuemin="320" aria-valuemax="760" aria-valuenow="410" tabindex="0" title="Ziehen zum Ändern der Breite · Pfeiltasten links/rechts ebenfalls möglich"></div>
+    <span id="resizeA11yStatus" class="resize-a11y-note" aria-live="polite"></span>
+    <section class="call-workspace">
+      <div class="tabs">
+        <button class="tab-btn active" data-phone-tab="telefon">Telefon</button>
+        <button class="tab-btn" data-phone-tab="aktiv">Aktives Gespräch</button>
+        <button class="tab-btn" data-phone-tab="telefonbuch">Telefonbuch</button>
+        <button class="tab-btn" data-phone-tab="historie">Historie</button>
+      </div>
+      <div class="phone-content" id="phoneContent"></div>
+    </section>
+    <section class="global-log">
+      <div class="global-log-head"><div class="global-log-title"><b>Ereignisse · Logbuch</b><small>arbeitsplatzübergreifend</small></div><button class="btn sm ghost" onclick="addGlobalNote()">+ Eintrag</button></div>
+      <div class="log-list" id="globalLogList"></div>
+    </section>
+  </aside>
+</div>
+
+<div class="modal-backdrop" id="quickModal"><div class="modal"><div class="modal-head"><div><b>Kurzwahl auswählen</b><div class="card-subtitle">Hinterlegte Kontakte und Funktionen</div></div><button class="btn icon" onclick="closeQuickModal()">×</button></div><div class="modal-body"><div class="quick-grid" id="quickGrid"></div></div></div></div>
+<div class="modal-backdrop" id="textModal"><div class="modal"><div class="modal-head"><b id="textModalTitle">Eintrag erfassen</b><button class="btn icon" onclick="closeTextModal()">×</button></div><div class="modal-body"><textarea class="textarea" id="textModalInput" placeholder="Text eingeben ..."></textarea><div style="display:flex;justify-content:flex-end;gap:7px;margin-top:10px"><button class="btn" onclick="closeTextModal()">Abbrechen</button><button class="btn primary" id="textModalSave">Speichern</button></div></div></div></div>
+<div class="modal-backdrop" id="contactModal"><div class="modal contact-modal" role="dialog" aria-modal="true" aria-labelledby="contactModalTitle"><div class="modal-head"><div><b id="contactModalTitle">Kontakt hinzufügen</b><div class="card-subtitle">Kontaktdaten und Priorität für eingehende Anrufe festlegen.</div></div><button class="btn icon" type="button" onclick="closeContactModal()" aria-label="Dialog schließen">×</button></div><div class="modal-body"><div class="contact-form-grid"><label><span class="field-label">Name <span class="required-star">*</span></span><input class="input" id="contactName" autocomplete="off" placeholder="z. B. BMA Nürnberg Hbf"></label><label><span class="field-label">Funktion</span><input class="input" id="contactRole" autocomplete="off" placeholder="z. B. Brandmeldeanlage"></label><label><span class="field-label">Standort</span><input class="input" id="contactStation" autocomplete="off" placeholder="z. B. Nürnberg Hbf"></label><label><span class="field-label">Rufnummer <span class="required-star">*</span></span><input class="input" id="contactNumber" autocomplete="off" placeholder="z. B. 0911 12345"></label><label><span class="field-label">Kurzwahl <span>optional</span></span><input class="input" id="contactQuick" autocomplete="off" placeholder="z. B. 101"></label></div><fieldset class="contact-priority-fieldset"><legend>Anrufpriorität <span class="required-star">*</span></legend><div class="contact-priority-options"><label class="contact-priority-choice low"><input type="radio" name="contactPriority" value="low" checked><span class="priority-choice-dot"></span><span><b>Niedrig</b><small>Standardanruf · blau</small></span></label><label class="contact-priority-choice medium"><input type="radio" name="contactPriority" value="medium"><span class="priority-choice-dot"></span><span><b>Mittel</b><small>Wichtiger Kontakt · orange</small></span></label><label class="contact-priority-choice high"><input type="radio" name="contactPriority" value="high"><span class="priority-choice-dot"></span><span><b>Hoch</b><small>Betriebsrelevanter Kontakt · rot</small></span></label></div></fieldset><div class="contact-form-error" id="contactFormError" aria-live="polite"></div><div class="contact-form-actions"><button class="btn" type="button" onclick="closeContactModal()">Abbrechen</button><button class="btn primary" type="button" onclick="saveContact()">Kontakt speichern</button></div></div></div></div>
+<div class="modal-backdrop" id="callDocModal"><div class="modal call-doc-modal" role="dialog" aria-modal="true" aria-labelledby="callDocTitle"><div class="modal-head"><div><b id="callDocTitle">Anrufdokumentation erforderlich</b><div class="card-subtitle">Vor Abschluss des Gesprächs muss eine inhaltliche Kategorie gewählt werden.</div></div></div><div class="modal-body"><div class="required-label">Kategorie <span>* Pflichtfeld</span></div><div class="call-category-grid" id="callDocCategories"></div><label class="field-label" for="callDocText">Freitext <span>optional</span></label><textarea class="textarea" id="callDocText" placeholder="Zusätzliche Gesprächsinhalte, Hinweise oder Maßnahmen ..."></textarea><div class="call-doc-error" id="callDocError" aria-live="polite"></div><div style="display:flex;justify-content:flex-end;gap:8px;margin-top:12px"><button class="btn primary" onclick="savePendingCallDocumentation()">Dokumentation speichern & Gespräch abschließen</button></div></div></div></div>
+<div class="modal-backdrop" id="reactivateModal"><div class="modal reactivate-modal" role="dialog" aria-modal="true" aria-labelledby="reactivateTitle" aria-describedby="reactivateDescription"><div class="modal-head"><div><b id="reactivateTitle">Archiviertes Ereignis reaktivieren?</b><div class="card-subtitle">Die Reaktivierung setzt das Ereignis wieder in die aktive Arbeitswarteschlange.</div></div><button class="btn icon" onclick="closeReactivateModal()" aria-label="Dialog schließen">×</button></div><div class="modal-body"><div class="reactivate-warning"><div class="reactivate-warning-icon">!</div><div><b>Explizite Bestätigung erforderlich</b><p id="reactivateDescription">Archivierte Ereignisse bleiben grundsätzlich im Archiv. Nur nach dieser Bestätigung wird das Ereignis erneut im Ereignisspeicher angezeigt und kann operativ weiterbearbeitet werden.</p></div></div><div class="reactivate-summary" id="reactivateSummary"></div><div style="display:flex;justify-content:flex-end;gap:8px;margin-top:16px"><button class="btn" onclick="closeReactivateModal()">Abbrechen</button><button class="btn danger" id="reactivateConfirmBtn" onclick="confirmRestoreEvent()">Ereignis reaktivieren</button></div></div></div></div>
+<div class="modal-backdrop monitor-modal-backdrop" id="monitorModal"><div class="modal monitor-modal" role="dialog" aria-modal="true" aria-labelledby="monitorModalTitle"><div class="modal-head"><div><b id="monitorModalTitle">Monitor-Layout · Leitplatz 03</b><div class="card-subtitle">Inputs per Drag & Drop auf die Ausgänge legen. Monitor 4 unten links ist fest auf BBZ-OS.</div></div><button class="btn icon" onclick="closeMonitorModal()">×</button></div><div class="modal-body monitor-modal-body"><div class="monitor-toolbar"><div><div class="section-kicker">Verfügbare Inputs</div><div class="input-palette" id="monitorInputPalette"></div></div><button class="btn primary" onclick="applyStandardMonitorLayout()">↺ Standard-Layout</button></div><div class="monitor-layout-area"><div><div class="section-kicker">6 Arbeitsplatzmonitore · 3 × 2</div><div class="monitor-grid" id="monitorGrid"></div></div><div><div class="section-kicker">Mittelmonitor / Großbild</div><div class="big-monitor" id="bigMonitor"></div></div></div><div class="monitor-help">Ziehe einen Input auf einen Monitor. Alternativ Monitor anklicken und Input auswählen. Die Belegung wird lokal im Browser gespeichert.</div></div></div></div>
+<div class="toast" id="toast"><b id="toastTitle">Hinweis</b><small id="toastText"></small></div>
+
+<script>
+const state = {
+  currentView:'arbeitsplatz', phoneTab:'telefon', freeLines:3, activeCall:null, callStartedAt:null, pendingCallClose:null, editingContactIndex:null, selectedEventId:null, selectedEventDetailId:null, measureSets:{}, eventLogs:{},
+  callCategories:['Auskunftsersuchen','Technische Störung','Reinigungsmeldung Kunde','EVU & EVI Mitteilung','Anderes'],
+  users:[{id:'tn',name:'Timo Neumeier',short:'T. Neumeier',status:'verfügbar',station:'LP03'},{id:'ms',name:'M. Schneider',short:'M. Schneider',status:'verfügbar',station:'LP01'},{id:'sb',name:'S. Bauer',short:'S. Bauer',status:'pause',station:'LP02'},{id:'jk',name:'J. König',short:'J. König',status:'verfügbar',station:'LP04'}],
+  monitorInputs:['BBZ-OS','BKU1','BKU2','BKU3','BKU4','Cayuga 1','Cayuga 2'],
+  monitorLayout:{m1:'BKU1',m2:'BKU2',m3:'Cayuga 1',m4:'BBZ-OS',m5:'BKU3',m6:'BKU4',big:'Cayuga 2'},
+  incoming:[
+    {id:1,name:'BMA Nürnberg Hbf',number:'0911 12345',known:true,kind:'BMA',event:'EV-2026-08142'},
+    {id:2,name:'BM Nordfranken',number:'0911 98765',known:true,kind:'BM',event:null},
+    {id:3,name:'Feuerwehr Nürnberg',number:'0911 112',known:true,kind:'FW',event:'EV-2026-08142'},
+    {id:4,name:'+49 911 555 1287',number:'+49 911 555 1287',known:false,kind:'?',event:null}
+  ],
+  contacts:[
+    {name:'BMA Nürnberg Hbf',role:'Brandmeldeanlage',station:'Nürnberg Hbf',number:'0911 12345',quick:'101',priority:'high'},
+    {name:'BM Nordfranken',role:'Bahnhofsmanagement',station:'Nordfranken',number:'0911 98765',quick:'210',priority:'medium'},
+    {name:'Feuerwehr Nürnberg',role:'Leitstelle Feuerwehr',station:'Nürnberg',number:'0911 112',quick:'112',priority:'high'},
+    {name:'Polizeiinspektion Nürnberg',role:'Polizei',station:'Nürnberg',number:'0911 2112-0',quick:'110',priority:'high'},
+    {name:'Fdl Nürnberg',role:'Fahrdienstleitung',station:'Nürnberg',number:'0911 5300-771',quick:'330',priority:'high'},
+    {name:'DB Sicherheit Einsatzleitung',role:'Sicherheit',station:'Nürnberg',number:'0911 219-7711',quick:'7711',priority:'medium'},
+    {name:'3-S-Zentrale Nürnberg',role:'Leitstelle',station:'Nürnberg Hbf',number:'0911 219-1055',quick:'1055',priority:'medium'},
+    {name:'Notfallmanager Netz Nürnberg',role:'Notfallmanagement',station:'Nürnberg',number:'0911 219-6600',quick:'6600',priority:'high'}
+  ],
+  history:[
+    {time:'13:56:12',name:'BM Nordfranken',number:'0911 98765',dir:'ausgehend',duration:'02:18'},
+    {time:'13:41:06',name:'+49 911 555 9982',number:'+49 911 555 9982',dir:'eingehend',duration:'00:44'},
+    {time:'13:18:33',name:'3-S-Zentrale Nürnberg',number:'0911 219-1055',dir:'intern',duration:'01:09'}
+  ],
+  measures:[
+    {title:'Alarmannahme bestätigen',desc:'Alarmdaten prüfen und Ereignis im System bestätigen.',done:true,time:'14:02'},
+    {title:'Rückruf / Sprechverbindung herstellen',desc:'Verbindung zur auslösenden Stelle herstellen.',done:true,time:'14:03'},
+    {title:'Örtliche Lage verifizieren',desc:'Rauchentwicklung, Brandbereich und Räumungslage erfragen.',done:false,current:true},
+    {title:'Interne Alarmkette auslösen',desc:'Fdl, Bahnhofsmanagement und Bereitschaft informieren.',done:false},
+    {title:'Feuerwehrstatus dokumentieren',desc:'Alarmierung, Eintreffen und Maßnahmen festhalten.',done:false},
+    {title:'Auswirkungen auf Bahnhofsbetrieb bewerten',desc:'Sperrungen, Reisendenlenkung und Kommunikation prüfen.',done:false}
+  ],
+  timeline:[
+    {time:'14:02:15',icon:'!',title:'BMA-Alarm ausgelöst',text:'Quelle: BMA Empfangsgebäude EG'},
+    {time:'14:02:28',icon:'✓',title:'Alarm durch 3-S-Zentrale angenommen',text:'Timo Neumeier'},
+    {time:'14:03:02',icon:'☎',title:'Rückruf zur BMA hergestellt',text:'BMA Nürnberg Hbf (0911 12345)'},
+    {time:'14:04:18',icon:'i',title:'Info: Rauchentwicklung im Technikraum',text:'Kein offenes Feuer, Entrauchung aktiv'},
+    {time:'14:05:27',icon:'↗',title:'Interne Meldung an Fdl Nürnberg',text:'Weiterleitung erfolgt'}
+  ],
+  events:[
+    {prio:'Hoch',id:'EV-2026-08145',type:'Sicherheitsmeldung',station:'Nürnberg Hbf',start:'14:07:52',status:'Neu',owner:'—',acknowledged:false,source:'Leitstellenmeldung',text:'Dringende Sicherheitsmeldung im Bereich Bahnsteig 8.',archived:false,archivedAt:''},
+    {prio:'Kritisch',id:'EV-2026-08142',type:'BMA-Alarm',station:'Nürnberg Hbf',start:'14:02:15',status:'Quittiert',owner:'T. Neumeier',acknowledged:true,source:'BMA Empfangsgebäude EG',text:'Priorisierte automatische Brandmeldung.',archived:false,archivedAt:''},
+    {prio:'Hoch',id:'EV-2026-08139',type:'BMA-Alarm',station:'Fürth (Bay) Hbf',start:'14:01:02',status:'In Bearbeitung',owner:'M. Schneider',acknowledged:true,source:'BMA',text:'Brandmeldung Bereich Bahnsteigzugang.',archived:false,archivedAt:''},
+    {prio:'Mittel',id:'EV-2026-08131',type:'Technische Störung',station:'Erlangen',start:'13:55:44',status:'Neu',owner:'—',acknowledged:false,source:'Telefon',text:'Störung Reisendeninformation.',archived:false,archivedAt:''},
+    {prio:'Niedrig',id:'EV-2026-08125',type:'Funktionsstörung',station:'Nürnberg Hbf',start:'13:45:12',status:'Angenommen',owner:'T. Neumeier',acknowledged:false,source:'Monitoring',text:'Teilkomponente ohne Funktion.',archived:false,archivedAt:''},
+    {prio:'Mittel',id:'EV-2026-08119',type:'Aufzugsnotruf',station:'Bamberg',start:'13:32:57',status:'In Bearbeitung',owner:'S. Bauer',acknowledged:true,source:'Notruf',text:'Person meldet Aufzugsstörung.',archived:false,archivedAt:''},
+    {prio:'Niedrig',id:'EV-2026-08111',type:'Fundmeldung',station:'Nürnberg Hbf',start:'13:21:04',status:'Archiviert',previousStatus:'Weitergegeben',owner:'S. Bauer',acknowledged:true,source:'Telefon',text:'Fundgegenstand im Empfangsgebäude.',archived:true,archivedAt:'13:44:31'}
+  ],
+  globalLog:[
+    {time:'14:08:05',title:'BMA Nürnberg Hbf quittiert',text:'EV-2026-08142 wurde durch Leitplatz 03 übernommen und zur Bearbeitung geöffnet.',meta:['LP03','BMA','kritisch']},
+    {time:'14:06:51',title:'Aufzugsnotruf Fürth Hbf',text:'Servicedienstleister bestätigt Anfahrt, ETA 18 Minuten.',meta:['LP01','Aufzug','hoch']},
+    {time:'14:03:49',title:'Technische Störung Erlangen',text:'Störung an Reisendeninformation an Fachstelle weitergegeben.',meta:['LP02','RI','mittel']},
+    {time:'13:58:17',title:'Schichtweite Information',text:'Erhöhtes Anrufaufkommen im Bereich Nordfranken.',meta:['Sichtleitung','Info']},
+    {time:'13:51:33',title:'Bamberg Aufzugsnotruf',text:'Rückmeldung der eingeschlossenen Person dokumentiert.',meta:['LP01','Aufzug']}
+  ],
+  shift:[
+    {time:'14:00',icon:'→',title:'Schichtübergabe abgeschlossen',text:'Keine offenen kritischen Übergabepunkte.'},
+    {time:'13:48',icon:'i',title:'Hinweis BMA Nürnberg Hbf',text:'Wartungsfenster beendet; Anlage wieder voll aufgeschaltet.'},
+    {time:'12:30',icon:'✓',title:'Systemcheck Telefonie',text:'10 Leitungen verfügbar, Testanruf erfolgreich.'}
+  ]
+};
+
+// Initiale Ereignisprotokolle für die Demo
+state.eventLogs['EV-2026-08142']=[
+  {time:'14:02:15',icon:'!',title:'BMA-Alarm ausgelöst',text:'Quelle: BMA Empfangsgebäude EG'},
+  {time:'14:02:28',icon:'✓',title:'Alarm durch 3-S-Zentrale angenommen',text:'Timo Neumeier · Leitplatz 03'},
+  {time:'14:03:02',icon:'☎',title:'Rückruf zur BMA hergestellt',text:'BMA Nürnberg Hbf (0911 12345)'},
+  {time:'14:04:18',icon:'i',title:'Info: Rauchentwicklung im Technikraum',text:'Kein offenes Feuer, Entrauchung aktiv'},
+  {time:'14:05:27',icon:'↗',title:'Interne Meldung an Fdl Nürnberg',text:'Weiterleitung erfolgt'}
+];
+state.eventLogs['EV-2026-08111']=[
+  {time:'13:21:04',icon:'!',title:'Fundmeldung eingegangen',text:'Telefonische Meldung · Nürnberg Hbf'},
+  {time:'13:23:10',icon:'✓',title:'Meldung angenommen und dokumentiert',text:'S. Bauer · Leitplatz 02'},
+  {time:'13:31:22',icon:'↗',title:'Örtliche Stelle informiert',text:'Fundgegenstand zur weiteren Bearbeitung übergeben.'},
+  {time:'13:44:31',icon:'▣',title:'Ereignis archiviert',text:'Operative Bearbeitung abgeschlossen; Datensatz bleibt zur Nachbearbeitung erhalten.'}
+];
+state.measureSets['EV-2026-08111']=[
+  {title:'Sachverhalt aufnehmen',desc:'Angaben zum Fundort und Gegenstand erfassen.',done:true,time:'13:23'},
+  {title:'Zuständigkeit bestimmen',desc:'Örtliche Stelle zur weiteren Bearbeitung bestimmen.',done:true,time:'13:27'},
+  {title:'Rückmeldung dokumentieren',desc:'Übergabe des Fundgegenstands dokumentieren.',done:true,time:'13:31'},
+  {title:'Abschluss prüfen',desc:'Dokumentation auf Vollständigkeit prüfen.',done:true,time:'13:43'}
+];
+
+function $(id){return document.getElementById(id)}
+function fmtTime(sec){sec=Math.max(0,Math.floor(sec));const m=Math.floor(sec/60),s=sec%60;return `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`}
+function nowTime(){return new Intl.DateTimeFormat('de-DE',{timeZone:'Europe/Berlin',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}).format(new Date())}
+function showToast(title,text){$('toastTitle').textContent=title;$('toastText').textContent=text;$('toast').classList.add('show');clearTimeout(showToast.t);showToast.t=setTimeout(()=>$('toast').classList.remove('show'),2600)}
+function updateClock(){const d=new Date();$('dateText').textContent=new Intl.DateTimeFormat('de-DE',{timeZone:'Europe/Berlin',weekday:'short',day:'2-digit',month:'2-digit',year:'numeric'}).format(d).replace(',',' ·');$('timeText').textContent=new Intl.DateTimeFormat('de-DE',{timeZone:'Europe/Berlin',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}).format(d)}
+setInterval(updateClock,1000);updateClock();
+
+// Skalierbare rechte Kommunikationsspalte (Maus, Touch und Tastatur)
+const rightResizer=$('rightResizer');
+const rootStyle=document.documentElement.style;
+const RIGHT_MIN=320;
+const RIGHT_DEFAULT=410;
+function sidebarWidth(){return parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--sidebar'))||228}
+function maxRightWidth(){
+  // Der Contentbereich behält auch bei Vergrößerung der rechten Spalte eine nutzbare Mindestbreite.
+  const contentMin=window.innerWidth<=980?430:520;
+  const available=window.innerWidth-sidebarWidth()-contentMin;
+  return Math.max(RIGHT_MIN,Math.min(760,available));
+}
+function currentRightWidth(){return parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--right'))||RIGHT_DEFAULT}
+function setRightWidth(px,{persist=true,announce=false}={}){
+  const max=maxRightWidth();
+  const width=Math.round(Math.min(max,Math.max(RIGHT_MIN,px)));
+  rootStyle.setProperty('--right',`${width}px`);
+  rightResizer.setAttribute('aria-valuenow',String(width));
+  rightResizer.setAttribute('aria-valuemax',String(Math.round(max)));
+  rightResizer.setAttribute('aria-valuetext',`Rechte Kommunikationsspalte ${width} Pixel breit`);
+  if(persist){try{localStorage.setItem('bbzRightColumnWidth',String(width))}catch(e){}}
+  if(announce){$('resizeA11yStatus').textContent=`Rechte Kommunikationsspalte auf ${width} Pixel geändert.`}
+  return width;
+}
+function restoreRightWidth(){
+  let saved=RIGHT_DEFAULT;
+  try{saved=parseFloat(localStorage.getItem('bbzRightColumnWidth'))||RIGHT_DEFAULT}catch(e){}
+  setRightWidth(saved,{persist:false});
+}
+let resizingRight=false;
+rightResizer.addEventListener('pointerdown',e=>{
+  resizingRight=true;
+  rightResizer.classList.add('dragging');
+  document.body.classList.add('resizing');
+  rightResizer.setPointerCapture?.(e.pointerId);
+  e.preventDefault();
+});
+rightResizer.addEventListener('pointermove',e=>{if(resizingRight)setRightWidth(window.innerWidth-e.clientX,{persist:false})});
+function finishRightResize(e){
+  if(!resizingRight)return;
+  resizingRight=false;
+  rightResizer.classList.remove('dragging');
+  document.body.classList.remove('resizing');
+  setRightWidth(currentRightWidth(),{persist:true,announce:true});
+  if(e?.pointerId!=null)rightResizer.releasePointerCapture?.(e.pointerId);
+}
+rightResizer.addEventListener('pointerup',finishRightResize);
+rightResizer.addEventListener('pointercancel',finishRightResize);
+rightResizer.addEventListener('dblclick',()=>setRightWidth(RIGHT_DEFAULT,{persist:true,announce:true}));
+rightResizer.addEventListener('keydown',e=>{
+  let next=currentRightWidth();
+  const step=e.shiftKey?50:20;
+  if(e.key==='ArrowLeft')next+=step;
+  else if(e.key==='ArrowRight')next-=step;
+  else if(e.key==='Home')next=RIGHT_MIN;
+  else if(e.key==='End')next=maxRightWidth();
+  else return;
+  e.preventDefault();
+  setRightWidth(next,{persist:true,announce:true});
+});
+window.addEventListener('resize',()=>setRightWidth(currentRightWidth(),{persist:false}));
+restoreRightWidth();
+
+$('dbLogo').addEventListener('error',()=>{$('dbLogo').style.display='none';$('dbFallback').style.display='flex'});
+
+const titles={arbeitsplatz:['BBZ / 3SZ · Arbeitsplatz','Leitstellenmanagement'],ereignisse:['BBZ / 3SZ · Ereignisse','Ereignismanagement'],anrufe:['BBZ / 3SZ · Anrufe','Anrufmanagement'],massnahmen:['BBZ / 3SZ · Handlungsanweisungen','Maßnahmen & Handlungsanweisungen'],telefonbuch:['BBZ / 3SZ · Telefonbuch','Zentrales Telefonbuch'],schichtbuch:['BBZ / 3SZ · Schichtbuch','Schichtbuch'],auswertung:['BBZ / 3SZ · Auswertung','Auswertung & Reporting'],wetter:['BBZ / 3SZ · Wetterlage','Wetterlage Mittelfranken'],administration:['BBZ / 3SZ · Administration','Systemverwaltung']};
+function switchCenterView(view){state.currentView=view;document.querySelectorAll('.view').forEach(v=>v.classList.toggle('active',v.id==='view-'+view));document.querySelectorAll('.nav-item').forEach(b=>b.classList.toggle('active',b.dataset.view===view));$('crumbs').textContent=titles[view][0];$('pageTitle').textContent=titles[view][1];if(view==='telefonbuch')renderCenterPhonebook();if(view==='ereignisse')renderAllEvents();if(view==='anrufe')renderCallCenterViews();if(view==='wetter')renderWeather();if(view==='arbeitsplatz'){renderEventStore();renderSelectedEventWorkspace()}renderPriorityTopAlert()}
+document.querySelectorAll('.nav-item').forEach(b=>b.addEventListener('click',()=>switchCenterView(b.dataset.view)));
+
+function eventStatusClass(e){
+  if(e.status==='Neu')return 'new';
+  if(e.status==='Angenommen')return 'accepted';
+  if(e.status==='Quittiert')return 'acked';
+  if(e.status==='In Bearbeitung')return 'working';
+  if(e.status==='Erledigt')return 'done';
+  return e.acknowledged?'acked':'accepted';
+}
+function ownerClass(owner){return owner==='T. Neumeier'?'owner-me':owner==='—'?'owner-none':'owner-other'}
+function getEventOwnerUser(e){if(!e||e.owner==='—')return null;return state.users.find(u=>u.short===e.owner||u.name===e.owner)||null}
+function ownerStatusClass(status){return status==='verfügbar'?'available':status==='pause'?'pause':'offline'}
+function activeQueueEvents(){return state.events.filter(e=>!e.archived)}
+function unacceptedPriorityEvents(){return state.events.filter(e=>!e.archived&&(e.prio==='Kritisch'||e.prio==='Hoch')&&e.owner==='—')}
+function renderPriorityTopAlert(){
+  const el=$('priorityTopAlert');if(!el)return;const items=unacceptedPriorityEvents();const show=state.currentView!=='arbeitsplatz'&&items.length>0;el.hidden=!show;if(!show)return;
+  const critical=items.filter(e=>e.prio==='Kritisch').length,high=items.filter(e=>e.prio==='Hoch').length;
+  $('priorityAlertTitle').textContent=`${items.length} ${items.length===1?'Prioritätsereignis':'Prioritätsereignisse'} unangenommen`;
+  $('priorityAlertText').textContent=[critical?`${critical} kritisch`:null,high?`${high} hoch`:null].filter(Boolean).join(' · ')+ ' · Ereignisspeicher öffnen';
+  el.setAttribute('aria-label',`${items.length} hohe oder kritische Ereignisse sind noch nicht angenommen. Ereignisspeicher öffnen.`);
+}
+function openFirstUnacceptedPriorityEvent(){const e=unacceptedPriorityEvents().sort((a,b)=>(a.prio==='Kritisch'?0:1)-(b.prio==='Kritisch'?0:1)||b.start.localeCompare(a.start))[0];switchCenterView('arbeitsplatz');if(e)setTimeout(()=>selectEventFromStore(e.id),30)}
+function renderEventStore(){
+  const body=$('eventStoreBody'); if(!body)return; body.innerHTML='';
+  const queue=activeQueueEvents();
+  queue.forEach(e=>{
+    const mine=e.owner==='T. Neumeier', free=e.owner==='—', selected=state.selectedEventId===e.id;
+    const ownerUser=getEventOwnerUser(e); const unavailable=ownerUser&&ownerUser.status!=='verfügbar';
+    const canAccept=free, canAck=mine&&!e.acknowledged, canEdit=mine&&e.acknowledged, canTakeover=!mine&&!free&&unavailable;
+    const ownerHtml=free?'<span class="owner-none">— frei —</span>':`<span class="event-owner-inline ${ownerClass(e.owner)}"><span class="user-status ${ownerStatusClass(ownerUser?.status||'offline')}"></span>${e.owner}${ownerUser?` · ${ownerUser.status}`:''}</span>`;
+    body.insertAdjacentHTML('beforeend',`<tr onclick="selectEventFromStore('${e.id}')" class="${selected?'selected ':''}${e.prio==='Kritisch'?'priority-critical ':e.prio==='Hoch'?'priority-high ':''}">
+      <td><span class="prio-dot ${prioClass(e.prio)}"></span><b>${e.prio}</b></td>
+      <td class="event-maincell"><b>${e.id}</b><small>${e.type} · ${e.text}</small></td>
+      <td>${e.station}</td><td>${e.start}</td>
+      <td><span class="event-status ${eventStatusClass(e)}">${e.status}</span></td>
+      <td>${ownerHtml}</td>
+      <td><div class="event-actions">
+        <button class="btn sm success" ${canAccept?'':'disabled'} onclick="event.stopPropagation();acceptEvent('${e.id}')">Annehmen</button>
+        <button class="btn sm" ${canAck?'':'disabled'} onclick="event.stopPropagation();acknowledgeEvent('${e.id}')">${e.acknowledged?'Quittiert':'Quittieren'}</button>
+        <button class="btn sm primary" ${canEdit?'':'disabled'} onclick="event.stopPropagation();openEventForWork('${e.id}')">Bearbeiten</button>
+        <button class="btn sm takeover-btn" ${canTakeover?'':'disabled'} onclick="event.stopPropagation();takeOverEvent('${e.id}')">Übernehmen</button>
+        <button class="btn sm ghost" onclick="event.stopPropagation();archiveEvent('${e.id}')">Archivieren</button>
+      </div></td></tr>`);
+  });
+  if(!queue.length)body.innerHTML='<tr><td colspan="7" style="padding:22px;text-align:center;color:#8fa3b5">Keine aktiven Ereignisse in der Arbeitswarteschlange.</td></tr>';
+  const open=queue.filter(e=>e.status!=='Erledigt').length;
+  const fresh=queue.filter(e=>e.status==='Neu').length;
+  const mine=queue.filter(e=>e.owner==='T. Neumeier'&&e.status!=='Erledigt').length;
+  if($('storeOpenCount'))$('storeOpenCount').textContent=open;
+  if($('storeNewCount'))$('storeNewCount').textContent=fresh;
+  if($('storeMineCount'))$('storeMineCount').textContent=mine;
+  if($('eventNavBadge'))$('eventNavBadge').textContent=queue.length;
+  renderPriorityTopAlert();
+}
+function selectEventFromStore(id){
+  const e=state.events.find(x=>x.id===id);if(!e||e.archived)return;
+  state.selectedEventId=id;ensureMeasures(id);ensureEventLog(id);
+  renderEventStore();renderSelectedEventWorkspace();
+  setTimeout(()=>$('eventProcessingArea')?.scrollIntoView({behavior:'smooth',block:'start'}),30);
+}
+function acceptEvent(id){
+  const e=state.events.find(x=>x.id===id); if(!e||e.archived)return;
+  if(e.owner!=='—'&&e.owner!=='T. Neumeier'){showToast('Bereits übernommen',`${e.id} wird durch ${e.owner} bearbeitet.`);return}
+  if(e.owner==='T. Neumeier'){showToast('Bereits übernommen',`${e.id} ist deinem Arbeitsplatz bereits zugeordnet.`);return}
+  e.owner='T. Neumeier'; e.status='Angenommen'; e.acknowledged=false;
+  addEventLog(id,'✓','Ereignis durch Arbeitsplatz angenommen','Timo Neumeier · Leitplatz 03');
+  state.globalLog.unshift({time:nowTime(),title:'Ereignis angenommen',text:`${id} · ${e.type} · ${e.station}`,meta:['LP03','Ereignis']});
+  state.selectedEventId=id;renderEventStore();renderSelectedEventWorkspace();renderGlobalLog();renderAllEvents();showToast('Ereignis angenommen',id);
+}
+function acknowledgeEvent(id){
+  const e=state.events.find(x=>x.id===id); if(!e||e.archived)return;
+  if(e.owner!=='T. Neumeier'){showToast('Zuerst annehmen','Das Ereignis muss zuerst diesem Arbeitsplatz zugeordnet werden.');return}
+  if(e.acknowledged){showToast('Bereits quittiert',id);return}
+  e.acknowledged=true; e.status='Quittiert';
+  addEventLog(id,'✓','Eingang quittiert','Ereigniseingang durch Timo Neumeier bestätigt.');
+  state.globalLog.unshift({time:nowTime(),title:'Ereignis quittiert',text:`${id} · Eingang bestätigt`,meta:['LP03','Quittierung']});
+  state.selectedEventId=id;renderEventStore(); renderSelectedEventWorkspace(); renderGlobalLog(); renderAllEvents(); showToast('Eingang quittiert',id);
+}
+function openEventForWork(id){
+  const e=state.events.find(x=>x.id===id); if(!e||e.archived)return;
+  if(e.owner!=='T. Neumeier'){showToast('Ereignis nicht übernommen','Bitte das Ereignis zuerst annehmen oder bei Abwesenheit des Verantwortlichen übernehmen.');return}
+  if(!e.acknowledged){showToast('Eingang noch nicht quittiert','Bitte den Ereigniseingang vor der Bearbeitung quittieren.');return}
+  state.selectedEventId=id; e.status='In Bearbeitung';
+  ensureMeasures(id); ensureEventLog(id);
+  addEventLog(id,'▶','Ereignis zur Bearbeitung geöffnet','Bearbeitung am Leitplatz 03 gestartet / fortgesetzt.');
+  renderEventStore(); renderSelectedEventWorkspace(); renderAllEvents();
+  setTimeout(()=>$('eventProcessingArea')?.scrollIntoView({behavior:'smooth',block:'start'}),30);
+}
+function transferEvent(id,userId){
+  const e=state.events.find(x=>x.id===id);const u=getUser(userId);if(!e||e.archived||!u)return;
+  if(e.owner!=='T. Neumeier'){showToast('Keine Übergabeberechtigung','Das Ereignis kann nur durch den aktuell verantwortlichen Arbeitsplatz übergeben werden.');renderSelectedEventWorkspace();return}
+  if(u.id==='tn'){return}
+  const previous=e.owner;e.owner=u.short;
+  addEventLog(id,'⇄','Ereignisverantwortung übergeben',`${previous} → ${u.name} · Status ${u.status}`);
+  state.globalLog.unshift({time:nowTime(),title:'Ereignis übergeben',text:`${id} · ${previous} → ${u.name}`,meta:['LP03','Verantwortung']});
+  renderEventStore();renderSelectedEventWorkspace();renderAllEvents();renderGlobalLog();showToast('Ereignis übergeben',`${id} → ${u.name}`)
+}
+function takeOverEvent(id){
+  const e=state.events.find(x=>x.id===id);if(!e||e.archived)return;const previous=getEventOwnerUser(e);
+  if(!previous){acceptEvent(id);return}
+  if(previous.status==='verfügbar'){showToast('Verantwortlicher verfügbar',`${previous.name} ist aktuell verfügbar. Eine Zwangsübernahme ist nicht erforderlich.`);return}
+  const old=e.owner;e.owner='T. Neumeier';
+  addEventLog(id,'↙','Ereignis übernommen',`Übernahme von ${old} wegen Status „${previous.status}“.`);
+  state.globalLog.unshift({time:nowTime(),title:'Ereignis übernommen',text:`${id} · zuvor ${old} (${previous.status})`,meta:['LP03','Übernahme']});
+  state.selectedEventId=id;renderEventStore();renderSelectedEventWorkspace();renderAllEvents();renderGlobalLog();showToast('Ereignis übernommen',`${id} · zuvor ${old}`)
+}
+function archiveEvent(id){
+  const e=state.events.find(x=>x.id===id);if(!e||e.archived)return;
+  e.previousStatus=e.status;e.archived=true;e.archivedAt=nowTime();e.status='Archiviert';
+  addEventLog(id,'▣','Ereignis archiviert',`Aus der Arbeitswarteschlange entfernt durch Timo Neumeier · ${e.archivedAt}`);
+  state.globalLog.unshift({time:nowTime(),title:'Ereignis archiviert',text:`${id} · ${e.type} · bleibt in der Ereignisübersicht erhalten`,meta:['LP03','Archiv']});
+  if(state.selectedEventId===id)state.selectedEventId=null;
+  renderEventStore();renderSelectedEventWorkspace();renderAllEvents();renderGlobalLog();showToast('Archiviert',`${id} wurde aus der Arbeitswarteschlange entfernt.`)
+}
+let pendingReactivateEventId=null;
+function requestRestoreEvent(id){
+  const e=state.events.find(x=>x.id===id);if(!e||!e.archived)return;pendingReactivateEventId=id;
+  $('reactivateSummary').innerHTML=`<div class="info-tile"><span>Ereignis</span><b>${e.id}</b></div><div class="info-tile"><span>Priorität</span><b>${e.prio}</b></div><div class="info-tile"><span>Typ / Bahnhof</span><b>${e.type} · ${e.station}</b></div><div class="info-tile"><span>Archiviert</span><b>${e.archivedAt||'—'}</b></div>`;
+  $('reactivateModal').classList.add('show');setTimeout(()=>$('reactivateConfirmBtn')?.focus(),40);
+}
+function closeReactivateModal(){pendingReactivateEventId=null;$('reactivateModal').classList.remove('show')}
+function confirmRestoreEvent(){const id=pendingReactivateEventId;if(!id)return;closeReactivateModal();performRestoreEvent(id)}
+function performRestoreEvent(id){
+  const e=state.events.find(x=>x.id===id);if(!e||!e.archived)return;
+  e.archived=false;e.status=e.previousStatus||'Neu';e.archivedAt='';
+  addEventLog(id,'↺','Ereignis aus Archiv reaktiviert','Explizit bestätigt: wieder in die aktive Arbeitswarteschlange aufgenommen.');
+  state.globalLog.unshift({time:nowTime(),title:'Ereignis reaktiviert',text:`${id} · zurück in der Arbeitswarteschlange`,meta:['LP03','Archiv','Reaktivierung']});
+  renderEventStore();renderAllEvents();renderGlobalLog();showEventDetail(id);showToast('Reaktiviert',`${id} ist wieder in der Arbeitswarteschlange.`)
+}
+$('reactivateModal').addEventListener('click',e=>{if(e.target===$('reactivateModal'))closeReactivateModal()});
+function ensureEventLog(id){
+  if(state.eventLogs[id])return state.eventLogs[id];
+  const e=state.events.find(x=>x.id===id);
+  state.eventLogs[id]=[{time:e?.start||nowTime(),icon:'!',title:'Ereignis im Ereignisspeicher eingegangen',text:e?`${e.source} · ${e.station}`:'Ereignis angelegt'}];
+  return state.eventLogs[id];
+}
+function addEventLog(id,icon,title,text){if(!id)return;ensureEventLog(id).push({time:nowTime(),icon,title,text})}
+function templateMeasures(e){
+  if(e?.type==='Wetterwarnung')return [
+    ['Warnlage verifizieren','Warnart, räumliche Ausdehnung und Gültigkeitszeitraum prüfen.'],
+    ['Betriebliche Betroffenheit bewerten','Bahnhöfe, Außenanlagen, Reisendenströme und laufende Arbeiten prüfen.'],
+    ['Interne Stellen informieren','Sichtleitung, Bahnhofsmanagement und betroffene Fachstellen informieren.'],
+    ['Lagefortschreibung dokumentieren','Radarentwicklung, Warnstufe und Rückmeldungen fortlaufend dokumentieren.'],
+    ['Entwarnung / Abschluss prüfen','Warnende, Restgefahren und betriebliche Normalisierung dokumentieren.']
+  ];
+  if(e?.type==='BMA-Alarm')return [
+    ['Alarmannahme bestätigen','Alarmdaten, Quelle und Standort prüfen und bestätigen.'],
+    ['Rückruf / Sprechverbindung herstellen','Verbindung zur auslösenden Stelle bzw. örtlichen Kontaktstelle herstellen.'],
+    ['Örtliche Lage verifizieren','Rauchentwicklung, Brandbereich und Räumungslage erfragen.'],
+    ['Interne Alarmkette auslösen','Fdl, Bahnhofsmanagement und Bereitschaft gemäß Vorgabe informieren.'],
+    ['Feuerwehrstatus dokumentieren','Alarmierung, Eintreffen und laufende Maßnahmen dokumentieren.'],
+    ['Auswirkungen auf Bahnhofsbetrieb bewerten','Sperrungen, Reisendenlenkung und Kommunikation prüfen.']
+  ];
+  if(e?.type==='Aufzugsnotruf')return [
+    ['Notruf annehmen und Person beruhigen','Kontakt halten, Lage und Personenzahl erfassen.'],
+    ['Aufzug eindeutig identifizieren','Bahnhof, Aufzugsnummer und Halteposition prüfen.'],
+    ['Servicedienstleister alarmieren','Entstörung / Befreiung beauftragen und ETA dokumentieren.'],
+    ['Örtliche Unterstützung informieren','Bahnhofsmanagement bzw. Service vor Ort verständigen.'],
+    ['Befreiung bestätigen','Rückmeldung der eingeschlossenen Person bzw. Einsatzkraft dokumentieren.'],
+    ['Ereignisabschluss vorbereiten','Funktionsstatus und weitere betriebliche Maßnahmen festhalten.']
+  ];
+  if(e?.type==='Technische Störung'||e?.type==='Funktionsstörung')return [
+    ['Störungsbild verifizieren','Betroffene Anlage und genaue Auswirkung erfassen.'],
+    ['Fachstelle / Entstörung informieren','Zuständige Stelle mit allen relevanten Daten beauftragen.'],
+    ['Betriebliche Auswirkung bewerten','Reisendeninformation und Ersatzmaßnahmen prüfen.'],
+    ['Statusrückmeldung dokumentieren','Zwischenstand und Prognose im Ereignis festhalten.'],
+    ['Wiederherstellung bestätigen','Funktion prüfen und Abschluss dokumentieren.']
+  ];
+  return [
+    ['Sachverhalt aufnehmen','Alle relevanten Angaben strukturiert erfassen.'],
+    ['Zuständigkeit bestimmen','Verantwortliche Stelle auswählen und informieren.'],
+    ['Rückmeldung dokumentieren','Bearbeitungsstand und weitere Schritte festhalten.'],
+    ['Abschluss prüfen','Ergebnis und vollständige Dokumentation kontrollieren.']
+  ];
+}
+function ensureMeasures(id){
+  if(state.measureSets[id])return state.measureSets[id];
+  const e=state.events.find(x=>x.id===id); const list=templateMeasures(e).map(([title,desc],i)=>({title,desc,done:false,current:i===0,time:null}));
+  if(id==='EV-2026-08142'){list[0].done=true;list[0].current=false;list[0].time='14:02';list[1].done=true;list[1].current=false;list[1].time='14:03';list[2].current=true}
+  state.measureSets[id]=list; return list;
+}
+function renderSelectedEventWorkspace(){
+  const area=$('eventProcessingArea'); if(!area)return;
+  const id=state.selectedEventId, e=state.events.find(x=>x.id===id);
+  if(!e){area.innerHTML=`<div class="processing-empty"><div><div class="empty-icon">▤</div><b>Meldung aus dem Ereignisspeicher öffnen</b><p>Klicke oben auf eine Ereigniszeile. Die Meldung wird hier unten sofort mit Details, Verantwortlichkeit und zugehöriger Handlungsanweisung angezeigt.</p></div></div>`;return}
+  const measures=ensureMeasures(id), done=measures.filter(m=>m.done).length;
+  const ownerUser=getEventOwnerUser(e), mine=e.owner==='T. Neumeier', free=e.owner==='—', unavailable=ownerUser&&ownerUser.status!=='verfügbar';
+  const canProcess=mine&&e.acknowledged&&!e.archived;
+  const userOptions=state.users.filter(u=>u.id!=='tn').map(u=>`<option value="${u.id}">${u.name} · ${u.status}</option>`).join('');
+  let responsibilityAction='';
+  if(free)responsibilityAction=`<button class="btn success" onclick="acceptEvent('${e.id}')">Ereignis annehmen</button>`;
+  else if(mine)responsibilityAction=`<label class="field-label" style="margin:0">Gesamtes Ereignis übergeben</label><select class="owner-select" aria-label="Gesamtes Ereignis an anderen Nutzer übergeben" onchange="if(this.value){transferEvent('${e.id}',this.value);this.value=''}"><option value="">Nutzer auswählen ...</option>${userOptions}</select>`;
+  else if(unavailable)responsibilityAction=`<button class="btn takeover-btn" onclick="takeOverEvent('${e.id}')">Ereignis übernehmen</button>`;
+  else responsibilityAction=`<span class="tag blue">Bearbeitung bei ${e.owner}</span>`;
+  const ownerLabel=free?'Noch nicht zugeordnet':e.owner;
+  const ownerStatus=free?'frei':ownerUser?.status||'unbekannt';
+  area.innerHTML=`<div class="processing-head">
+    <div class="processing-title-row"><div><div class="section-kicker">Meldung aus Ereignisspeicher</div><h2 id="processingTitle">${e.type} · ${e.station}</h2><div class="processing-tags"><span class="tag ${e.prio==='Kritisch'?'red':e.prio==='Hoch'?'amber':'blue'}">${e.prio.toUpperCase()}</span><span class="tag gray">${e.id}</span><span class="tag ${e.acknowledged?'green':'amber'}">${e.acknowledged?'QUITTIERT':'NICHT QUITTIERT'}</span>${e.archived?'<span class="archive-chip">▣ ARCHIVIERT</span>':''}</div></div><button class="btn ghost" onclick="closeProcessingView()">Meldung schließen</button></div>
+    <div class="event-message"><span>Meldung / Kurzbeschreibung</span><b>${e.text}</b></div>
+    <div class="event-facts"><div class="event-fact"><span>Bahnhof</span><b>${e.station}</b></div><div class="event-fact"><span>Quelle</span><b>${e.source}</b></div><div class="event-fact"><span>Eingang</span><b>${e.start}</b></div><div class="event-fact"><span>Status</span><b>${e.status}</b></div><div class="event-fact"><span>Verantwortlich</span><b>${ownerLabel}</b></div></div>
+    <div class="event-responsibility"><div class="event-responsibility-main"><span class="user-status ${ownerStatus==='frei'?'offline':ownerStatusClass(ownerStatus)}"></span><div><b>Gesamtverantwortung: ${ownerLabel}</b><small>Status: ${ownerStatus} · Verantwortung gilt für das vollständige Ereignis und alle Maßnahmen.</small></div></div><div class="event-responsibility-actions">${responsibilityAction}</div></div>
+    <div class="event-detail-actions"><button class="btn success" ${free?'':'disabled'} onclick="acceptEvent('${e.id}')">Annehmen</button><button class="btn" ${mine&&!e.acknowledged?'':'disabled'} onclick="acknowledgeEvent('${e.id}')">Quittieren</button><button class="btn primary" ${canProcess?'':'disabled'} onclick="openEventForWork('${e.id}')">Bearbeitung starten</button><button class="btn ghost" onclick="archiveEvent('${e.id}')">Archivieren</button></div>
+  </div>
+  ${!canProcess&&!e.archived?`<div class="work-lock-banner">Maßnahmenbearbeitung gesperrt: ${free?'Ereignis zuerst annehmen und anschließend quittieren.':!mine?(unavailable?'Der verantwortliche Nutzer ist nicht verfügbar. Das gesamte Ereignis kann übernommen werden.':`Das Ereignis wird aktuell durch ${e.owner} bearbeitet.`):'Ereigniseingang zuerst quittieren.'}</div>`:''}
+  <div class="processing-grid">
+    <section class="card"><div class="card-head"><div><div class="card-title">Maßnahme / Handlungsanweisung</div><div class="card-subtitle">${measureTitleForEvent(e)} · Verantwortung liegt vollständig beim Ereignisverantwortlichen</div></div><div style="min-width:170px"><div class="progress-wrap"><div class="progress"><span id="measureProgress" style="width:${measures.length?done/measures.length*100:0}%"></span></div><b id="measureCount" style="font-size:11px">${done} / ${measures.length}</b></div></div></div><div class="card-body"><div class="task-list" id="measureList"></div></div></section>
+    <section class="card"><div class="card-head"><div><div class="card-title">Ereignisprotokoll / Dokumentation</div><div class="card-subtitle">${e.id} · automatisch und manuell</div></div><button class="btn sm" onclick="addManualLog()">+ Protokolleintrag</button></div><div class="card-body"><div class="timeline" id="eventTimeline"></div></div></section>
+  </div>`;
+  renderMeasures(); renderTimeline();
+}
+function measureTitleForEvent(e){if(e.type==='Wetterwarnung')return 'Wetterlage – Unwetter / betriebliche Auswirkungen';if(e.type==='BMA-Alarm')return 'BMA – Brandmeldealarm';if(e.type==='Aufzugsnotruf')return 'Aufzug – Notruf / eingeschlossene Person';if(e.type.includes('Störung'))return 'Technische Störung – Standardablauf';return 'Leitstellenereignis – Standardablauf'}
+function closeProcessingView(){state.selectedEventId=null;renderEventStore();renderSelectedEventWorkspace()}
+function getUser(id){return state.users.find(u=>u.id===id)||state.users[0]}
+function renderMeasures(){
+  const el=$('measureList'); if(!el||!state.selectedEventId)return; const e=state.events.find(x=>x.id===state.selectedEventId),measures=ensureMeasures(state.selectedEventId); el.innerHTML='';
+  const ownerUser=getEventOwnerUser(e),canProcess=e&&!e.archived&&e.owner==='T. Neumeier'&&e.acknowledged;
+  measures.forEach((m,i)=>{const row=document.createElement('div');row.className='task-row '+(m.done?'done ':'')+(m.current?'current ':'')+(!canProcess&&!m.done?'measure-blocked':'');
+    let action='';
+    if(m.done)action=`<span class="tag green">${m.time||'ERLEDIGT'} · ${e.owner==='T. Neumeier'?'TN':'dokumentiert'}</span>`;
+    else if(canProcess)action=`<button class="btn sm ${m.current?'primary':''}" onclick="completeMeasure(${i})">${m.current?'Aktuellen Schritt erledigen':'Erledigen'}</button>`;
+    else action=`<span class="tag gray">GESPERRT</span>`;
+    row.innerHTML=`<div class="task-number">${m.done?'✓':i+1}</div><div><b>${m.title}</b><small>${m.desc}</small></div><div class="task-action">${action}</div>`;el.appendChild(row)});
+  const done=measures.filter(x=>x.done).length;if($('measureProgress'))$('measureProgress').style.width=`${measures.length?done/measures.length*100:0}%`;if($('measureCount'))$('measureCount').textContent=`${done} / ${measures.length}`;
+}
+function completeMeasure(i){
+  const id=state.selectedEventId;if(!id)return;const e=state.events.find(x=>x.id===id),measures=ensureMeasures(id),m=measures[i];if(!e||!m||m.done)return;
+  const owner=getEventOwnerUser(e);
+  if(e.owner!=='T. Neumeier'){showToast('Nicht zuständig',owner&&owner.status!=='verfügbar'?`Das gesamte Ereignis liegt bei ${e.owner} (${owner.status}). Übernimm zuerst das Ereignis.`:`Das gesamte Ereignis ist ${e.owner} zugeordnet.`);return}
+  if(!e.acknowledged){showToast('Bearbeitung gesperrt','Ereignis zuerst quittieren.');return}
+  m.done=true;m.current=false;m.time=nowTime().slice(0,5);const next=measures.find(x=>!x.done);if(next)next.current=true;
+  e.status=next?'In Bearbeitung':'Erledigt';
+  addEventLog(id,'✓',`Maßnahme erledigt: ${m.title}`,'Bearbeitung innerhalb des Ereignisses durch Timo Neumeier');state.globalLog.unshift({time:nowTime(),title:'Maßnahme dokumentiert',text:`${m.title} · ${id}`,meta:['LP03','Maßnahme']});
+  renderMeasures();renderTimeline();renderEventStore();renderGlobalLog();renderAllEvents();showToast('Maßnahme abgeschlossen',m.title)
+}
+function renderTimeline(){
+  const el=$('eventTimeline');if(!el||!state.selectedEventId)return;const logs=ensureEventLog(state.selectedEventId);el.innerHTML='';
+  logs.slice(-8).forEach(e=>el.insertAdjacentHTML('beforeend',`<div class="timeline-row"><time>${e.time}</time><div class="tl-line"><div class="tl-dot">${e.icon}</div></div><div><b>${e.title}</b><small>${e.text}</small></div></div>`))
+}
+function addManualLog(){if(!state.selectedEventId)return;const id=state.selectedEventId;openTextModal('Protokolleintrag erfassen',(text)=>{addEventLog(id,'✎','Manueller Protokolleintrag',text);state.globalLog.unshift({time:nowTime(),title:'Neuer Protokolleintrag',text,meta:['LP03',id]});renderTimeline();renderGlobalLog()})}
+
+function prioClass(p){return p==='Kritisch'||p==='Hoch'?'p-red':p==='Mittel'?'p-amber':p==='Niedrig'?'p-yellow':'p-blue'}
+function renderEventTables(){const body=$('eventTableBody');if(!body)return;body.innerHTML='';activeQueueEvents().slice(1,5).forEach(e=>body.insertAdjacentHTML('beforeend',`<tr onclick="openEvent('${e.id}')"><td><span class="prio-dot ${prioClass(e.prio)}"></span>${e.prio}</td><td><b>${e.id}</b></td><td>${e.type}</td><td>${e.station}</td><td>${e.start}</td><td>${e.status}</td><td>${e.owner}</td></tr>`))}
+function renderAllEvents(){
+  const q=($('eventSearch')?.value||'').toLowerCase();const body=$('allEventsBody');if(!body)return;body.innerHTML='';
+  const list=[...state.events].sort((a,b)=>b.start.localeCompare(a.start)).filter(e=>Object.values(e).join(' ').toLowerCase().includes(q));
+  list.forEach(e=>body.insertAdjacentHTML('beforeend',`<tr class="${e.archived?'event-archived-row':''}" onclick="showEventDetail('${e.id}')"><td><span class="prio-dot ${prioClass(e.prio)}"></span>${e.prio}</td><td><b>${e.id}</b></td><td>${e.type}</td><td>${e.station}</td><td>${e.start}</td><td>${e.status}</td><td>${e.archived?`<span class="archive-chip">▣ ${e.archivedAt||''}</span>`:'<span class="tag green">AKTIV</span>'}</td></tr>`));
+  const target=state.selectedEventDetailId&&list.find(e=>e.id===state.selectedEventDetailId)?state.selectedEventDetailId:list[0]?.id;if(target)showEventDetail(target)
+}
+function showEventDetail(id){
+  const e=state.events.find(x=>x.id===id);if(!e)return;state.selectedEventDetailId=id;$('eventDetailId').textContent=e.id;
+  const ownerUser=getEventOwnerUser(e);const logs=ensureEventLog(id);const measures=ensureMeasures(id);const archiveInfo=e.archived?`<div class="info-tile"><span>Archiviert</span><b>${e.archivedAt||'—'}</b></div><div class="info-tile"><span>Status vor Archivierung</span><b>${e.previousStatus||'—'}</b></div>`:'';
+  const archivedReview=e.archived?`<div class="archived-readonly-note">Dieses Ereignis ist archiviert und bleibt für Prüfung und Nachbearbeitung vollständig einsehbar. Operative Bearbeitung ist gesperrt, bis eine Reaktivierung ausdrücklich bestätigt wurde.</div><div class="archive-review"><h4>Maßnahmenstand</h4><div class="archive-measures">${measures.map((m,i)=>`<div class="archive-measure ${m.done?'done':''}"><span class="mark">${m.done?'✓':i+1}</span><div><b>${m.title}</b><small>${m.desc}</small></div><span class="tag ${m.done?'green':'gray'}">${m.done?'ERLEDIGT':'DOKUMENTIERT'}</span></div>`).join('')}</div><div class="archive-review"><h4>Vollständige Chronologie / Nachbearbeitung</h4><div class="archive-log-mini">${logs.map(l=>`<div class="archive-log-row"><time>${l.time}</time><div><b>${l.title}</b><small>${l.text}</small></div></div>`).join('')}</div></div></div>`:'';
+  $('eventDetail').innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><div><div class="section-kicker">${e.type}</div><h3 style="margin:4px 0">${e.station}</h3></div><div style="display:flex;gap:6px"><span class="tag ${e.prio==='Kritisch'?'red':e.prio==='Hoch'?'amber':'blue'}">${e.prio}</span>${e.archived?'<span class="archive-chip">▣ ARCHIVIERT</span>':''}</div></div><div class="info-grid"><div class="info-tile"><span>Status</span><b>${e.status}</b></div><div class="info-tile"><span>Beginn</span><b>${e.start}</b></div><div class="info-tile"><span>Quelle</span><b>${e.source}</b></div><div class="info-tile"><span>Verantwortlich</span><b>${e.owner}${ownerUser?` · ${ownerUser.status}`:''}</b></div>${archiveInfo}</div><div class="info-tile" style="margin-top:8px"><span>Kurzbeschreibung</span><b>${e.text}</b></div>${archivedReview}<div class="event-detail-actions">${e.archived?`<button class="btn" onclick="addArchiveReviewNote('${e.id}')">✎ Nachbearbeitungsnotiz</button><button class="btn danger" onclick="requestRestoreEvent('${e.id}')">↺ Reaktivierung anfordern</button>`:`<button class="btn primary" onclick="switchCenterView('arbeitsplatz');setTimeout(()=>selectEventFromStore('${e.id}'),20)">Im Arbeitsplatz öffnen</button><button class="btn ghost" onclick="archiveEvent('${e.id}')">Archivieren</button>`}</div>`
+}
+function addArchiveReviewNote(id){const e=state.events.find(x=>x.id===id);if(!e||!e.archived)return;openTextModal('Nachbearbeitungsnotiz zum archivierten Ereignis',(text)=>{addEventLog(id,'✎','Nachbearbeitung im Archiv',text);state.globalLog.unshift({time:nowTime(),title:'Archiv-Nachbearbeitung',text:`${id} · ${text}`,meta:['LP03','Archiv','Nachbearbeitung']});renderGlobalLog();showEventDetail(id)})}
+function openEvent(id){switchCenterView('arbeitsplatz');setTimeout(()=>selectEventFromStore(id),20)}
+function createIncident(){showToast('Mockup','Dialog „Ereignis anlegen“ würde hier geöffnet.')}
+
+function renderPhone(){document.querySelectorAll('.tab-btn').forEach(b=>b.classList.toggle('active',b.dataset.phoneTab===state.phoneTab));const pc=$('phoneContent');if(state.phoneTab==='telefon'){pc.innerHTML=`<div class="phone-layout"><div class="phone-box"><h4>Wählfeld</h4><div class="dial-display"><input id="dialInput" class="input" placeholder="Rufnummer"><button class="btn" onclick="backspaceDial()">⌫</button></div><div class="keypad">${[['1',''],['2','ABC'],['3','DEF'],['4','GHI'],['5','JKL'],['6','MNO'],['7','PQRS'],['8','TUV'],['9','WXYZ'],['*',''],['0','+'],['#','']].map(k=>`<button class="key" onclick="pressKey('${k[0]}')">${k[0]}<span>${k[1]}</span></button>`).join('')}</div><div class="dial-actions"><button class="btn success" onclick="dialNumber()">☎ Wählen</button><button class="btn" onclick="clearDial()">×</button></div></div><div class="phone-box"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><h4 style="margin:0">Eingehende Anrufe (${state.incoming.length})</h4><span class="tag ${state.incoming.length?'red':'green'}">${state.incoming.length?'WARTEND':'FREI'}</span></div><div class="incoming-list" id="incomingList"></div></div></div><div class="phone-footer-actions"><button class="btn" onclick="openQuickModal()">▦ Kurzwahl öffnen</button><button class="btn" onclick="setPhoneTab('telefonbuch')">▤ Telefonbuch</button></div>`;renderIncoming()} else if(state.phoneTab==='aktiv'){renderActiveCall()} else if(state.phoneTab==='telefonbuch'){pc.innerHTML=`<div class="searchbar" style="margin-bottom:8px"><input class="input" id="miniPhoneSearch" placeholder="Telefonbuch durchsuchen ..." oninput="renderMiniPhonebook()"><button class="btn primary" onclick="openContactModal()">+ Kontakt</button><button class="btn" onclick="openQuickModal()">Kurzwahl</button></div><div class="phonebook-mini" id="miniPhonebook"></div>`;renderMiniPhonebook()} else {renderHistory()}}
+function setPhoneTab(tab){state.phoneTab=tab;renderPhone()}
+document.querySelectorAll('.tab-btn').forEach(b=>b.addEventListener('click',()=>setPhoneTab(b.dataset.phoneTab)));
+function normalizePhoneNumber(n){return String(n||'').replace(/\D/g,'')}
+function contactPriorityMeta(priority){const p=priority||'low';return p==='high'?{key:'high',label:'Hoch',desc:'Betriebsrelevanter Kontakt',tag:'red'}:p==='medium'?{key:'medium',label:'Mittel',desc:'Wichtiger Kontakt',tag:'amber'}:{key:'low',label:'Niedrig',desc:'Standardanruf',tag:'blue'}}
+function findContactForCall(c){const n=normalizePhoneNumber(c.number);return state.contacts.find(x=>normalizePhoneNumber(x.number)===n)||state.contacts.find(x=>x.name===c.name)||null}
+function callPriority(c){const contact=findContactForCall(c);return contactPriorityMeta(contact?.priority||c.priority||'low')}
+function sortedIncomingCalls(){const rank={high:3,medium:2,low:1};return [...state.incoming].sort((a,b)=>(rank[callPriority(b).key]||0)-(rank[callPriority(a).key]||0))}
+function escHtml(v){return String(v??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]))}
+function renderIncoming(){const el=$('incomingList');if(!el)return;el.innerHTML='';if(!state.incoming.length){el.innerHTML='<div class="muted" style="font-size:11px;padding:10px">Keine wartenden Anrufe.</div>';return}sortedIncomingCalls().forEach(c=>{const contact=findContactForCall(c),p=callPriority(c),name=contact?.name||c.name,known=!!contact||c.known;el.insertAdjacentHTML('beforeend',`<div class="incoming call-priority-${p.key} ${known?'known':'unknown'}"><div class="incoming-icon">☎</div><div><b>${escHtml(name)}</b><small>${escHtml(c.number)}${known?' · Telefonbuch':' · Unbekannter Anrufer'}</small><div class="contact-row-priority"><span class="call-priority-badge ${p.key}">${p.label} · ${p.desc}</span></div></div><div class="incoming-actions"><button class="btn success" onclick="acceptIncoming(${c.id})">Annehmen</button><button class="btn danger icon" onclick="declineIncoming(${c.id})">×</button></div></div>`)} )}
+function acceptIncoming(id){if(state.activeCall){showToast('Leitung belegt','Bitte aktives Gespräch zuerst beenden.');return}if(state.freeLines<=0){showToast('Keine freie Leitung','Aktuell steht keine freie Leitung zur Verfügung.');return}const idx=state.incoming.findIndex(c=>c.id===id);if(idx<0)return;const c=state.incoming.splice(idx,1)[0];state.activeCall={...c,dir:'eingehend',docCategory:'',docText:''};state.callStartedAt=Date.now();state.freeLines--;state.phoneTab='aktiv';if(c.event)addEventLog(c.event,'☎',`Anruf angenommen: ${c.name}`,`Verknüpft mit ${c.event}`);state.globalLog.unshift({time:nowTime(),title:'Anruf angenommen',text:`${c.name} · ${c.number}`,meta:['LP03','Telefonie']});refreshTelephony();renderTimeline();renderGlobalLog();showToast('Gespräch angenommen',c.name)}
+function declineIncoming(id){const idx=state.incoming.findIndex(c=>c.id===id);if(idx<0)return;const c=state.incoming.splice(idx,1)[0];state.history.unshift({time:nowTime(),name:c.name,number:c.number,dir:'abgewiesen',duration:'–'});state.globalLog.unshift({time:nowTime(),title:'Anruf abgewiesen',text:`${c.name} · ${c.number}`,meta:['LP03','Telefonie']});refreshTelephony();renderGlobalLog()}
+function refreshTelephony(){ $('freeLines').textContent=state.freeLines;$('callBadge').textContent=state.incoming.length;if($('incomingKpi'))$('incomingKpi').textContent=state.incoming.length;renderPhone();renderCallCenterViews() }
+function pressKey(k){$('dialInput').value+=k}function backspaceDial(){$('dialInput').value=$('dialInput').value.slice(0,-1)}function clearDial(){$('dialInput').value=''}
+function dialNumber(){const n=$('dialInput').value.trim();if(!n)return;if(state.activeCall){showToast('Leitung belegt','Es ist bereits ein Gespräch aktiv.');return}if(state.freeLines<=0){showToast('Keine freie Leitung','Aktuell steht keine freie Leitung zur Verfügung.');return}const contact=state.contacts.find(c=>normalizePhoneNumber(c.number)===normalizePhoneNumber(n)||c.quick===n);state.activeCall={name:contact?.name||n,number:contact?.number||n,known:!!contact,dir:'ausgehend',event:null,docCategory:'',docText:''};state.callStartedAt=Date.now();state.freeLines--;state.phoneTab='aktiv';state.globalLog.unshift({time:nowTime(),title:'Ausgehender Anruf',text:`${state.activeCall.name} · ${state.activeCall.number}`,meta:['LP03','Telefonie']});refreshTelephony();renderGlobalLog()}
+function renderCallCategoryButtons(containerId,selected,onSelectFn){const el=$(containerId);if(!el)return;el.innerHTML=state.callCategories.map(c=>`<button type="button" class="category-option ${selected===c?'selected':''}" onclick="${onSelectFn}('${c.replace(/'/g,"\'")}')">${c}</button>`).join('')}
+function selectActiveCallCategory(cat){if(!state.activeCall)return;state.activeCall.docCategory=cat;renderCallCategoryButtons('activeCallCategories',cat,'selectActiveCallCategory')}
+function updateActiveCallText(){if(state.activeCall&&$('callNote'))state.activeCall.docText=$('callNote').value}
+function renderActiveCall(){const pc=$('phoneContent');if(!state.activeCall){pc.innerHTML='<div class="card" style="padding:16px;text-align:center"><div style="font-size:26px;margin-bottom:8px">☎</div><b>Kein aktives Gespräch</b><div class="muted" style="font-size:10px;margin:6px 0 12px">Nimm einen eingehenden Anruf an oder starte einen neuen Anruf.</div><button class="btn primary" onclick="setPhoneTab(\'telefon\')">Zum Telefon</button></div>';return}const c=state.activeCall;pc.innerHTML=`<div class="active-call"><div class="call-banner"><div class="call-avatar">☎</div><div><h3>${c.name}</h3><small>${c.number} · ${c.dir}</small></div><div class="call-duration" id="callDuration">00:00</div></div><div class="call-actions-grid"><button class="btn">Stumm</button><button class="btn">Halten</button><button class="btn">Weiterleiten</button></div><div class="phone-box call-doc-inline"><h4>Gesprächsdokumentation</h4><div class="required-label">Inhaltliche Kategorie <span>* Pflichtfeld</span></div><div class="call-category-grid" id="activeCallCategories"></div><label class="field-label" for="callNote">Freitext <span>optional</span></label><textarea class="textarea" id="callNote" oninput="updateActiveCallText()" placeholder="Zusätzliche Gesprächsinhalte / Lageinformation ...">${c.docText||''}</textarea><div style="display:flex;gap:6px;margin-top:8px"><button class="btn primary" onclick="saveCallNote()">Zwischenspeichern</button><button class="btn danger" onclick="hangupCall()">Auflegen</button></div></div>${c.event?`<div class="phone-box"><h4>Ereignisbezug</h4><div class="list-card"><div><b>${c.event}</b><small>Verknüpftes Leitstellenereignis</small></div><button class="btn sm" onclick="switchCenterView('arbeitsplatz');setTimeout(()=>openEventForWork('${c.event}'),20)">Öffnen</button></div></div>`:''}</div>`;renderCallCategoryButtons('activeCallCategories',c.docCategory,'selectActiveCallCategory');updateCallDuration()}
+function updateCallDuration(){if(!state.activeCall||!$('callDuration'))return;$('callDuration').textContent=fmtTime((Date.now()-state.callStartedAt)/1000)}setInterval(updateCallDuration,1000)
+function saveCallNote(){if(!state.activeCall)return;updateActiveCallText();if(!state.activeCall.docCategory){showToast('Pflichtfeld fehlt','Bitte zuerst eine inhaltliche Kategorie auswählen.');return}const t=state.activeCall.docText?.trim()||'';const eventId=state.activeCall.event||state.selectedEventId;if(eventId)addEventLog(eventId,'✎',`Anruf: ${state.activeCall.docCategory}`,`${state.activeCall.name}${t?' · '+t:''}`);state.globalLog.unshift({time:nowTime(),title:`Anruf kategorisiert: ${state.activeCall.docCategory}`,text:`${state.activeCall.name}${t?' · '+t:''}`,meta:['LP03','Telefonie']});renderTimeline();renderGlobalLog();showToast('Gespeichert','Anrufdokumentation wurde zwischengespeichert.')}
+function finalizeCall(c,dur){state.history.unshift({time:nowTime(),name:c.name,number:c.number,dir:c.dir,duration:dur,category:c.docCategory,text:c.docText||''});state.freeLines=Math.min(10,state.freeLines+1);state.activeCall=null;state.callStartedAt=null;state.globalLog.unshift({time:nowTime(),title:'Gespräch beendet',text:`${c.name} · ${c.docCategory} · Dauer ${dur}${c.docText?' · '+c.docText:''}`,meta:['LP03','Telefonie',c.docCategory]});state.phoneTab='telefon';refreshTelephony();renderGlobalLog();showToast('Gespräch abgeschlossen',`${c.name} · ${c.docCategory}`)}
+function hangupCall(){if(!state.activeCall)return;updateActiveCallText();const c={...state.activeCall};const dur=fmtTime((Date.now()-state.callStartedAt)/1000);if(!c.docCategory){state.pendingCallClose={call:c,duration:dur};openCallDocModal();return}finalizeCall(c,dur)}
+function openCallDocModal(){const p=state.pendingCallClose;if(!p)return;$('callDocText').value=p.call.docText||'';$('callDocError').textContent='';renderCallCategoryButtons('callDocCategories',p.call.docCategory||'','selectPendingCallCategory');$('callDocModal').classList.add('show')}
+function selectPendingCallCategory(cat){if(!state.pendingCallClose)return;state.pendingCallClose.call.docCategory=cat;renderCallCategoryButtons('callDocCategories',cat,'selectPendingCallCategory');$('callDocError').textContent=''}
+function savePendingCallDocumentation(){const p=state.pendingCallClose;if(!p)return;if(!p.call.docCategory){$('callDocError').textContent='Bitte eine Kategorie auswählen. Dieses Feld ist verpflichtend.';return}p.call.docText=$('callDocText').value.trim();$('callDocModal').classList.remove('show');state.pendingCallClose=null;finalizeCall(p.call,p.duration)}
+function filteredContacts(q){q=(q||'').toLowerCase();return state.contacts.map((c,i)=>({c,i})).filter(({c})=>Object.values(c).join(' ').toLowerCase().includes(q))}
+function renderMiniPhonebook(){const q=($('miniPhoneSearch')?.value||'').toLowerCase();const el=$('miniPhonebook');if(!el)return;el.innerHTML='';filteredContacts(q).slice(0,8).forEach(({c,i})=>{const p=contactPriorityMeta(c.priority);el.insertAdjacentHTML('beforeend',`<div class="contact-row"><div class="contact-avatar">${escHtml((c.quick||c.name).slice(0,2))}</div><div><b>${escHtml(c.name)}</b><small>${escHtml(c.role)} · ${escHtml(c.number)}</small><div class="contact-row-priority"><span class="call-priority-badge ${p.key}">${p.label}</span></div></div><div class="contact-actions"><button class="btn sm success" onclick="callContactByIndex(${i})">☎</button><button class="btn sm" onclick="openContactModal(${i})">✎</button></div></div>`)} )}
+function callContactByIndex(i){const c=state.contacts[i];if(c)callContact(c.number)}
+function callContact(number){state.phoneTab='telefon';renderPhone();setTimeout(()=>{$('dialInput').value=number;dialNumber()},20)}
+function renderHistory(){const pc=$('phoneContent');pc.innerHTML=`<div class="list-stack">${state.history.map(h=>`<div class="list-card"><div><b>${escHtml(h.name)}</b><small>${escHtml(h.time)} · ${escHtml(h.dir)} · ${escHtml(h.number)}</small></div><div style="text-align:right"><span class="tag gray">${escHtml(h.duration)}</span>${h.category?`<div style="font-size:9px;color:#8fa3b5;margin-top:4px">${escHtml(h.category)}</div>`:''}</div></div>`).join('')}</div>`}
+
+function openQuickModal(){$('quickGrid').innerHTML=state.contacts.map((c,i)=>({c,i})).filter(({c})=>c.quick).map(({c,i})=>{const p=contactPriorityMeta(c.priority);return `<button class="quick-btn" onclick="quickDialByIndex(${i})"><b>${escHtml(c.name)}</b><small>${escHtml(c.role)}</small><strong>${escHtml(c.quick)}</strong><span class="call-priority-badge ${p.key}" style="margin-top:7px">${p.label}</span></button>`}).join('');$('quickModal').classList.add('show')}
+function closeQuickModal(){$('quickModal').classList.remove('show')}
+function quickDialByIndex(i){const c=state.contacts[i];if(c)quickDial(c.number)}
+function quickDial(number){closeQuickModal();state.phoneTab='telefon';renderPhone();setTimeout(()=>{$('dialInput').value=number;dialNumber()},30)}
+$('quickModal').addEventListener('click',e=>{if(e.target===$('quickModal'))closeQuickModal()})
+
+function renderCenterPhonebook(){const q=($('phonebookSearch')?.value||'').toLowerCase();const body=$('centerPhonebookBody');if(!body)return;body.innerHTML='';filteredContacts(q).forEach(({c,i})=>{const p=contactPriorityMeta(c.priority);body.insertAdjacentHTML('beforeend',`<tr><td><b>${escHtml(c.name)}</b></td><td>${escHtml(c.role)}</td><td>${escHtml(c.station)}</td><td>${escHtml(c.number)}</td><td>${escHtml(c.quick||'—')}</td><td><span class="call-priority-badge ${p.key}">${p.label}</span></td><td><div class="phonebook-action-group"><button class="btn sm success" onclick="callContactByIndex(${i})">☎ Anrufen</button><button class="btn sm" onclick="openContactModal(${i})">✎ Bearbeiten</button></div></td></tr>`)} )}
+function renderCallCenterViews(){const a=$('centerIncomingCalls'),h=$('centerHistory');if(a)a.innerHTML=sortedIncomingCalls().map(c=>{const contact=findContactForCall(c),p=callPriority(c),name=contact?.name||c.name;return `<div class="list-card center-waiting-call call-priority-${p.key}"><div class="waiting-call-main"><b>${escHtml(name)}</b><small>${escHtml(c.number)}${c.event?' · '+escHtml(c.event):''}</small><div class="waiting-call-meta"><span class="call-priority-badge ${p.key}">${p.label} · ${p.desc}</span>${contact?'<span class="tag gray">TELEFONBUCH</span>':'<span class="tag gray">UNBEKANNT</span>'}</div></div><button class="btn sm success" onclick="acceptIncoming(${c.id})">Annehmen</button></div>`}).join('')||'<div class="muted">Keine wartenden Anrufe.</div>';if(h)h.innerHTML=state.history.slice(0,8).map(c=>`<div class="list-card"><div><b>${escHtml(c.name)}</b><small>${escHtml(c.time)} · ${escHtml(c.dir)} · ${escHtml(c.number)}</small></div><span class="tag gray">${escHtml(c.duration)}</span></div>`).join('')}
+
+function saveContacts(){try{localStorage.setItem('bbzContactsV1',JSON.stringify(state.contacts))}catch(e){}}
+function loadContacts(){try{const saved=JSON.parse(localStorage.getItem('bbzContactsV1')||'null');if(Array.isArray(saved)&&saved.length)state.contacts=saved.map(c=>({...c,priority:['low','medium','high'].includes(c.priority)?c.priority:'low'}))}catch(e){} }
+function openContactModal(index=null){state.editingContactIndex=Number.isInteger(index)?index:null;const c=state.editingContactIndex!==null?state.contacts[state.editingContactIndex]:null;$('contactModalTitle').textContent=c?'Kontakt bearbeiten':'Kontakt hinzufügen';$('contactName').value=c?.name||'';$('contactRole').value=c?.role||'';$('contactStation').value=c?.station||'';$('contactNumber').value=c?.number||'';$('contactQuick').value=c?.quick||'';$('contactFormError').textContent='';const pr=c?.priority||'low';document.querySelectorAll('input[name="contactPriority"]').forEach(r=>r.checked=r.value===pr);$('contactModal').classList.add('show');setTimeout(()=>$('contactName').focus(),40)}
+function closeContactModal(){$('contactModal').classList.remove('show');state.editingContactIndex=null;$('contactFormError').textContent=''}
+function saveContact(){const name=$('contactName').value.trim(),role=$('contactRole').value.trim(),station=$('contactStation').value.trim(),number=$('contactNumber').value.trim(),quick=$('contactQuick').value.trim(),priority=document.querySelector('input[name="contactPriority"]:checked')?.value||'low';if(!name||!number){$('contactFormError').textContent='Name und Rufnummer sind Pflichtfelder.';return}const duplicate=state.contacts.findIndex((c,i)=>normalizePhoneNumber(c.number)===normalizePhoneNumber(number)&&i!==state.editingContactIndex);if(duplicate>=0){$('contactFormError').textContent='Diese Rufnummer ist bereits im Telefonbuch vorhanden.';return}const contact={name,role:role||'Kontakt',station:station||'—',number,quick,priority};const editing=state.editingContactIndex!==null;if(editing)state.contacts[state.editingContactIndex]=contact;else state.contacts.push(contact);saveContacts();closeContactModal();renderCenterPhonebook();renderPhone();renderCallCenterViews();showToast(editing?'Kontakt aktualisiert':'Kontakt angelegt',`${name} · ${contactPriorityMeta(priority).label}`)}
+$('contactModal').addEventListener('click',e=>{if(e.target===$('contactModal'))closeContactModal()})
+
+function renderGlobalLog(){const el=$('globalLogList');el.innerHTML='';state.globalLog.slice(0,18).forEach(e=>el.insertAdjacentHTML('beforeend',`<div class="log-entry"><time>${e.time}</time><div><b>${e.title}</b><p>${e.text}</p><div class="log-meta">${e.meta.map(m=>`<span class="mini-chip">${m}</span>`).join('')}</div></div></div>`))}
+function addGlobalNote(){openTextModal('Arbeitsplatzübergreifender Logbucheintrag',(text)=>{state.globalLog.unshift({time:nowTime(),title:'Manueller Logbucheintrag',text,meta:['Sichtleitung','LP03']});renderGlobalLog()})}
+function renderShift(){const el=$('shiftTimeline');if(!el)return;el.innerHTML='';state.shift.forEach(e=>el.insertAdjacentHTML('beforeend',`<div class="timeline-row"><time>${e.time}</time><div class="tl-line"><div class="tl-dot">${e.icon}</div></div><div><b>${e.title}</b><small>${e.text}</small></div></div>`))}
+function newShiftEntry(){openTextModal('Schichtbucheintrag erfassen',(text)=>{state.shift.unshift({time:nowTime().slice(0,5),icon:'✎',title:'Manueller Schichtbucheintrag',text});renderShift()})}
+
+let textSaveHandler=null;
+function openTextModal(title,onSave){$('textModalTitle').textContent=title;$('textModalInput').value='';textSaveHandler=onSave;$('textModal').classList.add('show');setTimeout(()=>$('textModalInput').focus(),50)}
+function closeTextModal(){$('textModal').classList.remove('show');textSaveHandler=null}
+$('textModalSave').addEventListener('click',()=>{const t=$('textModalInput').value.trim();if(!t)return;if(textSaveHandler)textSaveHandler(t);$('textModal').classList.remove('show');textSaveHandler=null;showToast('Gespeichert','Eintrag wurde übernommen.')})
+$('textModal').addEventListener('click',e=>{if(e.target===$('textModal'))closeTextModal()})
+
+
+// V10: Wetterlage / Radar-Mockup Mittelfranken
+const WEATHER_FRAMES=[
+  {label:'-60 min',cells:[{x:9,y:37,w:25,h:31,i:1,r:-18},{x:24,y:18,w:21,h:25,i:2,r:20},{x:31,y:56,w:23,h:24,i:1,r:10}]},
+  {label:'-45 min',cells:[{x:17,y:36,w:27,h:32,i:1,r:-10},{x:29,y:22,w:24,h:27,i:2,r:16},{x:38,y:52,w:25,h:27,i:2,r:8},{x:25,y:62,w:15,h:17,i:1,r:-8}]},
+  {label:'-30 min',cells:[{x:25,y:34,w:30,h:34,i:2,r:-7},{x:38,y:25,w:26,h:30,i:3,r:13},{x:47,y:50,w:28,h:29,i:2,r:6},{x:36,y:64,w:19,h:20,i:1,r:-12}]},
+  {label:'-15 min',cells:[{x:34,y:31,w:31,h:36,i:2,r:-4},{x:47,y:26,w:28,h:31,i:4,r:9},{x:57,y:47,w:27,h:31,i:3,r:3},{x:47,y:64,w:20,h:20,i:2,r:-8}]},
+  {label:'Aktuell',cells:[{x:43,y:29,w:32,h:37,i:2,r:-2},{x:55,y:27,w:29,h:33,i:4,r:6},{x:63,y:45,w:29,h:32,i:5,r:2},{x:57,y:62,w:21,h:22,i:3,r:-4},{x:32,y:18,w:18,h:20,i:1,r:18}]}
+];
+const WEATHER_WARNINGS=[
+  {level:'orange',title:'Gewitter / Starkregen',area:'Nürnberg · Fürth · Erlangen-Höchstadt',valid:'bis 17:30',text:'Lokale Gewitter mit Starkregen und stürmischen Böen möglich. Schematische Warnung für das Mockup.'},
+  {level:'orange',title:'Windböen',area:'Landkreis Ansbach · Neustadt/Aisch-Bad Windsheim',valid:'bis 18:00',text:'Zeitweise kräftige Böen, exponiert stärkere Böen. Schematische Warnung für das Mockup.'}
+];
+const WEATHER_STATIONS=[
+  {name:'Nürnberg Hbf',icon:'🌦',temp:'22 °C',wind:'26 km/h',gust:'48 km/h',rain:'1,8 mm/h',vis:'18 km'},
+  {name:'Fürth (Bay) Hbf',icon:'🌧',temp:'21 °C',wind:'22 km/h',gust:'44 km/h',rain:'3,1 mm/h',vis:'12 km'},
+  {name:'Erlangen',icon:'⛈',temp:'20 °C',wind:'31 km/h',gust:'62 km/h',rain:'7,6 mm/h',vis:'8 km'},
+  {name:'Ansbach',icon:'☁',temp:'23 °C',wind:'18 km/h',gust:'37 km/h',rain:'0,4 mm/h',vis:'24 km'}
+];
+let weatherFrameIndex=4,weatherPlayTimer=null,weatherUpdatedAt=new Date();
+let weatherObservations=[
+  {time:'15:58',title:'Gewitterzelle westlich Fürth',text:'Radarentwicklung beobachten; derzeit keine betrieblichen Einschränkungen.'},
+  {time:'15:42',title:'Hinweis an Sichtleitung',text:'Außenarbeiten bei örtlichem Gewitteraufzug erneut bewerten.'},
+  {time:'15:20',title:'Wetterlage geprüft',text:'Keine wetterbedingten Bahnhofssperrungen im Leitstellenbereich.'}
+];
+function weatherFrameTime(index){const offsets=[-60,-45,-30,-15,0];const offset=offsets[index]??0;const d=new Date(Date.now()+offset*60000);return new Intl.DateTimeFormat('de-DE',{timeZone:'Europe/Berlin',hour:'2-digit',minute:'2-digit',hour12:false}).format(d)}
+function renderWeather(){if(!$('radarCells'))return;renderWeatherRadarFrame();$('weatherWarningList').innerHTML=WEATHER_WARNINGS.map((w,i)=>`<article class="weather-warning ${w.level==='red'?'red':''}"><div class="weather-warning-top"><div><b>${escHtml(w.title)}</b><p>${escHtml(w.text)}</p></div><span class="tag ${w.level==='red'?'red':'amber'}">${w.level==='red'?'WARNSTUFE 3':'WARNSTUFE 2'}</span></div><div class="weather-warning-meta"><span>${escHtml(w.area)}</span><span>${escHtml(w.valid)}</span></div><div class="weather-warning-actions"><button class="btn sm" type="button" onclick="showWeatherWarningDetail(${i})">Details</button><button class="btn sm primary" type="button" onclick="createWeatherIncident(${i})">Als Ereignis</button></div></article>`).join('');$('weatherStations').innerHTML=WEATHER_STATIONS.map(s=>`<article class="weather-station"><div class="weather-station-top"><h4>${escHtml(s.name)}</h4><span class="weather-icon">${s.icon}</span></div><div class="weather-temp">${s.temp}</div><small>Lokaler Wetterwert · Mockup</small><div class="weather-station-data"><div><span>Wind</span><b>${s.wind}</b></div><div><span>Böe</span><b>${s.gust}</b></div><div><span>Regen</span><b>${s.rain}</b></div><div><span>Sicht</span><b>${s.vis}</b></div></div></article>`).join('');renderWeatherObservations();const t=new Intl.DateTimeFormat('de-DE',{timeZone:'Europe/Berlin',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}).format(weatherUpdatedAt);$('weatherUpdatedAt').textContent=`Stand ${t}`;$('weatherWarningCount').textContent=`${WEATHER_WARNINGS.length} WARNUNGEN`;if($('weatherNavBadge'))$('weatherNavBadge').textContent=WEATHER_WARNINGS.length}
+function renderWeatherRadarFrame(){if(!$('radarCells'))return;const f=WEATHER_FRAMES[weatherFrameIndex];$('radarCells').innerHTML=f.cells.map(c=>`<span class="radar-cell intensity-${c.i}" style="left:${c.x}%;top:${c.y}%;width:${c.w}%;height:${c.h}%;--rot:${c.r}deg"></span>`).join('');$('weatherFrameSlider').value=weatherFrameIndex;$('radarFrameLabel').textContent=`${f.label.toUpperCase()} · ${weatherFrameTime(weatherFrameIndex)}`;$('weatherRadarTime').textContent=`${weatherFrameTime(weatherFrameIndex)} Uhr`;$('weatherRadarSubtitle').textContent=`Radarbild · ${f.label} · schematischer Mockup-Frame`}
+function setWeatherFrame(index){weatherFrameIndex=Math.max(0,Math.min(WEATHER_FRAMES.length-1,Number(index)||0));renderWeatherRadarFrame()}
+function stepWeatherFrame(delta){setWeatherFrame(weatherFrameIndex+delta)}
+function toggleWeatherAnimation(){const reduced=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;if(reduced){showToast('Animation reduziert','Die Betriebssystemeinstellung „Bewegung reduzieren“ ist aktiv.');setWeatherFrame(4);return}if(weatherPlayTimer){clearInterval(weatherPlayTimer);weatherPlayTimer=null;$('weatherPlayBtn').textContent='▶ Animation';$('weatherPlayBtn').setAttribute('aria-label','Radaranimation starten');return}weatherFrameIndex=0;renderWeatherRadarFrame();$('weatherPlayBtn').textContent='Ⅱ Stop';$('weatherPlayBtn').setAttribute('aria-label','Radaranimation stoppen');weatherPlayTimer=setInterval(()=>{weatherFrameIndex=(weatherFrameIndex+1)%WEATHER_FRAMES.length;renderWeatherRadarFrame()},1050)}
+function refreshWeatherDemo(){weatherUpdatedAt=new Date();weatherFrameIndex=4;renderWeather();showToast('Wetterlage aktualisiert','Mockup-Radar und Stationslage wurden auf den aktuellen Demo-Zeitpunkt gesetzt.')}
+function showWeatherWarningDetail(i){const w=WEATHER_WARNINGS[i];if(!w)return;openTextModal(`${w.title} · ${w.area}`,(text)=>{weatherObservations.unshift({time:nowTime().slice(0,5),title:'Notiz zur Wetterwarnung',text});renderWeatherObservations()});$('textModalInput').value=`${w.text}\n\nGültigkeit: ${w.valid}\nBereich: ${w.area}\n\nOptionale Nachbearbeitungsnotiz:`}
+function addWeatherObservation(){openTextModal('Betriebliche Wetterbeobachtung',(text)=>{weatherObservations.unshift({time:nowTime().slice(0,5),title:'Manuelle Wetterbeobachtung',text});renderWeatherObservations();state.globalLog.unshift({time:nowTime(),title:'Wetterbeobachtung ergänzt',text,meta:['Wetterlage','LP03']});renderGlobalLog()})}
+function renderWeatherObservations(){if(!$('weatherObservations'))return;$('weatherObservations').innerHTML=weatherObservations.slice(0,8).map(o=>`<div class="weather-observation"><time>${escHtml(o.time)}</time><div><b>${escHtml(o.title)}</b><small>${escHtml(o.text)}</small></div></div>`).join('')}
+function createWeatherIncident(warningIndex=0){const w=WEATHER_WARNINGS[Number(warningIndex)]||WEATHER_WARNINGS[0];const stamp=nowTime();let n=1;while(state.events.some(e=>e.id===`EV-2026-WX${String(n).padStart(3,'0')}`))n++;const id=`EV-2026-WX${String(n).padStart(3,'0')}`;state.events.unshift({prio:w.level==='red'?'Kritisch':'Hoch',id,type:'Wetterwarnung',station:'Mittelfranken',start:stamp,status:'Neu',owner:'—',acknowledged:false,source:'Wetterlage / DWD-Anbindung',text:`${w.title}: ${w.area} · ${w.valid}`,archived:false,archivedAt:''});state.eventLogs[id]=[{time:stamp,icon:'☁',title:'Wetterereignis angelegt',text:`${w.title} · ${w.area} · ${w.valid}`}];state.globalLog.unshift({time:stamp,title:'Wetterereignis angelegt',text:`${id} · ${w.title} · ${w.area}`,meta:['Wetterlage','hoch']});renderGlobalLog();renderAllEvents();renderEventStore();renderPriorityTopAlert();showToast('Wetterereignis angelegt',`${id} wurde in den Ereignisspeicher eingestellt.`);switchCenterView('arbeitsplatz');setTimeout(()=>selectEventFromStore(id),35)}
+
+
+// Monitor-Layout / Input-Output Routing
+const MONITOR_DEFAULT={m1:'BKU1',m2:'BKU2',m3:'Cayuga 1',m4:'BBZ-OS',m5:'BKU3',m6:'BKU4',big:'Cayuga 2'};
+function loadMonitorLayout(){try{const saved=JSON.parse(localStorage.getItem('bbzMonitorLayoutV1')||'null');if(saved)state.monitorLayout={...MONITOR_DEFAULT,...saved,m4:'BBZ-OS'}}catch(e){state.monitorLayout={...MONITOR_DEFAULT}}}
+function saveMonitorLayout(){localStorage.setItem('bbzMonitorLayoutV1',JSON.stringify(state.monitorLayout))}
+function openMonitorModal(){renderMonitorModal();$('monitorModal').classList.add('show')}
+function closeMonitorModal(){$('monitorModal').classList.remove('show')}
+function monitorOptions(selected){return state.monitorInputs.map(i=>`<option value="${i}" ${i===selected?'selected':''}>${i}</option>`).join('')}
+function renderMonitorModal(){
+  $('monitorInputPalette').innerHTML=state.monitorInputs.map(i=>`<div class="monitor-source" draggable="true" ondragstart="monitorDragStart(event,'${i}')">${i}</div>`).join('');
+  $('monitorGrid').innerHTML=['m1','m2','m3','m4','m5','m6'].map((id,idx)=>{const fixed=id==='m4',val=fixed?'BBZ-OS':state.monitorLayout[id];return `<div class="monitor-output ${fixed?'fixed':''}" data-output="${id}" ondragover="monitorDragOver(event)" ondragleave="monitorDragLeave(event)" ondrop="monitorDrop(event,'${id}')"><div class="monitor-screen-title">Monitor ${idx+1}${fixed?' · fest':''}</div><div class="monitor-source-label">${val}</div>${fixed?'<div class="monitor-lock">🔒 BBZ-OS fest belegt</div>':`<select onchange="setMonitorOutput('${id}',this.value)">${monitorOptions(val)}</select>`}</div>`}).join('');
+  const big=state.monitorLayout.big;$('bigMonitor').innerHTML=`<div class="big-monitor-screen" data-output="big" ondragover="monitorDragOver(event)" ondragleave="monitorDragLeave(event)" ondrop="monitorDrop(event,'big')"><div class="monitor-screen-title">Großbild / Mittelmonitor</div><div class="monitor-source-label">${big}</div><select onchange="setMonitorOutput('big',this.value)">${monitorOptions(big)}</select></div>`;
+}
+function monitorDragStart(ev,input){ev.dataTransfer.setData('text/plain',input);ev.dataTransfer.effectAllowed='copy'}
+function monitorDragOver(ev){ev.preventDefault();ev.currentTarget.classList.add('dragover');ev.dataTransfer.dropEffect='copy'}
+function monitorDragLeave(ev){ev.currentTarget.classList.remove('dragover')}
+function monitorDrop(ev,id){ev.preventDefault();ev.currentTarget.classList.remove('dragover');const input=ev.dataTransfer.getData('text/plain');if(!input)return;if(id==='m4'){showToast('Monitor fest belegt','Monitor 4 unten links bleibt auf BBZ-OS.');return}setMonitorOutput(id,input)}
+function setMonitorOutput(id,input){if(id==='m4')return;state.monitorLayout[id]=input;saveMonitorLayout();renderMonitorModal();showToast('Monitor belegt',`${id==='big'?'Großbild':id.toUpperCase()} → ${input}`)}
+function applyStandardMonitorLayout(){state.monitorLayout={...MONITOR_DEFAULT};saveMonitorLayout();renderMonitorModal();showToast('Standard-Layout geladen','Die definierte Grundbelegung wurde wiederhergestellt.')}
+$('monitorModal').addEventListener('click',e=>{if(e.target===$('monitorModal'))closeMonitorModal()});
+loadMonitorLayout();
+loadContacts();
+
+renderEventStore();renderSelectedEventWorkspace();renderAllEvents();renderPhone();renderGlobalLog();renderCenterPhonebook();renderCallCenterViews();renderShift();renderWeather();renderPriorityTopAlert();
+</script>
+</body>
+</html>

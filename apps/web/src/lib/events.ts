@@ -65,6 +65,18 @@ export interface PriorityAlert {
   events: { id: string; priority: EventPriority; title: string }[];
 }
 
+/** One entry of the cross-workplace activity log (MASTER_PROMPT §13.1). */
+export interface LogbookEntry {
+  event_seq: number;
+  event_id: string;
+  occurred_at_utc: string;
+  event_type: string;
+  title: string;
+  priority: EventPriority;
+  status: EventStatus;
+  actor: string | null;
+}
+
 export const eventsApi = {
   workQueue: (signal?: AbortSignal) =>
     api.get<EventPage>('/events?queue=active&limit=200', { signal }),
@@ -76,6 +88,10 @@ export const eventsApi = {
 
   priorityAlert: (signal?: AbortSignal) =>
     api.get<PriorityAlert>('/events/priority-alert', { signal }),
+
+  /** The cross-workplace activity log — recent lifecycle events, newest first. */
+  logbook: (limit = 40, signal?: AbortSignal) =>
+    api.get<{ items: LogbookEntry[] }>(`/events/logbook?limit=${limit}`, { signal }),
 
   /** Returns the minimal `EventOut` (id/title/priority/status/version/…). */
   transition: (id: string, action: 'accept' | 'acknowledge' | 'open' | 'archive', version: number) =>

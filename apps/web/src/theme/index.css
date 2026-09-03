@@ -5,6 +5,7 @@
  *   semantic-tokens   --bbz-* mapped onto --db-* (@layer bbz) + data-mode switch
  *   typography        DB type scale, control-room sizing (@layer bbz)
  *   components        baseline styling for the plain HTML the app uses (@layer bbz)
+ *   mockup-surfaces   the V10 mockup "chrome" as classes on DB tokens (@layer bbz)
  *   motion            the global prefers-reduced-motion rule (unlayered, wins)
  */
 @import './db.css';
@@ -12,6 +13,7 @@
 @import './semantic-tokens.css';
 @import './typography.css';
 @import './components.css';
+@import './mockup-surfaces.css';
 
 /* Respect reduced motion globally (MASTER_PROMPT §13.3, RULES.md). Deliberately
    unlayered so it beats any animation defined in a lower layer. */

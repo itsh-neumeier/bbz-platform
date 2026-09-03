@@ -107,9 +107,11 @@
     --bbz-space-lg: var(--db-spacing-fixed-lg);
     --bbz-space-xl: var(--db-spacing-fixed-xl);
 
-    /* ---- control-room layout ---- */
-    --bbz-sidebar-width: 260px;
+    /* ---- control-room layout (V10 mockup shell grid) ---- */
+    --bbz-sidebar-width: 232px;
     --bbz-comms-width: 360px;
+    --bbz-header-height: 4.5rem;
+    --bbz-footer-height: 2rem;
   }
 }
 

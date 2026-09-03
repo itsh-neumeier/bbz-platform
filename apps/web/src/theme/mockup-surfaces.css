@@ -1,0 +1,340 @@
+/*
+ * V10 mockup "chrome" as reusable classes on DB UX tokens (ADR-0029 + ADR-0030).
+ *
+ * `docs/mockup/bbz-3sz-v10.html` is the binding UX reference (MASTER_PROMPT §13,
+ * .ai/FEATURES.md). Its ad-hoc dark-navy palette is NOT adopted — every surface,
+ * line, accent and semantic colour here resolves through `--bbz-*` (→ `--db-*`),
+ * so light + dark both work and DB red stays the brand, not a UI colour.
+ *
+ * `@layer bbz` — a component's scoped `<style>` still overrides freely.
+ * Mockup var → BBZ token map: docs/frontend/db-ux-design.md.
+ */
+@layer bbz {
+  /* ---- section headings (mockup .view-head / .section-kicker) ---- */
+  .view-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: var(--bbz-space-md);
+    margin-bottom: var(--bbz-space-md);
+    flex-wrap: wrap;
+  }
+  .view-head h1,
+  .view-head h2 {
+    margin: 0.15rem 0 0.2rem;
+    font-family: var(--bbz-font-head);
+    font-size: var(--bbz-text-xl);
+    font-weight: var(--bbz-weight-bold);
+    letter-spacing: -0.01em;
+  }
+  .view-head p {
+    margin: 0;
+    color: var(--bbz-text-muted);
+    font-size: var(--bbz-text-sm);
+    max-width: 70ch;
+    line-height: var(--bbz-leading-normal);
+  }
+  .section-kicker {
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--bbz-text-subtle);
+    font-size: var(--bbz-text-xs);
+    font-weight: var(--bbz-weight-bold);
+  }
+  .muted {
+    color: var(--bbz-text-muted);
+  }
+
+  /* ---- cards (mockup .card / .card-head / .card-body) ---- */
+  .card {
+    background: var(--bbz-surface);
+    border: var(--bbz-border-width) solid var(--bbz-border);
+    border-radius: var(--bbz-radius);
+    box-shadow: var(--bbz-shadow-sm);
+  }
+  .card-head {
+    min-height: 3rem;
+    padding: var(--bbz-space-sm) var(--bbz-space-md);
+    border-bottom: var(--bbz-border-width) solid var(--bbz-border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--bbz-space-sm);
+  }
+  .card-title {
+    font-family: var(--bbz-font-head);
+    font-size: var(--bbz-text-md);
+    font-weight: var(--bbz-weight-bold);
+  }
+  .card-subtitle {
+    font-size: var(--bbz-text-xs);
+    color: var(--bbz-text-muted);
+    margin-top: 2px;
+    line-height: var(--bbz-leading-normal);
+  }
+  .card-body {
+    padding: var(--bbz-space-md);
+  }
+
+  /* ---- layout helpers ---- */
+  .two-col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--bbz-space-md);
+  }
+  .detail-grid {
+    display: grid;
+    grid-template-columns: 1.15fr 0.85fr;
+    gap: var(--bbz-space-md);
+  }
+  .stat-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--bbz-space-sm);
+  }
+  .list-stack {
+    display: grid;
+    gap: var(--bbz-space-2xs);
+  }
+  .list-card {
+    border: var(--bbz-border-width) solid var(--bbz-border);
+    background: var(--bbz-surface-alt);
+    border-radius: var(--bbz-radius);
+    padding: var(--bbz-space-sm);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--bbz-space-sm);
+  }
+  .list-card b {
+    font-size: var(--bbz-text-sm);
+  }
+  .list-card small {
+    display: block;
+    color: var(--bbz-text-muted);
+    font-size: var(--bbz-text-xs);
+    margin-top: 3px;
+  }
+  .info-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--bbz-space-2xs);
+  }
+  .info-tile {
+    padding: var(--bbz-space-sm);
+    border: var(--bbz-border-width) solid var(--bbz-border);
+    background: var(--bbz-surface-alt);
+    border-radius: var(--bbz-radius-sm);
+  }
+  .info-tile span {
+    display: block;
+    font-size: var(--bbz-text-xs);
+    color: var(--bbz-text-subtle);
+  }
+  .info-tile b {
+    display: block;
+    font-size: var(--bbz-text-sm);
+    margin-top: 4px;
+  }
+  @media (max-width: 900px) {
+    .two-col,
+    .detail-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  /* ---- tags (mockup .tag.{red,green,blue,amber,gray}) ---- */
+  .tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    border-radius: var(--bbz-radius-sm);
+    padding: 3px 7px;
+    font-size: var(--bbz-text-xs);
+    font-weight: var(--bbz-weight-bold);
+    white-space: nowrap;
+    border: var(--bbz-border-width) solid transparent;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+  }
+  .tag.red {
+    color: var(--bbz-danger-text);
+    background: var(--bbz-danger-bg);
+    border-color: color-mix(in srgb, var(--bbz-danger) 45%, transparent);
+  }
+  .tag.amber {
+    color: var(--bbz-warn-text);
+    background: var(--bbz-warn-bg);
+    border-color: color-mix(in srgb, var(--bbz-warn) 45%, transparent);
+  }
+  .tag.green {
+    color: var(--bbz-success-text);
+    background: var(--bbz-success-bg);
+    border-color: color-mix(in srgb, var(--bbz-success) 45%, transparent);
+  }
+  .tag.blue {
+    color: var(--bbz-info-text);
+    background: var(--bbz-info-bg);
+    border-color: color-mix(in srgb, var(--bbz-info) 45%, transparent);
+  }
+  .tag.gray {
+    color: var(--bbz-text-muted);
+    background: var(--bbz-surface-alt);
+    border-color: var(--bbz-border);
+  }
+
+  /* ---- buttons (mockup .btn.{primary,success,danger,db,ghost,sm,icon}) ----
+     baseline <button> styling comes from components.css; these are the variants */
+  .btn.primary {
+    background: var(--bbz-info);
+    border-color: var(--bbz-info);
+    color: var(--bbz-on-info);
+  }
+  .btn.success {
+    background: var(--bbz-call);
+    border-color: var(--bbz-call);
+    color: var(--bbz-on-call);
+  }
+  .btn.danger {
+    background: var(--bbz-danger);
+    border-color: var(--bbz-danger);
+    color: var(--bbz-on-danger);
+  }
+  .btn.db {
+    background: var(--bbz-db-red);
+    border-color: var(--bbz-db-red);
+    color: var(--bbz-on-accent);
+  }
+  .btn.primary:hover:not(:disabled),
+  .btn.success:hover:not(:disabled),
+  .btn.danger:hover:not(:disabled),
+  .btn.db:hover:not(:disabled) {
+    filter: brightness(1.08);
+  }
+  .btn.ghost {
+    background: transparent;
+    border-color: transparent;
+  }
+  .btn.sm {
+    padding: 0.3rem 0.6rem;
+    min-height: 2rem;
+    font-size: var(--bbz-text-xs);
+  }
+  .btn.icon {
+    width: 2.25rem;
+    padding: 0;
+    display: inline-grid;
+    place-items: center;
+  }
+
+  /* ---- timeline (mockup .timeline / .timeline-row / .tl-dot) ---- */
+  .timeline {
+    display: grid;
+    gap: 0;
+  }
+  .timeline-row {
+    display: grid;
+    grid-template-columns: 58px 22px 1fr;
+    gap: var(--bbz-space-2xs);
+    min-height: 56px;
+  }
+  .timeline-row time {
+    font-size: var(--bbz-text-xs);
+    color: var(--bbz-text-subtle);
+    padding-top: 3px;
+    font-variant-numeric: tabular-nums;
+  }
+  .tl-line {
+    position: relative;
+    display: flex;
+    justify-content: center;
+  }
+  .tl-line::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: -2px;
+    width: 1px;
+    background: var(--bbz-border-strong);
+  }
+  .timeline-row:last-child .tl-line::before {
+    bottom: 32px;
+  }
+  .tl-dot {
+    position: relative;
+    z-index: 1;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    background: var(--bbz-info);
+    color: var(--bbz-on-info);
+    font-size: var(--bbz-text-xs);
+  }
+  .timeline-row b {
+    display: block;
+    font-size: var(--bbz-text-xs);
+    font-weight: var(--bbz-weight-semibold);
+  }
+  .timeline-row small {
+    display: block;
+    color: var(--bbz-text-muted);
+    font-size: var(--bbz-text-xs);
+    margin-top: 2px;
+  }
+
+  /* ---- modal (mockup .modal-backdrop / .modal) — for the components that
+     don't use the native <dialog> element ---- */
+  .modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgb(0 0 0 / 55%);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: var(--bbz-space-md);
+    z-index: 50;
+  }
+  .modal-backdrop.show {
+    display: flex;
+  }
+  .modal {
+    width: min(620px, 92vw);
+    max-height: 85vh;
+    overflow: auto;
+    background: var(--bbz-surface);
+    border: var(--bbz-border-width) solid var(--bbz-border-strong);
+    border-radius: var(--bbz-radius);
+    box-shadow: var(--bbz-shadow-lg);
+  }
+  .modal-head {
+    padding: var(--bbz-space-sm) var(--bbz-space-md);
+    border-bottom: var(--bbz-border-width) solid var(--bbz-border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: var(--bbz-space-sm);
+  }
+  .modal-body {
+    padding: var(--bbz-space-md);
+  }
+
+  /* ---- toast ---- */
+  .toast {
+    position: fixed;
+    right: var(--bbz-space-md);
+    bottom: var(--bbz-space-md);
+    z-index: 60;
+    min-width: 16rem;
+    background: var(--bbz-surface);
+    border: var(--bbz-border-width) solid var(--bbz-border-strong);
+    border-radius: var(--bbz-radius);
+    padding: var(--bbz-space-sm) var(--bbz-space-md);
+    box-shadow: var(--bbz-shadow-lg);
+    display: none;
+  }
+  .toast.show {
+    display: block;
+  }
+}
