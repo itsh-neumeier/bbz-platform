@@ -16,8 +16,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from bbz_core.api.authz import require
 from bbz_core.api.deps import AuthContext, db_session
+from bbz_core.auth.ldap.errors import LdapConfigError
 from bbz_core.infra.models.directory_sync import DirectorySyncState
 from bbz_core.infra.repositories.directory_sync import DirectorySyncReport, DirectorySyncService
+from bbz_core.infra.repositories.ldap_login import config_from_store
 
 router = APIRouter(prefix="/auth/directory-sync", tags=["auth"])
 
@@ -77,7 +79,13 @@ async def run_sync(
     ctx: AuthContext = Depends(require("users.manage")),
     session: AsyncSession = Depends(db_session),
 ) -> SyncReportOut:
-    report = await DirectorySyncService(session).run(
+    # use the runtime-settings connection (store → env, #723); the scheduled
+    # singleton stays on env-only config.
+    try:
+        config = await config_from_store(session)
+    except LdapConfigError:
+        config = None
+    report = await DirectorySyncService(session, config=config).run(
         dry_run=body.dry_run, force=body.force, actor_id=ctx.user_id
     )
     return SyncReportOut.of(report)

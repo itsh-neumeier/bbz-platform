@@ -78,8 +78,8 @@ const routes: RouteRecordRaw[] = [
           {
             path: 'verzeichnis',
             name: 'admin-directory',
-            component: () => import('@/pages/admin/AdminPlaceholderPage.vue'),
-            meta: { perm: 'system.settings.manage', adminIssue: 723 },
+            component: () => import('@/pages/admin/AdminDirectoryPage.vue'),
+            meta: { perm: 'system.settings.manage' },
           },
           {
             path: 'integrationen',

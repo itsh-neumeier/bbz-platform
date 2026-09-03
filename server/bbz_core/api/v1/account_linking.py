@@ -157,11 +157,13 @@ async def link_ldap(
     import asyncio
 
     from bbz_core.auth.ldap import LdapClient, LdapError
-    from bbz_core.infra.repositories.ldap_login import config_from_settings
+    from bbz_core.infra.repositories.ldap_login import config_from_store
 
     try:
         principal = await asyncio.to_thread(
-            LdapClient(config_from_settings()).authenticate, body.username, body.password
+            LdapClient(await config_from_store(session)).authenticate,
+            body.username,
+            body.password,
         )
     except LdapError as exc:
         raise UnauthorizedError("directory authentication failed") from exc

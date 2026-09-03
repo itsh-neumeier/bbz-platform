@@ -32,7 +32,7 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from bbz_core.audit import AuditAction, AuditService
-from bbz_core.auth.ldap import LdapClient, LdapError, LdapPrincipal
+from bbz_core.auth.ldap import LdapClient, LdapConfig, LdapError, LdapPrincipal
 from bbz_core.infra.models.directory_sync import DirectorySyncState
 from bbz_core.infra.models.identity import AuthIdentity, User, UserStatus
 from bbz_core.infra.models.rbac import Role, UserRole
@@ -91,9 +91,19 @@ class _BbzUser:
 
 
 class DirectorySyncService:
-    def __init__(self, session: AsyncSession, *, client: LdapClient | None = None) -> None:
+    def __init__(
+        self,
+        session: AsyncSession,
+        *,
+        client: LdapClient | None = None,
+        config: LdapConfig | None = None,
+    ) -> None:
         self._s = session
         self._client = client
+        #: connection config to use when no explicit ``client`` is given
+        #: (the admin endpoint passes the runtime-settings config, #723);
+        #: ``None`` ⇒ env-only ``config_from_settings()``.
+        self._config = config
 
     async def run(
         self, *, dry_run: bool = False, force: bool = False, actor_id: uuid.UUID | None = None
@@ -104,7 +114,7 @@ class DirectorySyncService:
         started = _now()
 
         try:
-            client = self._client or LdapClient(config_from_settings())
+            client = self._client or LdapClient(self._config or config_from_settings())
             principals = await asyncio.to_thread(client.enumerate_principals)
         except LdapError as exc:
             return await self._fail(report, started, f"{type(exc).__name__}: {exc}", dry_run)

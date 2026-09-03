@@ -665,8 +665,21 @@ CI — that job is **#123**, still open — so "feature complete" rows read
   gated — surfaced as an error to re-verify). `GET /api/v1/users` `UserOut`
   gained `roles` + `providers` (`roles_by_user` / `providers_by_user` in
   `users_admin.py`) so the table needs no N+1. `lib/users.ts`.
-  **Remaining: #723** LDAP / **#724** integrations / **#725** workflow+trigger+
-  endpoint relocation.
+- **Administration — Phase 3: directory (LDAP) config** (#723 / part of #718).
+  `/admin/verzeichnis` (`AdminDirectoryPage`): the non-secret LDAP connection
+  fields via the settings store (`directory` group, #720) with the bind
+  password shown as configured/not (secret store, ADR-0019); a "Verbindung
+  testen" button → **`POST /api/v1/admin/directory/test`**
+  (`LdapClient.probe()` — reachable / TLS / service-bind / sample-count, no
+  directory data returned); group→role mappings (`/auth/group-mappings`,
+  provider `ldap_ad`); a directory-sync trigger + dry-run + last-run report
+  (`/auth/directory-sync`). New `config_from_store(session)` in `ldap_login.py`
+  overlays `directory.ldap_url` / `ldap_bind_dn` / `ldap_user_search_base` from
+  the store — wired into the account-link LDAP path and the sync endpoint (via
+  `DirectorySyncService(config=…)`; the scheduled singleton stays env-only).
+  `lib/directory.ts`.
+  **Remaining: #724** integrations / **#725** workflow+trigger+endpoint
+  relocation.
 - **DB UX Design System v3** (#713, PR **#714 merged**, **ADR-0029** Accepted,
   extends ADR-0013): the whole UI is now visually DB-conformant. `src/theme/` is
   rebuilt on `@db-ux/core-foundations@5.3.0` + the `@db-ux/db-theme@6.2.0`
