@@ -52,7 +52,52 @@
     "call": "Gespräch",
     "phonebook": "Telefonbuch",
     "history": "Historie",
-    "availableLines": "Verfügbare Leitungen"
+    "availableLines": "Verfügbare Leitungen",
+    "resize": "Breite der Kommunikationsleiste anpassen",
+    "line": "Leitung",
+    "number": "Rufnummer",
+    "dial": "Wählen",
+    "waiting": "Wartende Anrufe",
+    "answer": "Annehmen",
+    "noWaiting": "Keine wartenden Anrufe.",
+    "hold": "Halten",
+    "resume": "Fortsetzen",
+    "hangup": "Auflegen",
+    "transfer": "Weiterleiten an",
+    "category": "Kategorie",
+    "freeText": "Freitext",
+    "saveDoc": "Dokumentation speichern",
+    "docRequired": "Dokumentation erforderlich — bitte eine Kategorie wählen, bevor der Anruf abgeschlossen wird.",
+    "noActive": "Kein aktives Gespräch.",
+    "search": "Kontakt suchen",
+    "noContacts": "Keine Kontakte.",
+    "noHistory": "Keine Anrufe.",
+    "prio": {
+      "low": "niedrig",
+      "medium": "mittel",
+      "high": "hoch"
+    },
+    "state": {
+      "offered": "wird angeboten",
+      "ringing": "klingelt",
+      "connected": "verbunden",
+      "held": "gehalten",
+      "transferring": "wird weitergeleitet",
+      "disconnected": "beendet",
+      "failed": "fehlgeschlagen",
+      "ended_pending_documentation": "beendet – Dokumentation offen"
+    },
+    "cat": {
+      "information_request": "Auskunftsersuchen",
+      "technical_fault": "Technische Störung",
+      "cleaning_report_customer": "Reinigungsmeldung Kunde",
+      "evu_evi_notice": "EVU & EVI Mitteilung",
+      "other": "Anderes"
+    },
+    "dir": {
+      "inbound": "eingehend",
+      "outbound": "ausgehend"
+    }
   },
   "phonebook": {
     "new": "Neuer Kontakt",

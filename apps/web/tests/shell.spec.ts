@@ -1,10 +1,22 @@
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { mount } from '@vue/test-utils';
 import { createPinia } from 'pinia';
 import { createRouter, createMemoryHistory } from 'vue-router';
 import { createI18n } from 'vue-i18n';
 import de from '@/i18n/de.json';
 import AppShell from '@/app/AppShell.vue';
+import { telephonyApi } from '@/lib/telephony';
+import { contactsApi } from '@/lib/contacts';
+
+beforeEach(() => {
+  vi.restoreAllMocks();
+  // the comms sidebar polls telephony on mount — keep the shell test offline
+  vi.spyOn(telephonyApi, 'ringing').mockResolvedValue({ items: [], next_cursor: null });
+  vi.spyOn(telephonyApi, 'history').mockResolvedValue({ items: [], next_cursor: null });
+  vi.spyOn(telephonyApi, 'lines').mockResolvedValue({ lines: [] });
+  vi.spyOn(telephonyApi, 'pendingDocs').mockResolvedValue({ calls: [] });
+  vi.spyOn(contactsApi, 'search').mockResolvedValue({ items: [], next_cursor: null });
+});
 
 function factory() {
   const router = createRouter({
