@@ -41,14 +41,7 @@ describe('AdminPage', () => {
   });
 
   it('shows every section for a full admin', async () => {
-    const w = await factory([
-      'system.settings.manage',
-      'users.manage',
-      'integrations.configure',
-      'workflows.manage_templates',
-      'technical_endpoints.manage',
-      'system.cluster.view',
-    ]);
+    const w = await factory([...new Set(ADMIN_SECTIONS.map((s) => s.perm))]);
     expect(w.findAll('.admin__nav-item')).toHaveLength(ADMIN_SECTIONS.length);
   });
 
