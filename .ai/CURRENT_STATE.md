@@ -654,8 +654,19 @@ CI — that job is **#123**, still open — so "feature complete" rows read
   sidebar nav "Administration" replaces the old "Workflow-Vorlagen" entry. The
   other sections render `AdminPlaceholderPage` (→ #722/#723/#724/#725);
   `AdminSystemPage` is a read-only `/meta` view.
-  **Remaining: #722** users / **#723** LDAP / **#724** integrations / **#725**
-  workflow+trigger+endpoint relocation.
+- **Administration — Phase 2: user management** (#722 / part of #718).
+  `/admin/benutzer` (`AdminUsersPage`): the user table (Name · Anmeldung ·
+  Rollen · Status), create a local account (display name + username + initial
+  password, change forced), a detail panel to edit roles (checkbox per role,
+  `POST`/`DELETE /users/{id}/roles`), activate / deactivate (confirm; revokes
+  sessions; `USER_DEACTIVATED` audit) and an admin password reset (shows the
+  one-time password). `/admin/benutzer/mfa` (`AdminMfaPolicyPage`): per-role
+  "2FA erforderlich" + grace days over `/auth/mfa-policies` (the API is step-up
+  gated — surfaced as an error to re-verify). `GET /api/v1/users` `UserOut`
+  gained `roles` + `providers` (`roles_by_user` / `providers_by_user` in
+  `users_admin.py`) so the table needs no N+1. `lib/users.ts`.
+  **Remaining: #723** LDAP / **#724** integrations / **#725** workflow+trigger+
+  endpoint relocation.
 - **DB UX Design System v3** (#713, PR **#714 merged**, **ADR-0029** Accepted,
   extends ADR-0013): the whole UI is now visually DB-conformant. `src/theme/` is
   rebuilt on `@db-ux/core-foundations@5.3.0` + the `@db-ux/db-theme@6.2.0`

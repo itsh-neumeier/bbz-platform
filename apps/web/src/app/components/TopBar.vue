@@ -29,6 +29,7 @@ const SECTION: Record<string, string> = {
   'workflow-admin': 'nav.admin',
   'admin-instance': 'nav.admin',
   'admin-users': 'nav.admin',
+  'admin-users-mfa': 'nav.admin',
   'admin-directory': 'nav.admin',
   'admin-integrations': 'nav.admin',
   'admin-triggers': 'nav.admin',

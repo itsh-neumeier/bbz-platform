@@ -66,8 +66,14 @@ const routes: RouteRecordRaw[] = [
           {
             path: 'benutzer',
             name: 'admin-users',
-            component: () => import('@/pages/admin/AdminPlaceholderPage.vue'),
-            meta: { perm: 'users.manage', adminIssue: 722 },
+            component: () => import('@/pages/admin/AdminUsersPage.vue'),
+            meta: { perm: 'users.manage' },
+          },
+          {
+            path: 'benutzer/mfa',
+            name: 'admin-users-mfa',
+            component: () => import('@/pages/admin/AdminMfaPolicyPage.vue'),
+            meta: { perm: 'permissions.manage' },
           },
           {
             path: 'verzeichnis',

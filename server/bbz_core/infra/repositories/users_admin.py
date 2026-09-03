@@ -18,7 +18,14 @@ from bbz_core.audit import AuditAction, AuditService
 from bbz_core.auth.hashing import hash_password
 from bbz_core.auth.policy import PasswordPolicy
 from bbz_core.infra.models.identity import AuthIdentity, LocalCredential, User, UserStatus
-from bbz_core.infra.models.rbac import GroupRole, Permission, RolePermission, UserGroup, UserRole
+from bbz_core.infra.models.rbac import (
+    GroupRole,
+    Permission,
+    Role,
+    RolePermission,
+    UserGroup,
+    UserRole,
+)
 from bbz_core.infra.models.session import Session
 
 
@@ -54,6 +61,35 @@ class UsersAdminRepository:
 
     async def get(self, user_id: uuid.UUID) -> User | None:
         return await self._s.get(User, user_id)
+
+    async def roles_by_user(
+        self, user_ids: Sequence[uuid.UUID] | None = None
+    ) -> dict[uuid.UUID, list[str]]:
+        """``{user_id: [role_key, ...]}`` — directly-granted roles only (group
+        roles are effective but not shown as the user's own)."""
+        stmt = select(UserRole.user_id, Role.key).join(Role, Role.id == UserRole.role_id)
+        if user_ids is not None:
+            stmt = stmt.where(UserRole.user_id.in_(user_ids))
+        out: dict[uuid.UUID, list[str]] = {}
+        for uid, key in (await self._s.execute(stmt)).all():
+            out.setdefault(uid, []).append(key)
+        for keys in out.values():
+            keys.sort()
+        return out
+
+    async def providers_by_user(
+        self, user_ids: Sequence[uuid.UUID] | None = None
+    ) -> dict[uuid.UUID, list[str]]:
+        """``{user_id: [provider, ...]}`` from ``auth_identities`` (local / ldap_ad / oidc / …)."""
+        stmt = select(AuthIdentity.user_id, AuthIdentity.provider).distinct()
+        if user_ids is not None:
+            stmt = stmt.where(AuthIdentity.user_id.in_(user_ids))
+        out: dict[uuid.UUID, list[str]] = {}
+        for uid, provider in (await self._s.execute(stmt)).all():
+            out.setdefault(uid, []).append(provider)
+        for provs in out.values():
+            provs.sort()
+        return out
 
     async def create(self, spec: NewUser) -> User:
         if spec.local_username and await self._local_username_taken(spec.local_username):
