@@ -638,9 +638,24 @@ CI — that job is **#123**, still open — so "feature complete" rows read
   selected row. `/archiv` → redirects to `/ereignisse?archiv=1`; `/archiv/:id`
   stays a deep link. "Archiv" removed from the sidebar nav. Reactivation is the
   confirm-dialog on the panel.
-  **Remaining: #718** the Administration build-out (#720 settings store → #721
-  structure + BBZ name → #722 users / #723 LDAP / #724 integrations → #725
-  workflow/trigger relocate).
+- **Administration area — Phase 1: structure + instance name** (#721 / part of
+  #718). `/admin` is now an `AdminPage` layout shell with a permission-gated
+  sub-nav (Instanz · Benutzer · Verzeichnis · Integrationen · Handlungsanweisungen
+  · Trigger-Regeln · Technische Endpunkte · System) over a `<RouterView>`; the
+  router guard (`meta.perm` per child) redirects an unauthorized deep link to
+  the first section the user holds. `ADMIN_SECTIONS` + `canSeeAdmin()` in
+  `lib/admin.ts`. **`/admin/instanz`** (`AdminInstancePage`) edits the `instance`
+  group of the settings store (#720) — `PUT /api/v1/admin/settings/instance`;
+  on save it reloads `/meta`. `/api/v1/meta` now returns `instance_name` /
+  `instance_short_name` (public, `SettingsStore.effective`, falls back to the
+  catalog default on a DB error). The name shows in the topbar breadcrumb, the
+  sidebar status + user card, the login screen and the document title.
+  `/admin/workflows` moved under the shell (route name `workflow-admin` kept);
+  sidebar nav "Administration" replaces the old "Workflow-Vorlagen" entry. The
+  other sections render `AdminPlaceholderPage` (→ #722/#723/#724/#725);
+  `AdminSystemPage` is a read-only `/meta` view.
+  **Remaining: #722** users / **#723** LDAP / **#724** integrations / **#725**
+  workflow+trigger+endpoint relocation.
 - **DB UX Design System v3** (#713, PR **#714 merged**, **ADR-0029** Accepted,
   extends ADR-0013): the whole UI is now visually DB-conformant. `src/theme/` is
   rebuilt on `@db-ux/core-foundations@5.3.0` + the `@db-ux/db-theme@6.2.0`
@@ -2000,10 +2015,10 @@ no DTMF plaintext reaches any sink).
   pw, …) are `configured: true|false` only on GET and 422 on PUT — they remain
   with the `SecretProvider` (ADR-0019). Catalog today: `instance.name` /
   `.short_name` (store-only), the non-secret LDAP fields, the four
-  `*_integration_id` provider selectors. Nothing reads through the store yet —
-  consumers opt in per follow-up issue (#721 instance name → `/meta`, #723
-  LDAP, #724 providers). `test_admin_settings_api.py` (8). **ADR-0031** Accepted
-  (extends ADR-0015).
+  `*_integration_id` provider selectors. First consumer wired: **#721** —
+  `instance.name` / `.short_name` feed `/api/v1/meta`. Still to opt in: #723
+  (LDAP), #724 (providers). `test_admin_settings_api.py` (10). **ADR-0031**
+  Accepted (extends ADR-0015).
 
 ### Epic 22 – Monitoring / Observability: **COMPLETE (7/7)**
 - **#459 (E22-07) collector + dashboards + SLO docs** — optional observability

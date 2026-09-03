@@ -91,7 +91,7 @@ function restart(): void {
         id="login-title"
         class="login__title"
       >
-        {{ t('app.title') }}
+        {{ session.instanceName }}
       </h1>
 
       <p

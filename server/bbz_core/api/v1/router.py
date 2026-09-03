@@ -1,9 +1,12 @@
 from __future__ import annotations
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel
+from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from bbz_core import __version__
+from bbz_core.api.deps import db_session
 from bbz_core.api.v1.account_linking import router as account_linking_router
 from bbz_core.api.v1.admin_settings import router as admin_settings_router
 from bbz_core.api.v1.audit import router as audit_router
@@ -34,8 +37,10 @@ from bbz_core.api.v1.users import router as users_router
 from bbz_core.api.v1.weather import router as weather_router
 from bbz_core.api.v1.webauthn import router as webauthn_router
 from bbz_core.api.v1.workflows import router as workflows_router
+from bbz_core.infra.repositories.settings_store import SettingsStore
 from bbz_core.integrations_host.registry import IntegrationRegistry
 from bbz_core.settings import get_settings
+from bbz_core.settings_catalog import SPEC_BY_KEY
 
 api_v1 = APIRouter(prefix="/api/v1")
 api_v1.include_router(auth_router)
@@ -76,19 +81,33 @@ class MetaResponse(BaseModel):
     api_version: str
     environment: str
     node_id: str
+    #: operator-facing name of this BBZ instance (runtime setting, ADR-0031) —
+    #: e.g. "BBZ Nürnberg". Public so the login screen can show it.
+    instance_name: str
+    instance_short_name: str
     capabilities: list[str]
     known_integrations: list[str]
 
 
 @api_v1.get("/meta", response_model=MetaResponse, tags=["meta"])
-async def meta() -> MetaResponse:
+async def meta(session: AsyncSession = Depends(db_session)) -> MetaResponse:
     s = get_settings()
+    store = SettingsStore(session)
+    try:
+        instance_name = str(await store.effective("instance.name"))
+        instance_short_name = str(await store.effective("instance.short_name"))
+    except (SQLAlchemyError, OSError):
+        # /meta is the pre-login bootstrap call — a DB blip must not 500 it.
+        instance_name = str(SPEC_BY_KEY["instance.name"].default)
+        instance_short_name = str(SPEC_BY_KEY["instance.short_name"].default)
     return MetaResponse(
         service=s.service_name,
         version=__version__,
         api_version="v1",
         environment=s.environment,
         node_id=s.node_id,
+        instance_name=instance_name,
+        instance_short_name=instance_short_name,
         # Foundation phase: no business capabilities yet. Listed explicitly so
         # clients can feature-detect as Phase 1+ turns these on.
         capabilities=[],

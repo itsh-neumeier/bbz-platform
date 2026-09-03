@@ -1,4 +1,5 @@
 import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router';
+import { ADMIN_SECTIONS } from '@/lib/admin';
 import { useSessionStore } from '@/stores/session';
 
 const routes: RouteRecordRaw[] = [
@@ -52,9 +53,60 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/pages/PhonebookPage.vue'),
       },
       {
-        path: 'admin/workflows',
-        name: 'workflow-admin',
-        component: () => import('@/pages/WorkflowAdminPage.vue'),
+        path: 'admin',
+        component: () => import('@/pages/admin/AdminPage.vue'),
+        children: [
+          { path: '', name: 'admin', redirect: { name: 'admin-instance' } },
+          {
+            path: 'instanz',
+            name: 'admin-instance',
+            component: () => import('@/pages/admin/AdminInstancePage.vue'),
+            meta: { perm: 'system.settings.manage' },
+          },
+          {
+            path: 'benutzer',
+            name: 'admin-users',
+            component: () => import('@/pages/admin/AdminPlaceholderPage.vue'),
+            meta: { perm: 'users.manage', adminIssue: 722 },
+          },
+          {
+            path: 'verzeichnis',
+            name: 'admin-directory',
+            component: () => import('@/pages/admin/AdminPlaceholderPage.vue'),
+            meta: { perm: 'system.settings.manage', adminIssue: 723 },
+          },
+          {
+            path: 'integrationen',
+            name: 'admin-integrations',
+            component: () => import('@/pages/admin/AdminPlaceholderPage.vue'),
+            meta: { perm: 'integrations.configure', adminIssue: 724 },
+          },
+          {
+            // #725 renames this to `handlungsanweisungen` + redirects the old path
+            path: 'workflows',
+            name: 'workflow-admin',
+            component: () => import('@/pages/WorkflowAdminPage.vue'),
+            meta: { perm: 'workflows.manage_templates' },
+          },
+          {
+            path: 'trigger-regeln',
+            name: 'admin-triggers',
+            component: () => import('@/pages/admin/AdminPlaceholderPage.vue'),
+            meta: { perm: 'technical_endpoints.manage', adminIssue: 725 },
+          },
+          {
+            path: 'technische-endpunkte',
+            name: 'admin-endpoints',
+            component: () => import('@/pages/admin/AdminPlaceholderPage.vue'),
+            meta: { perm: 'technical_endpoints.manage', adminIssue: 725 },
+          },
+          {
+            path: 'system',
+            name: 'admin-system',
+            component: () => import('@/pages/admin/AdminSystemPage.vue'),
+            meta: { perm: 'system.cluster.view' },
+          },
+        ],
       },
     ],
   },
@@ -85,6 +137,15 @@ router.beforeEach(async (to) => {
         ...(session.expired ? { reason: 'expired' } : {}),
       },
     };
+  }
+
+  // admin sub-pages are each gated on a `*.manage`-style permission (#721).
+  // Server-side enforcement is authoritative; this keeps an unauthorized user
+  // from landing on a page that would only 403 its data.
+  const perm = to.meta.perm as string | undefined;
+  if (perm && !session.can(perm)) {
+    const fallback = ADMIN_SECTIONS.find((s) => session.can(s.perm));
+    return fallback ? { name: fallback.name } : { name: 'workplace' };
   }
   return true;
 });
