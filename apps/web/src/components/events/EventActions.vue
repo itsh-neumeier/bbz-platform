@@ -1,66 +1,98 @@
 <script setup lang="ts">
 /**
- * The single lifecycle button for an event, driven by its status
- * (new→accept→acknowledge→open→archive). "Bearbeiten" opens the detail.
+ * Event lifecycle actions (MASTER_PROMPT §13.3 — "Aktionen immer sichtbar":
+ * Annehmen · Quittieren · Bearbeiten · Archivieren). With `all` (the
+ * Ereignisspeicher / processing panel) every action is shown and disabled by
+ * status; without it (compact contexts) only the single next action plus an
+ * optional "Bearbeiten" link.
  */
 import { ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 import { ConflictError } from '@/lib/apiClient';
-import { NEXT_ACTION, type EventListItem } from '@/lib/events';
+import { NEXT_ACTION, type EventListItem, type EventStatus } from '@/lib/events';
 import { useEventsStore } from '@/stores/events';
 import { useSessionStore } from '@/stores/session';
 
-const props = defineProps<{ event: EventListItem; showOpen?: boolean }>();
+const props = defineProps<{ event: EventListItem; showOpen?: boolean; all?: boolean }>();
 const { t } = useI18n();
 const router = useRouter();
 const events = useEventsStore();
 const session = useSessionStore();
 
-const busy = ref(false);
+const busy = ref('');
 const conflict = ref(false);
 
-const PERM: Record<string, string> = {
+type Verb = 'accept' | 'acknowledge' | 'open' | 'archive';
+const PERM: Record<Verb, string> = {
   accept: 'events.accept',
   acknowledge: 'events.acknowledge',
   open: 'events.open',
   archive: 'events.archive',
 };
+/** the status a verb acts from — the button is enabled only in that status */
+const FROM: Record<Verb, EventStatus> = {
+  accept: 'new',
+  acknowledge: 'accepted',
+  open: 'acknowledged',
+  archive: 'opened',
+};
+const ALL_VERBS: Verb[] = ['accept', 'acknowledge', 'open', 'archive'];
 
-async function run(): Promise<void> {
-  const action = NEXT_ACTION[props.event.status];
-  if (!action) return;
-  busy.value = true;
+async function run(verb: Verb): Promise<void> {
+  busy.value = verb;
   conflict.value = false;
   try {
-    await events.transition(props.event.id, action);
+    await events.transition(props.event.id, verb);
   } catch (e) {
     if (e instanceof ConflictError) conflict.value = true;
   } finally {
-    busy.value = false;
+    busy.value = '';
   }
 }
 </script>
 
 <template>
-  <div class="acts">
-    <button
-      v-if="NEXT_ACTION[event.status] && session.can(PERM[NEXT_ACTION[event.status]!])"
-      type="button"
-      class="acts__primary"
-      :disabled="busy"
-      @click="run"
-    >
-      {{ t('event.action.' + NEXT_ACTION[event.status]) }}
-    </button>
-    <button
-      v-if="showOpen"
-      type="button"
-      class="acts__secondary"
-      @click="router.push('/ereignisse/' + event.id)"
-    >
-      {{ t('event.action.edit') }}
-    </button>
+  <div
+    class="acts"
+    :class="{ 'acts--all': all }"
+  >
+    <template v-if="all">
+      <button
+        v-for="verb in ALL_VERBS"
+        :key="verb"
+        type="button"
+        class="btn sm"
+        :class="{ success: verb === 'accept', primary: verb === 'open', ghost: verb === 'archive' }"
+        :disabled="
+          busy !== '' || event.status !== FROM[verb] || !session.can(PERM[verb])
+        "
+        @click="run(verb)"
+      >
+        {{ t('event.action.' + verb) }}
+      </button>
+    </template>
+
+    <template v-else>
+      <button
+        v-if="NEXT_ACTION[event.status] && session.can(PERM[NEXT_ACTION[event.status]!])"
+        type="button"
+        class="btn primary sm"
+        :disabled="busy !== ''"
+        @click="run(NEXT_ACTION[event.status]!)"
+      >
+        {{ t('event.action.' + NEXT_ACTION[event.status]) }}
+      </button>
+      <button
+        v-if="showOpen"
+        type="button"
+        class="btn sm"
+        @click="router.push('/ereignisse/' + event.id)"
+      >
+        {{ t('event.action.edit') }}
+      </button>
+    </template>
+
     <span
       v-if="conflict"
       class="acts__conflict"
@@ -72,37 +104,27 @@ async function run(): Promise<void> {
 <style scoped>
 .acts {
   display: flex;
-  gap: 0.5rem;
+  flex-wrap: wrap;
+  gap: 0.4rem;
   align-items: center;
 }
-.acts__primary,
-.acts__secondary {
-  padding: 0.3rem 0.7rem;
-  border-radius: var(--bbz-radius);
-  font-size: 0.85rem;
-  cursor: pointer;
-  border: 1px solid var(--bbz-border);
+.acts--all {
+  flex-wrap: nowrap;
+  justify-content: flex-end;
 }
-.acts__primary {
-  background: var(--bbz-accent);
-  color: #fff;
-  border-color: transparent;
-}
-.acts__primary:disabled {
-  opacity: 0.6;
-  cursor: progress;
-}
-.acts__secondary {
-  background: var(--bbz-bg);
-  color: var(--bbz-text);
-}
-.acts__primary:focus-visible,
-.acts__secondary:focus-visible {
-  outline: var(--bbz-focus-width) solid var(--bbz-focus-color);
-  outline-offset: 2px;
+.acts--all .btn {
+  padding: 0.3rem 0.5rem;
+  min-height: 1.9rem;
+  font-size: 0.72rem;
 }
 .acts__conflict {
-  font-size: 0.8rem;
+  font-size: 0.78rem;
   color: var(--bbz-warn-text);
+}
+@media (max-width: 1500px) {
+  .acts--all {
+    flex-wrap: wrap;
+    max-width: 12rem;
+  }
 }
 </style>

@@ -69,7 +69,10 @@ describe('QueuePage', () => {
 
   it('shows the status-appropriate action and hides it without the permission', async () => {
     const w = await factory();
-    const buttons = w.findAll('.acts__primary').map((b) => b.text());
+    const buttons = w
+      .findAll('.acts button')
+      .map((b) => b.text())
+      .filter((txt) => txt !== 'Bearbeiten');
     // new → Annehmen, accepted → Quittieren (both permitted in this fixture)
     expect(buttons).toContain('Annehmen');
     expect(buttons).toContain('Quittieren');

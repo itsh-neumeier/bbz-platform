@@ -249,7 +249,21 @@
     "openWeather": "Warnungen & Radar ansehen",
     "openMonitors": "Monitorrouting öffnen",
     "openArchive": "Archiv durchsuchen",
-    "node": "Knoten"
+    "node": "Knoten",
+    "store": {
+      "kicker": "Gemeinsame Arbeitswarteschlange",
+      "title": "Ereignisspeicher",
+      "subtitle": "Meldung anklicken, unten sichten und anschließend annehmen, quittieren oder bearbeiten. Archivierte Ereignisse werden aus der Warteschlange entfernt.",
+      "open": "Offen",
+      "new": "Unbearbeitet",
+      "mine": "Mein Arbeitsplatz",
+      "empty": "Keine aktiven Ereignisse in der Arbeitswarteschlange.",
+      "selectPrompt": "Ein Ereignis aus dem Ereignisspeicher auswählen, um es hier zu bearbeiten.",
+      "colStation": "Bahnhof",
+      "colEntry": "Eingang",
+      "colResponsible": "Verantwortlich",
+      "colAction": "Arbeitsplatzaktion"
+    }
   },
   "login": {
     "provider": "Anmeldeverfahren",
