@@ -631,9 +631,16 @@ CI — that job is **#123**, still open — so "feature complete" rows read
   Critical / high rows pulse; the note form is gated on the real
   `events.postprocess` permission (was the non-existent `events.note` → the form
   never rendered) and writes `postprocess`-kind notes on archived events.
-  **Remaining: #717** merge Ereignisse + Archiv (§13.6), **#718** the
-  Administration build-out (#720 settings store → #721 structure + BBZ name →
-  #722 users / #723 LDAP / #724 integrations → #725 workflow/trigger relocate).
+- **V10 mockup parity — Phase 3: Ereignisse + Archiv merged** (#717 / E07-11).
+  `QueuePage` + `ArchivePage` → one `EventsPage` (§13.6): a chronological list of
+  **all** events (active newest-first, then archived) with a search box, a "Nur
+  Archiv" filter and an "Archiv" column, beside `EventProcessingPanel` for the
+  selected row. `/archiv` → redirects to `/ereignisse?archiv=1`; `/archiv/:id`
+  stays a deep link. "Archiv" removed from the sidebar nav. Reactivation is the
+  confirm-dialog on the panel.
+  **Remaining: #718** the Administration build-out (#720 settings store → #721
+  structure + BBZ name → #722 users / #723 LDAP / #724 integrations → #725
+  workflow/trigger relocate).
 - **DB UX Design System v3** (#713, PR **#714 merged**, **ADR-0029** Accepted,
   extends ADR-0013): the whole UI is now visually DB-conformant. `src/theme/` is
   rebuilt on `@db-ux/core-foundations@5.3.0` + the `@db-ux/db-theme@6.2.0`

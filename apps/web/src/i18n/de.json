@@ -336,6 +336,23 @@
       "actions": "Aktion"
     }
   },
+  "events": {
+    "kicker": "Leitstellenereignisse",
+    "title": "Ereignisübersicht",
+    "subtitle": "Chronologische Gesamtsicht inklusive archivierter Ereignisse. Archivierte Meldungen bleiben vollständig nachvollziehbar.",
+    "listTitle": "Alle Ereignisse",
+    "listSubtitle": "Aktiv + Archiv · neueste Meldung zuerst",
+    "search": "Titel, Bahnhof oder Status …",
+    "onlyArchived": "Nur Archiv",
+    "colEntry": "Eingang",
+    "colArchive": "Archiv",
+    "archived": "archiviert",
+    "active": "aktiv",
+    "empty": "Keine Ereignisse gefunden.",
+    "loadError": "Die Ereignisliste konnte nicht geladen werden.",
+    "selectPrompt": "Ein Ereignis aus der Liste auswählen, um die Details zu sehen.",
+    "detailTitle": "Ereignisdetails"
+  },
   "detail": {
     "loading": "Wird geladen …",
     "notFound": "Ereignis nicht gefunden.",
@@ -370,11 +387,6 @@
       "completed": "abgeschlossen",
       "aborted": "abgebrochen"
     }
-  },
-  "archive": {
-    "empty": "Keine archivierten Ereignisse.",
-    "loadError": "Das Archiv konnte nicht geladen werden.",
-    "archivedAt": "Archiviert am"
   },
   "reactivate": {
     "open": "Reaktivieren",
