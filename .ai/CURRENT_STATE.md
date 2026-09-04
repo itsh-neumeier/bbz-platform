@@ -571,35 +571,35 @@ pg_dump→gpg→restore→count-match round trip + an etcd snapshot save/restore
 **Epic 06 COMPLETE (14/14)** — #92 (HA harness) shipped as a scaffold that
 needs a real multi-host runner before its nightly job can gate.
 
-### Epic 07 – Web UI / PrimeVue: **in progress (~17/19 done, 2 in progress)**
+### Epic 07 – Web UI / PrimeVue: **in progress (14/19 done, 5 in progress)**
 Beyond the 19 E07 issues: the **V10-mockup parity** (#716/#717 + the #98 shell)
 and the **Administration build-out (#718 → #720–#725, all merged)** landed on
 top — see the mockup-parity + Administration bullets below.
 The Vue toolchain runs in a `node:22-alpine` container (E01-06 made the
-`frontend` CI job blocking). PRs #701 / #702 / #704 / #705 / #707 built the
-operator UI on the app shell. `server/tests/test_parity_checklist.py` still
+`frontend` CI job blocking). `server/tests/test_parity_checklist.py` still
 enforces the checklist. **#123 (E07-16) shipped the CI `e2e` job** — a row is
-`done` once a Playwright spec exercises it in CI; the last `in progress` rows
-(comms sidebar polish, EPK canvas drag) are each waiting on their own follow-up,
-not on E2E.
+`done` once a Playwright spec exercises it in CI. `e2e/shell.spec.ts` added the
+SSE indicator (#101), the topbar priority banner (#117), the critical-row pulse
++ `prefers-reduced-motion` (#105) and the theme toggle (#125). The 5 `in
+progress` rows: #99 (API client — vitest only), #119 (i18n — grows per screen),
+#121 (a11y — axe-in-E2E left), #127 (comms sidebar polish), #129 (EPK canvas).
 
-- **done**: the mockup-parity checklist (E07-01); the generic API client
-  (E07-04, `lib/apiClient.ts` — command envelope, real-UUID `X-Command-Id`,
-  `409→ConflictError`, `401→AuthExpiredError`, CSRF echo); the SSE client +
-  sync indicator (E07-05, `useEventStream` after_seq catch-up + backoff); the
-  work queue (E07-06, `/ereignisse`); priority animation + reduced-motion
-  (E07-07); event detail (E07-08); workflow **execution** view (E07-09 —
-  per-step state + "Schritt abschließen" on the active step + branch buttons for
-  a pending XOR/OR split); ownership UI (E07-10 — takeover **and** "Übergeben an"
-  a named operator from `GET /events/assignable`); archive view (E07-11,
-  `/archiv`); reactivation dialog (E07-12); the priority-alert banner (E07-13);
-  i18n + missing-key lint (E07-14, `scripts/i18n-lint.mjs`); **the Playwright CI
-  job (E07-16 / #123)**; theme tokens + toggle (E07-17); **auth UI (E07-02 —
-  login / TOTP / logout / session-expiry / forced password change, #97: `POST
-  /api/v1/auth/password` + `/me.must_change_password`; `e2e/auth.spec.ts` walks
-  all of it)**.
-- **in progress**: a11y baseline (E07-15 — lint at error;
-  axe-in-E2E is a follow-up); comms sidebar (E07-18 — keypad + waiting queue +
+- **done** (each walked by a green CI Playwright spec): mockup-parity checklist
+  (E07-01); auth UI incl. forced password change (E07-02 / #97 — `POST
+  /api/v1/auth/password` + `/me.must_change_password`, `e2e/auth.spec.ts`);
+  app shell (E07-03); SSE client + sync indicator (E07-05 / #101,
+  `e2e/shell.spec.ts`); work queue / Ereignisspeicher (E07-06); priority
+  animation + reduced-motion (E07-07 / #105, `e2e/shell.spec.ts`); event
+  processing panel (E07-08); workflow execution view (E07-09 / #109 —
+  "Schritt abschließen" + branch buttons); ownership UI (E07-10 / #111 —
+  takeover **and** "Übergeben an" from `GET /events/assignable`); archive view
+  (E07-11); reactivation dialog (E07-12); the topbar priority banner (E07-13 /
+  #117, `e2e/shell.spec.ts`); the Playwright CI job (E07-16 / #123); theme
+  toggle (E07-17 / #125, `e2e/shell.spec.ts`).
+- **in progress**: generic API client (E07-04 / #99 — merged + `apiClient.spec.ts`
+  vitest, no direct E2E); i18n locale (E07-14 / #119 — `i18n:lint` green, grows
+  per screen); a11y baseline (E07-15 / #121 — lint at error; axe-in-E2E left);
+  comms sidebar (E07-18 — keypad + waiting queue +
   active-call controls + mandatory documentation + mini phone-book + history +
   line strip; `stores/calls.ts`, `lib/telephony.ts`); the EPK editor (E07-19 —
   `/admin/handlungsanweisungen` `WorkflowAdminPage`: template + draft-version
