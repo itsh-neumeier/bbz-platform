@@ -91,6 +91,32 @@ describe('WorkflowAdminPage', () => {
     expect(w.findAll('.wfp__node')).toHaveLength(2);
   });
 
+  it('renders the draft graph in real EPK notation — hexagon event, rounded-rect function', async () => {
+    const w = await factory(['workflows.view', 'workflows.manage_templates']);
+    await w.findAll('.wf__list button')[0].trigger('click');
+    await flush(w);
+    expect(w.find('.wfp__node--event polygon').exists()).toBe(true);
+    expect(w.find('.wfp__node--function rect').exists()).toBe(true);
+  });
+
+  it('Auto-Layout clears a dragged/nudged node back to the vertical auto-layout', async () => {
+    const w = await factory(['workflows.view', 'workflows.manage_templates']);
+    await w.findAll('.wf__list button')[0].trigger('click');
+    await flush(w);
+
+    const fnNode = () => w.find('.wfp__node--function');
+    const original = fnNode().attributes('style');
+
+    await fnNode().trigger('keydown', { key: 'ArrowRight' });
+    await flush(w);
+    expect(fnNode().attributes('style')).not.toBe(original);
+
+    const autoBtn = w.findAll('.wf__canvasrow button').find((b) => b.text() === 'Auto-Layout')!;
+    await autoBtn.trigger('click');
+    await flush(w);
+    expect(fnNode().attributes('style')).toBe(original);
+  });
+
   it('validates and surfaces issues', async () => {
     const validate = vi.spyOn(wf.workflowsApi, 'validate').mockResolvedValue({
       valid: false,
