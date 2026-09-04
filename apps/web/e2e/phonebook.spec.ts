@@ -10,6 +10,9 @@ import { expect, test, type Page } from '@playwright/test';
 const USER = process.env.E2E_USER ?? 'admin';
 const PASS = process.env.E2E_PASS ?? 'Wolke7-Bahnhof!x';
 const NAME = 'E2E Telefonbuch-Kontakt';
+// the server requires E.164 (`^\+[1-9][0-9]{1,14}$`) — a bare national-format
+// number 422s, silently (the create form has no client-side pattern check)
+const NUMBER = '+4930987654';
 
 async function login(page: Page): Promise<void> {
   await page.goto('/login');
@@ -35,9 +38,10 @@ test('create a contact, find it by live search, then set its call priority (#297
   await page.getByRole('button', { name: 'Neuer Kontakt' }).click();
   const createForm = page.locator('.pb__create');
   await createForm.getByLabel('Name', { exact: true }).fill(NAME);
-  await createForm.getByLabel('Rufnummer', { exact: true }).fill('030987654');
+  await createForm.getByLabel('Rufnummer', { exact: true }).fill(NUMBER);
   await createForm.getByRole('button', { name: 'Anlegen' }).click();
 
+  await expect(page.locator('.pb__error')).toHaveCount(0);
   const row = page.locator('.pb__row').filter({ hasText: NAME });
   await expect(row).toBeVisible();
   // no priority dot yet — a fresh contact has none
