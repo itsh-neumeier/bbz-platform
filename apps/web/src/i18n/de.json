@@ -582,7 +582,9 @@
     "other": "andere Person",
     "none": "niemand",
     "takeover": "Übernehmen",
-    "presence": "Präsenz"
+    "presence": "Präsenz",
+    "assignTo": "Übergeben an",
+    "pickPerson": "— Person wählen —"
   },
   "presence": {
     "available": "verfügbar",
@@ -598,7 +600,12 @@
       "running": "läuft",
       "completed": "abgeschlossen",
       "aborted": "abgebrochen"
-    }
+    },
+    "completeStep": "Schritt abschließen",
+    "completing": "Wird abgeschlossen …",
+    "decide": "Verzweigung {c} — Zweig wählen:",
+    "stepConflict": "Der Ablauf hat sich geändert — Ansicht aktualisiert.",
+    "actionError": "Die Aktion ist fehlgeschlagen."
   },
   "reactivate": {
     "open": "Reaktivieren",

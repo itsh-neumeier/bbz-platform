@@ -133,15 +133,23 @@ export const eventsApi = {
     ),
 
   workflow: (id: string, signal?: AbortSignal) =>
-    api.get<WorkflowInstance | null>(`/events/${id}/workflow`, { signal }),
+    api.get<WorkflowInstance>(`/events/${id}/workflow`, { signal }),
 
-  completeStep: (id: string, nodeKey: string, result: Record<string, unknown>) =>
-    api.post(`/events/${id}/workflow/steps/${encodeURIComponent(nodeKey)}/complete`, { result }),
+  completeStep: (id: string, nodeKey: string, result: Record<string, unknown> = {}) =>
+    api.post<WorkflowInstance>(
+      `/events/${id}/workflow/steps/${encodeURIComponent(nodeKey)}/complete`,
+      { result },
+    ),
 
-  decide: (id: string, connectorKey: string, branches: string[]) =>
-    api.post(`/events/${id}/workflow/decisions/${encodeURIComponent(connectorKey)}`, {
-      chosen_branches: branches,
-    }),
+  decide: (id: string, connectorKey: string, chosen: string[]) =>
+    api.post<WorkflowInstance>(
+      `/events/${id}/workflow/decisions/${encodeURIComponent(connectorKey)}`,
+      { chosen },
+    ),
+
+  /** active users an event may be handed to (E07-10 / #111) */
+  assignable: (signal?: AbortSignal) =>
+    api.get<{ users: { id: string; display_name: string }[] }>('/events/assignable', { signal }),
 
   archiveDetail: (id: string, signal?: AbortSignal) =>
     api.get<ArchiveDetail>(`/events/${id}/archive-detail`, { signal }),
@@ -155,11 +163,20 @@ export const eventsApi = {
   streamHead: () => api.get<{ last_seq: number }>('/events/stream/head'),
 };
 
-export interface WorkflowTaskResult {
+export interface WorkflowStep {
   node_key: string;
-  result: Record<string, unknown>;
-  completed_by: string | null;
-  completed_at: string;
+  kind: string | null;
+  label: string | null;
+  /** `done` = completed · `active` = a token is waiting here (act now) · `pending` = not yet reached */
+  state: 'done' | 'active' | 'pending';
+  completed_at?: string;
+  completed_by?: string | null;
+}
+
+export interface PendingDecision {
+  connector_node_key: string;
+  connector_type: string;
+  options: { edge_key: string; to: string; branch: string | null; has_condition: boolean }[];
 }
 
 export interface WorkflowDecision {
@@ -170,15 +187,17 @@ export interface WorkflowDecision {
   decided_at: string;
 }
 
+/** `GET /events/{id}/workflow` — mirrors the engine's token state (returns 404 when there is no instance). */
 export interface WorkflowInstance {
-  id: string;
-  template_key: string | null;
-  template_name: string | null;
-  template_version: number | null;
+  instance_id: string;
+  event_id: string;
   status: string;
   started_at: string;
   ended_at: string | null;
-  task_results: WorkflowTaskResult[];
+  template: { key: string | null; version_no: number };
+  progress: { done: number; total: number };
+  steps: WorkflowStep[];
+  pending_decisions: PendingDecision[];
   decisions: WorkflowDecision[];
 }
 

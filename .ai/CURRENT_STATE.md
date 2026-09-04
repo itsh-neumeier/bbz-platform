@@ -571,39 +571,57 @@ pg_dump→gpg→restore→count-match round trip + an etcd snapshot save/restore
 **Epic 06 COMPLETE (14/14)** — #92 (HA harness) shipped as a scaffold that
 needs a real multi-host runner before its nightly job can gate.
 
-### Epic 07 – Web UI / PrimeVue: **in progress (~13/19 done, 5 in progress, 1 todo)**
+### Epic 07 – Web UI / PrimeVue: **in progress (~16/19 done, 3 in progress)**
 Beyond the 19 E07 issues: the **V10-mockup parity** (#716/#717 + the #98 shell)
 and the **Administration build-out (#718 → #720–#725, all merged)** landed on
 top — see the mockup-parity + Administration bullets below.
 The Vue toolchain runs in a `node:22-alpine` container (E01-06 made the
 `frontend` CI job blocking). PRs #701 / #702 / #704 / #705 / #707 built the
 operator UI on the app shell. `server/tests/test_parity_checklist.py` still
-enforces the checklist. A row is **done** only once a Playwright E2E runs it in
-CI — that job is **#123**, still open — so "feature complete" rows read
-"in progress".
+enforces the checklist. **#123 (E07-16) shipped the CI `e2e` job** — a row is
+`done` once a Playwright spec exercises it in CI; the last `in progress` rows
+(auth UI force-password-change, comms sidebar, EPK canvas drag) are each waiting
+on their own follow-up, not on E2E.
 
 - **done**: the mockup-parity checklist (E07-01); the generic API client
   (E07-04, `lib/apiClient.ts` — command envelope, real-UUID `X-Command-Id`,
   `409→ConflictError`, `401→AuthExpiredError`, CSRF echo); the SSE client +
   sync indicator (E07-05, `useEventStream` after_seq catch-up + backoff); the
   work queue (E07-06, `/ereignisse`); priority animation + reduced-motion
-  (E07-07); event detail (E07-08); archive view (E07-11, `/archiv`);
-  reactivation dialog (E07-12); the priority-alert banner (E07-13); i18n +
-  missing-key lint (E07-14, `scripts/i18n-lint.mjs`); theme tokens + toggle
-  (E07-17).
-- **in progress**: auth UI (E07-02 — login/TOTP/logout/session-expiry done;
-  force-password-change is a stub, there is **no** `POST /auth/password`
-  endpoint); app shell (E07-03 — shell/topbar/resize; one SSE feed → the events
-  **and** calls stores); workflow view (E07-09 — read view; act-on-step
-  follow-up); ownership UI (E07-10 — takeover + presence; assign-to-a-person
-  deferred); a11y baseline (E07-15 — lint at error; axe-in-E2E is #123); comms
-  sidebar (E07-18 — keypad + waiting queue + active-call controls + mandatory
-  documentation + mini phone-book + history + line strip; `stores/calls.ts`,
-  `lib/telephony.ts`); the EPK editor (E07-19 — `/admin/handlungsanweisungen`
-  `WorkflowAdminPage`: template + draft-version lifecycle, node/edge forms, an
-  auto-laid-out SVG preview, validate + publish; canvas drag is a follow-up).
-- **todo**: the Playwright CI job (E07-16 / #123 — specs exist, un-`fixme`d,
-  nothing runs them).
+  (E07-07); event detail (E07-08); workflow **execution** view (E07-09 —
+  per-step state + "Schritt abschließen" on the active step + branch buttons for
+  a pending XOR/OR split); ownership UI (E07-10 — takeover **and** "Übergeben an"
+  a named operator from `GET /events/assignable`); archive view (E07-11,
+  `/archiv`); reactivation dialog (E07-12); the priority-alert banner (E07-13);
+  i18n + missing-key lint (E07-14, `scripts/i18n-lint.mjs`); **the Playwright CI
+  job (E07-16 / #123)**; theme tokens + toggle (E07-17).
+- **in progress**: auth UI (E07-02 — login/TOTP/logout/session-expiry done +
+  `e2e/auth.spec.ts` in CI; force-password-change is a stub, there is **no**
+  `POST /auth/password` endpoint); a11y baseline (E07-15 — lint at error;
+  axe-in-E2E is a follow-up); comms sidebar (E07-18 — keypad + waiting queue +
+  active-call controls + mandatory documentation + mini phone-book + history +
+  line strip; `stores/calls.ts`, `lib/telephony.ts`); the EPK editor (E07-19 —
+  `/admin/handlungsanweisungen` `WorkflowAdminPage`: template + draft-version
+  lifecycle, node/edge forms, an auto-laid-out SVG preview, validate + publish;
+  canvas drag is a follow-up).
+- **#123 (E07-16) — the mandatory E2E, now wired into CI.** New CI job `e2e`
+  (`.github/workflows/ci.yml`): a `postgres:16` service, `pip install ./server`,
+  `alembic upgrade head`, **`python server/scripts/seed_e2e.py`** (admin +
+  offline `kollege`, published 1-step workflow `e2e-bma`, one fresh event with
+  that workflow, one assigned to `kollege`, one pre-archived), then `uvicorn` +
+  `npm ci` + `npx playwright install --with-deps chromium` + `npm run e2e`.
+  `apps/web/e2e/event-lifecycle.spec.ts` walks §24 end-to-end through the
+  Arbeitsplatz: accept → acknowledge → open → **complete the bound workflow
+  step (E07-09)** → **take over from the offline colleague, then hand it to a
+  named operator (E07-10)** → archive → the archived detail (Verlauf +
+  Nachbearbeitungsnotizen) → reactivate with a mandatory reason. The pre-existing
+  `archive-lifecycle` / `auth` / `monitor-routing` / `smoke` specs were realigned
+  to the current UI (EventsPage `.events__row`, `.epp` panel) and now run too;
+  `playwright.config.ts` pins `workers: 1` (the specs share one seeded DB).
+  Backends for E07-09/10 already existed — this PR added `GET
+  /api/v1/events/assignable` (`events.assign`) + the `WorkflowRunPanel` /
+  `OwnershipBar` UI + `WorkflowRunPanel.spec.ts` / `OwnershipBar.spec.ts` /
+  `test_event_assign_api.py` cases.
 - **also shipped**: the `/arbeitsplatz` landing page is a live status board —
   open events by priority, the priority alert, waiting calls, line status
   (#711); `/wetterlage` (E18-09, #391), `/monitore` (E19-08, #408),
@@ -803,8 +821,9 @@ classifier-denied).
   export bundle → two-step reactivation (422 without token) → back in
   `queue=active`; asserts the ordered audit trail and that nothing is
   hard-deleted (3 note rows kept, status history survives archive+reactivate).
-  The browser half is scaffolded (`apps/web/e2e/archive-lifecycle.spec.ts`,
-  `test.fixme`) pending E07-11/#113 + E07-12/#115. Merged as `Refs #429`.
+  The browser half (`apps/web/e2e/archive-lifecycle.spec.ts`) is **live in the CI
+  `e2e` job as of #123** — it reaches an archived event via `/ereignisse` + "Nur
+  Archiv" and reactivates it. Merged as `Refs #429`.
 **Epic 20 done at the backend level** (PRs #576–583).
 
 ### Epic 08 – BBZ Desktop Client (Electron): **blocked on toolchain**

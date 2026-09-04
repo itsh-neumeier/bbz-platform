@@ -1,8 +1,7 @@
 <script setup lang="ts">
 /**
- * Full-event ownership (E07-10 / #111): who holds it, take it over, and the
- * operator's own presence. Assigning to a *specific* person is admin-ish and
- * deferred; "Übernehmen" (self-assign / seize) is the operator action.
+ * Full-event ownership (E07-10 / #111): who holds it, take it over, hand it to
+ * a named operator, and the operator's own presence.
  */
 import { computed, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
@@ -19,17 +18,35 @@ const session = useSessionStore();
 const busy = ref(false);
 const conflict = ref(false);
 const presence = ref<string>('');
+const people = ref<{ id: string; display_name: string }[]>([]);
 
+const active = computed(() => props.event.status !== 'archived');
 const mine = computed(() => props.event.assignee_id === session.user?.id);
-const canTakeover = computed(
-  () => props.event.status !== 'archived' && session.can('events.takeover') && !mine.value,
-);
+const canTakeover = computed(() => active.value && session.can('events.takeover') && !mine.value);
+const canAssign = computed(() => active.value && session.can('events.assign'));
 
 async function takeover(): Promise<void> {
   busy.value = true;
   conflict.value = false;
   try {
     await eventsApi.takeover(props.event.id, props.event.version);
+    await events.loadDetail(props.event.id);
+  } catch (e) {
+    if (e instanceof ConflictError) {
+      conflict.value = true;
+      await events.loadDetail(props.event.id).catch(() => undefined);
+    }
+  } finally {
+    busy.value = false;
+  }
+}
+
+async function assign(targetUserId: string): Promise<void> {
+  if (!targetUserId) return;
+  busy.value = true;
+  conflict.value = false;
+  try {
+    await eventsApi.assign(props.event.id, targetUserId, props.event.version);
     await events.loadDetail(props.event.id);
   } catch (e) {
     if (e instanceof ConflictError) {
@@ -52,6 +69,13 @@ onMounted(async () => {
   } catch {
     /* presence is optional context */
   }
+  if (session.can('events.assign')) {
+    try {
+      people.value = (await eventsApi.assignable()).users;
+    } catch {
+      /* the roster is optional — takeover still works */
+    }
+  }
 });
 </script>
 
@@ -71,6 +95,30 @@ onMounted(async () => {
     >
       {{ t('ownership.takeover') }}
     </button>
+
+    <span
+      v-if="canAssign && people.length"
+      class="own__assign"
+    >
+      {{ t('ownership.assignTo') }}:
+      <select
+        :value="''"
+        :aria-label="t('ownership.assignTo')"
+        :disabled="busy"
+        @change="assign(($event.target as HTMLSelectElement).value)"
+      >
+        <option value="">
+          {{ t('ownership.pickPerson') }}
+        </option>
+        <option
+          v-for="p in people"
+          :key="p.id"
+          :value="p.id"
+        >
+          {{ p.display_name }}
+        </option>
+      </select>
+    </span>
 
     <span class="own__presence">
       {{ t('ownership.presence') }}:

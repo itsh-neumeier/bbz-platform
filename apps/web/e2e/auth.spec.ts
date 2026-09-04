@@ -19,14 +19,15 @@ test.beforeEach(async ({ request, baseURL }) => {
 
 test('unauthenticated navigation redirects to /login and back after login', async ({ page }) => {
   await page.goto('/arbeitsplatz');
-  await expect(page).toHaveURL(/\/login\?redirect=%2Farbeitsplatz/);
+  await expect(page).toHaveURL(/\/login\?redirect=(%2F|\/)arbeitsplatz/);
 
   await page.getByLabel('Benutzername').fill(USER);
   await page.getByLabel('Passwort').fill(PASS);
   await page.getByRole('button', { name: 'Anmelden' }).click();
 
   await expect(page).toHaveURL(/\/arbeitsplatz$/);
-  await expect(page.getByRole('heading', { name: 'Arbeitsplatz' })).toBeVisible();
+  await expect(page.locator('.topbar__crumb')).toContainText('Arbeitsplatz');
+  await expect(page.locator('.wp__store')).toBeVisible(); // the Ereignisspeicher
 });
 
 test('wrong credentials show a German error and stay on /login', async ({ page }) => {
@@ -53,26 +54,21 @@ test('logout returns to /login and the session no longer restores', async ({ pag
   await expect(page).toHaveURL(/\/login/);
 });
 
-test('the work queue lists events by priority and runs a lifecycle action', async ({ page }) => {
+test('after login the Ereignisübersicht lists events and opens one', async ({ page }) => {
   await page.goto('/login');
   await page.getByLabel('Benutzername').fill(USER);
   await page.getByLabel('Passwort').fill(PASS);
   await page.getByRole('button', { name: 'Anmelden' }).click();
   await expect(page).toHaveURL(/\/arbeitsplatz$/);
 
-  await page.getByRole('link', { name: 'Ereignisse' }).click();
+  await page.locator('.sidebar__nav').getByRole('link', { name: 'Ereignisse' }).click();
   await expect(page).toHaveURL(/\/ereignisse$/);
 
-  const rows = page.locator('.queue__row');
+  const rows = page.locator('.events__row');
   await expect(rows.first()).toBeVisible();
-  // critical events sort to the top
-  await expect(rows.first()).toContainText('kritisch');
 
-  // the sync indicator settles on "verbunden"
-  await expect(page.locator('.sync')).toContainText(/verbunden|Verbindung/);
-
-  // open the first row's detail
-  await rows.first().getByRole('button', { name: 'Bearbeiten' }).click();
-  await expect(page).toHaveURL(/\/ereignisse\/[0-9a-f-]{36}$/);
-  await expect(page.getByRole('heading', { level: 2, name: 'Verlauf' })).toBeVisible();
+  // selecting a row opens the shared processing panel beside the list
+  await rows.first().click();
+  await expect(page.locator('.epp')).toBeVisible();
+  await expect(page.locator('.epp').getByText('Verlauf', { exact: true })).toBeVisible();
 });

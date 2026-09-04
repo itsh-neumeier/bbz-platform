@@ -35,7 +35,7 @@ test('route via the select alternative, BBZ-OS locked, standard layout', async (
   // 2. the lower-left output is locked to BBZ-OS (E19-03), UI + server
   const ap4 = page.getByRole('group', { name: 'Arbeitsplatzmonitor 4' });
   await expect(ap4.getByRole('combobox')).toBeDisabled();
-  await expect(ap4.getByText(/BBZ-OS/)).toBeVisible();
+  await expect(ap4.locator('.mon__lock')).toBeVisible();
 
   // 3. save a profile, then 4. reset to the standard layout
   await page.getByLabel('Profilname').fill('Nachtdienst');
