@@ -19,8 +19,8 @@ Idempotent — safe to re-run against a fresh schema. Creates:
   the assign / take-over step
 * ``BMA Stellwerk — E2E-Archiv`` — an already archived event, for the standalone
   archive / post-processing / reactivation spec
-* ``BMA Gleis 5 — E2E-Konflikt`` — an ``open`` event with the ``e2e-bma``
-  workflow already running, for the two-tab 409-conflict E2E (E07-04 / #99)
+* ``BMA Gleis 5 — E2E-Konflikt`` — a fresh (``new``) event, for the two-tab
+  409-conflict E2E (E07-04 / #99): two tabs race the same lifecycle action
 
     python server/scripts/seed_e2e.py
 
@@ -251,12 +251,10 @@ async def _seed() -> None:
         archived_id = await make_event(s, admin_id, _ARCHIVED_TITLE)
         await drive(s, archived_id, admin_id, "accept", "acknowledge", "open", "archive")
 
-        # already `open`, with the step ready to complete, so a two-context E2E
-        # can hit "complete the same step twice" without walking accept/ack/open
-        # in both tabs first.
-        conflict_id = await make_event(s, admin_id, _CONFLICT_TITLE)
-        await drive(s, conflict_id, admin_id, "accept", "acknowledge", "open")
-        await WorkflowEngineService(s).start_for_event(conflict_id, "e2e-bma", actor_id=admin_id)
+        # left at `new` on purpose — the conflict E2E races the *next* lifecycle
+        # action from whatever status it currently holds, so it stays safe to
+        # retry (each attempt advances it by exactly one of its 4 steps).
+        await make_event(s, admin_id, _CONFLICT_TITLE)
 
     print(
         "seed_e2e: ready — admin / kollege / neuling, workflows e2e-bma + e2e-epk (draft), 4 events"

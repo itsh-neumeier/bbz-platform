@@ -2,17 +2,24 @@ import { expect, test, type Locator, type Page } from '@playwright/test';
 
 /**
  * E2E — the API client's 409 handling (E07-04 / #99). `apiClient.ts` already
- * types a 409 as `ConflictError` and every write-capable panel catches it
+ * types a 409 as `ConflictError`, and every write-capable panel catches it
  * with a user-visible message, never a silent overwrite — this was only
- * ever exercised by vitest with a mocked response. Here two browser
- * contexts race a real backend: one completes a workflow step, the other
- * (still showing the now-stale "active" view) tries to complete the same
- * step again and must see the conflict message, not a silent no-op.
- * Backend behaviour: `server/tests/test_workflow_instance_api.py::
- * test_completing_a_step_out_of_order_is_a_conflict`.
+ * ever exercised by vitest against a mocked response. Here two browser
+ * contexts race a real backend: both open the same event, both fire the
+ * *same* next lifecycle action (e.g. "Annehmen") at once. Exactly one can
+ * win; the other's request still carries the version it loaded before
+ * either tab acted, so the server rejects it — `stores/events.ts`
+ * `transition()` reloads on a `ConflictError`, `EventActions.vue` shows
+ * `event.conflict`. Server-side: `EventRepository.save(expected_version=…)`
+ * / `InvalidTransition` → `ConflictError` (`bbz_core/api/v1/events.py`).
+ *
+ * Retry-safe by construction: it races whichever action is *currently*
+ * enabled rather than assuming a fixed starting status, so a retry (which
+ * reuses the same seeded event, now one step further along) still has a
+ * next action to race, up to all 4 lifecycle steps.
  *
  * Fixture: `server/scripts/seed_e2e.py` — `BMA Gleis 5 — E2E-Konflikt`
- * (already `open`, the `e2e-bma` workflow already running).
+ * (fresh, `new`).
  */
 const USER = process.env.E2E_USER ?? 'admin';
 const PASS = process.env.E2E_PASS ?? 'Wolke7-Bahnhof!x';
@@ -36,14 +43,13 @@ async function openEvent(page: Page, title: string): Promise<Locator> {
   return panel;
 }
 
-function completeStepBtn(panel: Locator): Locator {
-  return panel
-    .locator('.wf__step--active')
-    .filter({ hasText: 'Vor Ort prüfen' })
-    .getByRole('button', { name: 'Schritt abschließen' });
+/** Whichever of the 4 always-rendered lifecycle buttons is valid for the
+ *  event's current status — exactly one is enabled at a time. */
+function nextActionButton(panel: Locator): Locator {
+  return panel.locator('.epp__actions button:not([disabled])');
 }
 
-test('completing an already-completed step surfaces a conflict, never a silent no-op (#99)', async ({
+test('two tabs racing the same lifecycle action: one wins, the other gets a real conflict (#99)', async ({
   browser,
   request,
   baseURL,
@@ -51,26 +57,34 @@ test('completing an already-completed step surfaces a conflict, never a silent n
   const r = await request.get(`${baseURL}/api/v1/meta`).catch(() => null);
   test.skip(!r || !r.ok(), 'no backend on the dev proxy');
 
-  // two independent sessions viewing the same event, both mid-load before
-  // either of them acts — the second stays on its now-stale snapshot.
   const [ctxA, ctxB] = await Promise.all([browser.newContext(), browser.newContext()]);
   const [pageA, pageB] = await Promise.all([ctxA.newPage(), ctxB.newPage()]);
   await Promise.all([login(pageA), login(pageB)]);
-  const [panelA, panelB] = await Promise.all([
-    openEvent(pageA, TITLE),
-    openEvent(pageB, TITLE),
-  ]);
+  const [panelA, panelB] = await Promise.all([openEvent(pageA, TITLE), openEvent(pageB, TITLE)]);
 
-  await completeStepBtn(panelA).click();
-  await expect(panelA.locator('.wf__prog')).toHaveText('1/1');
+  // fire the same action from both tabs at once — both hold the same
+  // pre-action version, so this is a genuine race, not a scripted sequence.
+  await Promise.all([nextActionButton(panelA).click(), nextActionButton(panelB).click()]);
 
-  // B never reloaded — its step is still rendered "active" with a live
-  // button; the click must reach the server and come back a 409, not just
-  // vanish or silently do nothing.
-  await completeStepBtn(panelB).click();
-  await expect(panelB.getByRole('alert')).toContainText('geändert');
-  // and the panel recovers — a follow-up load() reflects the real state
-  await expect(panelB.locator('.wf__prog')).toHaveText('1/1');
+  // exactly one side must show the conflict message — never neither (a
+  // silent double no-op) and never both (the server rejecting the winner too).
+  await expect
+    .poll(
+      async () => {
+        const [a, b] = await Promise.all([
+          panelA.locator('.acts__conflict').isVisible(),
+          panelB.locator('.acts__conflict').isVisible(),
+        ]);
+        return Number(a) + Number(b);
+      },
+      { timeout: 10_000 },
+    )
+    .toBe(1);
+
+  // and both views converge back on the one real, single status change —
+  // the loser's panel reloads via the conflict handler, not a stale guess.
+  const statusA = await panelA.locator('.epp__status').textContent();
+  await expect(panelB.locator('.epp__status')).toHaveText(statusA ?? '');
 
   await ctxA.close();
   await ctxB.close();
