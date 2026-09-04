@@ -15,8 +15,8 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from fastapi import APIRouter, Depends, Request, Response, status
-from pydantic import BaseModel
-from sqlalchemy import select
+from pydantic import BaseModel, Field
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from bbz_core.api.deps import (
@@ -32,14 +32,17 @@ from bbz_core.api.errors import (
     ServiceUnavailableError,
     TotpRequiredError,
     UnauthorizedError,
+    ValidationError,
     WebauthnRequiredError,
 )
-from bbz_core.api.rate_limit import rate_limit_by_ip
+from bbz_core.api.rate_limit import rate_limit_by_ip, rate_limit_by_user
 from bbz_core.api.schema import StrictModel
 from bbz_core.audit import AuditAction, AuditWriter
 from bbz_core.auth.csrf import CSRF_COOKIE, issue_csrf_token
+from bbz_core.auth.hashing import hash_password, verify_password
 from bbz_core.auth.local import LocalAuthResult
 from bbz_core.auth.mfa import ChallengeResult, TotpService
+from bbz_core.auth.policy import PasswordPolicy, PasswordPolicyError
 from bbz_core.auth.registry import AuthProviderRegistry
 from bbz_core.auth.sessions import (
     SessionExpiredError,
@@ -48,7 +51,8 @@ from bbz_core.auth.sessions import (
 )
 from bbz_core.auth.tokens import hash_refresh_token
 from bbz_core.authorization import PermissionService
-from bbz_core.infra.models.identity import AuthIdentity, User
+from bbz_core.infra.models.identity import AuthIdentity, LocalCredential, User
+from bbz_core.infra.models.session import Session
 from bbz_core.infra.repositories.authorization import SqlAlchemyGrantStore
 from bbz_core.infra.repositories.local_credentials import SqlAlchemyCredentialStore
 from bbz_core.infra.repositories.mfa_policy import MfaPolicyService
@@ -90,6 +94,8 @@ class MeResponse(BaseModel):
     user: UserOut
     permissions: list[str]
     scopes: list[str]
+    #: the operator still owes a password change (survives a page reload — #97)
+    must_change_password: bool = False
 
 
 def _set_cookie(resp: Response, name: str, value: str, *, max_age: int, http_only: bool) -> None:
@@ -544,6 +550,76 @@ async def logout(
     return response
 
 
+class ChangePasswordRequest(StrictModel):
+    current_password: str = Field(min_length=1, max_length=1024)
+    new_password: str = Field(min_length=1, max_length=1024)
+
+
+class ChangePasswordResponse(BaseModel):
+    #: other sessions on the account (kiosks, other browsers) are signed out
+    other_sessions_revoked: int
+
+
+@router.post(
+    "/password",
+    response_model=ChangePasswordResponse,
+    dependencies=[Depends(rate_limit_by_user("password_reset"))],
+)
+async def change_password(
+    body: ChangePasswordRequest,
+    ctx: AuthContext = Depends(current_auth),
+    session: AsyncSession = Depends(db_session),
+) -> ChangePasswordResponse:
+    """Self-service local-password change (E07-02 / #97). Also the endpoint the
+    forced-change screen calls when ``must_change_password`` is set — the caller
+    proves the current password, so no elevated permission is needed. Every
+    **other** session on the account is revoked; the current one is kept so the
+    forced-change flow lands the operator straight in the app."""
+    ident = (
+        await session.execute(
+            select(AuthIdentity).where(
+                AuthIdentity.user_id == ctx.user_id, AuthIdentity.provider == "local"
+            )
+        )
+    ).scalar_one_or_none()
+    cred = await session.get(LocalCredential, ident.id) if ident is not None else None
+    if ident is None or cred is None:
+        raise ValidationError("this account has no local password")
+    if not verify_password(cred.password_hash, body.current_password):
+        raise UnauthorizedError("the current password is incorrect")
+    if body.new_password == body.current_password:
+        raise ValidationError("the new password must differ from the current one")
+    try:
+        PasswordPolicy.from_settings().validate(body.new_password, username=ident.subject)
+    except PasswordPolicyError as exc:
+        raise ValidationError(str(exc)) from exc
+
+    cred.password_hash = hash_password(body.new_password)
+    cred.must_change = False
+    cred.failed_attempts = 0
+    cred.locked_until = None
+    cred.password_changed_at = _dt.datetime.now(_dt.UTC)
+    result = await session.execute(
+        update(Session)
+        .where(
+            Session.user_id == ctx.user_id,
+            Session.id != ctx.session_id,
+            Session.revoked_at.is_(None),
+        )
+        .values(revoked_at=_dt.datetime.now(_dt.UTC))
+    )
+    revoked = int(result.rowcount)  # type: ignore[attr-defined]
+    await AuditWriter(session).record(
+        AuditAction.PASSWORD_CHANGED,
+        actor_user_id=ctx.user_id,
+        target_type="user",
+        target_id=str(ctx.user_id),
+        commit=False,
+    )
+    await session.commit()
+    return ChangePasswordResponse(other_sessions_revoked=revoked)
+
+
 @router.get("/me", response_model=MeResponse)
 async def me(
     ctx: AuthContext = Depends(current_auth),
@@ -554,8 +630,16 @@ async def me(
         raise UnauthorizedError("user no longer exists")
     effective = await PermissionService(SqlAlchemyGrantStore(session)).effective(ctx.user_id)
     keys = effective.keys()
+    must_change = bool(
+        await session.scalar(
+            select(LocalCredential.must_change)
+            .join(AuthIdentity, AuthIdentity.id == LocalCredential.auth_identity_id)
+            .where(AuthIdentity.user_id == ctx.user_id, AuthIdentity.provider == "local")
+        )
+    )
     return MeResponse(
         user=UserOut(id=user.id, display_name=user.display_name, status=user.status),
         permissions=sorted(keys),
         scopes=sorted({s for k in keys for s in effective.scopes_for(k)}),
+        must_change_password=must_change,
     )

@@ -7,6 +7,8 @@ Idempotent — safe to re-run against a fresh schema. Creates:
 * ``kollege`` — an operator with the event + workflow permissions. It never logs
   in during the E2E, so its effective presence is ``offline`` and ``admin`` may
   take an event over from it.
+* ``neuling`` — an operator flagged ``must_change`` for the forced-password
+  -change flow (E07-02 / #97)
 * a published 1-step workflow template ``e2e-bma``
 * ``BMA Halle 7 — E2E-Lebenszyklus`` — a fresh (``new``) critical event **with**
   that workflow, for the accept -> acknowledge -> open -> complete-step ->
@@ -78,7 +80,9 @@ async def _seed() -> None:
     from bbz_core.infra.repositories.events import EventRepository
     from bbz_core.infra.repositories.workflow_engine import WorkflowEngineService
 
-    async def user_id(s: AsyncSession, username: str, display: str, role_key: str) -> uuid.UUID:
+    async def user_id(
+        s: AsyncSession, username: str, display: str, role_key: str, *, must_change: bool = False
+    ) -> uuid.UUID:
         found = (
             await s.execute(select(AuthIdentity).where(AuthIdentity.subject == username))
         ).scalar_one_or_none()
@@ -96,7 +100,13 @@ async def _seed() -> None:
                 )
             )
         ).scalar_one()
-        s.add(LocalCredential(auth_identity_id=ident.id, password_hash=hash_password(PASSWORD)))
+        s.add(
+            LocalCredential(
+                auth_identity_id=ident.id,
+                password_hash=hash_password(PASSWORD),
+                must_change=must_change,
+            )
+        )
         role_id = (await s.execute(select(Role.id).where(Role.key == role_key))).scalar_one()
         s.add(UserRole(user_id=u.id, role_id=role_id))
         return u.id
@@ -154,6 +164,8 @@ async def _seed() -> None:
         async with s.begin():
             admin_id = await user_id(s, "admin", "E2E Administrator", "administrator")
             kollege_id = await user_id(s, "kollege", "E2E Kollege", "e2e_operator")
+            # #97 — an operator who must set a new password on first login
+            await user_id(s, "neuling", "E2E Neuling", "e2e_operator", must_change=True)
 
         async with s.begin():
             has_tpl = await s.scalar(
@@ -179,7 +191,7 @@ async def _seed() -> None:
         archived_id = await make_event(s, admin_id, _ARCHIVED_TITLE)
         await drive(s, archived_id, admin_id, "accept", "acknowledge", "open", "archive")
 
-    print("seed_e2e: ready — admin / kollege, workflow e2e-bma, 3 events")
+    print("seed_e2e: ready — admin / kollege / neuling, workflow e2e-bma, 3 events")
 
 
 if __name__ == "__main__":

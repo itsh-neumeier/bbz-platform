@@ -19,12 +19,15 @@ const session = useSessionStore();
 const username = ref('');
 const password = ref('');
 const totp = ref('');
+const newPassword = ref('');
+const confirmPassword = ref('');
 const step = ref<'credentials' | 'totp'>('credentials');
 const error = ref('');
 const busy = ref(false);
 
 const usernameEl = ref<HTMLInputElement | null>(null);
 const totpEl = ref<HTMLInputElement | null>(null);
+const newPasswordEl = ref<HTMLInputElement | null>(null);
 
 const expired = computed(() => session.expired || route.query.reason === 'expired');
 const mustChange = computed(() => session.mustChangePassword);
@@ -37,8 +40,23 @@ watch(
   },
   { immediate: true },
 );
+watch(mustChange, async (on) => {
+  if (on) {
+    await nextTick();
+    newPasswordEl.value?.focus();
+  }
+});
+
+function goToDestination(): Promise<unknown> {
+  const dest = typeof route.query.redirect === 'string' ? route.query.redirect : '/';
+  return router.replace(dest);
+}
 
 async function submit(): Promise<void> {
+  if (mustChange.value) {
+    await changePassword();
+    return;
+  }
   error.value = '';
   busy.value = true;
   try {
@@ -56,11 +74,36 @@ async function submit(): Promise<void> {
       return;
     }
     if (session.mustChangePassword) return;
-    const dest = typeof route.query.redirect === 'string' ? route.query.redirect : '/';
-    await router.replace(dest);
+    await goToDestination();
   } catch (e) {
     error.value =
       e instanceof ApiError ? errorMessage(e.code, e.message) : t('login.networkError');
+  } finally {
+    busy.value = false;
+  }
+}
+
+async function changePassword(): Promise<void> {
+  error.value = '';
+  if (newPassword.value !== confirmPassword.value) {
+    error.value = t('login.pwMismatch');
+    return;
+  }
+  busy.value = true;
+  try {
+    await session.changePassword(password.value, newPassword.value);
+    await goToDestination();
+  } catch (e) {
+    if (e instanceof ApiError) {
+      error.value =
+        e.code === 'unauthorized'
+          ? t('login.currentPasswordWrong')
+          : e.code === 'validation_error'
+            ? t('login.newPasswordRejected')
+            : errorMessage(e.code, e.message);
+    } else {
+      error.value = t('login.networkError');
+    }
   } finally {
     busy.value = false;
   }
@@ -109,6 +152,29 @@ function restart(): void {
         >
           {{ t('login.mustChange') }}
         </p>
+        <div class="login__field">
+          <label for="login-new-password">{{ t('login.newPassword') }}</label>
+          <input
+            id="login-new-password"
+            ref="newPasswordEl"
+            v-model="newPassword"
+            name="new-password"
+            type="password"
+            autocomplete="new-password"
+            required
+          >
+        </div>
+        <div class="login__field">
+          <label for="login-confirm-password">{{ t('login.confirmPassword') }}</label>
+          <input
+            id="login-confirm-password"
+            v-model="confirmPassword"
+            name="confirm-password"
+            type="password"
+            autocomplete="new-password"
+            required
+          >
+        </div>
         <button
           type="button"
           class="login__link"
@@ -190,12 +256,17 @@ function restart(): void {
       </p>
 
       <button
-        v-if="!mustChange"
         type="submit"
         class="login__submit"
         :disabled="busy"
       >
-        {{ busy ? t('login.working') : t('login.submit') }}
+        {{
+          busy
+            ? t('login.working')
+            : mustChange
+              ? t('login.changePasswordSubmit')
+              : t('login.submit')
+        }}
       </button>
     </form>
   </main>

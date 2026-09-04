@@ -8,10 +8,10 @@ mockup files). **The domain epics 11/13–22 are backend-complete** (Epic 13 is
 (auth · work queue · event detail · archive · reactivation · workflow view ·
 priority alerts · SSE · theme · i18n), the weather + monitor pages, the
 phone-book, the comms sidebar, the EPK editor and the `/arbeitsplatz` status
-board are merged (PRs #702/#704/#705/#707/#708/#711; migration head is **0054**,
-PR #710 — a uuid-PK-default gap that only bites a migrated DB); left:
-force-password-change (needs a backend endpoint) and the Playwright CI job
-(#123). **In progress: Epic 23** (security hardening,
+board are merged; the V10-mockup parity, the Administration build-out, the
+**§24 Playwright E2E in CI (#123)** and the **forced-password-change flow
+(#97)** landed on top — Epic 07 is now ~17/19 (see the Epic 07 section).
+**In progress: Epic 23** (security hardening,
 7/12 + E23-10/E23-11 partial) **and Epic 24** (production deployment, 3/8).
 Blocked until an Electron / Go / Cisco-vendor / SIP-PBX session: Epics 08, 09,
 10, 12, 13-impl, and the E23/E24 issues that chain off them —
@@ -571,7 +571,7 @@ pg_dump→gpg→restore→count-match round trip + an etcd snapshot save/restore
 **Epic 06 COMPLETE (14/14)** — #92 (HA harness) shipped as a scaffold that
 needs a real multi-host runner before its nightly job can gate.
 
-### Epic 07 – Web UI / PrimeVue: **in progress (~16/19 done, 3 in progress)**
+### Epic 07 – Web UI / PrimeVue: **in progress (~17/19 done, 2 in progress)**
 Beyond the 19 E07 issues: the **V10-mockup parity** (#716/#717 + the #98 shell)
 and the **Administration build-out (#718 → #720–#725, all merged)** landed on
 top — see the mockup-parity + Administration bullets below.
@@ -580,8 +580,8 @@ The Vue toolchain runs in a `node:22-alpine` container (E01-06 made the
 operator UI on the app shell. `server/tests/test_parity_checklist.py` still
 enforces the checklist. **#123 (E07-16) shipped the CI `e2e` job** — a row is
 `done` once a Playwright spec exercises it in CI; the last `in progress` rows
-(auth UI force-password-change, comms sidebar, EPK canvas drag) are each waiting
-on their own follow-up, not on E2E.
+(comms sidebar polish, EPK canvas drag) are each waiting on their own follow-up,
+not on E2E.
 
 - **done**: the mockup-parity checklist (E07-01); the generic API client
   (E07-04, `lib/apiClient.ts` — command envelope, real-UUID `X-Command-Id`,
@@ -594,10 +594,11 @@ on their own follow-up, not on E2E.
   a named operator from `GET /events/assignable`); archive view (E07-11,
   `/archiv`); reactivation dialog (E07-12); the priority-alert banner (E07-13);
   i18n + missing-key lint (E07-14, `scripts/i18n-lint.mjs`); **the Playwright CI
-  job (E07-16 / #123)**; theme tokens + toggle (E07-17).
-- **in progress**: auth UI (E07-02 — login/TOTP/logout/session-expiry done +
-  `e2e/auth.spec.ts` in CI; force-password-change is a stub, there is **no**
-  `POST /auth/password` endpoint); a11y baseline (E07-15 — lint at error;
+  job (E07-16 / #123)**; theme tokens + toggle (E07-17); **auth UI (E07-02 —
+  login / TOTP / logout / session-expiry / forced password change, #97: `POST
+  /api/v1/auth/password` + `/me.must_change_password`; `e2e/auth.spec.ts` walks
+  all of it)**.
+- **in progress**: a11y baseline (E07-15 — lint at error;
   axe-in-E2E is a follow-up); comms sidebar (E07-18 — keypad + waiting queue +
   active-call controls + mandatory documentation + mini phone-book + history +
   line strip; `stores/calls.ts`, `lib/telephony.ts`); the EPK editor (E07-19 —

@@ -53,4 +53,48 @@ describe('LoginView', () => {
     await w.vm.$nextTick();
     expect(w.find('[role="alert"]').text()).toContain('Benutzername oder Passwort');
   });
+
+  it('shows the forced change form and submits current + new password (#97)', async () => {
+    const { w, router } = factory();
+    const session = useSessionStore();
+    vi.spyOn(session, 'login').mockImplementation(async () => {
+      session.mustChangePassword = true;
+      return { kind: 'none' };
+    });
+    const change = vi.spyOn(session, 'changePassword').mockResolvedValue(undefined);
+
+    await w.find('input[name="username"]').setValue('op');
+    await w.find('input[name="password"]').setValue('old-secret');
+    await w.find('form').trigger('submit');
+    await w.vm.$nextTick();
+
+    // the credential inputs are gone, the new-password inputs are shown
+    expect(w.find('input[name="username"]').exists()).toBe(false);
+    expect(w.find('input[name="new-password"]').exists()).toBe(true);
+
+    await w.find('input[name="new-password"]').setValue('Fjord-Nebel-42!x');
+    await w.find('input[name="confirm-password"]').setValue('Fjord-Nebel-42!x');
+    await w.find('form').trigger('submit');
+    await w.vm.$nextTick();
+
+    expect(change).toHaveBeenCalledWith('old-secret', 'Fjord-Nebel-42!x');
+    await new Promise((r) => setTimeout(r, 0));
+    expect(router.currentRoute.value.path).toBe('/');
+  });
+
+  it('blocks the forced change when the two passwords differ (#97)', async () => {
+    const { w } = factory();
+    const session = useSessionStore();
+    session.mustChangePassword = true;
+    const change = vi.spyOn(session, 'changePassword').mockResolvedValue(undefined);
+    await w.vm.$nextTick();
+
+    await w.find('input[name="new-password"]').setValue('Fjord-Nebel-42!x');
+    await w.find('input[name="confirm-password"]').setValue('different');
+    await w.find('form').trigger('submit');
+    await w.vm.$nextTick();
+
+    expect(change).not.toHaveBeenCalled();
+    expect(w.find('.login__error').text()).toContain('stimmen nicht überein');
+  });
 });
