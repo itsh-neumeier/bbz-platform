@@ -33,12 +33,14 @@ test.beforeEach(async ({ request, baseURL, page }) => {
 test('create a contact, find it by live search, then set its call priority (#297)', async ({
   page,
 }) => {
-  // create — scoped to the create form: "Rufnummer" is also the persistent
-  // comms-sidebar dial-pad's label, present on every route
+  // create — by #id, not label text: the persistent comms sidebar (every
+  // route) has its own "Rufnummer"/search-ish labels that collide with the
+  // phonebook page's, both as exact matches and as getByLabel substrings
+  // ("Suche" ⊂ "Kontakt suchen").
   await page.getByRole('button', { name: 'Neuer Kontakt' }).click();
   const createForm = page.locator('.pb__create');
-  await createForm.getByLabel('Name', { exact: true }).fill(NAME);
-  await createForm.getByLabel('Rufnummer', { exact: true }).fill(NUMBER);
+  await createForm.locator('#pb-n-name').fill(NAME);
+  await createForm.locator('#pb-n-num').fill(NUMBER);
   await createForm.getByRole('button', { name: 'Anlegen' }).click();
 
   await expect(page.locator('.pb__error')).toHaveCount(0);
@@ -48,7 +50,7 @@ test('create a contact, find it by live search, then set its call priority (#297
   await expect(row.locator('.pb__prio')).toHaveCount(0);
 
   // live search narrows the list down to just this contact (debounced, no submit)
-  await page.getByLabel('Suche').fill(NAME);
+  await page.locator('#pb-q').fill(NAME);
   await expect(page.locator('.pb__row')).toHaveCount(1);
   await expect(row).toBeVisible();
 
