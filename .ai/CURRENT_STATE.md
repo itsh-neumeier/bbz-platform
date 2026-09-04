@@ -572,7 +572,7 @@ pg_dump→gpg→restore→count-match round trip + an etcd snapshot save/restore
 **Epic 06 COMPLETE (14/14)** — #92 (HA harness) shipped as a scaffold that
 needs a real multi-host runner before its nightly job can gate.
 
-### Epic 07 – Web UI / PrimeVue: **in progress (16/19 done, 3 in progress)**
+### Epic 07 – Web UI / PrimeVue: **in progress (17/19 done, 2 in progress)**
 Beyond the 19 E07 issues: the **V10-mockup parity** (#716/#717 + the #98 shell)
 and the **Administration build-out (#718 → #720–#725, all merged)** landed on
 top — see the mockup-parity + Administration bullets below.
@@ -584,8 +584,11 @@ SSE indicator (#101), the topbar priority banner (#117), the critical-row pulse
 + `prefers-reduced-motion` (#105), the theme toggle (#125) and the axe a11y
 scan (#121, `e2e/a11y.spec.ts`, light + dark). The EPK-canvas editor (#129 —
 real notation + drag/keyboard positioning) is also now `done`,
-`e2e/epk-editor.spec.ts`. The 3 `in progress` rows: #99 (API client — vitest
-only), #119 (i18n — grows per screen), #127 (comms sidebar polish).
+`e2e/epk-editor.spec.ts`. So is the comms sidebar (#127 — the functional
+tabs already satisfied the AC; added the missing `e2e/comms-sidebar.spec.ts`
+leg for keyboard-operability + tab-switch state persistence). The 2
+`in progress` rows: #99 (API client — vitest only), #119 (i18n — grows per
+screen).
 
 - **done** (each walked by a green CI Playwright spec): mockup-parity checklist
   (E07-01); auth UI incl. forced password change (E07-02 / #97 — `POST
@@ -609,12 +612,16 @@ only), #119 (i18n — grows per screen), #127 (comms sidebar polish).
   priorities), vertical auto-layout (`layoutRows`), pointer-drag **and** a full
   keyboard alternative (arrow keys move, Shift = ×4 grid, Delete removes) that
   write to `node.props.x/y` — an already-open schema field, so no migration or
-  ADR was needed — "Auto-Layout" clears stored positions; `e2e/epk-editor.spec.ts`)**.
+  ADR was needed — "Auto-Layout" clears stored positions; `e2e/epk-editor.spec.ts`)**;
+  **comms sidebar (E07-18 / #127 — keypad + waiting queue + active-call
+  controls + mandatory documentation + mini phone-book + history + line strip;
+  `stores/calls.ts`, `lib/telephony.ts`; its own AC's "Tabwechsel" Playwright
+  leg was the only gap — `e2e/comms-sidebar.spec.ts` covers keyboard
+  operability (native `<button role="tab">`) and state persistence across a
+  switch (`v-show`, not `v-if`, on all four panels))**.
 - **in progress**: generic API client (E07-04 / #99 — merged + `apiClient.spec.ts`
   vitest, no direct E2E); i18n locale (E07-14 / #119 — `i18n:lint` green, grows
-  per screen); comms sidebar (E07-18 — keypad + waiting queue +
-  active-call controls + mandatory documentation + mini phone-book + history +
-  line strip; `stores/calls.ts`, `lib/telephony.ts`).
+  per screen).
 - **#123 (E07-16) — the mandatory E2E, now wired into CI.** New CI job `e2e`
   (`.github/workflows/ci.yml`): a `postgres:16` service, `pip install ./server`,
   `alembic upgrade head`, **`python server/scripts/seed_e2e.py`** (admin +
