@@ -596,7 +596,10 @@ Tests field asks for unit + lint only, no Playwright leg: `i18n:lint`
 (381 keys, all resolve) runs as a blocking `frontend`-CI step
 (`ci.yml:125`), `t()`/`d()` are used i18n-first throughout, date/time goes
 through vue-i18n's `d()` (ADR-0017 Europe/Berlin) everywhere. **All 19 of
-19 E07 issues done.**
+19 E07 issues done.** Same-day follow-up on a non-E07 gap: **#297 (E14-07,
+phonebook UI)** — `PhonebookPage.vue` already had full CRUD + live search +
+priority assignment; added `e2e/phonebook.spec.ts` (create → live search →
+set priority) to close its own stated Playwright requirement.
 
 - **done** (each walked by a green CI Playwright spec): mockup-parity checklist
   (E07-01); auth UI incl. forced password change (E07-02 / #97 — `POST
