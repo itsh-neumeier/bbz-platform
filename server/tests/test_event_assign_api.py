@@ -107,6 +107,25 @@ async def _active_assignees(s: AsyncSession, event_id: str) -> list[uuid.UUID]:
     )
 
 
+async def test_assignable_lists_active_users_for_events_assign(env: tuple) -> None:
+    client, s = env
+    await _make_user(s, "op1", _PERMS)
+    await _make_user(s, "op2", ["events.view"])
+    await _login(client, "op1")
+
+    r = await client.get("/api/v1/events/assignable")
+    assert r.status_code == 200, r.text
+    names = {u["display_name"] for u in r.json()["users"]}
+    assert {"Op1", "Op2"} <= names
+
+
+async def test_assignable_needs_events_assign(env: tuple) -> None:
+    client, s = env
+    await _make_user(s, "viewer", ["events.view"])
+    await _login(client, "viewer")
+    assert (await client.get("/api/v1/events/assignable")).status_code == 403
+
+
 async def test_assign_and_reassign_keep_one_active(env: tuple) -> None:
     client, s = env
     await _make_user(s, "disponent", _PERMS)

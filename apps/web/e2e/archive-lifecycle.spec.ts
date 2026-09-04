@@ -1,14 +1,14 @@
 import { expect, test } from '@playwright/test';
 
 /**
- * E2E — archive / post-processing / reactivation (roadmap E20-08 + E07-11/12,
- * MASTER_PROMPT §24 steps 8–10 / §13.6). Backend flow: covered by
- * `server/tests/test_e2e_archive_lifecycle.py`. This is the UI half; wired into
- * CI with #123.
+ * E2E — archive / post-processing / reactivation reached from the Ereignis­
+ * übersicht (roadmap E20-08 + E07-11/12, MASTER_PROMPT §24 steps 8–10 / §13.6).
+ * Backend flow: `server/tests/test_e2e_archive_lifecycle.py`. This is the UI half
+ * for the `/ereignisse` + "Nur Archiv" entry path (the Arbeitsplatz path is
+ * `event-lifecycle.spec.ts`).
  *
- * Ereignisse + Archiv are one view now (#717) — the archived events live in the
- * Ereignisübersicht behind the "Nur Archiv" filter; `/archiv/:id` stays a deep
- * link. Skipped when no backend answers `/api/v1/meta`.
+ * Fixture: the pre-archived event from `server/scripts/seed_e2e.py`. Skipped when
+ * no backend answers `/api/v1/meta`.
  */
 const USER = process.env.E2E_USER ?? 'admin';
 const PASS = process.env.E2E_PASS ?? 'Wolke7-Bahnhof!x';
@@ -33,12 +33,13 @@ test('archived event → full history + post-processing notes → reactivation',
   await rows.first().click();
 
   // the processing panel opens beside the list — same depth as an active event
-  await expect(page.getByText('archiviert')).toBeVisible();
-  await expect(page.getByText('Verlauf')).toBeVisible();
-  await expect(page.getByText('Nachbearbeitungsnotizen')).toBeVisible();
+  const panel = page.locator('.epp');
+  await expect(panel.locator('.epp__status')).toHaveText('archiviert');
+  await expect(panel.getByText('Verlauf', { exact: true })).toBeVisible();
+  await expect(panel.getByText('Nachbearbeitungsnotizen')).toBeVisible();
 
   // reactivation needs an explicit confirm + a reason
-  await page.getByRole('button', { name: 'Reaktivieren' }).click();
+  await panel.getByRole('button', { name: 'Reaktivieren' }).click();
   const dialog = page.getByRole('dialog');
   await expect(dialog).toBeVisible();
   await expect(dialog.getByRole('button', { name: 'Reaktivieren bestätigen' })).toBeDisabled();
@@ -47,5 +48,5 @@ test('archived event → full history + post-processing notes → reactivation',
 
   // back as an active event, nothing deleted
   await expect(page).toHaveURL(/\/ereignisse\/[0-9a-f-]{36}$/);
-  await expect(page.locator('.epp__status')).toContainText('Bearbeitung');
+  await expect(page.locator('.epp__status')).toHaveText('in Bearbeitung');
 });

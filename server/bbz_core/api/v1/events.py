@@ -555,6 +555,35 @@ async def priority_alert(
     )
 
 
+class AssignableUserOut(BaseModel):
+    id: uuid.UUID
+    display_name: str
+
+
+class AssignableUsersOut(BaseModel):
+    users: list[AssignableUserOut]
+
+
+@router.get("/assignable", response_model=AssignableUsersOut)
+async def list_assignable_users(
+    _: AuthContext = Depends(require("events.assign")),
+    session: AsyncSession = Depends(db_session),
+) -> AssignableUsersOut:
+    """Active users an event may be assigned to (E07-10 / #111). Gated on
+    ``events.assign`` so an operator who can hand an event over sees the roster
+    without needing ``users.view``."""
+    rows = (
+        await session.execute(
+            select(User.id, User.display_name)
+            .where(User.status == UserStatus.ACTIVE.value)
+            .order_by(User.display_name)
+        )
+    ).all()
+    return AssignableUsersOut(
+        users=[AssignableUserOut(id=r.id, display_name=r.display_name) for r in rows]
+    )
+
+
 @router.get("/{event_id}", response_model=EventDetailOut)
 async def get_event(
     event_id: uuid.UUID,
