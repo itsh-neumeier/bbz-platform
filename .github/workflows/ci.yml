@@ -148,6 +148,11 @@ jobs:
       BBZ_ARGON2_TIME_COST: "1"
       BBZ_ARGON2_MEMORY_COST_KIB: "512"
       BBZ_REACTIVATION_COOLDOWN_SECONDS: "0"
+      # the whole suite logs in many times inside one 60 s window — the default
+      # 10/60 per-IP login limit would 429 the later specs
+      BBZ_RATE_LIMIT_LOGIN: "0"
+      BBZ_RATE_LIMIT_MFA: "0"
+      BBZ_RATE_LIMIT_PASSWORD_RESET: "0"
       VITE_API_PROXY_TARGET: http://127.0.0.1:8000
       # the concrete adapters (integrations/) are a runtime-discovered package at
       # the repo root, not a dependency — put the root on the path for uvicorn
