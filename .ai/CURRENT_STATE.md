@@ -615,9 +615,13 @@ on their own follow-up, not on E2E.
   step (E07-09)** → **take over from the offline colleague, then hand it to a
   named operator (E07-10)** → archive → the archived detail (Verlauf +
   Nachbearbeitungsnotizen) → reactivate with a mandatory reason. The pre-existing
-  `archive-lifecycle` / `auth` / `monitor-routing` / `smoke` specs were realigned
-  to the current UI (EventsPage `.events__row`, `.epp` panel) and now run too;
-  `playwright.config.ts` pins `workers: 1` (the specs share one seeded DB).
+  `archive-lifecycle` / `auth` / `smoke` specs were realigned to the current UI
+  (EventsPage `.events__row`, `.epp` panel, no page `<h1>`) and now run too;
+  `monitor-routing` stays `test.fixme` under E19-08/#408 (a routing `<select>`
+  change doesn't reliably read back in CI). `playwright.config.ts` pins
+  `workers: 1` (the specs share one seeded DB) + a global-setup that warms the
+  dev server and the API's Argon2 init before the first spec. The job puts the
+  repo root on `PYTHONPATH` so uvicorn can discover `integrations/`.
   Backends for E07-09/10 already existed — this PR added `GET
   /api/v1/events/assignable` (`events.assign`) + the `WorkflowRunPanel` /
   `OwnershipBar` UI + `WorkflowRunPanel.spec.ts` / `OwnershipBar.spec.ts` /
