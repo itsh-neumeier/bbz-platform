@@ -571,7 +571,10 @@ pg_dump→gpg→restore→count-match round trip + an etcd snapshot save/restore
 **Epic 06 COMPLETE (14/14)** — #92 (HA harness) shipped as a scaffold that
 needs a real multi-host runner before its nightly job can gate.
 
-### Epic 07 – Web UI / PrimeVue: **in progress (~11/19 done, 7 in progress, 1 todo)**
+### Epic 07 – Web UI / PrimeVue: **in progress (~13/19 done, 5 in progress, 1 todo)**
+Beyond the 19 E07 issues: the **V10-mockup parity** (#716/#717 + the #98 shell)
+and the **Administration build-out (#718 → #720–#725, all merged)** landed on
+top — see the mockup-parity + Administration bullets below.
 The Vue toolchain runs in a `node:22-alpine` container (E01-06 made the
 `frontend` CI job blocking). PRs #701 / #702 / #704 / #705 / #707 built the
 operator UI on the app shell. `server/tests/test_parity_checklist.py` still
@@ -596,7 +599,7 @@ CI — that job is **#123**, still open — so "feature complete" rows read
   deferred); a11y baseline (E07-15 — lint at error; axe-in-E2E is #123); comms
   sidebar (E07-18 — keypad + waiting queue + active-call controls + mandatory
   documentation + mini phone-book + history + line strip; `stores/calls.ts`,
-  `lib/telephony.ts`); the EPK editor (E07-19 — `/admin/workflows`
+  `lib/telephony.ts`); the EPK editor (E07-19 — `/admin/handlungsanweisungen`
   `WorkflowAdminPage`: template + draft-version lifecycle, node/edge forms, an
   auto-laid-out SVG preview, validate + publish; canvas drag is a follow-up).
 - **todo**: the Playwright CI job (E07-16 / #123 — specs exist, un-`fixme`d,
@@ -651,9 +654,10 @@ CI — that job is **#123**, still open — so "feature complete" rows read
   catalog default on a DB error). The name shows in the topbar breadcrumb, the
   sidebar status + user card, the login screen and the document title.
   `/admin/workflows` moved under the shell (route name `workflow-admin` kept);
-  sidebar nav "Administration" replaces the old "Workflow-Vorlagen" entry. The
-  other sections render `AdminPlaceholderPage` (→ #722/#723/#724/#725);
-  `AdminSystemPage` is a read-only `/meta` view.
+  sidebar nav "Administration" replaces the old "Workflow-Vorlagen" entry.
+  `AdminSystemPage` is a read-only `/meta` view. The other sections are their
+  own pages (#722–#725, below); `AdminPlaceholderPage` is retained for any
+  future section.
 - **Administration — Phase 2: user management** (#722 / part of #718).
   `/admin/benutzer` (`AdminUsersPage`): the user table (Name · Anmeldung ·
   Rollen · Status), create a local account (display name + username + initial
@@ -698,8 +702,16 @@ CI — that job is **#123**, still open — so "feature complete" rows read
   instance is cached for the process lifetime, so a changed selection takes
   effect on the next restart (documented, like an env change) — wiring
   `active_*_provider()` through the store is a follow-up.
-  **The Administration build-out (#718) is now feature-complete** (#720–#725
-  merged/in-PR); door-provider selection needs a `Settings` field first.
+- **The Administration build-out (#718) is COMPLETE** — #720–#725 all merged
+  (PRs #729/#731/#732/#733/#734/#735). `/admin` = the `AdminPage` shell + eight
+  permission-gated sections (Instanz · Benutzer · Verzeichnis · Integrationen ·
+  Handlungsanweisungen · Trigger-Regeln · Technische Endpunkte · System). All
+  admin APIs verified live against the compose stack. **Follow-ups** (not
+  blocking): wire `active_*_provider()` / the LDAP *login* path through the
+  settings store (so a selection change needs no restart); a structured
+  condition/action editor for trigger rules; a per-user 2FA-enrolment-status
+  column; a running-workflow-instances read view; door-provider selection
+  (needs a `Settings` field); a per-domain adapter config form + test endpoint.
 - **DB UX Design System v3** (#713, PR **#714 merged**, **ADR-0029** Accepted,
   extends ADR-0013): the whole UI is now visually DB-conformant. `src/theme/` is
   rebuilt on `@db-ux/core-foundations@5.3.0` + the `@db-ux/db-theme@6.2.0`
