@@ -16,6 +16,13 @@
  * get cleaned up too. A node without a stored position falls back to the
  * auto-layout, so a fresh graph looks laid out with no manual work.
  *
+ * Per-step moves (drag, keyboard nudge) are instant — no transition — so
+ * repeated nudging stays snappy and immediately measurable. The "Auto-Layout"
+ * bulk reflow is the one case worth animating; the parent triggers it via
+ * `pulseTransition()` (exposed), which arms a transition for one tick and
+ * disarms itself, rather than a standing transition every position write
+ * would otherwise re-trigger.
+ *
  * Colour is never the only signal (shape + label + glyph carry it), so the
  * neutral surface tones stay reserved for real alarm priorities elsewhere in
  * the app.
@@ -54,6 +61,20 @@ const svgEl = ref<SVGSVGElement | null>(null);
 const focusedKey = ref<string | null>(null);
 const draggingKey = ref<string | null>(null);
 const reduced = prefersReducedMotion();
+
+const animating = ref(false);
+let animTimer: ReturnType<typeof setTimeout> | null = null;
+/** Arms a brief transition for the next reflow (the "Auto-Layout" button),
+ *  then disarms it — so it never lingers to catch a later per-step move. */
+function pulseTransition(): void {
+  if (reduced) return;
+  animating.value = true;
+  if (animTimer) clearTimeout(animTimer);
+  animTimer = setTimeout(() => {
+    animating.value = false;
+  }, 220);
+}
+defineExpose({ pulseTransition });
 
 const auto = computed(() => layoutRows(props.graph));
 const positions = computed(() => {
@@ -181,7 +202,7 @@ function onKeyDown(e: KeyboardEvent, n: WfNode): void {
 <template>
   <div
     class="wfp"
-    :class="{ 'wfp--reduced': reduced }"
+    :class="{ 'wfp--animating': animating }"
     :role="editable ? undefined : 'img'"
     :aria-label="editable ? t('wf.canvasEditableAlt') : t('wf.previewAlt')"
   >
@@ -324,11 +345,15 @@ function onKeyDown(e: KeyboardEvent, n: WfNode): void {
   font-size: 10px;
 }
 .wfp__node {
-  transition: transform 0.18s ease;
   cursor: default;
   outline: none;
 }
-.wfp--reduced .wfp__node,
+/* Only the Auto-Layout bulk reflow animates (armed briefly via
+   `pulseTransition()`); per-step drag/keyboard moves stay instant so they
+   are immediately measurable and feel snappy under repeat nudging. */
+.wfp--animating .wfp__node {
+  transition: transform 0.18s ease;
+}
 .wfp__node--dragging {
   transition: none;
 }

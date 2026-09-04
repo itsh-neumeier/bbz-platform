@@ -217,8 +217,9 @@ function removeEdge(key: string): void {
   graph.value.edges = graph.value.edges.filter((e) => e.key !== key);
 }
 
+const canvasRef = ref<InstanceType<typeof EpkCanvas> | null>(null);
 /** Drop every node's stored canvas position — `EpkCanvas` then falls back to
- *  the vertical auto-layout for all of them. */
+ *  the vertical auto-layout for all of them, animated into place. */
 function autoLayout(): void {
   for (const n of graph.value.nodes) {
     if (!n.props) continue;
@@ -228,6 +229,7 @@ function autoLayout(): void {
     }
     n.props = Object.keys(rest).length ? rest : undefined;
   }
+  canvasRef.value?.pulseTransition();
 }
 
 onMounted(loadTemplates);
@@ -347,6 +349,7 @@ onMounted(loadTemplates);
         >
           <!-- EPK canvas -->
           <EpkCanvas
+            ref="canvasRef"
             :graph="graph"
             :editable="editable"
             @remove-node="removeNode"
