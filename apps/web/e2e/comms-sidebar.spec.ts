@@ -26,23 +26,29 @@ test.beforeEach(async ({ request, baseURL, page }) => {
   await login(page);
 });
 
+// "Telefon" is a substring of "Telefonbuch" — getByRole's default name match
+// is substring, so every lookup here needs `exact` to stay unambiguous.
+function tab(page: Page, name: string) {
+  return page.getByRole('tab', { name, exact: true });
+}
+
 test('switching tabs preserves each panel\'s own state (#127)', async ({ page }) => {
   const numberInput = page.getByLabel('Rufnummer');
   await numberInput.fill('030123456');
 
-  await page.getByRole('tab', { name: 'Telefonbuch' }).click();
+  await tab(page, 'Telefonbuch').click();
   await expect(page.getByRole('tabpanel')).toBeVisible();
 
-  await page.getByRole('tab', { name: 'Historie' }).click();
+  await tab(page, 'Historie').click();
   await expect(page.getByRole('tabpanel')).toBeVisible();
 
-  await page.getByRole('tab', { name: 'Telefon' }).click();
+  await tab(page, 'Telefon').click();
   await expect(numberInput).toHaveValue('030123456');
 });
 
 test('every tab is reachable and operable without a mouse (#127)', async ({ page }) => {
   for (const name of ['Gespräch', 'Telefonbuch', 'Historie', 'Telefon']) {
-    const tabBtn = page.getByRole('tab', { name });
+    const tabBtn = tab(page, name);
     await tabBtn.focus();
     await page.keyboard.press('Enter');
     await expect(tabBtn).toHaveAttribute('aria-selected', 'true');
