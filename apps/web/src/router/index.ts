@@ -84,8 +84,8 @@ const routes: RouteRecordRaw[] = [
           {
             path: 'integrationen',
             name: 'admin-integrations',
-            component: () => import('@/pages/admin/AdminPlaceholderPage.vue'),
-            meta: { perm: 'integrations.configure', adminIssue: 724 },
+            component: () => import('@/pages/admin/AdminIntegrationsPage.vue'),
+            meta: { perm: 'integrations.view' },
           },
           {
             path: 'handlungsanweisungen',

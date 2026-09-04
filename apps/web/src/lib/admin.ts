@@ -9,7 +9,7 @@ export const ADMIN_SECTIONS = [
   { name: 'admin-instance', key: 'instance', perm: 'system.settings.manage' },
   { name: 'admin-users', key: 'users', perm: 'users.manage' },
   { name: 'admin-directory', key: 'directory', perm: 'system.settings.manage' },
-  { name: 'admin-integrations', key: 'integrations', perm: 'integrations.configure' },
+  { name: 'admin-integrations', key: 'integrations', perm: 'integrations.view' },
   { name: 'workflow-admin', key: 'workflows', perm: 'workflows.manage_templates' },
   { name: 'admin-triggers', key: 'triggers', perm: 'technical_endpoints.manage' },
   { name: 'admin-endpoints', key: 'endpoints', perm: 'technical_endpoints.manage' },
@@ -56,6 +56,23 @@ export interface AdminSettingsUpdateResponse {
   groups: AdminSettingGroup[];
 }
 
+export interface IntegrationAdapter {
+  id: string;
+  name: string;
+  mock: boolean;
+  version: string;
+}
+
+export interface DomainIntegration {
+  domain: string;
+  setting_key: string;
+  active_id: string;
+  source: SettingSource;
+  available: IntegrationAdapter[];
+  active_is_mock: boolean;
+  health: { state: string; summary: string } | null;
+}
+
 export const adminApi = {
   /** `GET /api/v1/admin/settings` — every overridable key, grouped. */
   settings: (signal?: AbortSignal) =>
@@ -64,4 +81,8 @@ export const adminApi = {
   /** `PUT /api/v1/admin/settings/{group}` — write the overrides for one group. */
   updateSettings: (group: string, values: Record<string, SettingValue>) =>
     api.put<AdminSettingsUpdateResponse>(`/admin/settings/${group}`, { values }),
+
+  /** `GET /api/v1/admin/integrations` — provider per domain + health (#724). */
+  integrations: (signal?: AbortSignal) =>
+    api.get<{ domains: DomainIntegration[] }>('/admin/integrations', { signal }),
 };

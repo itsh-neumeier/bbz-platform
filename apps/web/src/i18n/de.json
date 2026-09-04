@@ -196,6 +196,27 @@
         "published": "freigegeben",
         "retired": "zurückgezogen"
       }
+    },
+    "integrations": {
+      "loadError": "Die Integrationen konnten nicht geladen werden.",
+      "saveError": "Die Auswahl konnte nicht gespeichert werden.",
+      "restartNote": "Eine geänderte Provider-Auswahl wird beim nächsten Neustart wirksam (wie eine Umgebungsänderung).",
+      "adapter": "Adapter",
+      "mock": "nur Mock",
+      "noHealth": "kein Health-Status",
+      "saved": "Gespeichert.",
+      "domain": {
+        "telephony": "Telefonie",
+        "video": "Video",
+        "weather": "Wetter",
+        "monitor": "Monitor"
+      },
+      "health": {
+        "ok": "betriebsbereit",
+        "degraded": "eingeschränkt",
+        "down": "gestört",
+        "disabled": "deaktiviert"
+      }
     }
   },
   "shell": {

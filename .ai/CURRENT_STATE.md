@@ -687,7 +687,19 @@ CI — that job is **#123**, still open — so "feature complete" rows read
   editor is a follow-up). New `/admin/technische-endpunkte`
   (`AdminTechnicalEndpointsPage`): CRUD over `/technical-endpoints`.
   `lib/triggers.ts`. Frontend-only — reuses the E05/E15 APIs.
-  **Remaining: #724** integrations config.
+- **Administration — Phase 5: integrations** (#724 / part of #718).
+  `GET /api/v1/admin/integrations` (`integrations.view`) composes the manifest
+  registry (discoverable adapters per domain) + the settings-store selection
+  (`integrations.<domain>`, #720) + the `integration_health` table. Frontend
+  `/admin/integrationen` (`AdminIntegrationsPage`): a card per domain
+  (Telefonie · Video · Wetter · Monitor) with the adapter `<select>` (→
+  `PUT /admin/settings/integrations`, audited `SETTING_CHANGED`,
+  `integrations.configure`), a health badge and a mock hint. A provider
+  instance is cached for the process lifetime, so a changed selection takes
+  effect on the next restart (documented, like an env change) — wiring
+  `active_*_provider()` through the store is a follow-up.
+  **The Administration build-out (#718) is now feature-complete** (#720–#725
+  merged/in-PR); door-provider selection needs a `Settings` field first.
 - **DB UX Design System v3** (#713, PR **#714 merged**, **ADR-0029** Accepted,
   extends ADR-0013): the whole UI is now visually DB-conformant. `src/theme/` is
   rebuilt on `@db-ux/core-foundations@5.3.0` + the `@db-ux/db-theme@6.2.0`

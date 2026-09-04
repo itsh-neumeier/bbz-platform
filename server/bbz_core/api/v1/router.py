@@ -9,6 +9,7 @@ from bbz_core import __version__
 from bbz_core.api.deps import db_session
 from bbz_core.api.v1.account_linking import router as account_linking_router
 from bbz_core.api.v1.admin_directory import router as admin_directory_router
+from bbz_core.api.v1.admin_integrations import router as admin_integrations_router
 from bbz_core.api.v1.admin_settings import router as admin_settings_router
 from bbz_core.api.v1.audit import router as audit_router
 from bbz_core.api.v1.auth import router as auth_router
@@ -75,6 +76,7 @@ api_v1.include_router(weather_router)
 api_v1.include_router(monitor_router)
 api_v1.include_router(admin_settings_router)
 api_v1.include_router(admin_directory_router)
+api_v1.include_router(admin_integrations_router)
 
 
 class MetaResponse(BaseModel):
