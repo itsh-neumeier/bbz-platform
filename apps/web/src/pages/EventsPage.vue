@@ -258,8 +258,13 @@ watch(() => events.lastSeq, () => void load());
   background: var(--bbz-info-bg);
   box-shadow: inset 3px 0 0 var(--bbz-info);
 }
+/* archived rows read as "past" via muted text + a lighter title — not `opacity`,
+   which drags every foreground/background pair below WCAG AA (#121) */
 .events__row--archived {
-  opacity: 0.72;
+  color: var(--bbz-text-muted);
+}
+.events__row--archived .events__title {
+  font-weight: var(--bbz-weight-regular);
 }
 .events__prio {
   display: inline-flex;
