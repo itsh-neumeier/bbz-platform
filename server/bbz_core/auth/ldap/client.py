@@ -27,6 +27,7 @@ from bbz_core.auth.ldap.config import LdapConfig
 from bbz_core.auth.ldap.errors import (
     LdapAuthFailed,
     LdapConfigError,
+    LdapError,
     LdapInsecureError,
     LdapUnavailableError,
 )
@@ -95,6 +96,51 @@ class LdapClient:
             email=_first(attrs.get(cfg.mail_attr)),
             groups=groups,
         )
+
+    def probe(self) -> dict[str, object]:
+        """One-shot reachability / TLS / service-bind / sample-search check for
+        the admin "test connection" button (#723). Structured booleans + a
+        reason; never raises for an operational failure. No user data leaves —
+        only a small count."""
+        cfg = self._cfg
+        out: dict[str, object] = {
+            "reachable": False,
+            "tls_ok": False,
+            "bind_ok": False,
+            "sample_count": None,
+            "error": None,
+        }
+        try:
+            conn = self._connect(
+                _servers(cfg), cfg.bind_dn, cfg.bind_password, who="service account"
+            )
+        except LdapUnavailableError as exc:
+            out["error"] = str(exc)
+            return out
+        except LdapInsecureError as exc:
+            out["reachable"] = True
+            out["error"] = str(exc)
+            return out
+        except (LdapConfigError, LdapAuthFailed, LdapError) as exc:
+            # reachable + past TLS; the service bind itself was rejected
+            out["reachable"] = True
+            out["tls_ok"] = True
+            out["error"] = f"service bind failed: {exc}"
+            return out
+        out.update(reachable=True, tls_ok=True, bind_ok=True)
+        try:
+            conn.search(
+                cfg.user_search_base,
+                cfg.user_list_filter,
+                attributes=[cfg.uid_attr],
+                size_limit=5,
+            )
+            out["sample_count"] = len(conn.entries)
+        except LDAPException as exc:
+            out["error"] = f"search failed: {exc}"
+        finally:
+            conn.unbind()
+        return out
 
     def enumerate_principals(self) -> list[LdapPrincipal]:
         """Every account under ``user_search_base`` (paged), each with its groups.

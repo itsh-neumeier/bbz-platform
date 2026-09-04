@@ -30,15 +30,15 @@ from bbz_core.settings import get_settings
 _PROVIDER = "ldap_ad"
 
 
-def config_from_settings() -> LdapConfig:
+def _build_config(*, ldap_url: str, bind_dn: str, user_search_base: str) -> LdapConfig:
     s = get_settings()
-    if not s.ldap_url or not s.ldap_bind_dn or not s.ldap_user_search_base:
+    if not ldap_url or not bind_dn or not user_search_base:
         raise LdapConfigError("ldap_url / ldap_bind_dn / ldap_user_search_base not set")
     return LdapConfig(
-        urls=tuple(u.strip() for u in s.ldap_url.split(",") if u.strip()),
-        bind_dn=s.ldap_bind_dn,
-        bind_password=s.ldap_bind_password,
-        user_search_base=s.ldap_user_search_base,
+        urls=tuple(u.strip() for u in ldap_url.split(",") if u.strip()),
+        bind_dn=bind_dn,
+        bind_password=s.ldap_bind_password,  # secret — env / secrets dir only (ADR-0019)
+        user_search_base=user_search_base,
         user_filter=s.ldap_user_filter,
         user_list_filter=s.ldap_user_list_filter,
         page_size=s.ldap_page_size,
@@ -50,6 +50,30 @@ def config_from_settings() -> LdapConfig:
         start_tls=s.ldap_start_tls,
         tls_verify=s.ldap_tls_verify,
         tls_ca_file=s.ldap_tls_ca_file,
+    )
+
+
+def config_from_settings() -> LdapConfig:
+    """Env-only config (no session available — the background singleton / worker
+    threads). The admin API path uses :func:`config_from_store`."""
+    s = get_settings()
+    return _build_config(
+        ldap_url=s.ldap_url, bind_dn=s.ldap_bind_dn, user_search_base=s.ldap_user_search_base
+    )
+
+
+async def config_from_store(session: AsyncSession) -> LdapConfig:
+    """Like :func:`config_from_settings` but the connection fields
+    (``directory.ldap_url`` / ``ldap_bind_dn`` / ``ldap_user_search_base``) come
+    from the runtime settings store (DB → env → default, ADR-0031 / #723). The
+    bind password stays a secret — env / secrets dir only."""
+    from bbz_core.infra.repositories.settings_store import SettingsStore
+
+    store = SettingsStore(session)
+    return _build_config(
+        ldap_url=str(await store.effective("directory.ldap_url")),
+        bind_dn=str(await store.effective("directory.ldap_bind_dn")),
+        user_search_base=str(await store.effective("directory.ldap_user_search_base")),
     )
 
 
