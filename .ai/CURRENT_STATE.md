@@ -572,7 +572,7 @@ pg_dump→gpg→restore→count-match round trip + an etcd snapshot save/restore
 **Epic 06 COMPLETE (14/14)** — #92 (HA harness) shipped as a scaffold that
 needs a real multi-host runner before its nightly job can gate.
 
-### Epic 07 – Web UI / PrimeVue: **in progress (17/19 done, 2 in progress)**
+### Epic 07 – Web UI / PrimeVue: **COMPLETE (19/19)**
 Beyond the 19 E07 issues: the **V10-mockup parity** (#716/#717 + the #98 shell)
 and the **Administration build-out (#718 → #720–#725, all merged)** landed on
 top — see the mockup-parity + Administration bullets below.
@@ -586,9 +586,17 @@ scan (#121, `e2e/a11y.spec.ts`, light + dark). The EPK-canvas editor (#129 —
 real notation + drag/keyboard positioning) is also now `done`,
 `e2e/epk-editor.spec.ts`. So is the comms sidebar (#127 — the functional
 tabs already satisfied the AC; added the missing `e2e/comms-sidebar.spec.ts`
-leg for keyboard-operability + tab-switch state persistence). The 2
-`in progress` rows: #99 (API client — vitest only), #119 (i18n — grows per
-screen).
+leg for keyboard-operability + tab-switch state persistence). So is the
+generic API client (#99 — the command envelope + typed `ConflictError` were
+already real and used by 4 components; added `e2e/api-conflict.spec.ts`:
+two tabs race the same lifecycle action on a fresh event, one wins, the
+other gets a genuine 409 from `expected_version`/`InvalidTransition`, never
+a silent no-op). **#119 (i18n) closed with evidence, no PR** — its own
+Tests field asks for unit + lint only, no Playwright leg: `i18n:lint`
+(381 keys, all resolve) runs as a blocking `frontend`-CI step
+(`ci.yml:125`), `t()`/`d()` are used i18n-first throughout, date/time goes
+through vue-i18n's `d()` (ADR-0017 Europe/Berlin) everywhere. **All 19 of
+19 E07 issues done.**
 
 - **done** (each walked by a green CI Playwright spec): mockup-parity checklist
   (E07-01); auth UI incl. forced password change (E07-02 / #97 — `POST
@@ -618,10 +626,16 @@ screen).
   `stores/calls.ts`, `lib/telephony.ts`; its own AC's "Tabwechsel" Playwright
   leg was the only gap — `e2e/comms-sidebar.spec.ts` covers keyboard
   operability (native `<button role="tab">`) and state persistence across a
-  switch (`v-show`, not `v-if`, on all four panels))**.
-- **in progress**: generic API client (E07-04 / #99 — merged + `apiClient.spec.ts`
-  vitest, no direct E2E); i18n locale (E07-14 / #119 — `i18n:lint` green, grows
-  per screen).
+  switch (`v-show`, not `v-if`, on all four panels))**;
+  **generic API client (E07-04 / #99 — `apiClient.ts`'s command envelope,
+  typed `ApiError`/`ConflictError`/`AuthExpiredError`, caught in
+  `EventActions`/`OwnershipBar`/`WorkflowRunPanel`/`stores/events.ts`;
+  double-click protection is a `busy`-disable on every write button, not
+  idempotency-key reuse — simpler and equally effective; `e2e/api-conflict.spec.ts`
+  proves the 409 path against a real race, not a mock)**; **i18n locale
+  (E07-14 / #119 — no Playwright leg called for; `i18n:lint` (381 keys)
+  blocks the `frontend` CI job, `t()`/`d()` used i18n-first throughout,
+  closed with evidence, no PR needed)**.
 - **#123 (E07-16) — the mandatory E2E, now wired into CI.** New CI job `e2e`
   (`.github/workflows/ci.yml`): a `postgres:16` service, `pip install ./server`,
   `alembic upgrade head`, **`python server/scripts/seed_e2e.py`** (admin +
