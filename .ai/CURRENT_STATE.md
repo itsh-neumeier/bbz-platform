@@ -571,7 +571,7 @@ pg_dump→gpg→restore→count-match round trip + an etcd snapshot save/restore
 **Epic 06 COMPLETE (14/14)** — #92 (HA harness) shipped as a scaffold that
 needs a real multi-host runner before its nightly job can gate.
 
-### Epic 07 – Web UI / PrimeVue: **in progress (14/19 done, 5 in progress)**
+### Epic 07 – Web UI / PrimeVue: **in progress (15/19 done, 4 in progress)**
 Beyond the 19 E07 issues: the **V10-mockup parity** (#716/#717 + the #98 shell)
 and the **Administration build-out (#718 → #720–#725, all merged)** landed on
 top — see the mockup-parity + Administration bullets below.
@@ -580,9 +580,10 @@ The Vue toolchain runs in a `node:22-alpine` container (E01-06 made the
 enforces the checklist. **#123 (E07-16) shipped the CI `e2e` job** — a row is
 `done` once a Playwright spec exercises it in CI. `e2e/shell.spec.ts` added the
 SSE indicator (#101), the topbar priority banner (#117), the critical-row pulse
-+ `prefers-reduced-motion` (#105) and the theme toggle (#125). The 5 `in
-progress` rows: #99 (API client — vitest only), #119 (i18n — grows per screen),
-#121 (a11y — axe-in-E2E left), #127 (comms sidebar polish), #129 (EPK canvas).
++ `prefers-reduced-motion` (#105), the theme toggle (#125) and the axe a11y
+scan (#121, `e2e/a11y.spec.ts`, light + dark). The 4 `in progress` rows: #99
+(API client — vitest only), #119 (i18n — grows per screen), #127 (comms sidebar
+polish), #129 (EPK canvas drag).
 
 - **done** (each walked by a green CI Playwright spec): mockup-parity checklist
   (E07-01); auth UI incl. forced password change (E07-02 / #97 — `POST
@@ -595,11 +596,13 @@ progress` rows: #99 (API client — vitest only), #119 (i18n — grows per scree
   takeover **and** "Übergeben an" from `GET /events/assignable`); archive view
   (E07-11); reactivation dialog (E07-12); the topbar priority banner (E07-13 /
   #117, `e2e/shell.spec.ts`); the Playwright CI job (E07-16 / #123); theme
-  toggle (E07-17 / #125, `e2e/shell.spec.ts`).
+  toggle (E07-17 / #125, `e2e/shell.spec.ts`); **a11y baseline (E07-15 / #121 —
+  `vuejs-accessibility` at error + `@axe-core/playwright` on Arbeitsplatz /
+  Ereignisse / Wetterlage in light + dark, `e2e/a11y.spec.ts`; fixed the
+  shell-chrome muted text `emphasis 70→80` and the archived-row `opacity`)**.
 - **in progress**: generic API client (E07-04 / #99 — merged + `apiClient.spec.ts`
   vitest, no direct E2E); i18n locale (E07-14 / #119 — `i18n:lint` green, grows
-  per screen); a11y baseline (E07-15 / #121 — lint at error; axe-in-E2E left);
-  comms sidebar (E07-18 — keypad + waiting queue +
+  per screen); comms sidebar (E07-18 — keypad + waiting queue +
   active-call controls + mandatory documentation + mini phone-book + history +
   line strip; `stores/calls.ts`, `lib/telephony.ts`); the EPK editor (E07-19 —
   `/admin/handlungsanweisungen` `WorkflowAdminPage`: template + draft-version

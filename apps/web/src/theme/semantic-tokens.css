@@ -24,11 +24,12 @@
     --bbz-surface-alt: var(--db-adaptive-bg-basic-level-3-default);
     --bbz-surface-inverted: var(--db-adaptive-bg-inverted-contrast-high-default);
 
-    /* ---- text ---- (emphasis 100 = body, 70 = muted-but-legible; 50/60 are
-       DB's line/decoration tiers, never text) ---- */
+    /* ---- text ---- (emphasis 100 = body; 80 = muted, still WCAG 2 AA on the
+       lighter surfaces the shell chrome sits on — emphasis 70 was 4.05:1 on
+       surface-alt, #121; 50/60 are DB's line/decoration tiers, never text) ---- */
     --bbz-text: var(--db-adaptive-on-bg-basic-emphasis-100-default);
-    --bbz-text-muted: var(--db-adaptive-on-bg-basic-emphasis-70-default);
-    --bbz-text-subtle: var(--db-adaptive-on-bg-basic-emphasis-70-default);
+    --bbz-text-muted: var(--db-adaptive-on-bg-basic-emphasis-80-default);
+    --bbz-text-subtle: var(--db-adaptive-on-bg-basic-emphasis-80-default);
     --bbz-on-inverted: var(--db-adaptive-on-bg-inverted-default);
 
     /* ---- lines ---- */
