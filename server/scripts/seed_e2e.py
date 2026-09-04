@@ -19,6 +19,8 @@ Idempotent — safe to re-run against a fresh schema. Creates:
   the assign / take-over step
 * ``BMA Stellwerk — E2E-Archiv`` — an already archived event, for the standalone
   archive / post-processing / reactivation spec
+* ``BMA Gleis 5 — E2E-Konflikt`` — a fresh (``new``) event, for the two-tab
+  409-conflict E2E (E07-04 / #99): two tabs race the same lifecycle action
 
     python server/scripts/seed_e2e.py
 
@@ -100,6 +102,7 @@ _EPK_GRAPH: dict[str, object] = {
 _LIFECYCLE_TITLE = "BMA Halle 7 — E2E-Lebenszyklus"
 _TAKEOVER_TITLE = "BMA Halle 3 — E2E-Übernahme"
 _ARCHIVED_TITLE = "BMA Stellwerk — E2E-Archiv"
+_CONFLICT_TITLE = "BMA Gleis 5 — E2E-Konflikt"
 
 
 async def _seed() -> None:
@@ -248,8 +251,13 @@ async def _seed() -> None:
         archived_id = await make_event(s, admin_id, _ARCHIVED_TITLE)
         await drive(s, archived_id, admin_id, "accept", "acknowledge", "open", "archive")
 
+        # left at `new` on purpose — the conflict E2E races the *next* lifecycle
+        # action from whatever status it currently holds, so it stays safe to
+        # retry (each attempt advances it by exactly one of its 4 steps).
+        await make_event(s, admin_id, _CONFLICT_TITLE)
+
     print(
-        "seed_e2e: ready — admin / kollege / neuling, workflows e2e-bma + e2e-epk (draft), 3 events"
+        "seed_e2e: ready — admin / kollege / neuling, workflows e2e-bma + e2e-epk (draft), 4 events"
     )
 
 
