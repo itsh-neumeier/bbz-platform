@@ -10,7 +10,8 @@ priority alerts · SSE · theme · i18n), the weather + monitor pages, the
 phone-book, the comms sidebar, the EPK editor and the `/arbeitsplatz` status
 board are merged; the V10-mockup parity, the Administration build-out, the
 **§24 Playwright E2E in CI (#123)** and the **forced-password-change flow
-(#97)** landed on top — Epic 07 is now ~17/19 (see the Epic 07 section).
+(#97)** and the **EPK-canvas editor (#129)** landed on top — Epic 07 is now
+16/19 (see the Epic 07 section).
 **In progress: Epic 23** (security hardening,
 7/12 + E23-10/E23-11 partial) **and Epic 24** (production deployment, 3/8).
 Blocked until an Electron / Go / Cisco-vendor / SIP-PBX session: Epics 08, 09,
@@ -571,7 +572,7 @@ pg_dump→gpg→restore→count-match round trip + an etcd snapshot save/restore
 **Epic 06 COMPLETE (14/14)** — #92 (HA harness) shipped as a scaffold that
 needs a real multi-host runner before its nightly job can gate.
 
-### Epic 07 – Web UI / PrimeVue: **in progress (15/19 done, 4 in progress)**
+### Epic 07 – Web UI / PrimeVue: **in progress (16/19 done, 3 in progress)**
 Beyond the 19 E07 issues: the **V10-mockup parity** (#716/#717 + the #98 shell)
 and the **Administration build-out (#718 → #720–#725, all merged)** landed on
 top — see the mockup-parity + Administration bullets below.
@@ -581,9 +582,10 @@ enforces the checklist. **#123 (E07-16) shipped the CI `e2e` job** — a row is
 `done` once a Playwright spec exercises it in CI. `e2e/shell.spec.ts` added the
 SSE indicator (#101), the topbar priority banner (#117), the critical-row pulse
 + `prefers-reduced-motion` (#105), the theme toggle (#125) and the axe a11y
-scan (#121, `e2e/a11y.spec.ts`, light + dark). The 4 `in progress` rows: #99
-(API client — vitest only), #119 (i18n — grows per screen), #127 (comms sidebar
-polish), #129 (EPK canvas drag).
+scan (#121, `e2e/a11y.spec.ts`, light + dark). The EPK-canvas editor (#129 —
+real notation + drag/keyboard positioning) is also now `done`,
+`e2e/epk-editor.spec.ts`. The 3 `in progress` rows: #99 (API client — vitest
+only), #119 (i18n — grows per screen), #127 (comms sidebar polish).
 
 - **done** (each walked by a green CI Playwright spec): mockup-parity checklist
   (E07-01); auth UI incl. forced password change (E07-02 / #97 — `POST
@@ -599,15 +601,20 @@ polish), #129 (EPK canvas drag).
   toggle (E07-17 / #125, `e2e/shell.spec.ts`); **a11y baseline (E07-15 / #121 —
   `vuejs-accessibility` at error + `@axe-core/playwright` on Arbeitsplatz /
   Ereignisse / Wetterlage in light + dark, `e2e/a11y.spec.ts`; fixed the
-  shell-chrome muted text `emphasis 70→80` and the archived-row `opacity`)**.
+  shell-chrome muted text `emphasis 70→80` and the archived-row `opacity`)**;
+  **the EPK-canvas editor (E07-19 / #129 — `/admin/handlungsanweisungen`
+  `WorkflowAdminPage` + new `EpkCanvas.vue`: real EPK notation (hexagon event /
+  rounded-rect function / connector circle with its ∧/∨/⊕ glyph, split vs. join
+  read from edge fan-in/out, never a colour — colour stays reserved for alarm
+  priorities), vertical auto-layout (`layoutRows`), pointer-drag **and** a full
+  keyboard alternative (arrow keys move, Shift = ×4 grid, Delete removes) that
+  write to `node.props.x/y` — an already-open schema field, so no migration or
+  ADR was needed — "Auto-Layout" clears stored positions; `e2e/epk-editor.spec.ts`)**.
 - **in progress**: generic API client (E07-04 / #99 — merged + `apiClient.spec.ts`
   vitest, no direct E2E); i18n locale (E07-14 / #119 — `i18n:lint` green, grows
   per screen); comms sidebar (E07-18 — keypad + waiting queue +
   active-call controls + mandatory documentation + mini phone-book + history +
-  line strip; `stores/calls.ts`, `lib/telephony.ts`); the EPK editor (E07-19 —
-  `/admin/handlungsanweisungen` `WorkflowAdminPage`: template + draft-version
-  lifecycle, node/edge forms, an auto-laid-out SVG preview, validate + publish;
-  canvas drag is a follow-up).
+  line strip; `stores/calls.ts`, `lib/telephony.ts`).
 - **#123 (E07-16) — the mandatory E2E, now wired into CI.** New CI job `e2e`
   (`.github/workflows/ci.yml`): a `postgres:16` service, `pip install ./server`,
   `alembic upgrade head`, **`python server/scripts/seed_e2e.py`** (admin +

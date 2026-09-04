@@ -285,6 +285,10 @@
     "newTemplate": "Vorlage anlegen",
     "newVersion": "Neue Entwurfsversion",
     "previewAlt": "Graph-Vorschau der Workflow-Vorlage",
+    "canvasEditableAlt": "EPK-Prozessgraph, bearbeitbar. Mit der Tabulatortaste zu einem Knoten wechseln, mit den Pfeiltasten verschieben, Entf zum Entfernen.",
+    "canvasHint": "Knoten ziehen oder mit den Pfeiltasten verschieben (Umschalt = größerer Schritt). Verbindungen unten im Formular bearbeiten.",
+    "autoLayout": "Auto-Layout",
+    "nodeAria": "{type}: {label}",
     "nodes": "Knoten",
     "edges": "Kanten",
     "edge": "Kante",
@@ -332,6 +336,11 @@
       "validated": "validiert",
       "published": "veröffentlicht",
       "deprecated": "veraltet"
+    },
+    "connectorAria": {
+      "and": "UND-Konnektor",
+      "or": "ODER-Konnektor",
+      "xor": "Exklusiv-ODER-Konnektor"
     }
   },
   "monitor": {

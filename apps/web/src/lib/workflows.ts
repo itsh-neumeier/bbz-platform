@@ -127,9 +127,26 @@ export const workflowsApi = {
     api.post<WfVersion>(`/workflow-template-versions/${versionId}/deprecate`),
 };
 
-/** Deterministic column layout: BFS depth from `start` along edges. Nodes with
- *  no inbound edge that aren't the start sit in column 0 too. */
-export function layoutColumns(graph: WfGraph): Map<string, { col: number; row: number }> {
+/** EPK canvas geometry (E07-19 / #129). Every node occupies the same `NODE_W` ×
+ *  `NODE_H` bounding box regardless of shape — a hexagon (event), a rounded
+ *  rect (function) or a small circle (connector) — so the vertical layout and
+ *  the edge anchors stay shape-agnostic. `GRID` is the drag/keyboard-nudge
+ *  snap increment. */
+export const NODE_W = 150;
+export const NODE_H = 48;
+export const GRID = 16;
+export const CANVAS_PADDING = 24;
+const ROW_GAP = 110;
+const COL_GAP = 190;
+
+export const CONNECTOR_GLYPH: Record<ConnectorKind, string> = { and: '∧', or: '∨', xor: '⊕' };
+
+/** Vertical EPK auto-layout: BFS longest-path depth from `start` along edges
+ *  gives each node's row (`y`); nodes sharing a row are spread on `x`, centred
+ *  on the tree midpoint. Pixel coordinates (top-left of the node's bounding
+ *  box) — the fallback `nodePos()` uses for any node without a stored
+ *  `props.x`/`props.y`. Deterministic for a given graph. */
+export function layoutRows(graph: WfGraph): Map<string, { x: number; y: number }> {
   const byKey = new Map(graph.nodes.map((n) => [n.key, n]));
   const out = new Map<string, string[]>();
   for (const n of graph.nodes) out.set(n.key, []);
@@ -150,18 +167,77 @@ export function layoutColumns(graph: WfGraph): Map<string, { col: number; row: n
       }
     }
   }
-  let maxDepth = 0;
+
+  const rows = new Map<number, string[]>();
   for (const n of graph.nodes) {
     if (!depth.has(n.key)) depth.set(n.key, 0);
-    maxDepth = Math.max(maxDepth, depth.get(n.key)!);
+    const d = depth.get(n.key)!;
+    if (!rows.has(d)) rows.set(d, []);
+    rows.get(d)!.push(n.key);
   }
-  const rowOf = new Map<number, number>();
-  const pos = new Map<string, { col: number; row: number }>();
+
+  // Centre-x per node first (node midpoints, tree centred on 0), then shift
+  // everything into a positive top-left coordinate space.
+  const centerX = new Map<string, number>();
+  for (const keys of rows.values()) {
+    const span = (keys.length - 1) * COL_GAP;
+    keys.forEach((key, i) => centerX.set(key, i * COL_GAP - span / 2));
+  }
+  let minLeft = 0;
+  for (const cx of centerX.values()) minLeft = Math.min(minLeft, cx - NODE_W / 2);
+
+  const pos = new Map<string, { x: number; y: number }>();
   for (const n of graph.nodes) {
-    const col = depth.get(n.key) ?? 0;
-    const row = rowOf.get(col) ?? 0;
-    rowOf.set(col, row + 1);
-    pos.set(n.key, { col, row });
+    const d = depth.get(n.key)!;
+    const cx = centerX.get(n.key)!;
+    pos.set(n.key, {
+      x: cx - NODE_W / 2 - minLeft + CANVAS_PADDING,
+      y: d * ROW_GAP + CANVAS_PADDING,
+    });
   }
   return pos;
+}
+
+/** A node's canvas position: its stored `props.x`/`props.y` when both are
+ *  finite numbers, else the auto-layout fallback. */
+export function nodePos(
+  node: WfNode,
+  auto: Map<string, { x: number; y: number }>,
+): { x: number; y: number } {
+  const x = node.props?.x;
+  const y = node.props?.y;
+  if (typeof x === 'number' && Number.isFinite(x) && typeof y === 'number' && Number.isFinite(y)) {
+    return { x, y };
+  }
+  return auto.get(node.key) ?? { x: CANVAS_PADDING, y: CANVAS_PADDING };
+}
+
+/** Snap a coordinate to the drag/keyboard grid. */
+export function snap(v: number, grid: number = GRID): number {
+  return Math.round(v / grid) * grid;
+}
+
+/** Pure drag/nudge math: current position + delta, snapped, clamped onto the
+ *  canvas. The caller (pointer or keyboard handler) writes the result into
+ *  `node.props`. */
+export function applyNodeDrag(
+  node: WfNode,
+  dx: number,
+  dy: number,
+  auto: Map<string, { x: number; y: number }>,
+): { x: number; y: number } {
+  const base = nodePos(node, auto);
+  return { x: Math.max(0, snap(base.x + dx)), y: Math.max(0, snap(base.y + dy)) };
+}
+
+/** Where a control-flow arrow meets a node's shape. Every shape (hexagon,
+ *  rounded rect, connector circle) shares the same `NODE_W`×`NODE_H` bounding
+ *  box and presents a flat top/bottom edge, so the anchor is shape-agnostic:
+ *  top-centre for an incoming arrow, bottom-centre for an outgoing one. */
+export function anchorFor(
+  pos: { x: number; y: number },
+  side: 'in' | 'out',
+): { x: number; y: number } {
+  const cx = pos.x + NODE_W / 2;
+  return side === 'in' ? { x: cx, y: pos.y } : { x: cx, y: pos.y + NODE_H };
 }

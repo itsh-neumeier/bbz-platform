@@ -1,20 +1,21 @@
 <script setup lang="ts">
 /**
  * Workflow-template admin / EPK editor (E07-19 / #129, MASTER_PROMPT §33).
- * A structural editor: pick a template, add a draft version, edit its nodes
- * (event / function / connector) and edges as forms, see an auto-laid-out
- * graph preview, validate against the publish gate (E05-06) and publish.
- * Drag-to-position on a canvas is a follow-up; the graph render here is
- * read-only and derived from edge depth.
+ * Pick a template, add a draft version, edit its nodes (event / function /
+ * connector) and edges as forms, see a real EPK canvas (hexagon / rounded
+ * rect / connector circle, vertically auto-laid-out — `EpkCanvas.vue`),
+ * validate against the publish gate (E05-06) and publish. On a draft, nodes
+ * can be dragged or keyboard-nudged into place on the canvas; "Auto-Layout"
+ * clears any stored positions back to the vertical auto-layout.
  */
 import { computed, nextTick, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { ApiError } from '@/lib/apiClient';
 import { useSessionStore } from '@/stores/session';
+import EpkCanvas from '@/components/workflow/EpkCanvas.vue';
 import {
   workflowsApi,
   emptyGraph,
-  layoutColumns,
   CONNECTOR_KINDS,
   FUNCTION_KINDS,
   type WfGraph,
@@ -216,25 +217,17 @@ function removeEdge(key: string): void {
   graph.value.edges = graph.value.edges.filter((e) => e.key !== key);
 }
 
-// --- preview -------------------------------------------------------
-const COL_W = 150;
-const ROW_H = 64;
-const positions = computed(() => layoutColumns(graph.value));
-const svgSize = computed(() => {
-  let maxCol = 0;
-  let maxRow = 0;
-  for (const p of positions.value.values()) {
-    maxCol = Math.max(maxCol, p.col);
-    maxRow = Math.max(maxRow, p.row);
+/** Drop every node's stored canvas position — `EpkCanvas` then falls back to
+ *  the vertical auto-layout for all of them. */
+function autoLayout(): void {
+  for (const n of graph.value.nodes) {
+    if (!n.props) continue;
+    const rest: Record<string, unknown> = {};
+    for (const key of Object.keys(n.props)) {
+      if (key !== 'x' && key !== 'y') rest[key] = n.props[key];
+    }
+    n.props = Object.keys(rest).length ? rest : undefined;
   }
-  return { w: (maxCol + 1) * COL_W + 20, h: (maxRow + 1) * ROW_H + 20 };
-});
-function nodeXY(key: string): { x: number; y: number } {
-  const p = positions.value.get(key) ?? { col: 0, row: 0 };
-  return { x: p.col * COL_W + 20, y: p.row * ROW_H + 20 };
-}
-function nodeClass(n: WfNode): string {
-  return `wfp__node wfp__node--${n.type}`;
 }
 
 onMounted(loadTemplates);
@@ -352,63 +345,26 @@ onMounted(loadTemplates);
           v-if="version"
           class="wf__graph"
         >
-          <!-- preview -->
+          <!-- EPK canvas -->
+          <EpkCanvas
+            :graph="graph"
+            :editable="editable"
+            @remove-node="removeNode"
+          />
           <div
-            class="wfp"
-            role="img"
-            :aria-label="t('wf.previewAlt')"
+            v-if="editable"
+            class="wf__canvasrow"
           >
-            <svg
-              :viewBox="`0 0 ${svgSize.w} ${svgSize.h}`"
-              :width="svgSize.w"
-              :height="svgSize.h"
+            <p class="wf__hint">
+              {{ t('wf.canvasHint') }}
+            </p>
+            <button
+              type="button"
+              class="wf__autolayout"
+              @click="autoLayout"
             >
-              <defs>
-                <marker
-                  id="wf-arrow"
-                  viewBox="0 0 10 10"
-                  refX="9"
-                  refY="5"
-                  markerWidth="7"
-                  markerHeight="7"
-                  orient="auto-start-reverse"
-                >
-                  <path
-                    d="M0 0 L10 5 L0 10 z"
-                    fill="currentColor"
-                  />
-                </marker>
-              </defs>
-              <line
-                v-for="e in graph.edges"
-                :key="e.key"
-                :x1="nodeXY(e.from).x + 120"
-                :y1="nodeXY(e.from).y + 18"
-                :x2="nodeXY(e.to).x"
-                :y2="nodeXY(e.to).y + 18"
-                class="wfp__edge"
-                marker-end="url(#wf-arrow)"
-              />
-              <g
-                v-for="n in graph.nodes"
-                :key="n.key"
-              >
-                <rect
-                  :x="nodeXY(n.key).x"
-                  :y="nodeXY(n.key).y"
-                  width="120"
-                  height="36"
-                  rx="6"
-                  :class="nodeClass(n)"
-                />
-                <text
-                  :x="nodeXY(n.key).x + 60"
-                  :y="nodeXY(n.key).y + 22"
-                  text-anchor="middle"
-                  class="wfp__label"
-                >{{ n.label || n.key }}</text>
-              </g>
-            </svg>
+              {{ t('wf.autoLayout') }}
+            </button>
           </div>
 
           <!-- issues -->
@@ -482,7 +438,7 @@ onMounted(loadTemplates);
                           :key="c"
                           :value="c"
                         >
-                          c.toUpperCase()
+                          {{ c.toUpperCase() }}
                         </option>
                       </select>
                       <select
@@ -564,7 +520,7 @@ onMounted(loadTemplates);
                         :key="n.key"
                         :value="n.key"
                       >
-                        n.label || n.key
+                        {{ n.label || n.key }}
                       </option>
                     </select>
                   </td>
@@ -578,7 +534,7 @@ onMounted(loadTemplates);
                         :key="n.key"
                         :value="n.key"
                       >
-                        n.label || n.key
+                        {{ n.label || n.key }}
                       </option>
                     </select>
                   </td>
@@ -622,7 +578,7 @@ onMounted(loadTemplates);
                 :key="n.key"
                 :value="n.key"
               >
-                n.label || n.key
+                {{ n.label || n.key }}
               </option>
             </select>
           </fieldset>
@@ -748,32 +704,26 @@ onMounted(loadTemplates);
 .wf__lc--validated {
   background: color-mix(in srgb, var(--bbz-accent) 25%, var(--bbz-surface));
 }
-.wfp {
-  overflow-x: auto;
+.wf__canvasrow {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin: -0.4rem 0 0.75rem;
+}
+.wf__hint {
+  color: var(--bbz-text-muted);
+  font-size: 0.78rem;
+}
+.wf__autolayout {
+  flex: none;
+  padding: 0.3rem 0.6rem;
   border: 1px solid var(--bbz-border);
   border-radius: var(--bbz-radius);
-  background: var(--bbz-surface);
-  padding: 0.5rem;
-  margin-bottom: 0.75rem;
-  color: var(--bbz-text-muted);
-}
-.wfp__edge {
-  stroke: var(--bbz-text-muted);
-  stroke-width: 1.5;
-}
-.wfp__node {
-  stroke: var(--bbz-border);
-  fill: var(--bbz-surface-alt);
-}
-.wfp__node--event {
-  fill: color-mix(in srgb, var(--bbz-prio-low) 18%, var(--bbz-surface));
-}
-.wfp__node--connector {
-  fill: color-mix(in srgb, var(--bbz-prio-medium) 20%, var(--bbz-surface));
-}
-.wfp__label {
-  fill: var(--bbz-text);
-  font-size: 11px;
+  background: var(--bbz-bg);
+  color: var(--bbz-text);
+  font-size: 0.78rem;
+  cursor: pointer;
 }
 .wf__issues {
   margin: 0 0 0.75rem;

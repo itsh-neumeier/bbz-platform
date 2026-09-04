@@ -10,6 +10,8 @@ Idempotent — safe to re-run against a fresh schema. Creates:
 * ``neuling`` — an operator flagged ``must_change`` for the forced-password
   -change flow (E07-02 / #97)
 * a published 1-step workflow template ``e2e-bma``
+* a **draft** workflow template ``e2e-epk`` (event -> XOR-split -> two
+  functions -> XOR-join -> event) for the EPK-canvas-editor E2E (E07-19 / #129)
 * ``BMA Halle 7 — E2E-Lebenszyklus`` — a fresh (``new``) critical event **with**
   that workflow, for the accept -> acknowledge -> open -> complete-step ->
   archive -> archive-detail -> reactivate walk
@@ -56,6 +58,42 @@ _GRAPH: dict[str, object] = {
     "edges": [
         {"key": "a", "from": "e0", "to": "verify"},
         {"key": "b", "from": "verify", "to": "e1"},
+    ],
+}
+
+# Small but complete EPK (E07-19 / #129): event -> XOR-split -> two functions
+# -> XOR-join -> event — exercises all three node shapes on the canvas. Left as
+# a draft on purpose: the canvas E2E only opens/edits/saves it, never publishes
+# it, so the XOR branches carry no `condition` DSL and `epk_f2` has no
+# `props.channel` — both of which the *publish* gate (E05-06) would demand.
+_EPK_GRAPH: dict[str, object] = {
+    "start": "epk_e0",
+    "nodes": [
+        {"key": "epk_e0", "type": "event", "label": "Alarm ausgelöst"},
+        {
+            "key": "epk_split",
+            "type": "connector",
+            "connector": "xor",
+            "direction": "split",
+            "label": "Art des Alarms?",
+        },
+        {"key": "epk_f1", "type": "function", "kind": "manual", "label": "Vor Ort prüfen"},
+        {
+            "key": "epk_f2",
+            "type": "function",
+            "kind": "notification",
+            "label": "Leitstelle informieren",
+        },
+        {"key": "epk_join", "type": "connector", "connector": "xor", "direction": "join"},
+        {"key": "epk_e1", "type": "event", "label": "Abgeschlossen"},
+    ],
+    "edges": [
+        {"key": "epk_a", "from": "epk_e0", "to": "epk_split"},
+        {"key": "epk_b", "from": "epk_split", "to": "epk_f1", "branch": "vor Ort"},
+        {"key": "epk_c", "from": "epk_split", "to": "epk_f2", "branch": "Fernmeldung"},
+        {"key": "epk_d", "from": "epk_f1", "to": "epk_join"},
+        {"key": "epk_e", "from": "epk_f2", "to": "epk_join"},
+        {"key": "epk_f", "from": "epk_join", "to": "epk_e1"},
     ],
 }
 
@@ -181,6 +219,25 @@ async def _seed() -> None:
                     )
                 )
 
+        async with s.begin():
+            # a *draft* template — the EPK-canvas-editor E2E needs an editable
+            # version to drag/keyboard-nudge nodes on (E07-19 / #129).
+            has_epk = await s.scalar(
+                select(WorkflowTemplate.id).where(WorkflowTemplate.key == "e2e-epk")
+            )
+            if has_epk is None:
+                tpl = WorkflowTemplate(key="e2e-epk", name="E2E EPK")
+                s.add(tpl)
+                await s.flush()
+                s.add(
+                    WorkflowTemplateVersion(
+                        template_id=tpl.id,
+                        version_no=1,
+                        lifecycle="draft",
+                        definition=_EPK_GRAPH,
+                    )
+                )
+
         lifecycle_id = await make_event(s, admin_id, _LIFECYCLE_TITLE)
         # idempotent — returns the already-running instance on a re-run
         await WorkflowEngineService(s).start_for_event(lifecycle_id, "e2e-bma", actor_id=admin_id)
@@ -191,7 +248,9 @@ async def _seed() -> None:
         archived_id = await make_event(s, admin_id, _ARCHIVED_TITLE)
         await drive(s, archived_id, admin_id, "accept", "acknowledge", "open", "archive")
 
-    print("seed_e2e: ready — admin / kollege / neuling, workflow e2e-bma, 3 events")
+    print(
+        "seed_e2e: ready — admin / kollege / neuling, workflows e2e-bma + e2e-epk (draft), 3 events"
+    )
 
 
 if __name__ == "__main__":
