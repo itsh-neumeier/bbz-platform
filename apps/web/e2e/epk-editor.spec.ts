@@ -59,7 +59,9 @@ test('a node moves with the keyboard alone and the new position survives a reloa
   expect(moved!.y - before!.y).toBeGreaterThan(30); // 3 x GRID(16)px, minus AA slack
 
   await page.getByRole('button', { name: 'Speichern' }).click();
-  await expect(page.getByRole('status')).toContainText('gespeichert');
+  // scoped, not getByRole('status') — the shell's own SSE indicator is also
+  // role="status" on every page
+  await expect(page.locator('.wf__ok')).toContainText('gespeichert');
 
   await page.reload();
   await page.getByRole('button', { name: 'E2E EPK' }).click();
