@@ -30,12 +30,13 @@ test.beforeEach(async ({ request, baseURL, page }) => {
 test('create a contact, find it by live search, then set its call priority (#297)', async ({
   page,
 }) => {
-  // create — only the create form's "Name"/"Rufnummer" are on screen here,
-  // nothing is selected yet
+  // create — scoped to the create form: "Rufnummer" is also the persistent
+  // comms-sidebar dial-pad's label, present on every route
   await page.getByRole('button', { name: 'Neuer Kontakt' }).click();
-  await page.getByLabel('Name', { exact: true }).fill(NAME);
-  await page.getByLabel('Rufnummer', { exact: true }).fill('030987654');
-  await page.getByRole('button', { name: 'Anlegen' }).click();
+  const createForm = page.locator('.pb__create');
+  await createForm.getByLabel('Name', { exact: true }).fill(NAME);
+  await createForm.getByLabel('Rufnummer', { exact: true }).fill('030987654');
+  await createForm.getByRole('button', { name: 'Anlegen' }).click();
 
   const row = page.locator('.pb__row').filter({ hasText: NAME });
   await expect(row).toBeVisible();
