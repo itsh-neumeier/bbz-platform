@@ -14,13 +14,13 @@
 # Shared tooling
 # Upper bounds are deliberately loose: security scanning (pip-audit) must be
 # free to pull patched releases. Compatibility is caught by CI, not by pinning.
-ruff>=0.16.4
+ruff>=0.16.5
 mypy>=2.3.1,<3.0
-import-linter>=2.13,<3.0
+import-linter>=2.14,<3.0
 pytest>=9.1.1
 pytest-asyncio>=1.4.0
 pytest-cov>=7.1.0
-hypothesis>=6.100
+hypothesis>=6.167.1
 httpx>=0.28.1
 pip-audit>=2.10.1
 types-jsonschema>=4.26.0.20260518
