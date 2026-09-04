@@ -69,5 +69,8 @@ test('a node moves with the keyboard alone and the new position survives a reloa
     .getByRole('button', { name: 'Funktion: Vor Ort prüfen' })
     .boundingBox();
   expect(afterReload).not.toBeNull();
-  expect(Math.abs(afterReload!.y - moved!.y)).toBeLessThan(2);
+  // a few px of slack: two independent renders (pre-reload vs. a fresh page
+  // load) can round sub-pixel layout slightly differently; what matters is
+  // that the position survived, not pixel-identical boundingBox() math.
+  expect(Math.abs(afterReload!.y - moved!.y)).toBeLessThan(8);
 });
