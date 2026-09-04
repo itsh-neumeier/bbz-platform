@@ -6,6 +6,7 @@
       "always",
       ["feat", "fix", "docs", "refactor", "test", "chore", "ci", "build", "perf", "revert"]
     ],
-    "body-max-line-length": [0, "always"]
+    "body-max-line-length": [0, "always"],
+    "footer-max-line-length": [0, "always"]
   }
 }
