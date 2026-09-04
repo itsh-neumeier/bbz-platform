@@ -678,8 +678,16 @@ CI — that job is **#123**, still open — so "feature complete" rows read
   the store — wired into the account-link LDAP path and the sync endpoint (via
   `DirectorySyncService(config=…)`; the scheduled singleton stays env-only).
   `lib/directory.ts`.
-  **Remaining: #724** integrations / **#725** workflow+trigger+endpoint
-  relocation.
+- **Administration — Phase 4: workflows / triggers / technical endpoints**
+  (#725 / part of #718). The EPK editor moved to `/admin/handlungsanweisungen`
+  (route name `workflow-admin` kept; `/admin/workflows` → redirect). New
+  `/admin/trigger-regeln` (`AdminTriggerRulesPage`): list rules + versions,
+  validate / publish / retire a version, run a simulation against a synthetic
+  signal (JSON); create a rule (conditions/actions as JSON — a structured
+  editor is a follow-up). New `/admin/technische-endpunkte`
+  (`AdminTechnicalEndpointsPage`): CRUD over `/technical-endpoints`.
+  `lib/triggers.ts`. Frontend-only — reuses the E05/E15 APIs.
+  **Remaining: #724** integrations config.
 - **DB UX Design System v3** (#713, PR **#714 merged**, **ADR-0029** Accepted,
   extends ADR-0013): the whole UI is now visually DB-conformant. `src/theme/` is
   rebuilt on `@db-ux/core-foundations@5.3.0` + the `@db-ux/db-theme@6.2.0`
