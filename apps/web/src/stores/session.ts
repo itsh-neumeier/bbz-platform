@@ -37,6 +37,7 @@ interface MeResponse {
   user: User;
   permissions: string[];
   scopes: string[];
+  must_change_password?: boolean;
 }
 
 export type SecondFactor =
@@ -120,6 +121,8 @@ export const useSessionStore = defineStore('session', {
       const me = await api.get<MeResponse>('/auth/me');
       this.user = me.user;
       this.permissions = me.permissions;
+      // a forced password change must survive a page reload (#97)
+      this.mustChangePassword = me.must_change_password ?? false;
       markAuthenticated(true);
     },
 

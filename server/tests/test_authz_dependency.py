@@ -17,6 +17,7 @@ _EXEMPT: set[tuple[str, str]] = {
     ("POST", "/api/v1/auth/login"),
     ("POST", "/api/v1/auth/refresh"),
     ("POST", "/api/v1/auth/logout"),
+    ("POST", "/api/v1/auth/password"),  # self-service: proves the current password
     ("POST", "/api/v1/auth/oidc/{provider}/callback"),  # external login — pre-auth
     ("PUT", "/api/v1/presence"),  # self-service: sets the caller's own presence
     ("POST", "/api/v1/auth/totp/enrol"),  # self-service MFA enrolment

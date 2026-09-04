@@ -72,3 +72,22 @@ test('after login the Ereignisübersicht lists events and opens one', async ({ p
   await expect(page.locator('.epp')).toBeVisible();
   await expect(page.locator('.epp').getByText('Verlauf', { exact: true })).toBeVisible();
 });
+
+test('a must-change account sets a new password on first login, then lands in the app (#97)', async ({
+  page,
+}) => {
+  await page.goto('/login');
+  await page.getByLabel('Benutzername').fill('neuling');
+  await page.getByLabel('Passwort').fill('Wolke7-Bahnhof!x');
+  await page.getByRole('button', { name: 'Anmelden' }).click();
+
+  // still on /login, now on the forced-change form — no way past it
+  await expect(page).toHaveURL(/\/login/);
+  const newPw = page.getByLabel('Neues Passwort', { exact: true });
+  await expect(newPw).toBeVisible();
+  await newPw.fill('Fjord-Nebel-42!x');
+  await page.getByLabel('Neues Passwort bestätigen').fill('Fjord-Nebel-42!x');
+  await page.getByRole('button', { name: 'Passwort ändern und anmelden' }).click();
+
+  await expect(page).toHaveURL(/\/arbeitsplatz$/);
+});
