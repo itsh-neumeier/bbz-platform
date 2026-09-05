@@ -36,7 +36,7 @@ from bbz_core.audit import AuditAction, AuditService
 from bbz_core.infra.models.domain_events import DomainEvent
 from bbz_core.infra.models.events import Event
 from bbz_core.infra.outbox import enqueue
-from bbz_core.integrations_host.providers import NoActiveProvider, active_video_provider
+from bbz_core.integrations_host.cameras import resolve_cameras
 
 router = APIRouter(prefix="/events", tags=["events"])
 
@@ -100,36 +100,21 @@ async def list_event_cameras(
     if not trail:
         return EventCamerasOut(provider_available=True, cameras=[])
 
-    try:
-        provider = await active_video_provider()
-    except NoActiveProvider:
-        return EventCamerasOut(
-            provider_available=False,
-            cameras=[
-                CameraOut(ref=ref, name=ref, last_action_state=st)
-                for ref, st in sorted(trail.items())
-            ],
-        )
-
-    from bbz_integration_sdk.providers.video_types import VideoProviderError
-
-    cameras: list[CameraOut] = []
-    for ref, st in sorted(trail.items()):
-        try:
-            rc = await provider.resolve_camera(external_id=ref)
-            cameras.append(
-                CameraOut(
-                    ref=ref,
-                    name=rc.name,
-                    site=rc.site,
-                    online=rc.online,
-                    group_ids=list(rc.group_ids),
-                    last_action_state=st,
-                )
+    resolution = await resolve_cameras(sorted(trail))
+    return EventCamerasOut(
+        provider_available=resolution.provider_available,
+        cameras=[
+            CameraOut(
+                ref=c.ref,
+                name=c.name,
+                site=c.site,
+                online=c.online,
+                group_ids=list(c.group_ids),
+                last_action_state=trail[c.ref],
             )
-        except VideoProviderError:
-            cameras.append(CameraOut(ref=ref, name=ref, online=None, last_action_state=st))
-    return EventCamerasOut(provider_available=True, cameras=cameras)
+            for c in resolution.cameras
+        ],
+    )
 
 
 class FocusCameraOut(BaseModel):

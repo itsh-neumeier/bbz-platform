@@ -19,12 +19,12 @@ import pytest
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from bbz_core.api.v1 import event_cameras
 from bbz_core.domain.events import EventAggregate, EventPriority
 from bbz_core.infra.event_log import append_event
 from bbz_core.infra.models.audit import AuditEvent
 from bbz_core.infra.models.outbox import ExternalActionOutbox
 from bbz_core.infra.repositories.events import EventRepository
+from bbz_core.integrations_host import cameras as cameras_host
 from bbz_core.integrations_host.providers import NoActiveProvider
 
 
@@ -147,7 +147,7 @@ async def test_lists_the_events_cameras_with_live_status(
     async def _provider() -> Any:
         return _FakeVideoProvider({"CAM-1": True, "CAM-2": False})
 
-    monkeypatch.setattr(event_cameras, "active_video_provider", _provider)
+    monkeypatch.setattr(cameras_host, "active_video_provider", _provider)
     await _login(client, "op")
 
     r = await client.get(f"/api/v1/events/{event_id}/cameras")
@@ -172,7 +172,7 @@ async def test_degrades_when_no_video_integration_is_active(
     async def _down() -> Any:
         raise NoActiveProvider("no video integration")
 
-    monkeypatch.setattr(event_cameras, "active_video_provider", _down)
+    monkeypatch.setattr(cameras_host, "active_video_provider", _down)
     await _login(client, "op")
 
     body = (await client.get(f"/api/v1/events/{event_id}/cameras")).json()
@@ -192,7 +192,7 @@ async def test_an_unresolvable_camera_is_listed_with_null_status(
     async def _provider() -> Any:
         return _FakeVideoProvider({"CAM-1": True})  # GHOST does not resolve
 
-    monkeypatch.setattr(event_cameras, "active_video_provider", _provider)
+    monkeypatch.setattr(cameras_host, "active_video_provider", _provider)
     await _login(client, "op")
 
     body = (await client.get(f"/api/v1/events/{event_id}/cameras")).json()
