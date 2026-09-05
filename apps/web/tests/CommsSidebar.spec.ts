@@ -107,6 +107,35 @@ describe('CommsSidebar', () => {
   it('hides the keypad without calls.dial', async () => {
     const w = await factory(['calls.view']);
     expect(w.find('.tp__pad').exists()).toBe(false);
+    expect(w.find('.tp__quickdial').exists()).toBe(false);
+  });
+
+  it('opens the quick-dial overlay and dials the chosen contact (#225)', async () => {
+    const gatehouse: ct.Contact = {
+      id: 'c1',
+      name: 'Pförtner Haupttor',
+      org: 'Werkschutz',
+      notes: null,
+      quick_dial: true,
+      bbz_id: null,
+      priority: null,
+      created_at: '2026-09-01T08:00:00Z',
+      updated_at: '2026-09-01T08:00:00Z',
+      numbers: [{ id: 'n1', e164: '+498955501', label: null, is_primary: true }],
+    };
+    vi.mocked(ct.contactsApi.search).mockResolvedValue({ items: [gatehouse], next_cursor: null });
+    const dial = vi.spyOn(tel.telephonyApi, 'dial').mockResolvedValue({ accepted: true, detail: null });
+    const w = await factory(['calls.view', 'calls.dial']);
+
+    await w.get('.tp__quickdial').trigger('click');
+    await new Promise((r) => setTimeout(r, 0));
+    await w.vm.$nextTick();
+
+    const item = w.get('.qd__item');
+    expect(item.text()).toContain('Pförtner Haupttor');
+    await item.trigger('click');
+
+    expect(dial).toHaveBeenCalledWith('l1', '+498955501');
   });
 
   it('flags mandatory documentation on a pending-doc call', async () => {

@@ -1,7 +1,8 @@
 <script setup lang="ts">
 /**
  * Comms sidebar (E07-18 / #127 + Epic 11 UI — E11-13/14/15, MASTER_PROMPT §13.8–13.11).
- * Four tabs: Telefon (keypad + line + waiting-call queue), Gespräch (active-call
+ * Four tabs: Telefon (keypad + line + waiting-call queue + a "Kurzwahl öffnen"
+ * button — no permanent quick-dial grid, E11-15 / #225), Gespräch (active-call
  * controls + mandatory documentation), Telefonbuch (search + quick-dial → dial),
  * Historie (recent calls). Horizontally resizable with a keyboard-operable handle
  * — operation must never rely on drag alone (RULES.md §a11y). The waiting-call
@@ -15,6 +16,7 @@ import { useReducedMotion } from '@/composables/useReducedMotion';
 import { CALL_CATEGORIES, otherParty, type CallCategory } from '@/lib/telephony';
 import { contactsApi, type Contact } from '@/lib/contacts';
 import CallDocRequiredDialog from '@/components/telephony/CallDocRequiredDialog.vue';
+import QuickDialOverlay from '@/components/telephony/QuickDialOverlay.vue';
 
 const { t } = useI18n();
 const session = useSessionStore();
@@ -170,6 +172,13 @@ async function dialContact(c: Contact) {
   await doDial();
 }
 
+// --- quick-dial overlay (E11-15 / #225) -------------------------------
+const showQuickDial = ref(false);
+async function dialFromQuickDial(c: Contact): Promise<void> {
+  showQuickDial.value = false;
+  await dialContact(c);
+}
+
 let poll: ReturnType<typeof setInterval> | undefined;
 onMounted(async () => {
   await calls.refresh();
@@ -303,6 +312,14 @@ onBeforeUnmount(() => clearInterval(poll));
             {{ t('comms.dial') }}
           </button>
         </div>
+
+        <button
+          type="button"
+          class="tp__quickdial"
+          @click="showQuickDial = true"
+        >
+          {{ t('comms.quickDial.open') }}
+        </button>
       </div>
 
       <h3 class="comms__h">
@@ -550,6 +567,11 @@ onBeforeUnmount(() => clearInterval(poll));
       @close="showDocGate = false"
       @confirm="confirmDocAndHangup"
     />
+    <QuickDialOverlay
+      :open="showQuickDial"
+      @close="showQuickDial = false"
+      @dial="dialFromQuickDial"
+    />
   </aside>
 </template>
 
@@ -728,6 +750,14 @@ onBeforeUnmount(() => clearInterval(poll));
 }
 .tp__call:disabled {
   opacity: 0.5;
+}
+.tp__quickdial {
+  padding: 0.45rem 0.6rem;
+  border: 1px solid var(--bbz-border);
+  border-radius: var(--bbz-radius);
+  background: var(--bbz-surface);
+  color: var(--bbz-text);
+  cursor: pointer;
 }
 
 /* waiting queue */

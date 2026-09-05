@@ -405,6 +405,14 @@
       "cancel": "Zurück zum Gespräch",
       "confirm": "Kategorie speichern und auflegen"
     },
+    "quickDial": {
+      "open": "Kurzwahl öffnen",
+      "title": "Kurzwahl",
+      "loading": "Kurzwahlkontakte werden geladen …",
+      "error": "Kurzwahlkontakte konnten nicht geladen werden.",
+      "empty": "Keine Kurzwahlkontakte hinterlegt.",
+      "cancel": "Schließen"
+    },
     "search": "Kontakt suchen",
     "noContacts": "Keine Kontakte.",
     "noHistory": "Keine Anrufe.",
