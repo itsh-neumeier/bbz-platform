@@ -17,6 +17,7 @@ import { CALL_CATEGORIES, otherParty, type CallCategory } from '@/lib/telephony'
 import { contactsApi, type Contact } from '@/lib/contacts';
 import CallDocRequiredDialog from '@/components/telephony/CallDocRequiredDialog.vue';
 import QuickDialOverlay from '@/components/telephony/QuickDialOverlay.vue';
+import ContactPriorityBadge from '@/components/telephony/ContactPriorityBadge.vue';
 
 const { t } = useI18n();
 const session = useSessionStore();
@@ -501,10 +502,9 @@ onBeforeUnmount(() => clearInterval(poll));
             :disabled="!canDial || !c.numbers.length"
             @click="dialContact(c)"
           >
-            <span
+            <ContactPriorityBadge
               v-if="c.priority"
-              class="mini__prio"
-              :class="'prio--' + c.priority"
+              :priority="c.priority"
             />
             <span class="mini__name">{{ c.name }}</span>
             <span class="mini__num">{{ (c.numbers.find((n) => n.is_primary) ?? c.numbers[0])?.e164 ?? '—' }}</span>
@@ -934,21 +934,6 @@ onBeforeUnmount(() => clearInterval(poll));
 .mini__row:disabled {
   opacity: 0.5;
   cursor: default;
-}
-.mini__prio {
-  width: 0.6rem;
-  height: 0.6rem;
-  border-radius: 50%;
-  flex: none;
-}
-.prio--low {
-  background: var(--bbz-prio-low);
-}
-.prio--medium {
-  background: var(--bbz-prio-medium);
-}
-.prio--high {
-  background: var(--bbz-prio-high);
 }
 .mini__name {
   font-weight: 600;

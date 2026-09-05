@@ -55,13 +55,16 @@ async function factory() {
 }
 
 describe('PhonebookPage', () => {
-  it('lists contacts with a priority dot and quick-dial star', async () => {
+  it('lists contacts with a priority badge (colour + text) and quick-dial star', async () => {
     withPerms('contacts.view');
     const w = await factory();
     const rows = w.findAll('.pb__row');
     expect(rows).toHaveLength(2);
     expect(rows[0].text()).toContain('Feuerwehr Nürnberg');
-    expect(rows[0].find('.pb__prio.prio--high').exists()).toBe(true);
+    // E14-08 / #299: not a bare colour dot — a badge readable without colour
+    const badge = rows[0].find('.cpb.cpb--high');
+    expect(badge.exists()).toBe(true);
+    expect(badge.text()).toBe('hoch');
     expect(rows[0].find('.pb__star').exists()).toBe(true);
     expect(rows[0].text()).toContain('+4991122233');
   });

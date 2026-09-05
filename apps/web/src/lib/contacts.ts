@@ -45,13 +45,6 @@ export interface ContactPatch {
   quick_dial?: boolean;
 }
 
-/** blue / orange / red in the mockup (§13.9) — map priority to a token class. */
-export const PRIORITY_CLASS: Record<ContactPriority, string> = {
-  low: 'prio--low',
-  medium: 'prio--medium',
-  high: 'prio--high',
-};
-
 export const contactsApi = {
   search: (params: { q?: string; quickDial?: boolean; cursor?: string; limit?: number } = {}) => {
     const qs = new URLSearchParams();

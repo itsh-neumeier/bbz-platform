@@ -10,12 +10,8 @@ import { computed, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { ApiError } from '@/lib/apiClient';
 import { useSessionStore } from '@/stores/session';
-import {
-  contactsApi,
-  PRIORITY_CLASS,
-  type Contact,
-  type ContactPriority,
-} from '@/lib/contacts';
+import { contactsApi, type Contact, type ContactPriority } from '@/lib/contacts';
+import ContactPriorityBadge from '@/components/telephony/ContactPriorityBadge.vue';
 
 const { t } = useI18n();
 const session = useSessionStore();
@@ -270,11 +266,9 @@ onMounted(load);
             :aria-pressed="c.id === selectedId"
             @click="selectedId = c.id"
           >
-            <span
+            <ContactPriorityBadge
               v-if="c.priority"
-              class="pb__prio"
-              :class="PRIORITY_CLASS[c.priority]"
-              :title="t('phonebook.prio.' + c.priority)"
+              :priority="c.priority"
             />
             <span class="pb__name">{{ c.name }}</span>
             <span
@@ -347,7 +341,7 @@ onMounted(load);
               :key="p"
               type="button"
               class="pb__prio-btn"
-              :class="[PRIORITY_CLASS[p], { 'pb__prio-btn--on': selected.priority === p }]"
+              :class="{ 'pb__prio-btn--on': selected.priority === p }"
               :aria-pressed="selected.priority === p"
               @click="setPriority(p)"
             >
@@ -487,12 +481,6 @@ onMounted(load);
   outline: var(--bbz-focus-width) solid var(--bbz-focus-color);
   outline-offset: -2px;
 }
-.pb__prio {
-  width: 0.7rem;
-  height: 0.7rem;
-  border-radius: 50%;
-  flex: none;
-}
 .pb__prio-btn {
   padding: 0.3rem 0.6rem;
   border: 1px solid var(--bbz-border);
@@ -505,17 +493,9 @@ onMounted(load);
   outline: var(--bbz-focus-width) solid var(--bbz-focus-color);
   font-weight: 600;
 }
-/* the list marker (a dot) carries the priority colour; the edit-panel priority
-   buttons stay plain and show selection with an outline (.pb__prio-btn--on). */
-.pb__prio.prio--low {
-  background: var(--bbz-prio-low);
-}
-.pb__prio.prio--medium {
-  background: var(--bbz-prio-medium);
-}
-.pb__prio.prio--high {
-  background: var(--bbz-prio-high);
-}
+/* the list row shows a <ContactPriorityBadge> (colour + text, E14-08); the
+   edit-panel priority buttons stay plain and show selection with an outline
+   (.pb__prio-btn--on). */
 .pb__name {
   font-weight: 600;
 }

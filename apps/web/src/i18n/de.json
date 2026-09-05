@@ -542,6 +542,13 @@
     "offline": "getrennt",
     "lastSeq": "Ereignis {seq}"
   },
+  "contact": {
+    "priority": {
+      "low": "niedrig",
+      "medium": "mittel",
+      "high": "hoch"
+    }
+  },
   "event": {
     "priority": {
       "critical": "kritisch",
