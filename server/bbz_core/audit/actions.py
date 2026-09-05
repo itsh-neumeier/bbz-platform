@@ -90,6 +90,9 @@ class AuditAction(enum.StrEnum):
     CLIENT_POPUP_DELIVERED = "CLIENT_POPUP_DELIVERED"
     CODA_ALARM_SOURCE_CONFIGURED = "CODA_ALARM_SOURCE_CONFIGURED"
     CODA_ALARM_SOURCE_REMOVED = "CODA_ALARM_SOURCE_REMOVED"
+    #: an operator asked to (re)focus an event's camera on their workplace
+    #: (E16-12 / ADR-0032) — event_id + camera_ref + workplace_id, no payload secrets.
+    CAMERA_FOCUS_REQUESTED = "CAMERA_FOCUS_REQUESTED"
     DOOR_PROFILE_CREATED = "DOOR_PROFILE_CREATED"
     DOOR_PROFILE_UPDATED = "DOOR_PROFILE_UPDATED"
     DOOR_PROFILE_DELETED = "DOOR_PROFILE_DELETED"
@@ -164,6 +167,7 @@ CRITICAL_ACTIONS: frozenset[AuditAction] = frozenset(
         AuditAction.CLIENT_POPUP_DELIVERED,
         AuditAction.CODA_ALARM_SOURCE_CONFIGURED,
         AuditAction.CODA_ALARM_SOURCE_REMOVED,
+        AuditAction.CAMERA_FOCUS_REQUESTED,
         AuditAction.DOOR_PROFILE_CREATED,
         AuditAction.DOOR_PROFILE_UPDATED,
         AuditAction.DOOR_PROFILE_DELETED,

@@ -22,6 +22,7 @@ from bbz_core.api.v1.delegations import router as delegations_router
 from bbz_core.api.v1.directory_sync import router as directory_sync_router
 from bbz_core.api.v1.door_action_profiles import router as door_action_profiles_router
 from bbz_core.api.v1.doors import router as doors_router
+from bbz_core.api.v1.event_cameras import router as event_cameras_router
 from bbz_core.api.v1.events import router as events_router
 from bbz_core.api.v1.integrations import router as integrations_router
 from bbz_core.api.v1.lines import router as lines_router
@@ -52,6 +53,7 @@ api_v1.include_router(directory_sync_router)
 api_v1.include_router(mfa_policies_router)
 api_v1.include_router(audit_router)
 api_v1.include_router(events_router)
+api_v1.include_router(event_cameras_router)
 api_v1.include_router(calls_router)
 api_v1.include_router(contacts_router)
 api_v1.include_router(lines_router)

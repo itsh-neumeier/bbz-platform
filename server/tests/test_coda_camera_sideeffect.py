@@ -3,6 +3,10 @@ open_camera / open_camera_group outbox handler reaches the video.* provider;
 a provider that is down retries with backoff and, at the attempt cap, records
 the row failed + notes CAMERA_ACTION_FAILED on the triggering event — the event
 itself stays active. No double open.
+
+A *successful* delivery that carried an event_id notes CAMERA_OPENED on the
+event instead, so the operator camera panel can list the associated cameras
+(E16-12 / ADR-0032).
 """
 
 from __future__ import annotations
@@ -79,6 +83,31 @@ async def test_the_handler_opens_the_group_via_the_video_provider(s: AsyncSessio
         )
     ).scalar_one()
     assert audited == 1
+
+    # E16-12 / ADR-0032: the successful open is recorded on the event, once
+    opened = (
+        (await s.execute(select(DomainEvent).where(DomainEvent.event_type == "CAMERA_OPENED")))
+        .scalars()
+        .all()
+    )
+    assert len(opened) == 1
+    assert opened[0].aggregate_id == _EVENT_ID
+    assert opened[0].payload["camera_refs"] == ["CAM-1", "CAM-2"]
+    assert opened[0].payload["action_type"] == "open_camera_group"
+
+
+async def test_no_camera_opened_note_when_the_action_carries_no_event_id(s: AsyncSession) -> None:
+    await _enqueue_group(s, dedupe="trigger:e:v:9", event_id=None)
+    assert await _dispatcher().run_once() == 1
+
+    await s.rollback()
+    assert (
+        await s.execute(
+            select(func.count())
+            .select_from(DomainEvent)
+            .where(DomainEvent.event_type == "CAMERA_OPENED")
+        )
+    ).scalar_one() == 0
 
 
 async def test_a_provider_that_is_down_retries_then_fails_and_notes_the_event(

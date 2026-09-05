@@ -51,6 +51,13 @@ async def _notify(payload: dict[str, Any]) -> dict[str, Any] | None:
 DEFAULT_HANDLERS: dict[str, Handler] = {"noop": _noop, "notify": _notify}
 
 
+def _camera_refs(row: ExternalActionOutbox) -> list[str]:
+    refs = row.payload.get("camera_refs") or (
+        [row.payload["camera_ref"]] if row.payload.get("camera_ref") else []
+    )
+    return [str(r) for r in refs]
+
+
 async def _on_terminal_failure(session: AsyncSession, row: ExternalActionOutbox) -> None:
     """A camera action that exhausted its retries is recorded on the triggering
     event (E16-08) so an operator sees the view is unavailable — the event and
@@ -63,9 +70,6 @@ async def _on_terminal_failure(session: AsyncSession, row: ExternalActionOutbox)
         return
     from bbz_core.infra.event_log import append_event
 
-    refs = row.payload.get("camera_refs") or (
-        [row.payload["camera_ref"]] if row.payload.get("camera_ref") else []
-    )
     try:
         await append_event(
             session,
@@ -74,13 +78,42 @@ async def _on_terminal_failure(session: AsyncSession, row: ExternalActionOutbox)
             event_type="CAMERA_ACTION_FAILED",
             payload={
                 "action_type": row.action_type,
-                "camera_refs": [str(r) for r in refs],
+                "camera_refs": _camera_refs(row),
                 "error": row.last_error,
                 "attempts": row.attempts,
             },
         )
     except Exception:  # pragma: no cover - the failure note must never block the worker
         _log.warning("camera_failure_note_failed", outbox_id=str(row.id))
+
+
+async def _on_camera_dispatched(session: AsyncSession, row: ExternalActionOutbox) -> None:
+    """A camera action that carried an ``event_id`` was delivered — record a
+    ``CAMERA_OPENED`` domain event on the triggering event so the operator
+    camera panel (``GET /events/{id}/cameras``, E16-12 / ADR-0032) can list the
+    associated cameras. Best-effort mirror of :func:`_on_terminal_failure`.
+    """
+    from bbz_core.workers.camera_handlers import CAMERA_ACTION_TYPES
+
+    event_id = row.payload.get("event_id")
+    if row.action_type not in CAMERA_ACTION_TYPES or not event_id:
+        return
+    from bbz_core.infra.event_log import append_event
+
+    try:
+        await append_event(
+            session,
+            aggregate_type="event",
+            aggregate_id=str(event_id),
+            event_type="CAMERA_OPENED",
+            payload={
+                "action_type": row.action_type,
+                "camera_refs": _camera_refs(row),
+                "workplace_id": row.payload.get("workplace_id"),
+            },
+        )
+    except Exception:  # pragma: no cover - the note must never block the worker
+        _log.warning("camera_opened_note_failed", outbox_id=str(row.id))
 
 
 class OutboxDispatcher:
@@ -128,6 +161,7 @@ class OutboxDispatcher:
                     return
                 await repo.mark_dispatched(row, result=result)
                 await self._audit(session, row, ok=True)
+                await _on_camera_dispatched(session, row)
 
     @staticmethod
     async def _audit(session: AsyncSession, row: ExternalActionOutbox, *, ok: bool) -> None:

@@ -48,6 +48,7 @@ sub-schema under `properties.<EVENT_TYPE>`).
 | CONTACT_DELETED | contact | contact_id, name, actor_id | soft-delete of a contact (E14-05); audited |
 | CLIENT_POPUP_RAISED | event | popup_id, workplace_id, kind, expires_at | a trigger `show_client_popup` action (E15-14); delivered to the bound workplace over the event stream |
 | CAMERA_ACTION_FAILED | event | action_type, camera_refs | an `open_camera`/`open_camera_group` outbox action exhausted its retries (E16-08); the event and popup are unaffected |
+| CAMERA_OPENED | event | action_type, camera_refs | + workplace_id; an `open_camera`/`open_camera_group` outbox row carrying an `event_id` was delivered to the `video.*` provider (E16-08 / ADR-0032); feeds the operator camera panel (`GET /events/{id}/cameras`, E16-12); best-effort, the event and popup are unaffected |
 
 ## Calls
 
