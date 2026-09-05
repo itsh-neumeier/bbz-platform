@@ -2,10 +2,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { mount } from '@vue/test-utils';
 import { createI18n } from 'vue-i18n';
 import { createPinia, setActivePinia } from 'pinia';
+import { createRouter, createMemoryHistory } from 'vue-router';
 import de from '@/i18n/de.json';
 import PhonebookPage from '@/pages/PhonebookPage.vue';
 import { useSessionStore } from '@/stores/session';
 import * as contacts from '@/lib/contacts';
+import * as tel from '@/lib/telephony';
 
 const CONTACTS: contacts.Contact[] = [
   {
@@ -44,13 +46,20 @@ beforeEach(() => {
   setActivePinia(createPinia());
   vi.restoreAllMocks();
   vi.spyOn(contacts.contactsApi, 'search').mockResolvedValue({ items: CONTACTS, next_cursor: null });
+  vi.spyOn(tel.telephonyApi, 'history').mockResolvedValue({ items: [], next_cursor: null });
 });
 
-async function factory() {
+async function factory(query: Record<string, string> = {}) {
+  const router = createRouter({
+    history: createMemoryHistory(),
+    routes: [{ path: '/telefonbuch', component: PhonebookPage }],
+  });
+  await router.push({ path: '/telefonbuch', query });
   const i18n = createI18n({ legacy: false, locale: 'de', messages: { de } });
-  const w = mount(PhonebookPage, { global: { plugins: [i18n] } });
+  const w = mount(PhonebookPage, { global: { plugins: [router, i18n] } });
   await new Promise((r) => setTimeout(r, 0));
   await w.vm.$nextTick();
+  await new Promise((r) => setTimeout(r, 0));
   return w;
 }
 
@@ -116,5 +125,47 @@ describe('PhonebookPage', () => {
     await w.get('#pb-n-name').setValue('Neuer');
     await w.get('.pb__create').trigger('submit');
     expect(create).toHaveBeenCalledWith(expect.objectContaining({ name: 'Neuer' }));
+  });
+
+  it('shows the selected contact\'s call history + last contact (#303)', async () => {
+    withPerms('contacts.view', 'calls.view_history');
+    const call: tel.Call = {
+      id: 'k1',
+      bbz_call_id: 'CALL-1',
+      provider: 'telephony_mock',
+      direction: 'inbound',
+      state: 'disconnected',
+      line_id: null,
+      workplace_id: null,
+      started_at: '2026-09-04T09:15:00Z',
+      ended_at: '2026-09-04T09:17:00Z',
+      created_at: '2026-09-04T09:15:00Z',
+      category: 'technical_fault',
+      has_free_text: false,
+      caller_contact_id: 'c1',
+      caller_priority: 'high',
+      participants: [{ number: '+4991122233', display_name: 'Feuerwehr Nürnberg', role: 'caller' }],
+    };
+    const hist = vi
+      .spyOn(tel.telephonyApi, 'history')
+      .mockResolvedValue({ items: [call], next_cursor: null });
+    const w = await factory();
+    await w.findAll('.pb__row')[0].trigger('click');
+    await new Promise((r) => setTimeout(r, 0));
+    await w.vm.$nextTick();
+
+    expect(hist).toHaveBeenCalledWith(expect.objectContaining({ number: '+4991122233' }));
+    const rows = w.findAll('.pb__histrow');
+    expect(rows).toHaveLength(1);
+    expect(rows[0].text()).toContain('Technische Störung');
+    expect(w.get('.pb__lastcontact').text()).toContain('Letzter Kontakt');
+  });
+
+  it('deep-links a contact from ?contact= and does not show history without the permission', async () => {
+    withPerms('contacts.view'); // no calls.view_history
+    vi.spyOn(contacts.contactsApi, 'get').mockResolvedValue(CONTACTS[1]);
+    const w = await factory({ contact: 'c2' });
+    expect(w.get('.pb__detail').text()).toContain('Stadtwerke');
+    expect(w.find('.pb__lastcontact').exists()).toBe(false);
   });
 });

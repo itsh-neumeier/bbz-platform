@@ -19,7 +19,8 @@ Idempotent — safe to re-run against a fresh schema. Creates:
 * priority contacts ``Feuerleitzentrale`` (high) / ``Netzleitstelle Ost``
   (medium) / ``Info-Punkt Halle`` (low) for the §24 "Priorität erkennen" step
   (E11-16 / #227) and the call-queue priority / sort / animation E2E
-  (E14-09 / #301)
+  (E14-09 / #301); ``Streckenposten Nord`` (medium) for the contact↔history
+  link E2E (E14-10 / #303)
 * ``BMA Halle 7 — E2E-Lebenszyklus`` — a fresh (``new``) critical event **with**
   that workflow, for the accept -> acknowledge -> open -> complete-step ->
   archive -> archive-detail -> reactivate walk
@@ -254,6 +255,9 @@ async def _seed() -> None:
                 ("Feuerleitzentrale", "+4991150099", "high"),
                 ("Netzleitstelle Ost", "+4991150098", "medium"),
                 ("Info-Punkt Halle", "+4991150097", "low"),
+                # E14-10 / #303: a contact↔history-link E2E answers + documents a
+                # call from this number, then checks the link in both directions.
+                ("Streckenposten Nord", "+4991166666", "medium"),
             ):
                 if await s.scalar(select(Contact.id).where(Contact.name == name)) is not None:
                     continue

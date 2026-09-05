@@ -4,13 +4,15 @@
  * Four tabs: Telefon (keypad + line + waiting-call queue + a "Kurzwahl öffnen"
  * button — no permanent quick-dial grid, E11-15 / #225), Gespräch (active-call
  * controls + mandatory documentation), Telefonbuch (search + quick-dial → dial),
- * Historie (recent calls). Horizontally resizable with a keyboard-operable handle
+ * Historie (recent calls; a resolved caller links to the contact in the
+ * phone-book, E14-10 / #303). Horizontally resizable with a keyboard-operable handle
  * — operation must never rely on drag alone (RULES.md §a11y). The waiting-call
  * queue is sorted high→low and priority-coloured, with a graded pulse (high
  * hardest, medium fainter, low none, E14-09 / #301) that stills under
  * `prefers-reduced-motion`.
  */
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { RouterLink } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { useSessionStore } from '@/stores/session';
 import { useCallsStore } from '@/stores/calls';
@@ -537,7 +539,18 @@ onBeforeUnmount(() => clearInterval(poll));
             class="hist__dir"
             :title="t('comms.dir.' + c.direction)"
           >{{ c.direction === 'inbound' ? '↙' : '↗' }}</span>
-          <span class="hist__who">{{ otherParty(c) }}</span>
+          <RouterLink
+            v-if="c.caller_contact_id"
+            class="hist__who hist__who--link"
+            :to="{ path: '/telefonbuch', query: { contact: c.caller_contact_id } }"
+            :title="t('comms.openContact')"
+          >
+            {{ otherParty(c) }}
+          </RouterLink>
+          <span
+            v-else
+            class="hist__who"
+          >{{ otherParty(c) }}</span>
           <span
             v-if="c.category"
             class="hist__cat"
@@ -979,6 +992,14 @@ onBeforeUnmount(() => clearInterval(poll));
 .hist__who {
   font-weight: 600;
   font-variant-numeric: tabular-nums;
+}
+.hist__who--link {
+  color: var(--bbz-accent);
+  text-decoration: none;
+}
+.hist__who--link:hover,
+.hist__who--link:focus-visible {
+  text-decoration: underline;
 }
 .hist__cat {
   color: var(--bbz-text-muted);

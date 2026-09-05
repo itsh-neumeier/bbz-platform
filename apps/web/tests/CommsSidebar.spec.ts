@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { mount } from '@vue/test-utils';
+import { mount, RouterLinkStub } from '@vue/test-utils';
 import { createPinia, setActivePinia } from 'pinia';
 import { createI18n } from 'vue-i18n';
 import de from '@/i18n/de.json';
@@ -59,7 +59,9 @@ async function factory(perms: string[]) {
   const pinia = createPinia();
   setActivePinia(pinia);
   useSessionStore().permissions = perms;
-  const w = mount(CommsSidebar, { global: { plugins: [pinia, i18n] } });
+  const w = mount(CommsSidebar, {
+    global: { plugins: [pinia, i18n], stubs: { RouterLink: RouterLinkStub } },
+  });
   await new Promise((r) => setTimeout(r, 0));
   await w.vm.$nextTick();
   await new Promise((r) => setTimeout(r, 0));

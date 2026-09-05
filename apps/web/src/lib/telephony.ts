@@ -97,9 +97,16 @@ export function otherParty(call: Call): string {
 export const telephonyApi = {
   ringing: (signal?: AbortSignal) => api.get<CallPage>('/calls/ringing', { signal }),
 
-  history: (params: { limit?: number } = {}, signal?: AbortSignal) => {
-    const qs = params.limit ? `?limit=${params.limit}` : '';
-    return api.get<CallPage>(`/calls${qs}`, { signal });
+  history: (
+    params: { limit?: number; number?: string; direction?: CallDirection } = {},
+    signal?: AbortSignal,
+  ) => {
+    const qs = new URLSearchParams();
+    if (params.limit) qs.set('limit', String(params.limit));
+    if (params.number) qs.set('number', params.number);
+    if (params.direction) qs.set('direction', params.direction);
+    const tail = qs.toString();
+    return api.get<CallPage>(`/calls${tail ? `?${tail}` : ''}`, { signal });
   },
 
   lines: (signal?: AbortSignal) => api.get<{ lines: Line[] }>('/lines', { signal }),
