@@ -16,6 +16,8 @@ Idempotent — safe to re-run against a fresh schema. Creates:
   functions -> XOR-join -> event) for the EPK-canvas-editor E2E (E07-19 / #129)
 * a quick-dial contact ``Pförtner Haupttor`` (E14-06) for the Kurzwahl-overlay
   E2E (E11-15 / #225)
+* a high-priority contact ``Feuerleitzentrale`` for the full §24 telephony
+  E2E's "Priorität erkennen" step (E11-16 / #227)
 * ``BMA Halle 7 — E2E-Lebenszyklus`` — a fresh (``new``) critical event **with**
   that workflow, for the accept -> acknowledge -> open -> complete-step ->
   archive -> archive-detail -> reactivate walk
@@ -118,7 +120,7 @@ async def _seed() -> None:
     from bbz_core.domain.events.aggregate import EventAggregate
     from bbz_core.domain.events.state import EventPriority, EventStatus
     from bbz_core.infra.db import get_sessionmaker
-    from bbz_core.infra.models.contacts import Contact, ContactNumber
+    from bbz_core.infra.models.contacts import Contact, ContactNumber, ContactPriority
     from bbz_core.infra.models.events import Event
     from bbz_core.infra.models.identity import AuthIdentity, LocalCredential, User
     from bbz_core.infra.models.rbac import Permission, Role, RolePermission, UserRole
@@ -239,6 +241,20 @@ async def _seed() -> None:
                 s.add(contact)
                 await s.flush()
                 s.add(ContactNumber(contact_id=contact.id, e164="+498955501", is_primary=True))
+
+        async with s.begin():
+            # a high-priority contact (E14-03/04) so an incoming call from its
+            # number resolves a recognizable priority — the full §24 E2E
+            # (E11-16 / #227) asserts this "Priorität erkennen" step.
+            has_prio_contact = await s.scalar(
+                select(Contact.id).where(Contact.name == "Feuerleitzentrale")
+            )
+            if has_prio_contact is None:
+                contact = Contact(name="Feuerleitzentrale", quick_dial=False)
+                s.add(contact)
+                await s.flush()
+                s.add(ContactNumber(contact_id=contact.id, e164="+4991150099", is_primary=True))
+                s.add(ContactPriority(contact_id=contact.id, priority="high"))
 
         async with s.begin():
             has_tpl = await s.scalar(
