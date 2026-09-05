@@ -54,6 +54,28 @@ test.beforeEach(async ({ request, baseURL }) => {
   test.skip(!r || !r.ok(), 'no backend on the dev proxy');
 });
 
+// this spec's whole point is a *full* ringing queue, and the suite shares one
+// seeded DB (workers:1) — leave none behind, or the specs that run after us
+// (comms-sidebar tab navigation, …) inherit four unanswered calls. Hanging up
+// moves a call to `ended_pending_documentation`, which drops it out of
+// `GET /calls/ringing` — no documentation needed just to clear the queue.
+test.afterEach(async ({ page }, testInfo) => {
+  if (testInfo.status === 'skipped') return;
+  const cookies = await page.context().cookies().catch(() => []);
+  const csrf = cookies.find((c) => c.name === 'bbz_csrf')?.value ?? '';
+  if (!csrf) return;
+  const res = await page.request.get('/api/v1/calls/ringing').catch(() => null);
+  if (!res || !res.ok()) return;
+  const { items } = (await res.json()) as { items: { id: string }[] };
+  for (const c of items) {
+    await page.request
+      .post(`/api/v1/calls/${c.id}/hangup`, {
+        headers: { 'x-csrf-token': csrf, 'x-command-id': crypto.randomUUID() },
+      })
+      .catch(() => undefined);
+  }
+});
+
 test('queue sorts high→low, animates by priority, shows unknown callers (#301)', async ({
   page,
   baseURL,
