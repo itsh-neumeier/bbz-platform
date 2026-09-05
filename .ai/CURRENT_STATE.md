@@ -3,9 +3,10 @@
 ## Current phase
 Working the roadmap issues in order (see `.ai/ROADMAP.md`, tracking issue #18).
 **Epics 02–06 complete; Epic 01 is 6/7** (only E01-02 blocked — client-supplied
-mockup files). **Epic 11 (Telephony Core) COMPLETE (16/16)** and **Epic 14 (Contacts /
-Call Priorities) COMPLETE (10/10)**; the remaining domain epics 13/15–22 are
-backend-complete (Epic 13 is 1/8 + ADR-0023 Accepted). **Epic 07 (Web UI) is
+mockup files). **Epic 11 (Telephony Core) COMPLETE (16/16)**, **Epic 14 (Contacts /
+Call Priorities) COMPLETE (10/10)** and **Epic 18 (DWD Weather) COMPLETE
+(10/10)** — E18-09 Wetterlage UI shipped (PR #768); the remaining domain epics
+13/15–17/19–22 are backend-complete (Epic 13 is 1/8 + ADR-0023 Accepted). **Epic 07 (Web UI) is
 in progress** — the operator UI
 (auth · work queue · event detail · archive · reactivation · workflow view ·
 priority alerts · SSE · theme · i18n), the weather + monitor pages, the
@@ -1654,7 +1655,7 @@ API. `integrations/telephony_cucm/` stays a placeholder README.
   done end-to-end against the mocks; the real CUCM/SIP `send_dtmf` transport is
   E12-05 / E13-06 (blocked).
 
-### Epic 18 – DWD Weather: **backend COMPLETE (9/10; E18-09 Wetterlage UI → Epic 07)**
+### Epic 18 – DWD Weather: **COMPLETE (10/10)**
 - **#375 (E18-01) `integrations/dwd` scaffold + manifest + config** — **ADR-0026**
   (Accepted; amended in E18-02 — warnings feed → DISTRICT) pins the three public
   DWD Open Data services: warnings → CAP 1.2
@@ -1776,7 +1777,24 @@ API. `integrations/telephony_cucm/` stays a placeholder README.
   `last_error` cleared), `overall` = worst kind, and "a failed radar refresh
   keeps the cached frames". `.ai/TESTING.md` gets a DWD section. **PR CI touches
   no network.** `dwd` test count 43.
-- Only **E18-09** (Wetterlage UI) left → Epic 07 (frontend, blocked).
+- **#391 (E18-09) Wetterlage-UI-Seite — DONE (PR #768).** `WeatherPage.vue` was
+  a stub whose "Ereignis erzeugen" call was broken (no `priority` → 422; read
+  `.id` where the API returns `.event_id`). Now: `RadarTimeline.vue` — a
+  keyboard-operable radar timeline (native range scrubber ←/→/Home/End + a
+  Play/Pause button; autoplay motion suppressed under `prefers-reduced-motion`,
+  scrubber stays). `WeatherEventDialog.vue` — the "Wetterereignis erzeugen"
+  confirmation dialog (native `<dialog>`, priority pre-filled from the DWD warn
+  level via `suggestPriority()`, optional "betriebliche Bewertung" → E18-08
+  `assessment`). `WeatherPage`: create control gated on `weather.create_event`;
+  observations as Messwert-Kacheln; per-data-kind stale/degraded/down marker on
+  each panel; DWD attribution shown (ADR-0026). `weather.ts` contract fixed
+  (`createEvent(id,{priority,assessment})`, correct response type, `level` is a
+  string, `health.kinds` match the API). `seed_e2e.py` seeds one active
+  STURMBÖEN warning + observations + a fresh `weather_refresh_state`. **No
+  backend code, no schema, no migration, no ADR.** Tests: `RadarTimeline` /
+  `WeatherEventDialog` / `WeatherPage` vitest; `e2e/weather.spec.ts` (warning →
+  dialog → `/ereignisse/:id`; radar keyboard scrub + play/pause); `a11y.spec.ts`
+  Wetterlage stays green light + dark.
 
 ### Epic 19 – Weytec Monitor Routing: **backend complete (9/10; E19-08 dialog UI → Epic 07)**
 - **#395 (E19-01) DB schema** — migration `0041_monitor_schema` +

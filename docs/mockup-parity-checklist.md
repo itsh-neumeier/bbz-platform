@@ -87,7 +87,7 @@ Feature areas whose UI lives in a later epic point at that epic.
 
 | # | Feature | Delivered by | Status |
 |---|---|---|---|
-| 43 | DWD weather page | `pages/WeatherPage.vue` (`/wetterlage`) — E18-09 (#391) | in-progress — warnings + observations + radar timeline + "Ereignis erzeugen"; health badge; degrades on a `down`/`stale` feed |
+| 43 | DWD weather page | `pages/WeatherPage.vue` (`/wetterlage`) — E18-09 (#391, PR #768) | done — warnings, Messwert-Kacheln, keyboard-operable radar timeline (`RadarTimeline.vue`: range scrubber + Play/Pause, reduced-motion aware), "Wetterereignis erzeugen" confirmation dialog (`WeatherEventDialog.vue`: priority + betriebliche Bewertung), per-panel stale marker, DWD attribution (ADR-0026); create gated on `weather.create_event`. vitest ×3 + `e2e/weather.spec.ts` |
 | 44 | monitor routing dialog | `pages/MonitorPage.vue` (`/monitore`) — E19-08 (#408) | in-progress — 3×2 grid + large display, `<select>` keyboard alternative, standard-layout, user profiles |
 | 45 | 6 workplace monitors + large display, standard layout | `pages/MonitorPage.vue` | in-progress — grid from the server catalog + `Standard-Layout` button (E19-04 reset) |
 | 46 | BBZ-OS fixed on the lower-left monitor | `pages/MonitorPage.vue` shows `workplace4` locked + disabled; server-enforced (E19-03). Desktop display is Epic 08. | in-progress |
