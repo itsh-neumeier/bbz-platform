@@ -1112,7 +1112,7 @@ API. `integrations/telephony_cucm/` stays a placeholder README.
 - E13-03..08 (SIP adapter, events, control, DTMF, secrets, PBX integration
   tests) — need a SIP stack / containerized test PBX.
 
-### Epic 14 – Contacts / Call Priorities: **backend COMPLETE (6/10; E14-07..10 frontend)**
+### Epic 14 – Contacts / Call Priorities: **8/10** (E14-07/08 UI done; E14-09 #301 + E14-10 #303 open)
 - **#285 (E14-01) contacts schema** — migration 0027 + `contacts.py`:
   `contacts` (name, org, notes, `quick_dial`, `bbz_id` scope — plain UUID like
   `events.bbz_id`), `contact_numbers` (`e164` stored normalized — a CHECK
@@ -1162,7 +1162,23 @@ API. `integrations/telephony_cucm/` stays a placeholder README.
   `?quick_dial=false` the complement, omitted = all. Same alphabetical keyset
   order (stable). The flag itself is set via `PATCH /contacts/{id}` (E14-02).
   `test_contact_quickdial_api.py`.
-- **E14-07..10 are frontend → blocked.** Epic 14 backend is done bar the UI.
+- **#297 (E14-07) Telefonbuch-UI** — `/telefonbuch` `PhonebookPage.vue`:
+  substring search + quick-dial filter, create / edit / manage numbers /
+  assign priority / soft-delete, all permission-gated. `PhonebookPage.spec.ts`,
+  `e2e/phonebook.spec.ts`. (Merged earlier this roadmap run.)
+- **#299 (E14-08) Prioritäts-Visualisierung** — `ContactPriorityBadge.vue`
+  (new): a text-label badge on the §13.9 priority colour (niedrig=blau /
+  mittel=orange / hoch=rot) with the paired `--bbz-on-prio-*` foreground for
+  AA contrast — colour is a *secondary* cue, level is readable without it
+  (the AC). Replaces the colour-only dot in the phone-book list, the
+  quick-dial overlay (#225) and the comms mini-search; one component, so it
+  reads identically everywhere. Dropped the now-dead `PRIORITY_CLASS` export.
+  `ContactPriorityBadge.spec.ts`; `e2e/a11y.spec.ts` gains Telefonbuch in
+  the axe sweep (light + dark). The waiting-call queue's own priority
+  stripe/pulse is E14-09 / #301, untouched.
+- **E14-09 (#301, waiting-queue priority colour + animated background) and
+  E14-10 (#303, contact ↔ call-history link UI) remain open** — not blocked
+  (the Node-container Playwright/vitest loop runs fine).
   **E11-08 is unblocked** (has `ContactMatcher`).
 
 ### Epic 15 – Technical Endpoints / Trigger Engine: **15/15 backend done** (E15-14 frontend → Epic 07)
