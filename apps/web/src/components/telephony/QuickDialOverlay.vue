@@ -11,7 +11,8 @@
  */
 import { nextTick, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { contactsApi, PRIORITY_CLASS, type Contact } from '@/lib/contacts';
+import { contactsApi, type Contact } from '@/lib/contacts';
+import ContactPriorityBadge from '@/components/telephony/ContactPriorityBadge.vue';
 
 const props = defineProps<{ open: boolean }>();
 const emit = defineEmits<{ close: []; dial: [contact: Contact] }>();
@@ -102,11 +103,9 @@ function choose(c: Contact): void {
             :disabled="!primaryNumber(c)"
             @click="choose(c)"
           >
-            <span
+            <ContactPriorityBadge
               v-if="c.priority"
-              class="qd__prio"
-              :class="PRIORITY_CLASS[c.priority]"
-              :title="t('comms.prio.' + c.priority)"
+              :priority="c.priority"
             />
             <span class="qd__name">{{ c.name }}</span>
             <span
@@ -193,21 +192,6 @@ function choose(c: Contact): void {
 .qd__item:disabled {
   opacity: 0.5;
   cursor: not-allowed;
-}
-.qd__prio {
-  width: 0.7rem;
-  height: 0.7rem;
-  border-radius: 50%;
-  flex: none;
-}
-.qd__prio.prio--low {
-  background: var(--bbz-prio-low);
-}
-.qd__prio.prio--medium {
-  background: var(--bbz-prio-medium);
-}
-.qd__prio.prio--high {
-  background: var(--bbz-prio-high);
 }
 .qd__name {
   font-weight: 600;

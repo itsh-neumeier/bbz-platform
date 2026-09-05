@@ -5,8 +5,9 @@ import { expect, test, type Page } from '@playwright/test';
  * E2E — accessibility baseline (E07-15 / #121, `.ai/RULES.md`: "Accessibility is
  * a functional requirement"). `eslint-plugin-vuejs-accessibility` already blocks
  * the build on lint violations; this adds the runtime `axe` scan the AC asks for
- * on Arbeitsplatz / Ereignisse / Wetterlage — no `critical` or `serious` WCAG 2
- * A/AA violation, in both light and dark.
+ * on Arbeitsplatz / Ereignisse / Wetterlage / Telefonbuch — no `critical` or
+ * `serious` WCAG 2 A/AA violation, in both light and dark. Telefonbuch also
+ * covers the contact-priority badge's AA contrast (E14-08 / #299).
  *
  * Fixtures: `server/scripts/seed_e2e.py`. Skipped when no backend answers
  * `/api/v1/meta`.
@@ -18,6 +19,7 @@ const PAGES = [
   { name: 'Arbeitsplatz', nav: null, ready: '.wp__store' },
   { name: 'Ereignisse', nav: 'Ereignisse', ready: '.events .detail-grid' },
   { name: 'Wetterlage', nav: 'Wetterlage', ready: '.wx' },
+  { name: 'Telefonbuch', nav: 'Telefonbuch', ready: '.pb__row' },
 ] as const;
 
 async function login(page: Page): Promise<void> {
