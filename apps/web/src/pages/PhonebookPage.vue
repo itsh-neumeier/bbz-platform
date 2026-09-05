@@ -1,20 +1,25 @@
 <script setup lang="ts">
 /**
- * Phone-book (E14-07 / #297, E14-08 priority colours / #299, MASTER_PROMPT §13.9).
- * List + substring search (name / org / number) + quick-dial filter, per-contact
- * priority (blau / orange / rot), and CRUD — create, edit fields, manage numbers,
- * assign priority, soft-delete. Every write is permission-gated server-side; the
- * buttons hide when the session lacks the permission.
+ * Phone-book (E14-07 / #297, E14-08 priority colours / #299, E14-10
+ * contact↔history link / #303, MASTER_PROMPT §13.9). List + substring search
+ * (name / org / number) + quick-dial filter, per-contact priority (blau /
+ * orange / rot), CRUD, and — for a selected contact — its recent call history
+ * + "letzter Kontakt" (the other direction, history→contact, is a link on the
+ * comms sidebar's Historie tab to `/telefonbuch?contact=<id>`). Every write is
+ * permission-gated server-side; the buttons hide when the session lacks it.
  */
 import { computed, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { useRoute } from 'vue-router';
 import { ApiError } from '@/lib/apiClient';
 import { useSessionStore } from '@/stores/session';
 import { contactsApi, type Contact, type ContactPriority } from '@/lib/contacts';
+import { telephonyApi, otherParty, type Call } from '@/lib/telephony';
 import ContactPriorityBadge from '@/components/telephony/ContactPriorityBadge.vue';
 
-const { t } = useI18n();
+const { t, d } = useI18n();
 const session = useSessionStore();
+const route = useRoute();
 
 const list = ref<Contact[]>([]);
 const q = ref('');
@@ -29,6 +34,7 @@ const canCreate = computed(() => session.can('contacts.create'));
 const canEdit = computed(() => session.can('contacts.edit'));
 const canDelete = computed(() => session.can('contacts.delete'));
 const canPrio = computed(() => session.can('contacts.assign_priority'));
+const canHistory = computed(() => session.can('calls.view_history'));
 
 const PRIORITIES: ContactPriority[] = ['low', 'medium', 'high'];
 
@@ -74,6 +80,40 @@ async function reloadOne(id: string): Promise<void> {
     await load();
   }
 }
+
+// --- call history for the selected contact (E14-10 / #303) -------------
+const contactCalls = ref<Call[]>([]);
+const historyLoading = ref(false);
+let historyToken = 0;
+async function loadHistory(): Promise<void> {
+  const c = selected.value;
+  contactCalls.value = [];
+  if (!c || !canHistory.value || c.numbers.length === 0) return;
+  const token = ++historyToken;
+  historyLoading.value = true;
+  try {
+    // one call per number (the backend `number` filter is an exact single
+    // match on a participant), merged newest-first, deduped.
+    const pages = await Promise.all(
+      c.numbers.map((n) => telephonyApi.history({ number: n.e164, limit: 25 }).catch(() => null)),
+    );
+    if (token !== historyToken) return;
+    const seen = new Set<string>();
+    contactCalls.value = pages
+      .flatMap((p) => p?.items ?? [])
+      .filter((call) => !seen.has(call.id) && seen.add(call.id))
+      .sort((a, b) => (b.started_at ?? b.created_at).localeCompare(a.started_at ?? a.created_at))
+      .slice(0, 15);
+  } finally {
+    if (token === historyToken) historyLoading.value = false;
+  }
+}
+watch(selected, loadHistory);
+
+const lastContactAt = computed(() => {
+  const first = contactCalls.value[0];
+  return first ? (first.started_at ?? first.created_at) : null;
+});
 
 // --- edit ---------------------------------------------------------------
 const draft = ref<{ name: string; org: string; notes: string; quick_dial: boolean }>({
@@ -173,7 +213,27 @@ async function createContact(): Promise<void> {
   }
 }
 
-onMounted(load);
+// deep link from the comms sidebar's Historie tab: /telefonbuch?contact=<id>.
+// A `watch` (not just onMounted) so it also works when only the query changes
+// while the page is already mounted.
+async function selectFromRoute(): Promise<void> {
+  const wanted = typeof route.query.contact === 'string' ? route.query.contact : null;
+  if (!wanted || wanted === selectedId.value) return;
+  if (!list.value.some((c) => c.id === wanted)) {
+    try {
+      list.value = [await contactsApi.get(wanted), ...list.value];
+    } catch {
+      return; // gone / not visible in scope — leave nothing selected
+    }
+  }
+  selectedId.value = wanted;
+}
+watch(() => route.query.contact, selectFromRoute);
+
+onMounted(async () => {
+  await load();
+  await selectFromRoute();
+});
 </script>
 
 <template>
@@ -393,6 +453,44 @@ onMounted(load);
           </form>
         </fieldset>
 
+        <fieldset v-if="canHistory">
+          <legend>{{ t('phonebook.callHistory') }}</legend>
+          <p class="pb__lastcontact">
+            {{
+              lastContactAt
+                ? t('phonebook.lastContact', { when: d(new Date(lastContactAt), 'short') })
+                : t('phonebook.noContact')
+            }}
+          </p>
+          <p
+            v-if="historyLoading"
+            class="pb__muted"
+          >
+            {{ t('phonebook.historyLoading') }}
+          </p>
+          <ul
+            v-else-if="contactCalls.length"
+            class="pb__history"
+          >
+            <li
+              v-for="call in contactCalls"
+              :key="call.id"
+              class="pb__histrow"
+            >
+              <span
+                class="pb__histdir"
+                :title="t('comms.dir.' + call.direction)"
+              >{{ call.direction === 'inbound' ? '↙' : '↗' }}</span>
+              <span class="pb__histwhen">{{ d(new Date(call.started_at ?? call.created_at), 'short') }}</span>
+              <span
+                v-if="call.category"
+                class="pb__histcat"
+              >{{ t('comms.cat.' + call.category) }}</span>
+              <span class="pb__histwho">{{ otherParty(call) }}</span>
+            </li>
+          </ul>
+        </fieldset>
+
         <button
           v-if="canDelete"
           type="button"
@@ -593,6 +691,42 @@ onMounted(load);
   display: flex;
   align-items: end;
   gap: 0.4rem;
+}
+.pb__lastcontact {
+  margin: 0 0 0.4rem;
+  font-size: 0.85rem;
+}
+.pb__muted {
+  margin: 0;
+  color: var(--bbz-text-muted);
+  font-size: 0.85rem;
+}
+.pb__history {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  max-height: 12rem;
+  overflow-y: auto;
+}
+.pb__histrow {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  font-size: 0.82rem;
+}
+.pb__histwhen {
+  font-variant-numeric: tabular-nums;
+  color: var(--bbz-text-muted);
+}
+.pb__histcat {
+  color: var(--bbz-text-muted);
+}
+.pb__histwho {
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
 }
 .pb__addnum input {
   flex: 1;

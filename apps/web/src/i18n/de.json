@@ -416,6 +416,7 @@
     "search": "Kontakt suchen",
     "noContacts": "Keine Kontakte.",
     "noHistory": "Keine Anrufe.",
+    "openContact": "Kontakt im Telefonbuch öffnen",
     "prio": {
       "low": "niedrig",
       "medium": "mittel",
@@ -463,6 +464,10 @@
     "addNumber": "Nummer hinzufügen",
     "removeNumber": "entfernen",
     "delete": "Kontakt löschen",
+    "callHistory": "Rufhistorie",
+    "lastContact": "Letzter Kontakt: {when}",
+    "noContact": "Noch kein Anruf mit diesem Kontakt.",
+    "historyLoading": "Rufhistorie wird geladen …",
     "prio": {
       "low": "niedrig",
       "medium": "mittel",
