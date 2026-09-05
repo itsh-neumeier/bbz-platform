@@ -186,6 +186,17 @@
         "error": { "type": ["string", "null"] },
         "attempts": { "type": ["integer", "null"] }
       }
+    },
+    "CAMERA_OPENED": {
+      "type": "object",
+      "description": "An open_camera / open_camera_group outbox action that carried an event_id was delivered to the video.* provider (E16-08 / ADR-0032). Recorded on the triggering event so the operator camera panel (GET /events/{id}/cameras, E16-12) can list the associated cameras; the event and its popup are unaffected (MASTER_PROMPT §31/§36). Best-effort, like CAMERA_ACTION_FAILED.",
+      "required": ["action_type", "camera_refs"],
+      "additionalProperties": true,
+      "properties": {
+        "action_type": { "enum": ["open_camera", "open_camera_group"] },
+        "camera_refs": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+        "workplace_id": { "type": ["string", "null"] }
+      }
     }
   },
   "$defs": {
