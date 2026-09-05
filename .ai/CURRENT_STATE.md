@@ -899,7 +899,7 @@ All issues need Node/Electron; skipped like Epic 07.
 **Epic 10: 3/16 doable here (E10-01/02/14).** E10-03+ (enrollment, command bus,
 agent, UI) need the Go toolchain / identity lib.
 
-### Epic 11 – Telephony Core: **14/16** (E11-15 Kurzwahl-Dialog #225 blocked on Epic 14 speed-dial contacts; E11-16 #227 the full §24 E2E — priority recognition, free-text capture, audit-trail verification via API — stays open, narrower than what #221/#223's own test covers)
+### Epic 11 – Telephony Core: **15/16** (only E11-16 #227 left — the full §24 E2E: priority recognition, free-text capture, audit-trail verification via API — stays open, narrower than what #221/#223/#225's own tests cover)
 - **#197 (E11-01) telephony core schema** — migration 0026 + `telephony.py`:
   `lines` (provider+external_id unique, state CHECK), `calls` (`bbz_call_id`
   unique + **independent of** `source_call_id`; `direction`/`state` CHECK — the
@@ -1055,16 +1055,30 @@ agent, UI) need the Go toolchain / identity lib.
   lookup — worth remembering for weather/monitor/video E2E work too, same
   discovery mechanism.
 
-**Next:** Epic 11 — E11-13/14 done (#221/#223). **E11-15 (#225, Kurzwahl-
-Dialog)** stays open, blocked on Epic 14's speed-dial contacts. **E11-16
-(#227, the full §24 E2E)** stays open — narrower coverage already exists via
-`telephony.spec.ts`, but priority recognition / free-text / audit-trail
-verification aren't exercised yet. The Node-container Playwright pattern
-used all session (`bbz-platform-web-1` + an isolated-node_modules
-`mcr.microsoft.com/playwright:v1.62.1-noble` container against `bbz-720`) is
-NOT actually blocked — that stale note predated Epic 07's own completion
-this session; only the Go agents (09/10 impl) and #429 genuinely need a
-multi-host/Go toolchain session.
+- **#225 (E11-15) Kurzwahl-Dialog** — both roadmap dependencies (E11-13/#221,
+  E14-06/#295) were already done, so this is a pure frontend composition, no
+  backend change. `QuickDialOverlay.vue` (native `<dialog>`, same pattern as
+  `ReactivateDialog.vue`/`CallDocRequiredDialog.vue`) opened by a "Kurzwahl
+  öffnen" button in the Telefon tab — no permanent grid in the layout — lists
+  `quick_dial`-flagged contacts and reuses the existing `dialContact()`
+  helper to dial one. Fixed one real bug found via the real-browser E2E (not
+  caught by jsdom's component tests): `display: flex` directly on the
+  `<dialog>` element overrides the UA stylesheet's
+  `dialog:not([open]) { display: none }` regardless of specificity (author
+  styles beat user-agent styles unconditionally), permanently defeating
+  `showModal()`/`close()`'s own visibility toggle — moved the flex layout to
+  an inner `.qd__body` wrapper instead, matching how the other two dialogs
+  already avoid this. `QuickDialOverlay.spec.ts`, `e2e/quick-dial.spec.ts`.
+
+**Next:** Epic 11 — E11-13/14/15 done (#221/#223/#225). **E11-16 (#227, the
+full §24 E2E)** stays open — narrower coverage already exists via
+`telephony.spec.ts`/`quick-dial.spec.ts`, but priority recognition /
+free-text / audit-trail verification aren't exercised yet. The
+Node-container Playwright pattern used all session (`bbz-platform-web-1` +
+an isolated-node_modules `mcr.microsoft.com/playwright:v1.62.1-noble`
+container against `bbz-720`) is NOT actually blocked — that stale note
+predated Epic 07's own completion this session; only the Go agents (09/10
+impl) and #429 genuinely need a multi-host/Go toolchain session.
 
 ### Epic 12 – CUCM / JTAPI: **blocked**
 All 20 issues are the separate Java `services/cucm-cti-gateway` and hinge on
