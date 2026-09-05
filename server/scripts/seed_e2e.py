@@ -21,6 +21,8 @@ Idempotent — safe to re-run against a fresh schema. Creates:
   (E11-16 / #227) and the call-queue priority / sort / animation E2E
   (E14-09 / #301); ``Streckenposten Nord`` (medium) for the contact↔history
   link E2E (E14-10 / #303)
+* one active DWD warning ``STURMBÖEN`` (Nürnberg) + a few observations, for the
+  Wetterlage-page E2E (E18-09 / #391): open the warning as a BBZ event
 * ``BMA Halle 7 — E2E-Lebenszyklus`` — a fresh (``new``) critical event **with**
   that workflow, for the accept -> acknowledge -> open -> complete-step ->
   archive -> archive-detail -> reactivate walk
@@ -39,6 +41,7 @@ Credentials: admin / kollege, password ``Wolke7-Bahnhof!x`` (override ``E2E_PASS
 from __future__ import annotations
 
 import asyncio
+import datetime as _dt
 import os
 import uuid
 
@@ -127,6 +130,8 @@ async def _seed() -> None:
     from bbz_core.infra.models.events import Event
     from bbz_core.infra.models.identity import AuthIdentity, LocalCredential, User
     from bbz_core.infra.models.rbac import Permission, Role, RolePermission, UserRole
+    from bbz_core.infra.models.weather import WeatherAlert, WeatherObservation
+    from bbz_core.infra.models.weather_refresh import WeatherRefreshState
     from bbz_core.infra.models.workflow import WorkflowTemplate, WorkflowTemplateVersion
     from bbz_core.infra.repositories.events import EventRepository
     from bbz_core.infra.repositories.workflow_engine import WorkflowEngineService
@@ -266,6 +271,74 @@ async def _seed() -> None:
                 await s.flush()
                 s.add(ContactNumber(contact_id=contact.id, e164=number, is_primary=True))
                 s.add(ContactPriority(contact_id=contact.id, priority=prio))
+
+        async with s.begin():
+            # DWD weather data (E18-05) for the Wetterlage-page E2E (E18-09 /
+            # #391): one active warning to turn into an event via the
+            # confirmation dialog, plus a few observations for the
+            # Messwert-Kacheln. Radar frames are a per-node in-memory cache
+            # (E18-03), not a DB table — the radar-scrub E2E stubs
+            # `GET /weather/radar` instead.
+            now = _dt.datetime.now(_dt.UTC)
+            if (
+                await s.scalar(
+                    select(WeatherAlert.id).where(WeatherAlert.source_ref == "E2E-DWD-STURM")
+                )
+            ) is None:
+                s.add(
+                    WeatherAlert(
+                        region="Nürnberg",
+                        type="STURMBÖEN",
+                        level="3",
+                        valid_from=now - _dt.timedelta(hours=1),
+                        valid_to=now + _dt.timedelta(hours=6),
+                        headline="Amtliche WARNUNG vor STURMBÖEN (E2E)",
+                        description="Böen bis 90 km/h (Bft 10). E2E-Testwarnung.",
+                        source_ref="E2E-DWD-STURM",
+                        received_at=now,
+                    )
+                )
+            if (
+                await s.scalar(
+                    select(WeatherObservation.id).where(
+                        WeatherObservation.station_ref.like("E2E-%")
+                    )
+                )
+            ) is None:
+                for place, metric, value, unit, station in (
+                    ("Nürnberg", "wind_speed", 63.0, "km/h", "E2E-NUE"),
+                    ("Nürnberg", "temperature", 14.5, "°C", "E2E-NUE"),
+                    ("Fürth", "precipitation", 4.2, "mm", "E2E-FUE"),
+                ):
+                    s.add(
+                        WeatherObservation(
+                            place=place,
+                            metric=metric,
+                            value=value,
+                            unit=unit,
+                            observed_at=now,
+                            station_ref=station,
+                        )
+                    )
+            # a fresh refresh state so the health badge reads "aktuell" rather
+            # than "nicht verfügbar" (the DWD refresh singleton owns this table
+            # in a real deployment; there is no live DWD in CI).
+            for kind, count in (("warnings", 1), ("observations", 3), ("radar", 12)):
+                if (
+                    await s.scalar(
+                        select(WeatherRefreshState.data_kind).where(
+                            WeatherRefreshState.data_kind == kind
+                        )
+                    )
+                ) is None:
+                    s.add(
+                        WeatherRefreshState(
+                            data_kind=kind,
+                            last_attempt_at=now,
+                            last_success_at=now,
+                            last_item_count=count,
+                        )
+                    )
 
         async with s.begin():
             has_tpl = await s.scalar(

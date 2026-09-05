@@ -360,16 +360,35 @@
     "observations": "Messwerte",
     "radar": "Niederschlagsradar",
     "radarAlt": "Radarbild Niederschlag",
+    "radarPlay": "Abspielen",
+    "radarPause": "Pause",
+    "radarScrub": "Radar-Zeitpunkt wählen",
+    "radarFrame": "Bild {n} von {total}",
     "createEvent": "Ereignis erzeugen",
     "noAlerts": "Keine aktiven Warnungen.",
     "noObservations": "Keine Messwerte verfügbar.",
     "noRadar": "Kein Radarbild verfügbar.",
     "loadError": "Die Wetterdaten konnten nicht geladen werden.",
+    "attribution": "Quelle: {name}",
     "health": {
       "ok": "aktuell",
       "degraded": "eingeschränkt",
       "stale": "veraltet",
       "down": "nicht verfügbar"
+    },
+    "stale": {
+      "degraded": "eingeschränkt",
+      "stale": "veraltet",
+      "down": "nicht verfügbar"
+    },
+    "createDialog": {
+      "title": "Wetterereignis erzeugen",
+      "priorityLabel": "Priorität",
+      "assessmentLabel": "Betriebliche Bewertung (optional)",
+      "assessmentHint": "Einschätzung der Lage für die Leitstelle",
+      "confirm": "Ereignis erzeugen",
+      "cancel": "Abbrechen",
+      "error": "Das Ereignis konnte nicht erzeugt werden."
     },
     "metric": {
       "temperature": "Temperatur",
