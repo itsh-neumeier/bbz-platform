@@ -396,6 +396,16 @@
       "precipitation": "Niederschlag"
     }
   },
+  "camera": {
+    "title": "Kameras",
+    "unavailable": "Video derzeit nicht verfügbar.",
+    "openFailed": "Öffnen fehlgeschlagen",
+    "status": {
+      "online": "verfügbar",
+      "offline": "offline",
+      "unknown": "Status unbekannt"
+    }
+  },
   "comms": {
     "phone": "Telefon",
     "call": "Gespräch",
