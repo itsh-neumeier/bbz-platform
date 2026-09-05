@@ -899,7 +899,7 @@ All issues need Node/Electron; skipped like Epic 07.
 **Epic 10: 3/16 doable here (E10-01/02/14).** E10-03+ (enrollment, command bus,
 agent, UI) need the Go toolchain / identity lib.
 
-### Epic 11 – Telephony Core: **backend COMPLETE (12/16; E11-13/14/15 UI + E11-16 Playwright → Epic 07)**
+### Epic 11 – Telephony Core: **14/16** (E11-15 Kurzwahl-Dialog #225 blocked on Epic 14 speed-dial contacts; E11-16 #227 the full §24 E2E — priority recognition, free-text capture, audit-trail verification via API — stays open, narrower than what #221/#223's own test covers)
 - **#197 (E11-01) telephony core schema** — migration 0026 + `telephony.py`:
   `lines` (provider+external_id unique, state CHECK), `calls` (`bbz_call_id`
   unique + **independent of** `source_call_id`; `direction`/`state` CHECK — the
@@ -1018,9 +1018,53 @@ agent, UI) need the Go toolchain / identity lib.
   a client re-fetches the queue promptly (the call transition is already a
   domain event on the log). `test_call_queue_api.py`.
 
-**Next:** Epic 11 backend is done — **E11-13/14/15 (UI), E11-16 (Playwright)**
-are frontend/E2E → blocked. Epic 07 / 08, #92, the Go agents (09/10 impl) and
-the #429 browser E2E stay blocked on a Node / Go / multi-host session.
+- **#221 (E11-13) Komm-Sidebar-UI: Dauer** — `CommsSidebar.vue`'s Telefon-Tab
+  already had keypad/waiting-list/answer-hangup (#127); this adds a live
+  `mm:ss` call duration (ticks off `Call.started_at`, a 1 s `setInterval`)
+  next to the active-call header once `connected`.
+- **#223 (E11-14) Anrufdokumentations-Pflicht-Popup** — hangup is gated
+  client-side on `calls.docRequired`: `CallDocRequiredDialog.vue` (mirrors
+  `ReactivateDialog.vue`'s native-`<dialog>` pattern) blocks with a category
+  radio-group + free-text textarea until a category is chosen, then saves
+  the documentation and issues hangup itself. Server-side enforcement
+  unchanged (E11-10).
+- **Telephony event-pump gap closed for the mock path only** — no
+  background worker drains ANY telephony provider's event stream, mock or
+  real (`bbz_core/workers/registry.py`'s `SINGLETON_NAMES` has no telephony
+  entry) — E11-05's own AC ("Szenarien per API/Config auslösbar") was never
+  actually delivered. New `POST /telephony/_mock/simulate-incoming`
+  (`calls.simulate_mock_scenario`, machine/E2E-only, 404s on a non-mock
+  provider) drives the mock's scenario helper for tests; `_control()` now
+  also drains+ingests the mock's events for answer/hold/resume/transfer (not
+  hangup — its own E11-10 guard already sets state unconditionally) so a
+  call's own state actually reflects the action. Outbound `dial()` and any
+  *real* provider still have no pump — a real CTI gateway delivers over its
+  own webhook, so this doesn't block production use, but a generic
+  background pump remains a future improvement, not expanded here.
+  `test_telephony_mock_simulate_api.py`, `apps/web/e2e/telephony.spec.ts`.
+- **CI infra fix alongside #221/#223**: the `e2e` job installed `./server`
+  (+ `packages/`) as a regular, non-editable package — that copies
+  `bbz_core` into site-packages, which breaks
+  `integrations_host/registry.py`'s `_repo_root()` (computed relative to
+  `__file__`), so it can't find `integrations/*/manifest.json` and every
+  `active_*_provider()` call (telephony/weather/monitor/video) 404s with
+  "no active provider" in that job specifically. `requirements-dev.txt`
+  (the `backend` job, all local dev) already installs `-e`; the `e2e` job's
+  separate install step just didn't match. Never surfaced before
+  `telephony.spec.ts` because no earlier e2e spec exercised a real provider
+  lookup — worth remembering for weather/monitor/video E2E work too, same
+  discovery mechanism.
+
+**Next:** Epic 11 — E11-13/14 done (#221/#223). **E11-15 (#225, Kurzwahl-
+Dialog)** stays open, blocked on Epic 14's speed-dial contacts. **E11-16
+(#227, the full §24 E2E)** stays open — narrower coverage already exists via
+`telephony.spec.ts`, but priority recognition / free-text / audit-trail
+verification aren't exercised yet. The Node-container Playwright pattern
+used all session (`bbz-platform-web-1` + an isolated-node_modules
+`mcr.microsoft.com/playwright:v1.62.1-noble` container against `bbz-720`) is
+NOT actually blocked — that stale note predated Epic 07's own completion
+this session; only the Go agents (09/10 impl) and #429 genuinely need a
+multi-host/Go toolchain session.
 
 ### Epic 12 – CUCM / JTAPI: **blocked**
 All 20 issues are the separate Java `services/cucm-cti-gateway` and hinge on

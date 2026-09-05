@@ -51,9 +51,9 @@ Feature areas whose UI lives in a later epic point at that epic.
 
 | # | Feature | Delivered by | Status |
 |---|---|---|---|
-| 22 | phone panel, keypad, incoming call queue | Epic 11 · #221 (`Komm-Sidebar-UI`) | in-progress — keypad + line picker + `POST /calls/dial`, waiting-call queue from `GET /calls/ringing` (comms sidebar Telefon tab) |
+| 22 | phone panel, keypad, incoming call queue | Epic 11 · #221 (`Komm-Sidebar-UI`) | done — keypad + line picker + `POST /calls/dial`, waiting-call queue from `GET /calls/ringing`, live `mm:ss` call duration once connected (comms sidebar Telefon/Gespräch tab); `apps/web/e2e/telephony.spec.ts` |
 | 23 | contact priority blue / orange / red, call-priority animation | Epic 14 · #299, #301 | in-progress — contact priority blue/orange/red on the phone-book (`prio--low/medium/high` = `--bbz-prio-*` tokens); the call-priority pulse is the comms sidebar (#301) |
-| 24 | mandatory call categorization, optional call free text | Epic 11 · #223 (`Anrufdokumentations-UI`) | in-progress — the Gespräch tab's documentation form (category radios + free text), `PUT /calls/{id}/documentation`; a "Dokumentation erforderlich" banner while the E11-10 hangup guard is open |
+| 24 | mandatory call categorization, optional call free text | Epic 11 · #223 (`Anrufdokumentations-UI`) | done — the Gespräch tab's documentation form (category radios + free text), `PUT /calls/{id}/documentation`; hangup without a category opens a blocking `CallDocRequiredDialog` popup instead of the call silently ending (E11-10 guard enforced server-side) |
 | 25 | phonebook (list, search, CRUD) | Epic 14 · #297 (`Telefonbuch-UI`) | done — `/telefonbuch` `PhonebookPage.vue`: substring search (name/org/number) + quick-dial filter, create / edit fields / manage numbers / assign priority / soft-delete, all permission-gated; `PhonebookPage.spec.ts`, `e2e/phonebook.spec.ts` (create → live search → set priority) |
 | 26 | quick-dial dialog ("Kurzwahl öffnen" overlay) | Epic 11 · #225 | todo |
 | 27 | contact ↔ call-history link (UI) | Epic 14 · #303 | todo |
