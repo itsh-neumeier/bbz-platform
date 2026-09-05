@@ -5,6 +5,12 @@ call on the **active** telephony provider (``telephony_mock`` today; a real CTI
 gateway in Epic 12). Every attempt is audited (``CALL_CONTROL_ACTION``) with the
 action and the provider's acknowledgement. A repeated ``X-Command-Id`` replays
 the stored response and never re-hits the provider — no double "answer".
+
+``_control()`` also drains + ingests whatever the **mock** provider emitted for
+answer/hold/resume/transfer (never for a real provider, whose events arrive
+over its own webhook independently) — see its inline comment and
+``POST /telephony/_mock/simulate-incoming``'s docstring for why: nothing else
+drains a mock provider's event stream today.
 """
 
 from __future__ import annotations
@@ -33,6 +39,7 @@ from bbz_core.infra.models.telephony import (
     CallState,
 )
 from bbz_core.infra.repositories.call_queries import CallHistoryItem, CallQueryRepository
+from bbz_core.infra.telephony_ingest import ingest_telephony_event
 from bbz_core.integrations_host.providers import NoActiveProvider, active_telephony_provider
 
 router = APIRouter(prefix="/calls", tags=["calls"])
@@ -144,6 +151,20 @@ async def _control(
         accepted, detail, _ = _ack_fields(ack)
 
         await session.rollback()
+        # `hangup` doesn't need this: its own `finalize` guard (E11-10) sets
+        # the call's resulting state unconditionally, without needing the
+        # provider's event. answer/hold/resume/transfer have no such guard —
+        # against the mock, nothing else ever drains what it emits (E11-05's
+        # own "Szenarien per API/Config auslösbar" was never fully delivered,
+        # see `POST /telephony/_mock/simulate-incoming`'s docstring), so
+        # without this the call's DB state would never actually move past
+        # its pre-action value. A no-op against a real (non-mock) provider,
+        # whose events arrive over its own webhook independently.
+        if finalize is None and bool(getattr(provider.info(), "mock", False)):  # type: ignore[attr-defined]
+            for ev in await provider.drain_events():  # type: ignore[attr-defined]
+                async with session.begin():
+                    await ingest_telephony_event(session, ev.model_dump(mode="json"))
+
         note = detail
         async with session.begin():
             fresh = await session.get(Call, call_id)

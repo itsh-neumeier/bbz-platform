@@ -3,7 +3,9 @@
 Idempotent — safe to re-run against a fresh schema. Creates:
 
 * the RBAC catalog + built-in roles (``seed_rbac``)
-* ``admin`` — the ``administrator`` role (every human permission)
+* ``admin`` — the ``administrator`` role (every human permission) plus a
+  second, narrow role granting the machine-only ``calls.simulate_mock_scenario``
+  (E11-05 / #221/#223's telephony E2E)
 * ``kollege`` — an operator with the event + workflow permissions. It never logs
   in during the E2E, so its effective presence is ``offline`` and ``admin`` may
   take an event over from it.
@@ -207,6 +209,21 @@ async def _seed() -> None:
             kollege_id = await user_id(s, "kollege", "E2E Kollege", "e2e_operator")
             # #97 — an operator who must set a new password on first login
             await user_id(s, "neuling", "E2E Neuling", "e2e_operator", must_change=True)
+
+        async with s.begin():
+            # calls.simulate_mock_scenario is machine-only (never in a human
+            # built-in role, so never in `administrator`) — grant admin a
+            # second, narrow role just for it, so the telephony E2E (#221/#223)
+            # can drive the mock's "incoming call" scenario over HTTP.
+            if await s.scalar(select(Role.id).where(Role.key == "e2e_mock_scenarios")) is None:
+                role = Role(key="e2e_mock_scenarios", name="E2E Mock Scenarios")
+                s.add(role)
+                await s.flush()
+                pid = await s.scalar(
+                    select(Permission.id).where(Permission.key == "calls.simulate_mock_scenario")
+                )
+                s.add(RolePermission(role_id=role.id, permission_id=pid, scope="global"))
+                s.add(UserRole(user_id=admin_id, role_id=role.id))
 
         async with s.begin():
             has_tpl = await s.scalar(

@@ -399,6 +399,12 @@
     "saveDoc": "Dokumentation speichern",
     "docRequired": "Dokumentation erforderlich — bitte eine Kategorie wählen, bevor der Anruf abgeschlossen wird.",
     "noActive": "Kein aktives Gespräch.",
+    "docDialog": {
+      "title": "Dokumentation erforderlich",
+      "lead": "Vor dem Auflegen bitte eine Kategorie wählen. Der Anruf wird erst abgeschlossen, sobald eine Kategorie ausgewählt ist.",
+      "cancel": "Zurück zum Gespräch",
+      "confirm": "Kategorie speichern und auflegen"
+    },
     "search": "Kontakt suchen",
     "noContacts": "Keine Kontakte.",
     "noHistory": "Keine Anrufe.",

@@ -14,6 +14,7 @@ import { useCallsStore } from '@/stores/calls';
 import { useReducedMotion } from '@/composables/useReducedMotion';
 import { CALL_CATEGORIES, otherParty, type CallCategory } from '@/lib/telephony';
 import { contactsApi, type Contact } from '@/lib/contacts';
+import CallDocRequiredDialog from '@/components/telephony/CallDocRequiredDialog.vue';
 
 const { t } = useI18n();
 const session = useSessionStore();
@@ -30,6 +31,29 @@ const canHangup = computed(() => session.can('calls.hangup'));
 const canHold = computed(() => session.can('calls.hold'));
 const canTransfer = computed(() => session.can('calls.transfer'));
 const canDocument = computed(() => session.can('calls.document'));
+
+// --- call duration (E11-13 / #221) -----------------------------------
+const clockNow = ref(Date.now());
+let clockTimer: ReturnType<typeof setInterval> | undefined;
+onMounted(() => {
+  clockTimer = setInterval(() => {
+    clockNow.value = Date.now();
+  }, 1000);
+});
+onBeforeUnmount(() => clearInterval(clockTimer));
+
+/** mm:ss since the call connected; freezes once it has ended (still shown
+ *  while `ended_pending_documentation`, per docRequired). */
+const duration = computed(() => {
+  const c = calls.active;
+  if (!c?.started_at) return null;
+  const started = new Date(c.started_at).getTime();
+  const end = c.ended_at ? new Date(c.ended_at).getTime() : clockNow.value;
+  const secs = Math.max(0, Math.floor((end - started) / 1000));
+  const m = Math.floor(secs / 60);
+  const s = secs % 60;
+  return `${m}:${String(s).padStart(2, '0')}`;
+});
 
 // --- resize handle ---------------------------------------------------
 const dragging = ref(false);
@@ -96,6 +120,28 @@ function syncDocForm() {
 }
 // keep the form in step when the doc (re)loads for a new active call
 watch(() => calls.doc, syncDocForm);
+
+// --- mandatory-documentation hangup gate (E11-14 / #223) -------------
+// Hanging up without a category is not itself an error — the server just
+// parks the call in `ended_pending_documentation` (E11-10) — but leaving
+// that to "whenever someone notices the badge" is easy to forget. Catch it
+// *before* the hangup instead: intercept the click, only actually hang up
+// once a category has been chosen.
+const showDocGate = ref(false);
+function requestHangup(): void {
+  if (!calls.active) return;
+  if (calls.docRequired) {
+    showDocGate.value = true;
+    return;
+  }
+  void calls.control('hangup', calls.active.id);
+}
+async function confirmDocAndHangup(category: CallCategory, freeText: string): Promise<void> {
+  if (!calls.active) return;
+  await calls.saveDoc(category, freeText);
+  if (calls.active) await calls.control('hangup', calls.active.id);
+  showDocGate.value = false;
+}
 
 // --- phonebook mini -------------------------------------------
 const pbQuery = ref('');
@@ -305,6 +351,10 @@ onBeforeUnmount(() => clearInterval(poll));
       <div v-if="calls.active">
         <div class="ac">
           <span class="ac__who">{{ otherParty(calls.active) }}</span>
+          <span
+            v-if="duration"
+            class="ac__duration"
+          >{{ duration }}</span>
           <span class="ac__state">{{ t('comms.state.' + calls.active.state) }}</span>
         </div>
 
@@ -338,7 +388,7 @@ onBeforeUnmount(() => clearInterval(poll));
             type="button"
             class="ac__hangup"
             :disabled="calls.busy"
-            @click="calls.control('hangup', calls.active.id)"
+            @click="requestHangup"
           >
             {{ t('comms.hangup') }}
           </button>
@@ -493,6 +543,13 @@ onBeforeUnmount(() => clearInterval(poll));
         :title="l.label ?? l.external_id"
       >{{ l.label ?? l.external_id }}</span>
     </div>
+
+    <CallDocRequiredDialog
+      :open="showDocGate"
+      :busy="calls.busy"
+      @close="showDocGate = false"
+      @confirm="confirmDocAndHangup"
+    />
   </aside>
 </template>
 
@@ -735,13 +792,19 @@ onBeforeUnmount(() => clearInterval(poll));
 /* active call */
 .ac {
   display: flex;
-  justify-content: space-between;
   align-items: baseline;
   gap: 0.5rem;
 }
 .ac__who {
+  flex: 1;
+  min-width: 0;
   font-size: 1.1rem;
   font-weight: 600;
+}
+.ac__duration {
+  font-variant-numeric: tabular-nums;
+  font-size: 0.85rem;
+  color: var(--bbz-text-muted);
 }
 .ac__state {
   font-size: 0.8rem;

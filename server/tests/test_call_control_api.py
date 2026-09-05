@@ -117,6 +117,11 @@ async def _audit_count(s: AsyncSession) -> int:
     ).scalar_one()
 
 
+async def _state(s: AsyncSession, cid: uuid.UUID) -> str:
+    await s.rollback()
+    return (await s.execute(select(Call.state).where(Call.id == cid))).scalar_one()
+
+
 async def test_answer_translates_to_the_provider_and_is_audited(env: tuple) -> None:
     client, s = env
     await _make_user(s, "op", _ALL)
@@ -147,9 +152,18 @@ async def test_duplicate_answer_command_does_not_hit_the_provider_twice(env: tup
     assert first.status_code == second.status_code == 200
     assert first.json() == second.json()
 
+    # `_control()` itself drains and ingests the mock provider's queue on the
+    # first request now (so `Call.state` actually reflects the answer instead
+    # of relying on a background pump that doesn't exist) — the replayed
+    # second request never touches the provider at all, so nothing is left
+    # here for the test to find. That the provider's `answer()` only really
+    # ran once is instead visible in the single audit row and the call's own
+    # state below; a hypothetical double-invocation would show up as a
+    # second CALL_CONTROL_ACTION audit entry, not as leftover events.
     events = await provider.drain_events()  # type: ignore[attr-defined]
-    assert [e.event_type.value for e in events].count("CALL_ANSWERED") == 1
+    assert events == []
     assert await _audit_count(s) == 1
+    assert await _state(s, call_id) == "connected"
 
 
 async def test_transfer_requires_a_destination(env: tuple) -> None:
