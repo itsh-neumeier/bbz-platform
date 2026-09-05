@@ -3,8 +3,9 @@
 ## Current phase
 Working the roadmap issues in order (see `.ai/ROADMAP.md`, tracking issue #18).
 **Epics 02–06 complete; Epic 01 is 6/7** (only E01-02 blocked — client-supplied
-mockup files). **The domain epics 11/13–22 are backend-complete** (Epic 13 is
-1/8 + ADR-0023 Accepted). **Epic 07 (Web UI) is in progress** — the operator UI
+mockup files). **Epic 11 (Telephony Core) is fully COMPLETE (16/16)**; the
+remaining domain epics 13/14–22 are backend-complete (Epic 13 is 1/8 +
+ADR-0023 Accepted). **Epic 07 (Web UI) is in progress** — the operator UI
 (auth · work queue · event detail · archive · reactivation · workflow view ·
 priority alerts · SSE · theme · i18n), the weather + monitor pages, the
 phone-book, the comms sidebar, the EPK editor and the `/arbeitsplatz` status
@@ -899,7 +900,7 @@ All issues need Node/Electron; skipped like Epic 07.
 **Epic 10: 3/16 doable here (E10-01/02/14).** E10-03+ (enrollment, command bus,
 agent, UI) need the Go toolchain / identity lib.
 
-### Epic 11 – Telephony Core: **15/16** (only E11-16 #227 left — the full §24 E2E: priority recognition, free-text capture, audit-trail verification via API — stays open, narrower than what #221/#223/#225's own tests cover)
+### Epic 11 – Telephony Core: **COMPLETE (16/16)**
 - **#197 (E11-01) telephony core schema** — migration 0026 + `telephony.py`:
   `lines` (provider+external_id unique, state CHECK), `calls` (`bbz_call_id`
   unique + **independent of** `source_call_id`; `direction`/`state` CHECK — the
@@ -1070,12 +1071,20 @@ agent, UI) need the Go toolchain / identity lib.
   an inner `.qd__body` wrapper instead, matching how the other two dialogs
   already avoid this. `QuickDialOverlay.spec.ts`, `e2e/quick-dial.spec.ts`.
 
-**Next:** Epic 11 — E11-13/14/15 done (#221/#223/#225). **E11-16 (#227, the
-full §24 E2E)** stays open — narrower coverage already exists via
-`telephony.spec.ts`/`quick-dial.spec.ts`, but priority recognition /
-free-text / audit-trail verification aren't exercised yet. The
-Node-container Playwright pattern used all session (`bbz-platform-web-1` +
-an isolated-node_modules `mcr.microsoft.com/playwright:v1.62.1-noble`
+- **#227 (E11-16) full §24 telephony E2E** — `e2e/telephony-lifecycle.spec.ts`:
+  all 7 MASTER_PROMPT §24 steps in one flow (incoming → priority recognized
+  → answer → category set → free text → hangup → `CALL_DOCUMENTED` audit
+  verified via `GET /api/v1/audit`). Exercises the *other* valid path from
+  `telephony.spec.ts`: documentation set proactively during the call via the
+  inline `.ac__doc` form, so hangup closes immediately with no gate popup.
+  Needed only a seeded high-priority contact (`Feuerleitzentrale`) for the
+  incoming call to resolve a priority against — no application code change,
+  all three roadmap dependencies (E11-08/#211, E11-13/#221, E11-14/#223)
+  were already done.
+
+**Epic 11 (Telephony Core) is now fully complete — all 16 items done.**
+The Node-container Playwright pattern used all session (`bbz-platform-web-1`
++ an isolated-node_modules `mcr.microsoft.com/playwright:v1.62.1-noble`
 container against `bbz-720`) is NOT actually blocked — that stale note
 predated Epic 07's own completion this session; only the Go agents (09/10
 impl) and #429 genuinely need a multi-host/Go toolchain session.
