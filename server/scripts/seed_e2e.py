@@ -14,6 +14,8 @@ Idempotent — safe to re-run against a fresh schema. Creates:
 * a published 1-step workflow template ``e2e-bma``
 * a **draft** workflow template ``e2e-epk`` (event -> XOR-split -> two
   functions -> XOR-join -> event) for the EPK-canvas-editor E2E (E07-19 / #129)
+* a quick-dial contact ``Pförtner Haupttor`` (E14-06) for the Kurzwahl-overlay
+  E2E (E11-15 / #225)
 * ``BMA Halle 7 — E2E-Lebenszyklus`` — a fresh (``new``) critical event **with**
   that workflow, for the accept -> acknowledge -> open -> complete-step ->
   archive -> archive-detail -> reactivate walk
@@ -116,6 +118,7 @@ async def _seed() -> None:
     from bbz_core.domain.events.aggregate import EventAggregate
     from bbz_core.domain.events.state import EventPriority, EventStatus
     from bbz_core.infra.db import get_sessionmaker
+    from bbz_core.infra.models.contacts import Contact, ContactNumber
     from bbz_core.infra.models.events import Event
     from bbz_core.infra.models.identity import AuthIdentity, LocalCredential, User
     from bbz_core.infra.models.rbac import Permission, Role, RolePermission, UserRole
@@ -224,6 +227,18 @@ async def _seed() -> None:
                 )
                 s.add(RolePermission(role_id=role.id, permission_id=pid, scope="global"))
                 s.add(UserRole(user_id=admin_id, role_id=role.id))
+
+        async with s.begin():
+            # a quick-dial contact (E14-06) for the Kurzwahl-overlay E2E
+            # (E11-15 / #225) to select and dial.
+            has_contact = await s.scalar(
+                select(Contact.id).where(Contact.name == "Pförtner Haupttor")
+            )
+            if has_contact is None:
+                contact = Contact(name="Pförtner Haupttor", org="Werkschutz", quick_dial=True)
+                s.add(contact)
+                await s.flush()
+                s.add(ContactNumber(contact_id=contact.id, e164="+498955501", is_primary=True))
 
         async with s.begin():
             has_tpl = await s.scalar(
