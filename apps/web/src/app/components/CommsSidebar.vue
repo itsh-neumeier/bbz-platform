@@ -6,7 +6,9 @@
  * controls + mandatory documentation), Telefonbuch (search + quick-dial → dial),
  * Historie (recent calls). Horizontally resizable with a keyboard-operable handle
  * — operation must never rely on drag alone (RULES.md §a11y). The waiting-call
- * queue is priority-coloured with a pulse that stills under `prefers-reduced-motion`.
+ * queue is sorted high→low and priority-coloured, with a graded pulse (high
+ * hardest, medium fainter, low none, E14-09 / #301) that stills under
+ * `prefers-reduced-motion`.
  */
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
@@ -778,26 +780,46 @@ onBeforeUnmount(() => clearInterval(poll));
   border-left: 4px solid var(--bbz-border);
   background: var(--bbz-surface-alt);
 }
+/* graded animation, E14-09 / #301: "hoch stärker" — high pulses hardest and
+   fastest, medium a slower/fainter pulse, low just the colour stripe. */
 .wq__item--high {
   border-left-color: var(--bbz-prio-high);
-  animation: wq-pulse 1.4s ease-in-out infinite;
+  animation: wq-pulse-high 1.4s ease-in-out infinite;
 }
 .wq__item--medium {
   border-left-color: var(--bbz-prio-medium);
+  animation: wq-pulse-medium 2.6s ease-in-out infinite;
 }
 .wq__item--low {
   border-left-color: var(--bbz-prio-low);
 }
+/* JS fallback (useReducedMotion ref) + the CSS media query below — both, so
+   it also holds on the first paint before the ref resolves. */
 .wq__item--still {
   animation: none !important;
 }
-@keyframes wq-pulse {
+@media (prefers-reduced-motion: reduce) {
+  .wq__item--high,
+  .wq__item--medium {
+    animation: none;
+  }
+}
+@keyframes wq-pulse-high {
   0%,
   100% {
     background: var(--bbz-surface-alt);
   }
   50% {
     background: color-mix(in srgb, var(--bbz-prio-high) 22%, var(--bbz-surface-alt));
+  }
+}
+@keyframes wq-pulse-medium {
+  0%,
+  100% {
+    background: var(--bbz-surface-alt);
+  }
+  50% {
+    background: color-mix(in srgb, var(--bbz-prio-medium) 12%, var(--bbz-surface-alt));
   }
 }
 .wq__who {

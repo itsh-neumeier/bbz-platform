@@ -85,6 +85,23 @@ describe('CommsSidebar', () => {
     expect(item.find('.wq__answer').exists()).toBe(true);
   });
 
+  it('sorts the waiting queue high → low regardless of arrival order (#301)', async () => {
+    const mk = (id: string, prio: 'high' | 'medium' | 'low' | null, who: string): tel.Call => ({
+      ...ringing,
+      id,
+      caller_priority: prio,
+      participants: [{ number: '+49' + id, display_name: who, role: 'caller' }],
+    });
+    vi.mocked(tel.telephonyApi.ringing).mockResolvedValue({
+      // arrive scrambled
+      items: [mk('1', 'low', 'Niedrig'), mk('2', null, 'Unbekannt'), mk('3', 'high', 'Hoch'), mk('4', 'medium', 'Mittel')],
+      next_cursor: null,
+    });
+    const w = await factory(['calls.view']);
+    const who = w.findAll('.wq__item .wq__who').map((r) => r.text());
+    expect(who).toEqual(['Hoch', 'Mittel', 'Niedrig', 'Unbekannt']);
+  });
+
   it('answers a call and moves to the Gespräch tab', async () => {
     const answer = vi
       .spyOn(tel.telephonyApi, 'answer')
