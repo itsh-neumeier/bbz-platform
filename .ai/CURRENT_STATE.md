@@ -1112,7 +1112,7 @@ API. `integrations/telephony_cucm/` stays a placeholder README.
 - E13-03..08 (SIP adapter, events, control, DTMF, secrets, PBX integration
   tests) — need a SIP stack / containerized test PBX.
 
-### Epic 14 – Contacts / Call Priorities: **8/10** (E14-07/08 UI done; E14-09 #301 + E14-10 #303 open)
+### Epic 14 – Contacts / Call Priorities: **9/10** (only E14-10 #303 contact↔history-link UI open)
 - **#285 (E14-01) contacts schema** — migration 0027 + `contacts.py`:
   `contacts` (name, org, notes, `quick_dial`, `bbz_id` scope — plain UUID like
   `events.bbz_id`), `contact_numbers` (`e164` stored normalized — a CHECK
@@ -1174,11 +1174,21 @@ API. `integrations/telephony_cucm/` stays a placeholder README.
   quick-dial overlay (#225) and the comms mini-search; one component, so it
   reads identically everywhere. Dropped the now-dead `PRIORITY_CLASS` export.
   `ContactPriorityBadge.spec.ts`; `e2e/a11y.spec.ts` gains Telefonbuch in
-  the axe sweep (light + dark). The waiting-call queue's own priority
-  stripe/pulse is E14-09 / #301, untouched.
-- **E14-09 (#301, waiting-queue priority colour + animated background) and
-  E14-10 (#303, contact ↔ call-history link UI) remain open** — not blocked
-  (the Node-container Playwright/vitest loop runs fine).
+  the axe sweep (light + dark).
+- **#301 (E14-09) waiting-queue priority pulse** — the `.wq` queue in
+  `CommsSidebar.vue` already sorted high→low (`sortedRinging` /
+  `PRIORITY_RANK`), striped by priority colour, showed an unknown caller's
+  number, and had a `useReducedMotion()` ref. Added: a **graded** pulse
+  ("hoch stärker") — `wq-pulse-high` (1.4 s / 22 % mix), `wq-pulse-medium`
+  (2.6 s / 12 %, slower + fainter), low = stripe only — plus an explicit
+  `@media (prefers-reduced-motion: reduce)` block alongside the JS-ref
+  class. `e2e/call-queue.spec.ts` (scrambled-arrival sort by boundingBox y,
+  `getComputedStyle().animationName` per tier, `emulateMedia` reduced-motion,
+  unknown caller; its `afterEach` fully closes every queued call —
+  hangup + document → `disconnected` — so it leaves no trace for the
+  shared-DB suite), `CommsSidebar.spec.ts` (+1 store sort check).
+- **Only E14-10 (#303, contact ↔ call-history link UI) remains open** — not
+  blocked (the Node-container Playwright/vitest loop runs fine).
   **E11-08 is unblocked** (has `ContactMatcher`).
 
 ### Epic 15 – Technical Endpoints / Trigger Engine: **15/15 backend done** (E15-14 frontend → Epic 07)
