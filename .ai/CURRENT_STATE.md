@@ -3,9 +3,10 @@
 ## Current phase
 Working the roadmap issues in order (see `.ai/ROADMAP.md`, tracking issue #18).
 **Epics 02–06 complete; Epic 01 is 6/7** (only E01-02 blocked — client-supplied
-mockup files). **Epic 11 (Telephony Core) is fully COMPLETE (16/16)**; the
-remaining domain epics 13/14–22 are backend-complete (Epic 13 is 1/8 +
-ADR-0023 Accepted). **Epic 07 (Web UI) is in progress** — the operator UI
+mockup files). **Epic 11 (Telephony Core) COMPLETE (16/16)** and **Epic 14 (Contacts /
+Call Priorities) COMPLETE (10/10)**; the remaining domain epics 13/15–22 are
+backend-complete (Epic 13 is 1/8 + ADR-0023 Accepted). **Epic 07 (Web UI) is
+in progress** — the operator UI
 (auth · work queue · event detail · archive · reactivation · workflow view ·
 priority alerts · SSE · theme · i18n), the weather + monitor pages, the
 phone-book, the comms sidebar, the EPK editor and the `/arbeitsplatz` status
@@ -1112,7 +1113,7 @@ API. `integrations/telephony_cucm/` stays a placeholder README.
 - E13-03..08 (SIP adapter, events, control, DTMF, secrets, PBX integration
   tests) — need a SIP stack / containerized test PBX.
 
-### Epic 14 – Contacts / Call Priorities: **9/10** (only E14-10 #303 contact↔history-link UI open)
+### Epic 14 – Contacts / Call Priorities: **COMPLETE (10/10)**
 - **#285 (E14-01) contacts schema** — migration 0027 + `contacts.py`:
   `contacts` (name, org, notes, `quick_dial`, `bbz_id` scope — plain UUID like
   `events.bbz_id`), `contact_numbers` (`e164` stored normalized — a CHECK
@@ -1187,9 +1188,21 @@ API. `integrations/telephony_cucm/` stays a placeholder README.
   unknown caller; its `afterEach` fully closes every queued call —
   hangup + document → `disconnected` — so it leaves no trace for the
   shared-DB suite), `CommsSidebar.spec.ts` (+1 store sort check).
-- **Only E14-10 (#303, contact ↔ call-history link UI) remains open** — not
-  blocked (the Node-container Playwright/vitest loop runs fine).
-  **E11-08 is unblocked** (has `ContactMatcher`).
+- **#303 (E14-10) contact ↔ call-history link** — pure frontend, backend
+  already had `GET /calls?number=<e164>` + `caller_contact_id` (E11-08).
+  (1) The phone-book contact detail panel gains a "Rufhistorie" fieldset —
+  the contact's recent calls (one `telephonyApi.history({number})` per
+  contact number, merged newest-first) + "Letzter Kontakt: <when>",
+  `calls.view_history`-gated. (2) The comms sidebar's Historie tab links a
+  row whose caller resolved to a contact to `/telefonbuch?contact=<id>`;
+  `PhonebookPage` reads that query via a `watch` + `onMounted` (a bare
+  query change while mounted doesn't re-run `onMounted`) and
+  `contactsApi.get`s the contact if it's outside the current search page.
+  `telephonyApi.history` gained `number`/`direction` params.
+  `e2e/contact-history.spec.ts`, `PhonebookPage.spec.ts` (+2, moved to a
+  memory router), `CommsSidebar.spec.ts` (`RouterLinkStub`).
+
+**Epic 14 (Contacts / Call Priorities) is now fully complete — all 10 items.**
 
 ### Epic 15 – Technical Endpoints / Trigger Engine: **15/15 backend done** (E15-14 frontend → Epic 07)
 - **#305 (E15-01) technical-endpoints schema** — migration 0030 +
