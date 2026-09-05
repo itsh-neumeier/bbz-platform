@@ -46,6 +46,10 @@ CATALOG: dict[str, tuple[str, ...]] = {
         # machine-to-machine: a telephony provider / CTI gateway posting
         # normalized events (E11-03). Not granted to any human built-in role.
         "calls.ingest_provider_events",
+        # dev/CI/E2E only: drive the mock provider's scenario helpers over
+        # HTTP (E11-05's own "Szenarien per API/Config auslösbar"). 404s on
+        # any non-mock provider. Not granted to any human built-in role.
+        "calls.simulate_mock_scenario",
     ),
     "contacts": (
         "contacts.view",
@@ -105,7 +109,9 @@ PERMISSION_KEYS: frozenset[str] = frozenset(k for keys in CATALOG.values() for k
 
 #: keys that are only ever held by service accounts (machine-to-machine), never
 #: by a human built-in role.
-MACHINE_KEYS: frozenset[str] = frozenset({"calls.ingest_provider_events"})
+MACHINE_KEYS: frozenset[str] = frozenset(
+    {"calls.ingest_provider_events", "calls.simulate_mock_scenario"}
+)
 
 SCOPES: frozenset[str] = frozenset(s.value for s in Scope)
 

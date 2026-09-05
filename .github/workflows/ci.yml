@@ -170,7 +170,14 @@ jobs:
       - name: Install the API
         run: |
           python -m pip install --upgrade pip
-          pip install ./packages/integration-sdk ./packages/rule-dsl ./packages/event-schemas ./server
+          # -e (editable), matching requirements-dev.txt: a regular install
+          # copies bbz_core into site-packages, which breaks
+          # integrations_host/registry.py's `_repo_root()` (computed relative
+          # to `__file__`) — it then can't find `integrations/*/manifest.json`
+          # and every `active_*_provider()` call 404s with "no active
+          # provider". Never surfaced before telephony.spec.ts (#221/#223)
+          # because no earlier e2e spec exercised a real provider lookup.
+          pip install -e ./packages/integration-sdk -e ./packages/rule-dsl -e ./packages/event-schemas -e ./server
       - name: Migrate + seed the E2E fixtures
         working-directory: server
         run: |

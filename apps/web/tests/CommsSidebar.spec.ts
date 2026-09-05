@@ -128,4 +128,70 @@ describe('CommsSidebar', () => {
     await w.get('.ac__doc').trigger('submit');
     expect(save).toHaveBeenCalledWith('call-1', expect.objectContaining({ category: 'technical_fault' }));
   });
+
+  it('shows a live call duration once connected, as mm:ss (#221)', async () => {
+    const startedAt = new Date(Date.now() - 5000).toISOString();
+    vi.mocked(tel.telephonyApi.history).mockResolvedValue({
+      items: [{ ...ringing, state: 'connected', started_at: startedAt }],
+      next_cursor: null,
+    });
+    const w = await factory(['calls.view']);
+    expect(w.find('.ac__duration').text()).toMatch(/^\d+:\d{2}$/);
+  });
+
+  it('gates hangup on missing documentation: opens the popup, saves the category, then hangs up (#223)', async () => {
+    vi.mocked(tel.telephonyApi.history).mockResolvedValue({
+      items: [{ ...ringing, id: 'call-2', state: 'connected' }],
+      next_cursor: null,
+    });
+    const putDoc = vi.spyOn(tel.telephonyApi, 'putDoc').mockResolvedValue({
+      call_id: 'call-2',
+      category: 'technical_fault',
+      free_text: null,
+      documented_by: 'u1',
+      documented_at: '',
+      mandatory_done: true,
+    });
+    const hangup = vi
+      .spyOn(tel.telephonyApi, 'hangup')
+      .mockResolvedValue({ call_id: 'call-2', action: 'hangup', accepted: true, detail: 'closed' });
+    const w = await factory(['calls.view', 'calls.hangup', 'calls.document']);
+
+    await w.get('.ac__hangup').trigger('click');
+    expect(hangup).not.toHaveBeenCalled();
+    expect(w.find('.cdd__form').exists()).toBe(true);
+
+    await w.findAll('input[name="cdd-cat"]')[1].setValue();
+    await w.get('.cdd__form').trigger('submit');
+    await new Promise((r) => setTimeout(r, 0));
+    await w.vm.$nextTick();
+
+    expect(putDoc).toHaveBeenCalledWith(
+      'call-2',
+      expect.objectContaining({ category: 'technical_fault' }),
+    );
+    expect(hangup).toHaveBeenCalledWith('call-2');
+  });
+
+  it('hangs up immediately when documentation is already complete', async () => {
+    vi.mocked(tel.telephonyApi.getDoc).mockResolvedValue({
+      call_id: 'call-1',
+      category: 'other',
+      free_text: null,
+      documented_by: 'u1',
+      documented_at: '',
+      mandatory_done: true,
+    });
+    vi.mocked(tel.telephonyApi.history).mockResolvedValue({
+      items: [{ ...ringing, state: 'connected' }],
+      next_cursor: null,
+    });
+    const hangup = vi
+      .spyOn(tel.telephonyApi, 'hangup')
+      .mockResolvedValue({ call_id: 'call-1', action: 'hangup', accepted: true, detail: 'closed' });
+    const w = await factory(['calls.view', 'calls.hangup']);
+
+    await w.get('.ac__hangup').trigger('click');
+    expect(hangup).toHaveBeenCalledWith('call-1');
+  });
 });
