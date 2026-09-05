@@ -16,8 +16,10 @@ Idempotent — safe to re-run against a fresh schema. Creates:
   functions -> XOR-join -> event) for the EPK-canvas-editor E2E (E07-19 / #129)
 * a quick-dial contact ``Pförtner Haupttor`` (E14-06) for the Kurzwahl-overlay
   E2E (E11-15 / #225)
-* a high-priority contact ``Feuerleitzentrale`` for the full §24 telephony
-  E2E's "Priorität erkennen" step (E11-16 / #227)
+* priority contacts ``Feuerleitzentrale`` (high) / ``Netzleitstelle Ost``
+  (medium) / ``Info-Punkt Halle`` (low) for the §24 "Priorität erkennen" step
+  (E11-16 / #227) and the call-queue priority / sort / animation E2E
+  (E14-09 / #301)
 * ``BMA Halle 7 — E2E-Lebenszyklus`` — a fresh (``new``) critical event **with**
   that workflow, for the accept -> acknowledge -> open -> complete-step ->
   archive -> archive-detail -> reactivate walk
@@ -243,18 +245,23 @@ async def _seed() -> None:
                 s.add(ContactNumber(contact_id=contact.id, e164="+498955501", is_primary=True))
 
         async with s.begin():
-            # a high-priority contact (E14-03/04) so an incoming call from its
-            # number resolves a recognizable priority — the full §24 E2E
-            # (E11-16 / #227) asserts this "Priorität erkennen" step.
-            has_prio_contact = await s.scalar(
-                select(Contact.id).where(Contact.name == "Feuerleitzentrale")
-            )
-            if has_prio_contact is None:
-                contact = Contact(name="Feuerleitzentrale", quick_dial=False)
+            # priority contacts (E14-03/04) so incoming calls from their numbers
+            # resolve a recognizable priority: "Feuerleitzentrale" high for the
+            # §24 E2E's "Priorität erkennen" step (E11-16 / #227); all three
+            # (+ an unmatched number = unknown) for the call-queue priority /
+            # sort / animation E2E (E14-09 / #301).
+            for name, number, prio in (
+                ("Feuerleitzentrale", "+4991150099", "high"),
+                ("Netzleitstelle Ost", "+4991150098", "medium"),
+                ("Info-Punkt Halle", "+4991150097", "low"),
+            ):
+                if await s.scalar(select(Contact.id).where(Contact.name == name)) is not None:
+                    continue
+                contact = Contact(name=name, quick_dial=False)
                 s.add(contact)
                 await s.flush()
-                s.add(ContactNumber(contact_id=contact.id, e164="+4991150099", is_primary=True))
-                s.add(ContactPriority(contact_id=contact.id, priority="high"))
+                s.add(ContactNumber(contact_id=contact.id, e164=number, is_primary=True))
+                s.add(ContactPriority(contact_id=contact.id, priority=prio))
 
         async with s.begin():
             has_tpl = await s.scalar(
