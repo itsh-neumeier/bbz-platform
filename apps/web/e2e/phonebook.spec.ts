@@ -46,8 +46,8 @@ test('create a contact, find it by live search, then set its call priority (#297
   await expect(page.locator('.pb__error')).toHaveCount(0);
   const row = page.locator('.pb__row').filter({ hasText: NAME });
   await expect(row).toBeVisible();
-  // no priority dot yet — a fresh contact has none
-  await expect(row.locator('.pb__prio')).toHaveCount(0);
+  // no priority badge yet — a fresh contact has none
+  await expect(row.locator('.cpb')).toHaveCount(0);
 
   // live search narrows the list down to just this contact (debounced, no submit)
   await page.locator('#pb-q').fill(NAME);
@@ -62,5 +62,8 @@ test('create a contact, find it by live search, then set its call priority (#297
     'aria-pressed',
     'true',
   );
-  await expect(row.locator('.pb__prio')).toHaveClass(/prio--high/);
+  // the list row now shows a ContactPriorityBadge (colour + text, E14-08 / #299)
+  const badge = row.locator('.cpb');
+  await expect(badge).toHaveClass(/cpb--high/);
+  await expect(badge).toHaveText('hoch');
 });
