@@ -56,21 +56,28 @@ test.beforeEach(async ({ request, baseURL }) => {
 
 // this spec's whole point is a *full* ringing queue, and the suite shares one
 // seeded DB (workers:1) — leave none behind, or the specs that run after us
-// (comms-sidebar tab navigation, …) inherit four unanswered calls. Hanging up
-// moves a call to `ended_pending_documentation`, which drops it out of
-// `GET /calls/ringing` — no documentation needed just to clear the queue.
+// inherit them: an unanswered call gives the Telefon tab a count badge (breaks
+// `getByRole('tab', {name: 'Telefon', exact: true})`), and a merely-hung-up
+// call sits in `ended_pending_documentation`, which is a LIVE_STATE the calls
+// store treats as "the active call". So fully close each: hang up *then*
+// document it (category → `CALL_ENDED`, state `disconnected`, gone for good).
 test.afterEach(async ({ page }, testInfo) => {
   if (testInfo.status === 'skipped') return;
   const cookies = await page.context().cookies().catch(() => []);
   const csrf = cookies.find((c) => c.name === 'bbz_csrf')?.value ?? '';
   if (!csrf) return;
+  const hdr = { 'x-csrf-token': csrf, 'x-command-id': crypto.randomUUID() };
   const res = await page.request.get('/api/v1/calls/ringing').catch(() => null);
   if (!res || !res.ok()) return;
   const { items } = (await res.json()) as { items: { id: string }[] };
   for (const c of items) {
     await page.request
-      .post(`/api/v1/calls/${c.id}/hangup`, {
-        headers: { 'x-csrf-token': csrf, 'x-command-id': crypto.randomUUID() },
+      .post(`/api/v1/calls/${c.id}/hangup`, { headers: { ...hdr, 'x-command-id': crypto.randomUUID() } })
+      .catch(() => undefined);
+    await page.request
+      .put(`/api/v1/calls/${c.id}/documentation`, {
+        headers: { ...hdr, 'x-command-id': crypto.randomUUID() },
+        data: { category: 'other', free_text: null },
       })
       .catch(() => undefined);
   }
