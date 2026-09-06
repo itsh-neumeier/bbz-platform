@@ -21,7 +21,10 @@ board are merged; the V10-mockup parity, the Administration build-out, the
 16/19 (see the Epic 07 section).
 **In progress: Epic 23** (security hardening,
 7/12 + E23-10/E23-11 partial) **and Epic 24** (production deployment, 3/8).
-Blocked until an Electron / Go / Cisco-vendor / SIP-PBX session: Epics 08, 09,
+**Epic 08 started** — E08-01 Electron scaffold done (PR #775); `docker run
+node:22` is the toolchain, same as Epic 07 turned out (not actually blocked).
+E08-02/03 are doable; E08-04 needs the Go agent, E08-05/07 need code-signing
+certs. Still fully blocked until a Go / Cisco-vendor / SIP-PBX session: Epics 09,
 10, 12, 13-impl, and the E23/E24 issues that chain off them —
 `docs/roadmap-status.md` is the per-issue register, and its "Completed issues
 still open" section has the list + one-liner to close the 88 merged-but-open
@@ -872,8 +875,31 @@ classifier-denied).
   Archiv" and reactivates it. Merged as `Refs #429`.
 **Epic 20 done at the backend level** (PRs #576–583).
 
-### Epic 08 – BBZ Desktop Client (Electron): **blocked on toolchain**
-All issues need Node/Electron; skipped like Epic 07.
+### Epic 08 – BBZ Desktop Client (Electron): **1/7 — E08-01 scaffold done**
+- **#131 (E08-01) Electron scaffold — DONE (PR #775).** `apps/bbz-kiosk` was a
+  placeholder; now a minimal hardened Electron shell that embeds the `apps/web`
+  build (ADR-0013: "the web build stays runnable in a plain browser; Electron
+  only embeds it"). `src/main.ts` — one BrowserWindow, `contextIsolation:
+  true` / `sandbox: true` / `nodeIntegration: false` / `webviewTag: false`,
+  loads a **configurable** `BBZ_WEB_URL` (default the Vite dev server;
+  server-load vs. bundle is E08-07), external links → OS browser via
+  `setWindowOpenHandler`, cross-origin `will-navigate` blocked, single-instance
+  lock focuses the running window. `src/preload.ts` — minimal read-only
+  `window.bbzKiosk = { isKiosk, platform }` marker (agent IPC = E08-04, client/
+  workplace id = E08-03, deliberately not here). CI `kiosk` job: `npm ci` ·
+  lint · typecheck · `tsc` build · a Playwright `_electron` smoke (window loads
+  the UI → SPA falls to `/login`, login form shown, renderer has no `require`,
+  bridge present) against a served `apps/web` build under `xvfb` — needs the
+  **full** `npx playwright install-deps` (headed Electron needs GTK/NSS that the
+  `chromium` subset omits). electron **44.2.0**, `npm audit` clean.
+  **Epic 08 was NOT toolchain-blocked** — `docker run node:22` works, the same
+  wrong assumption Epic 07 had.
+- **Doable next (Node toolchain):** E08-02 kiosk/autostart + single-instance
+  (#133), E08-03 client/workplace-id provisioning (#135 — wires
+  `X-Client-Id`/`X-Workplace-Id`, would unblock workplace-bound web features).
+- **Needs a maintainer:** E08-04 agent IPC (#137, deps the Go client agent —
+  Epic 09), E08-05 signed update (#139) + E08-07 signed CI build (#143) — real
+  code-signing certificates. E08-06 watchdog (#141) chains off E08-04.
 
 ### Epic 09 – BBZ Client Agent (Go): **1/10 (rest blocked on Go toolchain)**
 - **#145 (E09-01) ADR-0009 → Accepted** — language decision finalised: **Go**
