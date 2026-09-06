@@ -8,9 +8,12 @@ Call Priorities) COMPLETE (10/10)**, **Epic 16 (Coda Video) COMPLETE (13/13)** �
 E16-12 camera-view UI shipped (ADR-0032; PRs #770 + #771); **Epic 18 (DWD
 Weather) COMPLETE (10/10)** — E18-09 Wetterlage UI shipped (PR #768); **Epic 19
 (Weytec Monitor Routing) COMPLETE (10/10)** — E19-08 routing dialog shipped
-(PR #773). The remaining domain epics 13/15/17/20–22 are backend-complete
-(Epic 13 is 1/8 + ADR-0023 Accepted; the E15-14 client-popup UI is the Epic-08
-kiosk's job). **Epic 07 (Web UI) is
+(PR #773). The remaining domain epics 15/17/20–22 are backend-complete
+(the E15-14 client-popup UI is the Epic-08 kiosk's job). **Epic 13 (SIP
+Telephony) is 5/8** — the `telephony_sip` ARI adapter is functionally complete
+(transport · event mapping + the `telephony-events` pump · call control · DTMF;
+ADR-0023/0033 Accepted), with the UI-managed gateway config (ADR-0033) and the
+lab-PBX integration tests still to land. **Epic 07 (Web UI) is
 in progress** — the operator UI
 (auth · work queue · event detail · archive · reactivation · workflow view ·
 priority alerts · SSE · theme · i18n), the weather + monitor pages, the
@@ -24,8 +27,10 @@ board are merged; the V10-mockup parity, the Administration build-out, the
 **Epic 08 started** — E08-01 Electron scaffold done (PR #775); `docker run
 node:22` is the toolchain, same as Epic 07 turned out (not actually blocked).
 E08-02/03 are doable; E08-04 needs the Go agent, E08-05/07 need code-signing
-certs. Still fully blocked until a Go / Cisco-vendor / SIP-PBX session: Epics 09,
-10, 12, 13-impl, and the E23/E24 issues that chain off them —
+certs. Still fully blocked until a Go / Cisco-vendor session: Epics 09,
+10, 12, and the E23/E24 issues that chain off them. Epic 13's SIP adapter is
+written against Asterisk ARI with `httpx.MockTransport` unit coverage; the lab
+Asterisk container (E13-08) is the next SIP task —
 `docs/roadmap-status.md` is the per-issue register, and its "Completed issues
 still open" section has the list + one-liner to close the 88 merged-but-open
 backend issues. **Maintainer actions the agent cannot do: the branch-protection
@@ -1126,23 +1131,60 @@ All 20 issues are the separate Java `services/cucm-cti-gateway` and hinge on
 `jtapi.jar` + real CUCM §8.18 data — no Java toolchain here, no invented Cisco
 API. `integrations/telephony_cucm/` stays a placeholder README.
 
-### Epic 13 – SIP Telephony: **1/8 + ADR-0023 Accepted (rest needs a SIP stack / test PBX)**
+### Epic 13 – SIP Telephony: **5/8 + ADR-0023/0033 Accepted (gateway-config UI + lab PBX remain)**
+The `telephony_sip` ARI adapter is functionally complete. E13-03..06 stay open
+on GitHub until E13-08's lab-Asterisk integration tests exercise them end to end
+(their acceptance criteria all say "Integration gegen Test-Gateway") — the code
+below is covered by `httpx.MockTransport` unit tests.
 - **#269 (E13-01) `telephony_sip` scaffold** — `integrations/telephony_sip/`:
   `manifest.json` (domain `telephony`, capabilities answer/dial/hangup/hold/
-  resume/transfer/send_dtmf/monitoring, `mock:false`), `config_schema.json`
-  (gateway `asterisk_ari|freeswitch_esl`, `credentials_secret_ref`,
-  `dtmf_transport`), and `adapter.py` — a `SipTelephonyProvider` that satisfies
-  the full `TelephonyProvider` protocol: lifecycle + read queries give safe
-  empty/unknown values (health = `unknown`), every control command raises
-  `SipNotConfiguredError` until E13-03+. New import-linter contract
-  *"telephony_sip is independent of Cisco CUCM / JTAPI"* (`root_packages` gained
-  `integrations`). `integrations/telephony_sip/tests/test_sip_scaffold.py`.
+  resume/transfer/send_dtmf/monitoring, `mock:false`), `config_schema.json`,
+  `adapter.py`. New import-linter contract *"telephony_sip is independent of
+  Cisco CUCM / JTAPI"*. `test_sip_scaffold.py`.
 - **E13-02 decision done** — ADR-0023 (`Accepted`): **Asterisk ARI** (REST + WS +
   JSON fits the codebase and `inbound_signal.v1`; FreeSWITCH ESL stays the
-  documented fallback). The compose test-gateway + ARI connection point is
-  E13-03+ and needs a SIP stack in the environment.
-- E13-03..08 (SIP adapter, events, control, DTMF, secrets, PBX integration
-  tests) — need a SIP stack / containerized test PBX.
+  documented fallback).
+- **ADR-0033 Accepted (#273, PR #777)** — **SIP gateway config is DB-backed and
+  UI-managed; the ARI password is Fernet-encrypted at rest** (the
+  `door_action_profiles` pattern: write-only API, `GET` reports
+  `ari_password_configured: true|false`, never logged / audited). A scoped
+  exception to ADR-0031 (a domain table, not an `app_settings` key). `websockets`
+  joins the server deps for the ARI event WebSocket.
+- **#273 (E13-03) ARI transport (PR #777)** — `integrations/telephony_sip/ari.py`:
+  `AriClient` = an `httpx` REST session (`Authorization: Basic`, never a
+  credential in a URL) + an ARI event WebSocket that reconnects with exponential
+  backoff; `AriConfig`. `health()` now probes the live gateway
+  (`GET /asterisk/info`) → HEALTHY / DEGRADED (REST up, WS down) / UNAVAILABLE.
+- **#275 (E13-04) event mapping + the pump (PR #778)** —
+  `events.py::map_ari_event()` maps ARI channel events → `telephony_event.v1`
+  (`StasisStart`→`CALL_RINGING`, `ChannelStateChange(Up)`→`CALL_ANSWERED`,
+  `StasisEnd`/`ChannelHangupRequest`/`ChannelDestroyed`→`CALL_DISCONNECTED`,
+  `ChannelHold`/`Unhold`→`CALL_HELD`/`_RESUMED`,
+  `PeerStatusChange`→`DEVICE_REGISTERED`/`_UNREGISTERED`); `source_call_id` = the
+  SIP Call-ID (`SIPCALLID` channel var) or the ARI channel id. `initialize()`
+  starts a pump task that buffers mapped events; the **new `telephony-events`
+  cluster singleton** (`workers/registry.py`) drains them each tick through
+  `ingest_telephony_event` — closing the E11-05 gap where no worker drained a
+  *real* provider's stream (the mock provider stays endpoint-driven for E2E and
+  is skipped by the singleton).
+- **#277 (E13-05) call control (PR #779)** — the `TelephonyProvider` verbs
+  (answer / hangup / hold / resume / dial / transfer / conference) drive ARI. The
+  pump keeps a `source_call_id → ARI channel id` map; every verb is **idempotent
+  on `command_id`** (mirrors the mock's `_seen` cache); an unreachable gateway or
+  an untracked call → `CommandAccepted(accepted=False, detail=…)`, never a raise
+  (only a *missing* gateway binding raises `SipNotConfiguredError`). `dial`
+  originates against `PJSIP/<line>` (or the explicit `line_endpoints` map);
+  `transfer` is a blind `redirect`; `conference` bridges two tracked channels.
+- **#279 (E13-06) DTMF (PR #780)** — `send_dtmf()` emits the BBZ-resolved
+  sequence (ADR-0025) via ARI `channels/{id}/dtmf` — **never** logged, echoed in
+  the ack `detail`, or in an error (ADR-0004); idempotent on `command_id` so a
+  replay does not open the door twice.
+- **Remaining:** E13-07 — the DB config tables (`sip_gateway`/`sip_lines`) +
+  `bbz_core.infra.sip_secrets` + admin API `/api/v1/admin/telephony/sip` +
+  `/admin/telefonie` UI (per ADR-0033); wire `active_telephony_provider()` to
+  build the ARI client from the DB config. E13-08 — a `sip`-profile Asterisk
+  container + integration tests (incoming / outgoing / hold / transfer / DTMF /
+  registration loss) run nightly.
 
 ### Epic 14 – Contacts / Call Priorities: **COMPLETE (10/10)**
 - **#285 (E14-01) contacts schema** — migration 0027 + `contacts.py`:
@@ -2541,8 +2583,10 @@ store (etcd).
 **Accepted**, 0020
 audit immutability (E04-10 / #66, Proposed), **0021 PostgreSQL replication mode
 (E06-02 / #82 — Accepted: synchronous + auto fallback)**, 0022 Electron load
-strategy (E08-07 / #143 — not written, blocked on the E08-01 Electron scaffold),
-**0023 SIP gateway (E13-02 / #271 — Accepted: Asterisk ARI)**.
+strategy (E08-07 / #143 — reserved, not yet written; the E08-01 scaffold that
+blocked it is done),
+**0023 SIP gateway (E13-02 / #271 — Accepted: Asterisk ARI; the adapter is
+built, E13-03..06)**.
 
 **Added outside the roadmap schedule:** **0024 trigger execution via a
 leader-elected drain worker (E15-15 / #333 — Accepted)** — a normalized inbound
@@ -2559,6 +2603,15 @@ integration uses CAP 1.2 warnings (`opendata.dwd.de/weather/alerts/cap/`), the
 DWD GeoServer WMS for radar, and POI CSV for observations; poll + cache, degrade
 to last-good on failure, region/place→id mapping vendored not runtime-fetched.
 Rejected the undocumented `app-prod-ws.warnwetter.de` app backend.
+**0027–0032** (Accepted, each discussed in its epic section above) — RBAC
+condition context, OpenTelemetry tracing seam, DB UX Design System v3, no manual
+event creation, runtime settings store, operator per-event camera view.
+**0033 SIP gateway config is DB-backed and UI-managed (E13-03 ff. / #273 —
+Accepted)** — `sip_gateway`/`sip_lines` domain tables, the ARI password
+Fernet-encrypted at rest (`bbz_core.infra.sip_secrets`, `BBZ_SIP_ENCRYPTION_KEY`),
+write-only admin API, `SIP_GATEWAY_CONFIGURED` audit. A scoped exception to
+ADR-0031 — reuses the `door_action_profiles` pattern, never touches
+`app_settings`.
 
 ## Open external dependencies
 - exact Cisco CUCM version/SU and productive cluster/CTI configuration (§8.18)
