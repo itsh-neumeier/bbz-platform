@@ -73,7 +73,7 @@ Feature areas whose UI lives in a later epic point at that epic.
 | 36 | Coda alarm-source mapping to station / location / cameras / priority | Epic 16 | todo |
 | 37 | Coda alarm → versioned EPK workflow mapping | Epic 16 | todo |
 | 38 | exactly-once alarm ingestion, replay-safe failover | Epic 16 (builds on ADR-0011 inbox, done) | backend-done |
-| 39 | camera-action failure must not block alarm / event creation | Epic 16 | todo |
+| 39 | camera-action failure must not block alarm / event creation | Epic 16 · #349 (backend, E16-08), #357 (operator panel, E16-12) | done — backend: a camera outbox failure only appends `CAMERA_ACTION_FAILED` to the event (never rolls it back). UI: `CameraPanel.vue` in the event detail (ADR-0032) shows the associated cameras + a textual status / "Video derzeit nicht verfügbar"; the card is additive and can't block working the event. `e2e/camera-view.spec.ts` accepts the event with the panel shown |
 
 ## Workflow engine parity (Epic 05 — backend done)
 
