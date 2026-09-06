@@ -42,7 +42,13 @@
       "type": "array",
       "items": { "type": "string" },
       "default": [],
-      "description": "Logical line / endpoint ids this instance owns."
+      "description": "Logical BBZ line ids this instance owns (endpoint defaults to PJSIP/<line>)."
+    },
+    "line_endpoints": {
+      "type": "object",
+      "additionalProperties": { "type": "string" },
+      "default": {},
+      "description": "Explicit BBZ line id -> Asterisk endpoint map (overrides the PJSIP/<line> default). Production fills this from the DB (ADR-0033)."
     },
     "dtmf_transport": {
       "enum": ["rfc2833", "sip_info"],
