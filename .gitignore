@@ -37,6 +37,8 @@ apps/web/public/fonts/db-screen-sans/*.woff
 apps/web/public/brand/db-logo.svg
 apps/bbz-kiosk/dist/
 apps/bbz-kiosk/out/
+apps/bbz-kiosk/test-results/
+apps/bbz-kiosk/playwright-report/
 *.tsbuildinfo
 
 # --- Java / gateway ---

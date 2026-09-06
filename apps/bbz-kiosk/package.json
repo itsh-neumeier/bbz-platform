@@ -1,0 +1,27 @@
+{
+  "name": "@bbz/kiosk",
+  "version": "0.0.0",
+  "private": true,
+  "description": "BBZ / 3-S-Zentrale desktop kiosk client (Electron) — embeds the apps/web build (ADR-0013).",
+  "main": "dist/main.js",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "start": "npm run build && electron .",
+    "lint": "eslint .",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "playwright test"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.13.0",
+    "@playwright/test": "^1.48.0",
+    "@types/node": "^22.9.0",
+    "electron": "^44.2.0",
+    "eslint": "^9.13.0",
+    "globals": "^15.11.0",
+    "typescript": "~5.6.0",
+    "typescript-eslint": "^8.12.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
