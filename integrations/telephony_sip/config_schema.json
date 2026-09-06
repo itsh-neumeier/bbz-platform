@@ -20,9 +20,23 @@
         "tls": { "type": "boolean", "default": true }
       }
     },
+    "app_name": {
+      "type": "string",
+      "default": "bbz-sip",
+      "description": "The Stasis application the Asterisk dialplan hands calls to (ARI)."
+    },
     "credentials_secret_ref": {
       "type": "string",
-      "description": "Reference into the secret store for the gateway API user/password (E13-07). Never inline credentials."
+      "description": "Reference into the secret store for the gateway API user/password (E13-07). Never inline credentials — this is the deployment path that uses ADR-0019."
+    },
+    "credentials": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Inline API user/password for a dev / CI / file-provisioned instance ONLY. Production stores these in the DB, encrypted at rest (ADR-0033).",
+      "properties": {
+        "username": { "type": "string" },
+        "password": { "type": "string" }
+      }
     },
     "lines": {
       "type": "array",

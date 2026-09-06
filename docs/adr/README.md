@@ -50,3 +50,5 @@ a provider contract, a security boundary, a technology choice. `.ai/RULES.md`:
 | 0029 | DB UX Design System v3 as the visual foundation (extends 0013) | Accepted |
 | 0030 | No manual event creation in the operator UI (V10-mockup deviation) | Accepted |
 | 0031 | Runtime settings store (DB overlay over env; extends 0015) | Accepted |
+| 0032 | Operator-facing per-event camera view (E16-12) | Accepted |
+| 0033 | SIP gateway config is DB-backed and UI-managed (creds encrypted at rest; scopes 0031) | Accepted |
