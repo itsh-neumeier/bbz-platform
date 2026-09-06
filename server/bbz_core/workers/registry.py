@@ -24,6 +24,7 @@ SINGLETON_NAMES: tuple[str, ...] = (
     "directory-sync",
     "integration-health",
     "audit-chain",
+    "telephony-events",
 )
 
 
@@ -172,6 +173,53 @@ async def _audit_chain_tick() -> object:
         return sealed
 
 
+async def _telephony_events_tick() -> object:
+    """Drain the active telephony provider's buffered call events and feed each
+    through ``ingest_telephony_event`` (validate → provider inbox → dedupe →
+    call aggregate → trigger signal, E11-03).
+
+    This is the pump E11-05 never wired: no background task consumes a telephony
+    provider's stream today. The **mock** provider is skipped — its events are
+    drained on demand by the test endpoints (``/telephony/_mock/...``,
+    ``calls.py::_control``) for deterministic E2E. A real provider (``telephony_sip``,
+    later ``telephony_cucm``) exposes ``drain_events`` and is drained here.
+    Returns the number of events ingested; a no-op when there is no provider or
+    it has nothing buffered.
+    """
+    from bbz_core.infra.db import session_scope
+    from bbz_core.infra.telephony_ingest import (
+        TelephonyEventRejected,
+        ingest_telephony_event,
+    )
+    from bbz_core.integrations_host.providers import NoActiveProvider, active_telephony_provider
+
+    try:
+        provider = await active_telephony_provider()
+    except NoActiveProvider:
+        return 0
+    if getattr(provider.info(), "mock", False):
+        return 0
+    drain = getattr(provider, "drain_events", None)
+    if not callable(drain):
+        return 0
+
+    events = await drain()
+    if not events:
+        return 0
+    ingested = 0
+    async with session_scope() as session:
+        for ev in events:
+            raw = ev.model_dump(mode="json")
+            try:
+                async with session.begin():
+                    result = await ingest_telephony_event(session, raw)
+                if result.outcome.value == "new":
+                    ingested += 1
+            except TelephonyEventRejected:
+                continue  # a malformed provider event must not stall the pump
+    return ingested
+
+
 def cluster_singletons() -> list[Singleton]:
     return [
         Singleton("outbox-dispatcher", _outbox_tick),
@@ -181,4 +229,5 @@ def cluster_singletons() -> list[Singleton]:
         Singleton("directory-sync", _directory_sync_tick),
         Singleton("integration-health", _integration_health_tick),
         Singleton("audit-chain", _audit_chain_tick),
+        Singleton("telephony-events", _telephony_events_tick),
     ]

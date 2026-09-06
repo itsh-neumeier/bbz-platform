@@ -13,8 +13,8 @@ Cisco-JTAPI binding (ADR-0002 §8.17) — enforced by the import-linter contract
 | Issue | What | State |
 |---|---|---|
 | E13-02 | ADR-0023: Asterisk (ARI) vs. FreeSWITCH (ESL) | done |
-| E13-03 | ARI transport (`ari.py`) — REST + WS, health probe | **done** |
-| E13-04 | ARI events → normalized `inbound_signal.v1` | next |
+| E13-03 | ARI transport (`ari.py`) — REST + WS, health probe | done |
+| E13-04 | ARI events → normalized `CallEvent` (`events.py`) + the pump | **done** |
 | E13-05 | call control (dial / answer / hangup / hold / transfer) | next |
 | E13-06 | DTMF (RFC 2833 / SIP INFO) → `send_dtmf` | next |
 | E13-07 | config schema + secrets | schema done; DB config = ADR-0033 |
@@ -22,10 +22,17 @@ Cisco-JTAPI binding (ADR-0002 §8.17) — enforced by the import-linter contract
 
 `ari.py` is the transport: `AriClient` opens a `httpx` REST session + an ARI
 event WebSocket (`Authorization: Basic` header, never credentials in a URL),
-reconnects with backoff. With a `gateway` config block the adapter's `health()`
-probes `GET /ari/asterisk/info`; without one it stays a scaffold. The event
-mapper and the `TelephonyProvider` control verbs still raise
-`SipNotConfiguredError`.
+reconnects with backoff. `events.py` maps ARI channel events →
+`telephony_event.v1` (`StasisStart`→`CALL_RINGING`, `ChannelStateChange(Up)`→
+`CALL_ANSWERED`, `StasisEnd`/`ChannelHangupRequest`→`CALL_DISCONNECTED`,
+`PeerStatusChange`→`DEVICE_REGISTERED/UNREGISTERED`); `source_call_id` is the SIP
+Call-ID (`SIPCALLID` channel var) or the ARI channel id.
+
+`initialize()` starts a pump task that buffers the mapped events; the new
+`telephony-events` cluster singleton drains them each tick through
+`ingest_telephony_event` (the pump E11-05 never wired — the mock provider is
+skipped there, it stays endpoint-driven for E2E). The `TelephonyProvider`
+control verbs still raise `SipNotConfiguredError` (E13-05).
 
 ## Config
 
