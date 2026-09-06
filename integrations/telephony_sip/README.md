@@ -14,8 +14,8 @@ Cisco-JTAPI binding (ADR-0002 §8.17) — enforced by the import-linter contract
 |---|---|---|
 | E13-02 | ADR-0023: Asterisk (ARI) vs. FreeSWITCH (ESL) | done |
 | E13-03 | ARI transport (`ari.py`) — REST + WS, health probe | done |
-| E13-04 | ARI events → normalized `CallEvent` (`events.py`) + the pump | **done** |
-| E13-05 | call control (dial / answer / hangup / hold / transfer) | next |
+| E13-04 | ARI events → normalized `CallEvent` (`events.py`) + the pump | done |
+| E13-05 | call control (dial / answer / hangup / hold / resume / transfer / conference) | **done** |
 | E13-06 | DTMF (RFC 2833 / SIP INFO) → `send_dtmf` | next |
 | E13-07 | config schema + secrets | schema done; DB config = ADR-0033 |
 | E13-08 | integration tests against a `sip`-profile Asterisk container | next |
@@ -31,8 +31,15 @@ Call-ID (`SIPCALLID` channel var) or the ARI channel id.
 `initialize()` starts a pump task that buffers the mapped events; the new
 `telephony-events` cluster singleton drains them each tick through
 `ingest_telephony_event` (the pump E11-05 never wired — the mock provider is
-skipped there, it stays endpoint-driven for E2E). The `TelephonyProvider`
-control verbs still raise `SipNotConfiguredError` (E13-05).
+skipped there, it stays endpoint-driven for E2E).
+
+The control verbs (`answer` / `hangup` / `hold` / `resume` / `dial` / `transfer`
+/ `conference`) drive ARI: the pump keeps a `source_call_id → ARI channel id`
+map, each verb is **idempotent on `command_id`** (mirrors the mock's `_seen`
+cache), an unreachable gateway or an untracked call returns
+`CommandAccepted(accepted=False, detail=...)` rather than raising. `dial`
+originates against `PJSIP/<line>` (or the explicit `line_endpoints` map).
+`send_dtmf` still raises `SipNotConfiguredError` (E13-06).
 
 ## Config
 

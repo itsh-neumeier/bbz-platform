@@ -21,11 +21,13 @@ from typing import Any
 
 from bbz_integration_sdk.capabilities import Capability, CapabilitySet
 from bbz_integration_sdk.diagnostics import DiagnosticsReport, HealthState
+from bbz_integration_sdk.normalized_events import NormalizedTelephonyEvent as _E
 from bbz_integration_sdk.providers.base import ProviderInfo
 from bbz_integration_sdk.providers.telephony_types import (
     CallerResolution,
     CallEvent,
     CallSnapshot,
+    CommandAccepted,
     LineInfo,
     LineState,
     ReconcileResult,
@@ -55,15 +57,22 @@ class SipTelephonyProvider:
         *,
         instance_id: str = "sip",
         lines: list[str] | None = None,
+        line_endpoints: dict[str, str] | None = None,
         ari: AriClient | None = None,
     ) -> None:
         self._instance_id = instance_id
-        self._lines = {lid: LineInfo(line_id=lid, state=LineState.UNKNOWN) for lid in (lines or [])}
+        self._line_endpoints = dict(line_endpoints or {})
+        lids = list(lines or self._line_endpoints)
+        self._lines = {lid: LineInfo(line_id=lid, state=LineState.UNKNOWN) for lid in lids}
         self._initialized = False
         self._ari = ari
         #: ARI events, mapped, waiting for the telephony-events singleton to drain
         self._buffer: asyncio.Queue[CallEvent] = asyncio.Queue()
         self._pump_task: asyncio.Task[None] | None = None
+        #: source_call_id (SIP Call-ID) -> ARI channel id, kept current by the pump
+        self._channels: dict[str, str] = {}
+        #: command_id -> the ack it produced (idempotency, mirrors the mock)
+        self._seen: dict[str, CommandAccepted] = {}
 
     # --- lifecycle ------------------------------------------------------
 
@@ -73,14 +82,21 @@ class SipTelephonyProvider:
             self._pump_task = asyncio.create_task(self._pump())
 
     async def _pump(self) -> None:
-        """Consume the ARI event stream, map each event and buffer the ones we
-        surface. Reconnects are handled inside ``AriClient.events``; on a
-        reconnect the caller reconciles against ``get_active_calls``."""
+        """Consume the ARI event stream, map each event, keep the
+        source-call-id → channel-id map current, and buffer the events we
+        surface. Reconnects are handled inside ``AriClient.events``."""
         assert self._ari is not None
         async for raw in self._ari.events():
             mapped = map_ari_event(raw, provider="telephony_sip", gateway_node=self._instance_id)
-            if mapped is not None:
-                self._buffer.put_nowait(mapped)
+            if mapped is None:
+                continue
+            channel_id = mapped.metadata.get("channel_id")
+            if mapped.source_call_id and isinstance(channel_id, str):
+                if mapped.event_type is _E.CALL_DISCONNECTED:
+                    self._channels.pop(mapped.source_call_id, None)
+                else:
+                    self._channels[mapped.source_call_id] = channel_id
+            self._buffer.put_nowait(mapped)
 
     async def drain_events(self, limit: int = 100) -> list[CallEvent]:
         """Pop up to ``limit`` buffered events. The ``telephony-events`` cluster
@@ -183,38 +199,119 @@ class SipTelephonyProvider:
         return CallerResolution(number=number, matched=False)
 
     async def reconcile(self) -> ReconcileResult:
+        active = await self.get_active_calls()
         return ReconcileResult(
             lines=list(self._lines.values()),
-            active_calls=[],
-            note="telephony_sip scaffold — nothing to reconcile",
+            active_calls=active,
+            note=None if self._ari is not None else "telephony_sip scaffold — no gateway",
         )
 
-    # --- control commands (not wired yet) ---------------------------
+    # --- control commands (E13-05) — idempotent on command_id --------------
 
-    async def dial(self, *, line_id: str, destination: str, command_id: str) -> Any:
-        raise SipNotConfiguredError("dial")
+    def _endpoint(self, line_id: str) -> str:
+        """The Asterisk endpoint for a BBZ line. Explicit mapping wins; the
+        default follows the ``PJSIP/<line>`` convention (the DB config, ADR-0033,
+        fills the explicit map in production)."""
+        return self._line_endpoints.get(line_id, f"PJSIP/{line_id}")
 
-    async def answer(self, *, call_id: str, command_id: str) -> Any:
-        raise SipNotConfiguredError("answer")
+    def _ack(
+        self,
+        command_id: str,
+        call_id: str | None,
+        *,
+        accepted: bool = True,
+        detail: str | None = None,
+    ) -> CommandAccepted:
+        ack = CommandAccepted(
+            command_id=command_id, accepted=accepted, call_id=call_id, detail=detail
+        )
+        self._seen[command_id] = ack
+        return ack
 
-    async def hangup(self, *, call_id: str, command_id: str) -> Any:
-        raise SipNotConfiguredError("hangup")
+    async def _on_channel(
+        self, command_id: str, call_id: str, verb: str, op: str
+    ) -> CommandAccepted:
+        if command_id in self._seen:
+            return self._seen[command_id]
+        if self._ari is None:
+            raise SipNotConfiguredError(verb)
+        channel_id = self._channels.get(call_id)
+        if channel_id is None:
+            return self._ack(command_id, call_id, accepted=False, detail="call not tracked")
+        try:
+            await getattr(self._ari, op)(channel_id)
+        except AriError as exc:
+            return self._ack(command_id, call_id, accepted=False, detail=str(exc))
+        return self._ack(command_id, call_id, detail=verb)
 
-    async def hold(self, *, call_id: str, command_id: str) -> Any:
-        raise SipNotConfiguredError("hold")
+    async def dial(self, *, line_id: str, destination: str, command_id: str) -> CommandAccepted:
+        if command_id in self._seen:
+            return self._seen[command_id]
+        if self._ari is None:
+            raise SipNotConfiguredError("dial")
+        try:
+            channel = await self._ari.originate(
+                endpoint=self._endpoint(line_id),
+                extension=destination,
+                context=self._ari.app_name,
+            )
+        except AriError as exc:
+            return self._ack(command_id, None, accepted=False, detail=str(exc))
+        ch_id = channel.get("id") if isinstance(channel, dict) else None
+        cv = channel.get("channelvars") if isinstance(channel, dict) else {}
+        call_id = (cv or {}).get("SIPCALLID") or ch_id
+        if isinstance(call_id, str) and isinstance(ch_id, str):
+            self._channels[call_id] = ch_id
+        return self._ack(command_id, call_id if isinstance(call_id, str) else None, detail="dial")
 
-    async def resume(self, *, call_id: str, command_id: str) -> Any:
-        raise SipNotConfiguredError("resume")
+    async def answer(self, *, call_id: str, command_id: str) -> CommandAccepted:
+        return await self._on_channel(command_id, call_id, "answer", "answer")
 
-    async def transfer(self, *, call_id: str, destination: str, command_id: str) -> Any:
-        raise SipNotConfiguredError("transfer")
+    async def hangup(self, *, call_id: str, command_id: str) -> CommandAccepted:
+        return await self._on_channel(command_id, call_id, "hangup", "hangup")
 
-    async def conference(self, *, call_ids: list[str], command_id: str) -> Any:
-        raise SipNotConfiguredError("conference")
+    async def hold(self, *, call_id: str, command_id: str) -> CommandAccepted:
+        return await self._on_channel(command_id, call_id, "hold", "hold")
+
+    async def resume(self, *, call_id: str, command_id: str) -> CommandAccepted:
+        return await self._on_channel(command_id, call_id, "resume", "unhold")
+
+    async def transfer(self, *, call_id: str, destination: str, command_id: str) -> CommandAccepted:
+        if command_id in self._seen:
+            return self._seen[command_id]
+        if self._ari is None:
+            raise SipNotConfiguredError("transfer")
+        channel_id = self._channels.get(call_id)
+        if channel_id is None:
+            return self._ack(command_id, call_id, accepted=False, detail="call not tracked")
+        try:
+            await self._ari.redirect(channel_id, self._endpoint(destination))
+        except AriError as exc:
+            return self._ack(command_id, call_id, accepted=False, detail=str(exc))
+        return self._ack(command_id, call_id, detail="blind transfer")
+
+    async def conference(self, *, call_ids: list[str], command_id: str) -> CommandAccepted:
+        if command_id in self._seen:
+            return self._seen[command_id]
+        if self._ari is None:
+            raise SipNotConfiguredError("conference")
+        channels = [self._channels[c] for c in call_ids if c in self._channels]
+        if len(channels) < 2:
+            return self._ack(
+                command_id, call_ids[0] if call_ids else None, accepted=False, detail="need 2 calls"
+            )
+        try:
+            bridge_id = await self._ari.create_bridge()
+            for ch in channels:
+                await self._ari.add_to_bridge(bridge_id, ch)
+        except AriError as exc:
+            return self._ack(command_id, call_ids[0], accepted=False, detail=str(exc))
+        return self._ack(command_id, call_ids[0], detail=f"bridge {bridge_id}")
 
     async def send_dtmf(self, *, call_id: str, dtmf: str, command_id: str) -> Any:
         # `dtmf` is the resolved secret sequence (ADR-0025) — a real adapter emits
-        # it via SIP INFO / RFC 2833 and must never log or echo it (ADR-0004)
+        # it via SIP INFO / RFC 2833 and must never log or echo it (ADR-0004).
+        # Wired in E13-06.
         raise SipNotConfiguredError("send_dtmf")
 
 
@@ -241,4 +338,11 @@ def build(config: dict[str, Any] | None = None) -> SipTelephonyProvider:
                 app_name=str(cfg.get("app_name", "bbz-sip")),
             )
         )
-    return SipTelephonyProvider(lines=list(cfg.get("lines", [])), ari=ari)
+    endpoints = cfg.get("line_endpoints")
+    return SipTelephonyProvider(
+        lines=list(cfg.get("lines", [])),
+        line_endpoints={str(k): str(v) for k, v in endpoints.items()}
+        if isinstance(endpoints, dict)
+        else None,
+        ari=ari,
+    )

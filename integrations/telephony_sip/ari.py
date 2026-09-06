@@ -133,6 +133,16 @@ class AriClient:
         )
         return dict(result) if isinstance(result, dict) else {}
 
+    async def create_bridge(self) -> str:
+        result = await self._post("/bridges", params={"type": "mixing"})
+        bid = result.get("id") if isinstance(result, dict) else None
+        if not bid:
+            raise AriError("ARI POST /bridges: no bridge id returned")
+        return str(bid)
+
+    async def add_to_bridge(self, bridge_id: str, channel_id: str) -> None:
+        await self._post(f"/bridges/{bridge_id}/addChannel", params={"channel": channel_id})
+
     # --- event stream --------------------------------------------
 
     def _ws_uri(self) -> str:
