@@ -32,6 +32,9 @@ Idempotent — safe to re-run against a fresh schema. Creates:
   archive / post-processing / reactivation spec
 * ``BMA Gleis 5 — E2E-Konflikt`` — a fresh (``new``) event, for the two-tab
   409-conflict E2E (E07-04 / #99): two tabs race the same lifecycle action
+* ``Überfall SP Nürnberg — E2E-Kamera`` — an event with a CAMERA_OPENED +
+  CAMERA_ACTION_FAILED domain-event trail (ADR-0032) for the camera-panel E2E
+  (E16-12 / #357)
 
     python server/scripts/seed_e2e.py
 
@@ -115,6 +118,7 @@ _LIFECYCLE_TITLE = "BMA Halle 7 — E2E-Lebenszyklus"
 _TAKEOVER_TITLE = "BMA Halle 3 — E2E-Übernahme"
 _ARCHIVED_TITLE = "BMA Stellwerk — E2E-Archiv"
 _CONFLICT_TITLE = "BMA Gleis 5 — E2E-Konflikt"
+_CAMERA_TITLE = "Überfall SP Nürnberg — E2E-Kamera"
 
 
 async def _seed() -> None:
@@ -126,7 +130,9 @@ async def _seed() -> None:
     from bbz_core.domain.events.aggregate import EventAggregate
     from bbz_core.domain.events.state import EventPriority, EventStatus
     from bbz_core.infra.db import get_sessionmaker
+    from bbz_core.infra.event_log import append_event
     from bbz_core.infra.models.contacts import Contact, ContactNumber, ContactPriority
+    from bbz_core.infra.models.domain_events import DomainEvent
     from bbz_core.infra.models.events import Event
     from bbz_core.infra.models.identity import AuthIdentity, LocalCredential, User
     from bbz_core.infra.models.rbac import Permission, Role, RolePermission, UserRole
@@ -388,8 +394,44 @@ async def _seed() -> None:
         # retry (each attempt advances it by exactly one of its 4 steps).
         await make_event(s, admin_id, _CONFLICT_TITLE)
 
+        # an event with an associated-camera trail (CAMERA_OPENED + a later
+        # CAMERA_ACTION_FAILED, ADR-0032) for the camera-panel E2E (E16-12 /
+        # #357): the panel lists the cameras and never blocks working the event.
+        camera_id = await make_event(s, admin_id, _CAMERA_TITLE)
+        async with s.begin():
+            already = await s.scalar(
+                select(DomainEvent.event_seq).where(
+                    DomainEvent.aggregate_id == str(camera_id),
+                    DomainEvent.event_type == "CAMERA_OPENED",
+                )
+            )
+            if already is None:
+                await append_event(
+                    s,
+                    aggregate_type="event",
+                    aggregate_id=camera_id,
+                    event_type="CAMERA_OPENED",
+                    payload={
+                        "action_type": "open_camera_group",
+                        "camera_refs": ["CAM-SP-NBG-01", "CAM-SP-NBG-02"],
+                        "workplace_id": None,
+                    },
+                )
+                await append_event(
+                    s,
+                    aggregate_type="event",
+                    aggregate_id=camera_id,
+                    event_type="CAMERA_ACTION_FAILED",
+                    payload={
+                        "action_type": "open_camera_group",
+                        "camera_refs": ["CAM-SP-NBG-02"],
+                        "error": "camera unreachable",
+                        "attempts": 8,
+                    },
+                )
+
     print(
-        "seed_e2e: ready — admin / kollege / neuling, workflows e2e-bma + e2e-epk (draft), 4 events"
+        "seed_e2e: ready — admin / kollege / neuling, workflows e2e-bma + e2e-epk (draft), 5 events"
     )
 
 

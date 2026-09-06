@@ -16,6 +16,7 @@ import PriorityPulse from './PriorityPulse.vue';
 import EventActions from './EventActions.vue';
 import OwnershipBar from './OwnershipBar.vue';
 import WorkflowRunPanel from './WorkflowRunPanel.vue';
+import CameraPanel from './CameraPanel.vue';
 import ReactivateDialog from './ReactivateDialog.vue';
 
 const props = withDefaults(
@@ -157,6 +158,8 @@ watch(() => props.eventId, load);
             <WorkflowRunPanel :event-id="detail.id" />
           </div>
         </section>
+
+        <CameraPanel :event-id="detail.id" />
 
         <section
           class="card"
