@@ -126,6 +126,49 @@ jobs:
       - run: npm run typecheck
       - run: npm run test
 
+  kiosk:
+    name: kiosk (lint · type · smoke)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: |
+            apps/bbz-kiosk/package-lock.json
+            apps/web/package-lock.json
+      - name: Kiosk lint + typecheck + build
+        working-directory: apps/bbz-kiosk
+        run: |
+          npm ci
+          npm run lint
+          npm run typecheck
+          npm run build
+      - name: Build the embedded web UI
+        working-directory: apps/web
+        run: |
+          npm ci
+          npm run build
+      - name: Electron runtime libraries
+        working-directory: apps/bbz-kiosk
+        # the full set — a headed Electron needs GTK etc. that the `chromium`
+        # subset omits; Playwright keeps this list correct across Ubuntu releases
+        run: npx playwright install-deps
+      - name: Smoke — the kiosk loads the web UI and shows the login (E08-01)
+        working-directory: apps/bbz-kiosk
+        env:
+          BBZ_WEB_URL: http://127.0.0.1:4173
+        run: |
+          ( cd ../web && npx vite preview --port 4173 --host 127.0.0.1 ) &
+          preview=$!
+          trap 'kill $preview 2>/dev/null || true' EXIT
+          for _ in $(seq 1 30); do
+            curl -sf http://127.0.0.1:4173/ >/dev/null && break
+            sleep 1
+          done
+          xvfb-run -a npm test
+
   e2e:
     name: e2e (Playwright · §24 event lifecycle)
     runs-on: ubuntu-latest
