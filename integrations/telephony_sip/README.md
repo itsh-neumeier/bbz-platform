@@ -15,9 +15,9 @@ Cisco-JTAPI binding (ADR-0002 §8.17) — enforced by the import-linter contract
 | E13-02 | ADR-0023: Asterisk (ARI) vs. FreeSWITCH (ESL) | done |
 | E13-03 | ARI transport (`ari.py`) — REST + WS, health probe | done |
 | E13-04 | ARI events → normalized `CallEvent` (`events.py`) + the pump | done |
-| E13-05 | call control (dial / answer / hangup / hold / resume / transfer / conference) | **done** |
-| E13-06 | DTMF (RFC 2833 / SIP INFO) → `send_dtmf` | next |
-| E13-07 | config schema + secrets | schema done; DB config = ADR-0033 |
+| E13-05 | call control (dial / answer / hangup / hold / resume / transfer / conference) | done |
+| E13-06 | DTMF → `send_dtmf` (ARI `channels/{id}/dtmf`, never logged) | **done** |
+| E13-07 | config schema + secrets | schema done; DB config = ADR-0033 (next) |
 | E13-08 | integration tests against a `sip`-profile Asterisk container | next |
 
 `ari.py` is the transport: `AriClient` opens a `httpx` REST session + an ARI
@@ -39,7 +39,9 @@ map, each verb is **idempotent on `command_id`** (mirrors the mock's `_seen`
 cache), an unreachable gateway or an untracked call returns
 `CommandAccepted(accepted=False, detail=...)` rather than raising. `dial`
 originates against `PJSIP/<line>` (or the explicit `line_endpoints` map).
-`send_dtmf` still raises `SipNotConfiguredError` (E13-06).
+`send_dtmf` emits the BBZ-resolved sequence (ADR-0025) via ARI's
+`channels/{id}/dtmf` — never logged, echoed in the ack, or in an error
+(ADR-0004); idempotent so a replay does not open the door twice.
 
 ## Config
 
