@@ -1,10 +1,10 @@
-"""``telephony_sip`` adapter — scaffold (roadmap E13-01).
+"""``telephony_sip`` adapter — Asterisk ARI (roadmap E13-03, ADR-0023/0033).
 
-A protocol-conformant :class:`~bbz_integration_sdk.providers.TelephonyProvider`
-that carries **no SIP stack yet**. Lifecycle + read queries answer with safe
-empty/unknown values so the core can register and health-check the provider;
-every *control* command raises :class:`SipNotConfiguredError` until the concrete
-gateway binding lands (E13-03+).
+A protocol-conformant :class:`~bbz_integration_sdk.providers.TelephonyProvider`.
+With a ``gateway`` config block it opens an :class:`~integrations.telephony_sip.ari.AriClient`
+and :meth:`health` probes the live gateway; without one it stays a scaffold
+(``UNKNOWN`` health, control commands raise). Event mapping is E13-04, the
+control verbs E13-05, DTMF E13-06 — those still raise :class:`SipNotConfiguredError`.
 
 Never depends on ``integrations.telephony_cucm`` or Cisco JTAPI (ADR-0002 §8.17).
 The raw DTMF code is always a secret — only the profile id is ever handled here
@@ -28,6 +28,7 @@ from bbz_integration_sdk.providers.telephony_types import (
     LineState,
     ReconcileResult,
 )
+from integrations.telephony_sip.ari import AriClient, AriConfig, AriError
 
 _CAPABILITIES = (
     Capability.CALL_ANSWER,
@@ -46,10 +47,17 @@ class SipNotConfiguredError(RuntimeError):
 
 
 class SipTelephonyProvider:
-    def __init__(self, *, instance_id: str = "sip", lines: list[str] | None = None) -> None:
+    def __init__(
+        self,
+        *,
+        instance_id: str = "sip",
+        lines: list[str] | None = None,
+        ari: AriClient | None = None,
+    ) -> None:
         self._instance_id = instance_id
         self._lines = {lid: LineInfo(line_id=lid, state=LineState.UNKNOWN) for lid in (lines or [])}
         self._initialized = False
+        self._ari = ari
 
     # --- lifecycle ------------------------------------------------------
 
@@ -68,16 +76,40 @@ class SipTelephonyProvider:
         return CapabilitySet(_CAPABILITIES)
 
     async def health(self) -> DiagnosticsReport:
+        base = {"initialized": self._initialized, "lines": len(self._lines)}
+        if self._ari is None:
+            return DiagnosticsReport(
+                integration_id="telephony_sip",
+                state=HealthState.UNKNOWN,
+                summary="no gateway configured (scaffold)",
+                checked_at=_dt.datetime.now(_dt.UTC),
+                details=base,
+            )
+        try:
+            info = await self._ari.info()
+        except AriError as exc:
+            return DiagnosticsReport(
+                integration_id="telephony_sip",
+                state=HealthState.UNAVAILABLE,
+                summary=f"Asterisk ARI unreachable: {exc}",
+                checked_at=_dt.datetime.now(_dt.UTC),
+                details={**base, "ws_connected": self._ari.ws.connected},
+            )
+        version = (info.get("system") or {}).get("version") if isinstance(info, dict) else None
+        ws_ok = self._ari.ws.connected
         return DiagnosticsReport(
             integration_id="telephony_sip",
-            state=HealthState.UNKNOWN,
-            summary="SIP stack not implemented yet (Epic 13); scaffold only",
+            state=HealthState.HEALTHY if ws_ok else HealthState.DEGRADED,
+            summary=f"Asterisk {version or 'connected'}"
+            + ("" if ws_ok else " — event stream not connected"),
             checked_at=_dt.datetime.now(_dt.UTC),
-            details={"initialized": self._initialized, "lines": len(self._lines)},
+            details={**base, "asterisk_version": version, "ws_connected": ws_ok},
         )
 
     async def shutdown(self) -> None:
         self._initialized = False
+        if self._ari is not None:
+            await self._ari.aclose()
 
     # --- read queries (safe defaults) --------------------------------
 
@@ -135,6 +167,26 @@ class SipTelephonyProvider:
 
 
 def build(config: dict[str, Any] | None = None) -> SipTelephonyProvider:
-    """Entry point for the integration host's dynamic loader (E11-06)."""
+    """Entry point for the integration host's dynamic loader (E11-06).
+
+    ``config`` shape is ``config_schema.json``. A ``gateway`` block opens the
+    ARI client; production reads this from the DB (ADR-0033), dev/CI from
+    env/config. Credentials come inline here only for a file-provisioned
+    instance — the DB path decrypts them in-process (never inline).
+    """
     cfg = config or {}
-    return SipTelephonyProvider(lines=list(cfg.get("lines", [])))
+    ari: AriClient | None = None
+    gw = cfg.get("gateway")
+    if isinstance(gw, dict) and gw.get("host"):
+        creds = cfg.get("credentials") or {}
+        ari = AriClient(
+            AriConfig(
+                host=str(gw["host"]),
+                port=int(gw.get("port", 8088)),
+                tls=bool(gw.get("tls", False)),
+                username=str(creds.get("username", "")),
+                password=str(creds.get("password", "")),
+                app_name=str(cfg.get("app_name", "bbz-sip")),
+            )
+        )
+    return SipTelephonyProvider(lines=list(cfg.get("lines", [])), ari=ari)

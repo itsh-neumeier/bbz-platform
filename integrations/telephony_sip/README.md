@@ -8,27 +8,29 @@ normalized `TelephonyProvider` interface.
 Cisco-JTAPI binding (ADR-0002 §8.17) — enforced by the import-linter contract
 *"telephony_sip is independent of Cisco CUCM / JTAPI"*.
 
-## Status — scaffold (E13-01)
+## Status — ARI transport (E13-03)
 
-Present now: `manifest.json`, `config_schema.json`, and a protocol-conformant
-adapter **stub** (`adapter.py`). Lifecycle + read queries return safe
-empty/unknown values so the integration host can register and health-check the
-provider; every control command raises `SipNotConfiguredError`.
+| Issue | What | State |
+|---|---|---|
+| E13-02 | ADR-0023: Asterisk (ARI) vs. FreeSWITCH (ESL) | done |
+| E13-03 | ARI transport (`ari.py`) — REST + WS, health probe | **done** |
+| E13-04 | ARI events → normalized `inbound_signal.v1` | next |
+| E13-05 | call control (dial / answer / hangup / hold / transfer) | next |
+| E13-06 | DTMF (RFC 2833 / SIP INFO) → `send_dtmf` | next |
+| E13-07 | config schema + secrets | schema done; DB config = ADR-0033 |
+| E13-08 | integration tests against a `sip`-profile Asterisk container | next |
 
-Still to come:
-
-| Issue | What |
-|---|---|
-| E13-02 | ADR-0023: Asterisk (ARI) vs. FreeSWITCH (ESL); minimal test gateway in compose |
-| E13-03 | SIP adapter → normalized provider interface |
-| E13-04 | registration + call events → normalized events |
-| E13-05 | call control (dial / answer / hangup / hold / transfer) |
-| E13-06 | DTMF (RFC 2833 / SIP INFO) → `send_dtmf` capability (profile only) |
-| E13-07 | config schema + secrets |
-| E13-08 | integration tests against a containerized test PBX |
+`ari.py` is the transport: `AriClient` opens a `httpx` REST session + an ARI
+event WebSocket (`Authorization: Basic` header, never credentials in a URL),
+reconnects with backoff. With a `gateway` config block the adapter's `health()`
+probes `GET /ari/asterisk/info`; without one it stays a scaffold. The event
+mapper and the `TelephonyProvider` control verbs still raise
+`SipNotConfiguredError`.
 
 ## Config
 
-See `config_schema.json`. Credentials are a `credentials_secret_ref` into the
-secret store — never inline. The raw DTMF code is a secret too; only the profile
-id is ever handled in this adapter (ADR-0004).
+See `config_schema.json`. **Production** stores the gateway config — including
+the ARI password, encrypted at rest — in the DB, managed from the admin UI
+(**ADR-0033**). **Dev / CI / file-provisioned** instances may pass
+`credentials` inline or a `credentials_secret_ref` into the secret store. The
+raw DTMF code is a secret too; only the profile id is handled here (ADR-0004).

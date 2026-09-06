@@ -60,7 +60,7 @@ async def test_lifecycle_and_read_queries_are_safe_defaults() -> None:
     assert p.info().mock is False
     health = await p.health()
     assert health.state.value == "unknown"
-    assert "Epic 13" in health.summary
+    assert "scaffold" in health.summary  # no gateway block → still a scaffold
 
     assert [line.line_id for line in await p.list_lines()] == ["2001"]
     assert isinstance(await p.get_line_state("2001"), LineInfo)
