@@ -4,9 +4,11 @@
 Working the roadmap issues in order (see `.ai/ROADMAP.md`, tracking issue #18).
 **Epics 02–06 complete; Epic 01 is 6/7** (only E01-02 blocked — client-supplied
 mockup files). **Epic 11 (Telephony Core) COMPLETE (16/16)**, **Epic 14 (Contacts /
-Call Priorities) COMPLETE (10/10)** and **Epic 18 (DWD Weather) COMPLETE
-(10/10)** — E18-09 Wetterlage UI shipped (PR #768); the remaining domain epics
-13/15–17/19–22 are backend-complete (Epic 13 is 1/8 + ADR-0023 Accepted). **Epic 07 (Web UI) is
+Call Priorities) COMPLETE (10/10)**, **Epic 16 (Coda Video) COMPLETE (13/13)** —
+E16-12 camera-view UI shipped (ADR-0032; PRs #770 + #771) — and **Epic 18 (DWD
+Weather) COMPLETE (10/10)** — E18-09 Wetterlage UI shipped (PR #768); the
+remaining domain epics 13/15/17/19–22 are backend-complete (Epic 13 is 1/8 +
+ADR-0023 Accepted). **Epic 07 (Web UI) is
 in progress** — the operator UI
 (auth · work queue · event detail · archive · reactivation · workflow view ·
 priority alerts · SSE · theme · i18n), the weather + monitor pages, the
@@ -1419,7 +1421,7 @@ API. `integrations/telephony_cucm/` stays a placeholder README.
 - **Epic 15 done bar:** E15-14 **frontend** (popup UI, keyboard, Playwright) →
   needs Epic 07. (E15-07 camera/integration actions done — see #317 above.)
 
-### Epic 16 – Coda Video / HxGN dC3 Video: **backend complete (12/13)** — E16-12 (camera UI) → Epic 07
+### Epic 16 – Coda Video / HxGN dC3 Video: **COMPLETE (13/13)**
 - **#335 (E16-01) `coda_video` scaffold formalised** — the manifest schema gains
   optional `capability_groups` (named, independently-activatable capability sets;
   every grouped capability must also be in `capabilities` — checked in
@@ -1550,8 +1552,36 @@ API. `integrations/telephony_cucm/` stays a placeholder README.
   manifest schema gains an optional `pending_vendor_documentation: list[str]`
   marker; `integrations/coda_video/manifest.json` declares it while `mock: true`.
   `.ai/INTEGRATIONS_CODA_VIDEO.md` links the blocker. `test_manifest_schema.py`.
-- **Epic 16 backend complete (12/13).** **E16-12** (camera-view UI) is the only
-  open item — needs Epic 07 (E07-08); deferred to the frontend phase.
+- **#357 (E16-12) Kamera-Ansicht-UI — DONE.** The issue assumed a data path that
+  did not exist (camera opening is a decoupled side effect, ADR-0006 — only
+  *failures* were recorded on the event), so it split into **ADR-0032** +
+  a backend prereq (**PR #770**) then the frontend panel (**PR #771**).
+  - **PR #770**: `CAMERA_OPENED` domain event (added to `event.payloads.v1.json`
+    + the event catalog) — the outbox dispatcher appends it on a successful
+    `open_camera` / `open_camera_group` delivery that carried an `event_id`
+    (best-effort mirror of `CAMERA_ACTION_FAILED`).
+    `GET /api/v1/events/{id}/cameras` (`integrations.view`) projects that trail
+    + a live `video.resolve_camera` status via
+    `bbz_core.integrations_host.cameras.resolve_cameras()` (the API layer must
+    not import the SDK — import-linter); degrades to `provider_available: false`
+    ("Video derzeit nicht verfügbar"). `POST .../cameras/{ref}/focus`
+    (`integrations.view`, `X-Workplace-Id`, idempotent, audited
+    `CAMERA_FOCUS_REQUESTED` critical) enqueues one decoupled `open_camera`
+    outbox row for the operator's workplace. No new permission, no built-in role
+    changed (`sichtleiter` / `administrator` already hold `integrations.view`),
+    no migration. `test_event_cameras_api.py` (17) + `test_coda_camera_sideeffect.py`.
+  - **PR #771**: `CameraPanel.vue` in `EventProcessingPanel` — lists the
+    associated cameras with a **textual** status (verfügbar / offline / Status
+    unbekannt — AC "a11y-konforme Alternativdarstellung") + an "Öffnen
+    fehlgeschlagen" marker; `role="status"` degradation line; card absent for
+    events with no cameras; never blocks working the event. Gated on
+    `integrations.view`. `lib/cameras.ts` carries `focus()` for the "auf meinen
+    Arbeitsplatz holen" action — wired once the kiosk supplies the workplace id
+    (Epic 08); no button yet. `seed_e2e.py` seeds one event with a
+    CAMERA_OPENED + CAMERA_ACTION_FAILED trail. `CameraPanel.spec.ts` (5);
+    `e2e/camera-view.spec.ts` (real backend + a stubbed online/offline/degraded
+    run — the CI mock video provider has no simulated cameras).
+- **Epic 16 COMPLETE (13/13).**
 
 ### Epic 17 – Siedle: **backend COMPLETE (7/7)** — Siedle UI tracked under Epic 07
 - **#361 (E17-01) Siedle door-station endpoint profile** — migration
