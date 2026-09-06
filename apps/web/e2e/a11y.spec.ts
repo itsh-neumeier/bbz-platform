@@ -20,6 +20,7 @@ const PAGES = [
   { name: 'Ereignisse', nav: 'Ereignisse', ready: '.events .detail-grid' },
   { name: 'Wetterlage', nav: 'Wetterlage', ready: '.wx' },
   { name: 'Telefonbuch', nav: 'Telefonbuch', ready: '.pb__row' },
+  { name: 'Monitorrouting', nav: 'Monitore', ready: 'dialog.mrd .mrd__grid' },
 ] as const;
 
 async function login(page: Page): Promise<void> {
