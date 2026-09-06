@@ -18,7 +18,7 @@ Cisco-JTAPI binding (ADR-0002 §8.17) — enforced by the import-linter contract
 | E13-05 | call control (dial / answer / hangup / hold / resume / transfer / conference) | done |
 | E13-06 | DTMF → `send_dtmf` (ARI `channels/{id}/dtmf`, never logged) | **done** |
 | E13-07 | config schema + secrets | schema done; DB config = ADR-0033 (next) |
-| E13-08 | integration tests against a `sip`-profile Asterisk container | next |
+| E13-08 | integration tests against a `sip`-profile Asterisk container | **done** (nightly) |
 
 `ari.py` is the transport: `AriClient` opens a `httpx` REST session + an ARI
 event WebSocket (`Authorization: Basic` header, never credentials in a URL),
@@ -42,6 +42,18 @@ originates against `PJSIP/<line>` (or the explicit `line_endpoints` map).
 `send_dtmf` emits the BBZ-resolved sequence (ADR-0025) via ARI's
 `channels/{id}/dtmf` — never logged, echoed in the ack, or in an error
 (ADR-0004); idempotent so a replay does not open the door twice.
+
+## Integration tests (E13-08)
+
+`deploy/sip/` is a throwaway lab Asterisk (`docker compose --profile sip up
+--build`). `tests/test_sip_integration.py` exercises the whole adapter against
+real ARI — an inbound Stasis call, answer/hold/resume/hangup with the matching
+normalized events, `command_id` idempotency, redaction-safe DTMF, outbound
+`dial`, blind transfer, and a reachability-loss health check. It is **skipped**
+unless an ARI endpoint answers (`BBZ_TEST_ARI_HOST`, default `127.0.0.1:8088`),
+so it never runs in the `backend` job. `.github/workflows/sip-nightly.yml` runs
+it nightly (`continue-on-error` until shaken out on real hardware). See
+`.ai/TESTING.md` and `deploy/sip/README.md`.
 
 ## Config
 

@@ -1,0 +1,56 @@
+name: SIP nightly
+
+# The telephony_sip integration tests (roadmap E13-08) against a lab Asterisk
+# (deploy/sip/). Not a PR gate — building + booting Asterisk and driving ARI
+# calls is slow and, until shaken out on real hardware, allowed to fail. Runs
+# nightly and on demand. Same policy as ha-nightly.yml.
+on:
+  schedule:
+    - cron: "37 3 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  sip-integration:
+    name: telephony_sip × lab Asterisk
+    runs-on: ubuntu-latest
+    continue-on-error: true          # flip to false once green on real hardware
+    timeout-minutes: 20
+    env:
+      # the test defaults to 127.0.0.1:8088; only the host is ever overridden
+      BBZ_TEST_ARI_HOST: 127.0.0.1
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+      - name: Install the Python workspace
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
+      - name: Build + start the lab Asterisk
+        run: |
+          cp .env.example .env
+          docker compose --profile sip up -d --build
+      - name: Wait for ARI to answer
+        run: |
+          for _ in $(seq 1 60); do
+            if curl -sf -u bbz-lab:bbz-lab-not-a-secret \
+                 http://127.0.0.1:8088/ari/asterisk/info >/dev/null; then
+              echo "ARI is up"; exit 0
+            fi
+            sleep 2
+          done
+          echo "::error::ARI did not come up in 120s"
+          docker compose --profile sip logs --no-color
+          exit 1
+      - name: Integration scenarios
+        run: pytest integrations/telephony_sip/tests/test_sip_integration.py -v
+      - name: Asterisk logs on failure
+        if: failure()
+        run: docker compose --profile sip logs --no-color --tail=300 || true
+      - name: Tear down
+        if: always()
+        run: docker compose --profile sip down -v || true

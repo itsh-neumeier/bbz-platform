@@ -277,7 +277,7 @@ jobs:
       - name: dev stack
         run: |
           cp .env.example .env
-          docker compose --profile core --profile edge --profile monitoring config -q
+          docker compose --profile core --profile edge --profile monitoring --profile sip config -q
       - name: deploy/node stack
         working-directory: deploy/node
         run: |

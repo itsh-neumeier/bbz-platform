@@ -99,6 +99,14 @@ class AriClient:
         except httpx.HTTPError as exc:
             raise AriError(f"ARI POST {path}: {type(exc).__name__}") from exc
 
+    async def _delete(self, path: str, *, params: dict[str, Any] | None = None) -> Any:
+        try:
+            r = await self._http.request("DELETE", path, params=params)
+            r.raise_for_status()
+            return r.json() if r.content else None
+        except httpx.HTTPError as exc:
+            raise AriError(f"ARI DELETE {path}: {type(exc).__name__}") from exc
+
     async def list_channels(self) -> list[dict[str, Any]]:
         result = await self._get("/channels")
         return list(result) if isinstance(result, list) else []
@@ -107,13 +115,16 @@ class AriClient:
         await self._post(f"/channels/{channel_id}/answer")
 
     async def hangup(self, channel_id: str) -> None:
-        await self._post(f"/channels/{channel_id}/hangup")
+        # ARI hangs up a channel with DELETE /channels/{id} — there is no
+        # POST .../hangup verb (that route 404s "Resource not found").
+        await self._delete(f"/channels/{channel_id}")
 
     async def hold(self, channel_id: str) -> None:
         await self._post(f"/channels/{channel_id}/hold")
 
     async def unhold(self, channel_id: str) -> None:
-        await self._post(f"/channels/{channel_id}/unhold")
+        # remove-hold is DELETE /channels/{id}/hold, not POST .../unhold.
+        await self._delete(f"/channels/{channel_id}/hold")
 
     async def send_dtmf(self, channel_id: str, digits: str) -> None:
         await self._post(f"/channels/{channel_id}/dtmf", params={"dtmf": digits})
@@ -121,16 +132,25 @@ class AriClient:
     async def redirect(self, channel_id: str, endpoint: str) -> None:
         await self._post(f"/channels/{channel_id}/redirect", params={"endpoint": endpoint})
 
-    async def originate(self, *, endpoint: str, extension: str, context: str) -> dict[str, Any]:
-        result = await self._post(
-            "/channels",
-            params={
-                "endpoint": endpoint,
-                "extension": extension,
-                "context": context,
-                "callerId": "BBZ",
-            },
-        )
+    async def originate(
+        self,
+        *,
+        endpoint: str,
+        extension: str = "",
+        context: str = "",
+        app: str = "",
+    ) -> dict[str, Any]:
+        """Create an outbound channel. ``app`` sends it straight into a Stasis
+        application (used by the integration harness); otherwise it lands at
+        ``extension@context`` in the dialplan (the ``dial`` verb's path)."""
+        params: dict[str, Any] = {"endpoint": endpoint, "callerId": "BBZ"}
+        if app:
+            params["app"] = app
+        if extension:
+            params["extension"] = extension
+        if context:
+            params["context"] = context
+        result = await self._post("/channels", params=params)
         return dict(result) if isinstance(result, dict) else {}
 
     async def create_bridge(self) -> str:

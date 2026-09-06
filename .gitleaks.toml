@@ -8,8 +8,12 @@ paths = [
   '''\.env\.example$''',
   '''(^|/)tests?/''',
   '''(^|/)README\.md$''',
+  # SIP lab PBX (E13-08) — a well-known throwaway ARI/SIP credential, exactly
+  # like the bbz/bbz dev-Postgres default. Never a production secret (ADR-0033).
+  '''(^|/)deploy/sip/asterisk/etc/''',
 ]
 regexes = [
   # docker-compose dev-only default credentials (bbz/bbz) are intentional
   '''postgresql\+asyncpg://bbz:bbz@''',
+  '''bbz-lab-not-a-secret''',
 ]

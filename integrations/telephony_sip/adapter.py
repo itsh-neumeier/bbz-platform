@@ -16,6 +16,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import datetime as _dt
+import uuid
 from collections.abc import AsyncIterator
 from typing import Any
 
@@ -24,8 +25,10 @@ from bbz_integration_sdk.diagnostics import DiagnosticsReport, HealthState
 from bbz_integration_sdk.normalized_events import NormalizedTelephonyEvent as _E
 from bbz_integration_sdk.providers.base import ProviderInfo
 from bbz_integration_sdk.providers.telephony_types import (
+    CallDirection,
     CallerResolution,
     CallEvent,
+    CallLifecycleState,
     CallSnapshot,
     CommandAccepted,
     LineInfo,
@@ -45,6 +48,14 @@ _CAPABILITIES = (
     Capability.CALL_SEND_DTMF,
     Capability.CALL_MONITORING,
 )
+
+#: ARI channel state -> the coarse lifecycle state a resync snapshot reports
+_ARI_STATE = {
+    "Up": CallLifecycleState.CONNECTED,
+    "Ring": CallLifecycleState.RINGING,
+    "Ringing": CallLifecycleState.RINGING,
+    "Busy": CallLifecycleState.FAILED,
+}
 
 
 class SipNotConfiguredError(RuntimeError):
@@ -71,6 +82,8 @@ class SipTelephonyProvider:
         self._pump_task: asyncio.Task[None] | None = None
         #: source_call_id (SIP Call-ID) -> ARI channel id, kept current by the pump
         self._channels: dict[str, str] = {}
+        #: source_call_id -> call direction (pump sets inbound, dial sets outbound)
+        self._call_dir: dict[str, CallDirection] = {}
         #: command_id -> the ack it produced (idempotency, mirrors the mock)
         self._seen: dict[str, CommandAccepted] = {}
 
@@ -94,8 +107,11 @@ class SipTelephonyProvider:
             if mapped.source_call_id and isinstance(channel_id, str):
                 if mapped.event_type is _E.CALL_DISCONNECTED:
                     self._channels.pop(mapped.source_call_id, None)
+                    self._call_dir.pop(mapped.source_call_id, None)
                 else:
                     self._channels[mapped.source_call_id] = channel_id
+                    if mapped.metadata.get("direction") == "inbound":
+                        self._call_dir.setdefault(mapped.source_call_id, CallDirection.INBOUND)
             self._buffer.put_nowait(mapped)
 
     async def drain_events(self, limit: int = 100) -> list[CallEvent]:
@@ -182,10 +198,21 @@ class SipTelephonyProvider:
             return []
         out: list[CallSnapshot] = []
         for ch in channels:
-            cid = ch.get("channelvars", {}).get("SIPCALLID") if isinstance(ch, dict) else None
-            call_id = str(cid or ch.get("id", ""))
-            if call_id:
-                out.append(CallSnapshot(call_id=call_id, line_id=str(ch.get("name") or "") or None))
+            if not isinstance(ch, dict):
+                continue
+            cv = ch.get("channelvars")
+            sip_id = cv.get("SIPCALLID") if isinstance(cv, dict) else None
+            call_id = str(sip_id or ch.get("id") or "")
+            if not call_id:
+                continue
+            out.append(
+                CallSnapshot(
+                    call_id=call_id,
+                    direction=self._call_dir.get(call_id, CallDirection.INBOUND),
+                    state=_ARI_STATE.get(str(ch.get("state") or ""), CallLifecycleState.OFFERED),
+                    line_id=str(ch.get("name") or "") or None,
+                )
+            )
         return out
 
     async def subscribe_call_events(self) -> AsyncIterator[CallEvent]:
@@ -228,6 +255,24 @@ class SipTelephonyProvider:
         self._seen[command_id] = ack
         return ack
 
+    def _synthetic(self, call_id: str, event_type: _E) -> CallEvent:
+        """A normalized event for a control action the ARI stream does not echo
+        back — an ARI-initiated hold / unhold emits no ``ChannelHold`` /
+        ``ChannelUnhold`` (those are for a *remote* party's hold). Emitting it
+        here keeps the provider's event contract identical to the mock's."""
+        now = _dt.datetime.now(_dt.UTC)
+        return CallEvent(
+            telephony_event_id=f"sip-{uuid.uuid4()}",
+            provider="telephony_sip",
+            event_type=event_type,
+            raw_event_type=f"ari-command:{event_type.value}",
+            source_call_id=call_id,
+            occurred_at=now,
+            received_at=now,
+            gateway_node=self._instance_id,
+            metadata={"synthetic": True},
+        )
+
     async def _on_channel(
         self, command_id: str, call_id: str, verb: str, op: str
     ) -> CommandAccepted:
@@ -262,6 +307,7 @@ class SipTelephonyProvider:
         call_id = (cv or {}).get("SIPCALLID") or ch_id
         if isinstance(call_id, str) and isinstance(ch_id, str):
             self._channels[call_id] = ch_id
+            self._call_dir[call_id] = CallDirection.OUTBOUND
         return self._ack(command_id, call_id if isinstance(call_id, str) else None, detail="dial")
 
     async def answer(self, *, call_id: str, command_id: str) -> CommandAccepted:
@@ -271,10 +317,20 @@ class SipTelephonyProvider:
         return await self._on_channel(command_id, call_id, "hangup", "hangup")
 
     async def hold(self, *, call_id: str, command_id: str) -> CommandAccepted:
-        return await self._on_channel(command_id, call_id, "hold", "hold")
+        if command_id in self._seen:
+            return self._seen[command_id]
+        ack = await self._on_channel(command_id, call_id, "hold", "hold")
+        if ack.accepted:
+            self._buffer.put_nowait(self._synthetic(call_id, _E.CALL_HELD))
+        return ack
 
     async def resume(self, *, call_id: str, command_id: str) -> CommandAccepted:
-        return await self._on_channel(command_id, call_id, "resume", "unhold")
+        if command_id in self._seen:
+            return self._seen[command_id]
+        ack = await self._on_channel(command_id, call_id, "resume", "unhold")
+        if ack.accepted:
+            self._buffer.put_nowait(self._synthetic(call_id, _E.CALL_RESUMED))
+        return ack
 
     async def transfer(self, *, call_id: str, destination: str, command_id: str) -> CommandAccepted:
         if command_id in self._seen:
