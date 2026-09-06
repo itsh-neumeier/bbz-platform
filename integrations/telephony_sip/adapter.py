@@ -308,11 +308,27 @@ class SipTelephonyProvider:
             return self._ack(command_id, call_ids[0], accepted=False, detail=str(exc))
         return self._ack(command_id, call_ids[0], detail=f"bridge {bridge_id}")
 
-    async def send_dtmf(self, *, call_id: str, dtmf: str, command_id: str) -> Any:
-        # `dtmf` is the resolved secret sequence (ADR-0025) — a real adapter emits
-        # it via SIP INFO / RFC 2833 and must never log or echo it (ADR-0004).
-        # Wired in E13-06.
-        raise SipNotConfiguredError("send_dtmf")
+    async def send_dtmf(self, *, call_id: str, dtmf: str, command_id: str) -> CommandAccepted:
+        """Emit the resolved DTMF sequence on the call's channel (E13-06).
+
+        ``dtmf`` is the secret door-open sequence BBZ resolved (ADR-0025) — it is
+        passed straight to ARI's ``channels/{id}/dtmf`` (the wire form, RFC 2833
+        vs SIP INFO, is Asterisk config per ADR-0023) and is **never** logged,
+        echoed in the ack ``detail``, or put in an error (ADR-0004). Idempotent
+        on ``command_id`` — a replay is not re-emitted (the door must not open
+        twice)."""
+        if command_id in self._seen:
+            return self._seen[command_id]
+        if self._ari is None:
+            raise SipNotConfiguredError("send_dtmf")
+        channel_id = self._channels.get(call_id)
+        if channel_id is None:
+            return self._ack(command_id, call_id, accepted=False, detail="call not tracked")
+        try:
+            await self._ari.send_dtmf(channel_id, dtmf)
+        except AriError:
+            return self._ack(command_id, call_id, accepted=False, detail="gateway rejected dtmf")
+        return self._ack(command_id, call_id, detail="dtmf sent")
 
 
 def build(config: dict[str, Any] | None = None) -> SipTelephonyProvider:
