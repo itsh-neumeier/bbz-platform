@@ -88,9 +88,9 @@ Feature areas whose UI lives in a later epic point at that epic.
 | # | Feature | Delivered by | Status |
 |---|---|---|---|
 | 43 | DWD weather page | `pages/WeatherPage.vue` (`/wetterlage`) — E18-09 (#391, PR #768) | done — warnings, Messwert-Kacheln, keyboard-operable radar timeline (`RadarTimeline.vue`: range scrubber + Play/Pause, reduced-motion aware), "Wetterereignis erzeugen" confirmation dialog (`WeatherEventDialog.vue`: priority + betriebliche Bewertung), per-panel stale marker, DWD attribution (ADR-0026); create gated on `weather.create_event`. vitest ×3 + `e2e/weather.spec.ts` |
-| 44 | monitor routing dialog | `pages/MonitorPage.vue` (`/monitore`) — E19-08 (#408) | in-progress — 3×2 grid + large display, `<select>` keyboard alternative, standard-layout, user profiles |
-| 45 | 6 workplace monitors + large display, standard layout | `pages/MonitorPage.vue` | in-progress — grid from the server catalog + `Standard-Layout` button (E19-04 reset) |
-| 46 | BBZ-OS fixed on the lower-left monitor | `pages/MonitorPage.vue` shows `workplace4` locked + disabled; server-enforced (E19-03). Desktop display is Epic 08. | in-progress |
+| 44 | monitor routing dialog | `components/monitor/MonitorRoutingDialog.vue` (`/monitore`) — E19-08 (#408, PR #773) | done — V10 modal: input-chip palette (drag onto a monitor) **and** a `<select>` per output (the mouse-free path, §26.14); standard-layout reset; user profiles. `e2e/monitor-routing.spec.ts` (un-`fixme`d) + `a11y.spec.ts` Monitorrouting |
+| 45 | 6 workplace monitors + large display, standard layout | `MonitorRoutingDialog.vue` | done — 3×2 grid + large display from the server catalog + `Standard-Layout` (E19-04 reset), walked by `monitor-routing.spec.ts` |
+| 46 | BBZ-OS fixed on the lower-left monitor | `MonitorRoutingDialog.vue` — `workplace4` `<select>` disabled + lock marker; server-enforced (E19-03). Desktop display is Epic 08. | done — UI + server, asserted in `monitor-routing.spec.ts` |
 
 ## BKU agent (Epic 10 — separate app)
 

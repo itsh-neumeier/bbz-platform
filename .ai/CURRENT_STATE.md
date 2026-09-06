@@ -5,10 +5,12 @@ Working the roadmap issues in order (see `.ai/ROADMAP.md`, tracking issue #18).
 **Epics 02–06 complete; Epic 01 is 6/7** (only E01-02 blocked — client-supplied
 mockup files). **Epic 11 (Telephony Core) COMPLETE (16/16)**, **Epic 14 (Contacts /
 Call Priorities) COMPLETE (10/10)**, **Epic 16 (Coda Video) COMPLETE (13/13)** —
-E16-12 camera-view UI shipped (ADR-0032; PRs #770 + #771) — and **Epic 18 (DWD
-Weather) COMPLETE (10/10)** — E18-09 Wetterlage UI shipped (PR #768); the
-remaining domain epics 13/15/17/19–22 are backend-complete (Epic 13 is 1/8 +
-ADR-0023 Accepted). **Epic 07 (Web UI) is
+E16-12 camera-view UI shipped (ADR-0032; PRs #770 + #771); **Epic 18 (DWD
+Weather) COMPLETE (10/10)** — E18-09 Wetterlage UI shipped (PR #768); **Epic 19
+(Weytec Monitor Routing) COMPLETE (10/10)** — E19-08 routing dialog shipped
+(PR #773). The remaining domain epics 13/15/17/20–22 are backend-complete
+(Epic 13 is 1/8 + ADR-0023 Accepted; the E15-14 client-popup UI is the Epic-08
+kiosk's job). **Epic 07 (Web UI) is
 in progress** — the operator UI
 (auth · work queue · event detail · archive · reactivation · workflow view ·
 priority alerts · SSE · theme · i18n), the weather + monitor pages, the
@@ -1826,7 +1828,7 @@ API. `integrations/telephony_cucm/` stays a placeholder README.
   dialog → `/ereignisse/:id`; radar keyboard scrub + play/pause); `a11y.spec.ts`
   Wetterlage stays green light + dark.
 
-### Epic 19 – Weytec Monitor Routing: **backend complete (9/10; E19-08 dialog UI → Epic 07)**
+### Epic 19 – Weytec Monitor Routing: **COMPLETE (10/10)**
 - **#395 (E19-01) DB schema** — migration `0041_monitor_schema` +
   `bbz_core.infra.models.monitor`. Four tables (MASTER_PROMPT §9): `monitor_inputs`
   (`key` unique — BBZ-OS / BKU1-4 / Cayuga 1-2), `monitor_outputs` (`key` unique,
@@ -1933,9 +1935,22 @@ API. `integrations/telephony_cucm/` stays a placeholder README.
   (`apps/web/e2e/monitor-routing.spec.ts`, `test.fixme`) pending the E19-08
   dialog. `.ai/TESTING.md` + `docs/mockup-parity-checklist.md` (rows 44–46 →
   `backend-done`) updated.
-- **Only E19-08** (dialog UI — 3×2 grid, drag & drop **and** keyboard/select
-  alternative, standard-layout button, profile save/load, locked lower-left) is
-  left → Epic 07 (frontend, blocked).
+- **#408 (E19-08) Monitor-Routing-Dialog-UI — DONE (PR #773). Epic 19 COMPLETE.**
+  `MonitorRoutingDialog.vue` — the V10-mockup modal, opened at `/monitore` (the
+  topbar monitor-layout button + sidebar nav both push there; `MonitorPage.vue`
+  is now a thin routed host that renders the dialog open and navigates back on
+  close). An input-chip palette (drag a chip onto a monitor) **plus** each
+  output's own `<select>` — the mouse-free path §26.14 requires, so the drag
+  layer is a pure enhancement and its non-interactive elements carry a
+  justified `no-static-element-interactions` disable. `workplace4` locked to
+  BBZ-OS (E19-03) — disabled `<select>` + lock marker. Standard-Layout reset,
+  user profiles, "provider pending" note, `prefers-reduced-motion` drops the
+  drop-target glow. `MonitorRoutingDialog.spec.ts` (8, incl. drag/drop +
+  fixed-output guard) replaces `MonitorPage.spec.ts`. `monitor-routing.spec.ts`
+  **un-`fixme`d** and rewritten (the old "select doesn't read back" was the
+  pre-`-e`-install `NoActiveProvider` bug, fixed 2026-09-05) — select route +
+  read-back, BBZ-OS locked, standard reset, profile save/apply, and a `dragTo`
+  assignment; `a11y.spec.ts` gains Monitorrouting (light + dark).
 
 ### Epic 21 – Enterprise Authentication: **backend COMPLETE (8/8; E21-08 Admin-UI + Playwright → Epic 07)**
 - **#431 (E21-01) Entra ID / OIDC provider** — `bbz_core.auth.oidc` (pure,
