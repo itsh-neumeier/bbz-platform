@@ -50,7 +50,8 @@ the operator UI is the only missing piece and every UI issue is an Epic-07 row.
 | 15 Technical Trigger Engine | E15-14 (client-popup UI) open |
 | 16 Coda Video | E16-12 (camera view) open; alarm/camera transport is `mock: true` pending Coda docs (blocked/vendor) |
 
-(Epic 13 SIP is **not** backend-done — 1/8 + ADR-0023; see its section below.)
+(Epic 13 SIP is 5/8 — the ARI adapter is built (E13-03..06, PRs #777–#780);
+E13-07 config UI + E13-08 lab-PBX tests remain. See its section below.)
 
 ---
 
@@ -136,23 +137,33 @@ All 20 issues are the separate Java `services/cucm-cti-gateway`. Needs
 (§8.18). `E12-01` (the gateway image) is the dependency for **E24-01** (complete
 `release.yml`) and transitively **E23-12**, **E24-02**, **E24-04**.
 
-## Epic 13 · SIP Provider — **1/8 + ADR-0023 (`Accepted`)**
+## Epic 13 · SIP Provider — **5/8 + ADR-0023/0033 (`Accepted`)**
 
 - **E13-01 done**: `integrations/telephony_sip/` scaffold — manifest,
   `config_schema.json`, and a `SipTelephonyProvider` that satisfies the whole
-  `TelephonyProvider` protocol with safe stubs (`SipNotConfiguredError` on every
-  control verb until E13-03+).
+  `TelephonyProvider` protocol.
 - **E13-02 — decision done, ADR-0023 `Accepted`**: **Asterisk via ARI** (REST +
   WebSocket + JSON, the transport the codebase already speaks; the Stasis
   channel model fits the provider verbs; ARI events map straight onto
   `inbound_signal.v1`). FreeSWITCH ESL stays the documented fallback in
   `config_schema.json`.
-- **E13-02 deployment half + E13-03..08 blocked/toolchain**: the `asterisk`
-  compose container + `ari.conf`/dialplan + SIPp smoke test, then the adapter,
-  event mapping, call control, DTMF, secrets and PBX integration tests — all
-  need a SIP stack / containerized test PBX in the environment. E13-06 (the real
-  `send_dtmf` transport) is also the missing piece for Epic 17's real door
-  opening.
+- **ADR-0033 `Accepted`** (#273, PR #777): the SIP gateway config is DB-backed
+  and UI-managed; the ARI password is Fernet-encrypted at rest (the
+  `door_action_profiles` pattern). Scoped exception to ADR-0031.
+- **E13-03..06 — adapter code done, issues open pending E13-08** (PRs
+  #777–#780): the ARI transport (`ari.py` — REST + reconnecting event WS),
+  event mapping (`events.py`) + the `telephony-events` cluster singleton that
+  drains the pump (also closes the E11-05 real-provider gap), call control
+  (idempotent verbs over a `source_call_id → channel` map) and `send_dtmf`
+  (redaction-safe, idempotent). Covered by `httpx.MockTransport` unit tests;
+  #273/#275/#277/#279 stay open until E13-08's lab-Asterisk integration tests
+  exercise them (their AC: "Integration gegen Test-Gateway").
+- **E13-07 next**: the DB config tables + `bbz_core.infra.sip_secrets` + the
+  `/api/v1/admin/telephony/sip` API + the `/admin/telefonie` UI (ADR-0033), and
+  wiring `active_telephony_provider()` to build the ARI client from the DB.
+- **E13-08 next**: a `sip`-profile Asterisk container + `ari.conf`/dialplan +
+  integration scenarios, run nightly. E13-06 (the real `send_dtmf` transport)
+  is also the missing piece for Epic 17's real door opening.
 
 ---
 
