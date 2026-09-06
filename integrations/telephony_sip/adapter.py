@@ -13,6 +13,8 @@ The raw DTMF code is always a secret — only the profile id is ever handled her
 
 from __future__ import annotations
 
+import asyncio
+import contextlib
 import datetime as _dt
 from collections.abc import AsyncIterator
 from typing import Any
@@ -29,6 +31,7 @@ from bbz_integration_sdk.providers.telephony_types import (
     ReconcileResult,
 )
 from integrations.telephony_sip.ari import AriClient, AriConfig, AriError
+from integrations.telephony_sip.events import map_ari_event
 
 _CAPABILITIES = (
     Capability.CALL_ANSWER,
@@ -58,11 +61,38 @@ class SipTelephonyProvider:
         self._lines = {lid: LineInfo(line_id=lid, state=LineState.UNKNOWN) for lid in (lines or [])}
         self._initialized = False
         self._ari = ari
+        #: ARI events, mapped, waiting for the telephony-events singleton to drain
+        self._buffer: asyncio.Queue[CallEvent] = asyncio.Queue()
+        self._pump_task: asyncio.Task[None] | None = None
 
     # --- lifecycle ------------------------------------------------------
 
     async def initialize(self) -> None:
         self._initialized = True
+        if self._ari is not None and self._pump_task is None:
+            self._pump_task = asyncio.create_task(self._pump())
+
+    async def _pump(self) -> None:
+        """Consume the ARI event stream, map each event and buffer the ones we
+        surface. Reconnects are handled inside ``AriClient.events``; on a
+        reconnect the caller reconciles against ``get_active_calls``."""
+        assert self._ari is not None
+        async for raw in self._ari.events():
+            mapped = map_ari_event(raw, provider="telephony_sip", gateway_node=self._instance_id)
+            if mapped is not None:
+                self._buffer.put_nowait(mapped)
+
+    async def drain_events(self, limit: int = 100) -> list[CallEvent]:
+        """Pop up to ``limit`` buffered events. The ``telephony-events`` cluster
+        singleton calls this each tick and feeds the results through
+        ``ingest_telephony_event`` (same signature as the mock provider's)."""
+        out: list[CallEvent] = []
+        while len(out) < limit:
+            try:
+                out.append(self._buffer.get_nowait())
+            except asyncio.QueueEmpty:
+                break
+        return out
 
     def info(self) -> ProviderInfo:
         return ProviderInfo(
@@ -108,6 +138,11 @@ class SipTelephonyProvider:
 
     async def shutdown(self) -> None:
         self._initialized = False
+        if self._pump_task is not None:
+            self._pump_task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await self._pump_task
+            self._pump_task = None
         if self._ari is not None:
             await self._ari.aclose()
 
@@ -120,12 +155,29 @@ class SipTelephonyProvider:
         return self._lines.get(line_id, LineInfo(line_id=line_id, state=LineState.UNKNOWN))
 
     async def get_active_calls(self) -> list[CallSnapshot]:
-        return []
+        """Live channels in the Stasis app, as :class:`CallSnapshot`s — the
+        reconnect resync source (a missed hangup during a WS drop is caught by
+        comparing this against tracked calls)."""
+        if self._ari is None:
+            return []
+        try:
+            channels = await self._ari.list_channels()
+        except AriError:
+            return []
+        out: list[CallSnapshot] = []
+        for ch in channels:
+            cid = ch.get("channelvars", {}).get("SIPCALLID") if isinstance(ch, dict) else None
+            call_id = str(cid or ch.get("id", ""))
+            if call_id:
+                out.append(CallSnapshot(call_id=call_id, line_id=str(ch.get("name") or "") or None))
+        return out
 
     async def subscribe_call_events(self) -> AsyncIterator[CallEvent]:
-        # no gateway yet — an empty stream. E13-03+ implements the real one.
-        for event in ():
-            yield event
+        """The mapped ARI event stream. A deployment consumes **either** this or
+        :meth:`drain_events` (the ``telephony-events`` singleton uses the
+        latter) — they share one buffer."""
+        while self._ari is not None:
+            yield await self._buffer.get()
 
     async def resolve_caller(self, *, number: str) -> CallerResolution:
         return CallerResolution(number=number, matched=False)
