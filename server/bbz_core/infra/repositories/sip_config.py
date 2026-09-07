@@ -254,13 +254,16 @@ class SipConfigService:
 
     # --- runtime ---------------------------------------------------
 
-    async def runtime_config(self) -> dict[str, Any] | None:
+    async def runtime_config(self, *, for_probe: bool = False) -> dict[str, Any] | None:
         """The ``config_schema.json``-shaped dict for
         ``integrations.telephony_sip.adapter.build`` — or ``None`` when the
-        gateway is disabled / unconfigured (the provider then stays a scaffold).
-        Decrypts the ARI password in-process; the caller must not log this."""
+        gateway is unconfigured (no host), or disabled and ``for_probe`` is
+        False (the provider then stays a scaffold). ``for_probe=True`` builds it
+        for the admin "test connection" check even while the gateway is
+        disabled. Decrypts the ARI password in-process; the caller must not log
+        the result."""
         g = await self._row()
-        if g is None or not g.enabled or not g.host:
+        if g is None or not g.host or (not g.enabled and not for_probe):
             return None
         lines = await self.list_lines()
         creds: dict[str, str] = {"username": g.ari_username}
