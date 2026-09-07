@@ -16,4 +16,8 @@ regexes = [
   # docker-compose dev-only default credentials (bbz/bbz) are intentional
   '''postgresql\+asyncpg://bbz:bbz@''',
   '''bbz-lab-not-a-secret''',
+  # dev-stack Fernet keys (docker-compose.yml `${VAR:-<default>}`) — throwaways
+  # for the local encrypted-at-rest admin features; production sets its own.
+  '''_NTWUOPhB7SQsrLcADSY788rF3KL5qMTD-o9xQIPVnM=''',
+  '''kldGggBMcNvTZUS8KLqoQl0rlXYMRYat7up293jCk_g=''',
 ]
