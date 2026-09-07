@@ -1,5 +1,5 @@
-import { definePreset } from '@primevue/themes';
-import Aura from '@primevue/themes/aura';
+import { definePreset } from '@primeuix/themes';
+import Aura from '@primeuix/themes/aura';
 
 /**
  * DB-flavoured PrimeVue preset (ADR-0029).
@@ -11,6 +11,17 @@ import Aura from '@primevue/themes/aura';
  * without pulling PrimeVue's own colour system.
  */
 export const DbPreset = definePreset(Aura, {
+  // PrimeVue 5: borderRadius is a *primitive* token, no longer under `semantic`.
+  primitive: {
+    borderRadius: {
+      none: '0',
+      xs: 'calc(var(--db-border-radius-xs) / 2)',
+      sm: 'var(--db-border-radius-xs)',
+      md: 'var(--db-border-radius-xs)',
+      lg: 'var(--db-border-radius-xs)',
+      xl: 'var(--db-border-radius-xs)',
+    },
+  },
   semantic: {
     primary: {
       50: 'var(--db-brand-14)',
@@ -30,14 +41,6 @@ export const DbPreset = definePreset(Aura, {
       style: 'solid',
       color: 'var(--db-focus-outline-color)',
       offset: '2px',
-    },
-    borderRadius: {
-      none: '0',
-      xs: 'calc(var(--db-border-radius-xs) / 2)',
-      sm: 'var(--db-border-radius-xs)',
-      md: 'var(--db-border-radius-xs)',
-      lg: 'var(--db-border-radius-xs)',
-      xl: 'var(--db-border-radius-xs)',
     },
     colorScheme: {
       light: {
