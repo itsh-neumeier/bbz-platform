@@ -59,7 +59,8 @@ No credentials in repo.
 ## Dependency / container scanning (E23-07, ADR-0014)
 - `security.yml` — all **blocking**, per-PR + weekly cron: `gitleaks` ·
   `pip-audit --strict` (any known vuln) · `trivy fs` (CRITICAL/HIGH, fixable) ·
-  `scan-exception policy`. `npm audit` for `apps/web` runs non-blocking until #14.
+  `scan-exception policy` · `npm audit` for `apps/web` (`--audit-level=high`,
+  blocking since #14 landed a clean tree, E23-07).
 - Exceptions live **only** in `deploy/security/scan-exceptions.toml`, enforced by
   `tools/security/check_scan_exceptions.py`: every entry needs a `reason` + a
   future `expires` (≤ 90 days). Expired ⇒ CI fails ⇒ the finding re-arms. The

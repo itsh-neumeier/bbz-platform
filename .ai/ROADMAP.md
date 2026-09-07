@@ -222,10 +222,10 @@ Python 3.13). Es fehlen die unten genannten Punkte.
   check-runs by exact name (kept in sync with the workflow `name:` values), a
   `gh api -X PUT …/branches/main/protection` snippet + a read-back one-liner,
   tag protection for `v*` (E01-04), squash-only / conversation-resolution /
-  linear-history. `frontend` is now in the required list (E01-06 done);
-  `npm audit` stays *not yet required* (#14). **The agent is not permitted to
-  run the `gh api` call that modifies repo settings — a maintainer runs it
-  once.**
+  linear-history. `frontend` and `npm audit (apps/web)` are now in the required
+  list (E01-06 done; #14 closed 2026-09-07 so the npm-audit tree is clean).
+  **The agent is not permitted to run the `gh api` call that modifies repo
+  settings — a maintainer runs it once.**
 
 ### E01-06 · Frontend-CI härten (Lockfile, `npm ci`, kein continue-on-error)
 **Epic:** 01 Repository Foundation · **Phase:** 0 · **Area:** frontend, infra · **Branch:** feature/<nr>-frontend-ci-hardening
