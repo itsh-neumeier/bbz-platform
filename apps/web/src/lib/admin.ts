@@ -10,6 +10,7 @@ export const ADMIN_SECTIONS = [
   { name: 'admin-users', key: 'users', perm: 'users.manage' },
   { name: 'admin-directory', key: 'directory', perm: 'system.settings.manage' },
   { name: 'admin-integrations', key: 'integrations', perm: 'integrations.view' },
+  { name: 'admin-telephony', key: 'telephony', perm: 'integrations.configure' },
   { name: 'workflow-admin', key: 'workflows', perm: 'workflows.manage_templates' },
   { name: 'admin-triggers', key: 'triggers', perm: 'technical_endpoints.manage' },
   { name: 'admin-endpoints', key: 'endpoints', perm: 'technical_endpoints.manage' },
@@ -73,6 +74,55 @@ export interface DomainIntegration {
   health: { state: string; summary: string } | null;
 }
 
+/** SIP (Asterisk / ARI) gateway config (E13-07, ADR-0033). The ARI password is
+ * write-only — the API returns `ari_password_configured`, never the value. */
+export interface SipGateway {
+  instance_id: string;
+  kind: string;
+  host: string;
+  port: number;
+  tls: boolean;
+  app_name: string;
+  dtmf_transport: 'rfc2833' | 'sip_info';
+  ari_username: string;
+  ari_password_configured: boolean;
+  enabled: boolean;
+  created_at: string | null;
+  updated_at: string | null;
+}
+
+export interface SipLine {
+  bbz_line_id: string;
+  asterisk_endpoint: string;
+  label: string;
+  enabled: boolean;
+}
+
+export interface SipConfig {
+  gateway: SipGateway;
+  lines: SipLine[];
+  /** whether `telephony_sip` is the selected telephony provider */
+  active: boolean;
+}
+
+export interface SipGatewayInput {
+  host: string;
+  port: number;
+  tls: boolean;
+  app_name: string;
+  dtmf_transport: 'rfc2833' | 'sip_info';
+  ari_username: string;
+  /** omit to keep the stored password; a value replaces it */
+  ari_password?: string;
+  enabled: boolean;
+}
+
+export interface SipProbeResult {
+  reachable: boolean;
+  detail: string;
+  asterisk_version: string | null;
+}
+
 export const adminApi = {
   /** `GET /api/v1/admin/settings` — every overridable key, grouped. */
   settings: (signal?: AbortSignal) =>
@@ -85,4 +135,22 @@ export const adminApi = {
   /** `GET /api/v1/admin/integrations` — provider per domain + health (#724). */
   integrations: (signal?: AbortSignal) =>
     api.get<{ domains: DomainIntegration[] }>('/admin/integrations', { signal }),
+
+  /** `GET /api/v1/admin/telephony/sip` — the SIP gateway config + lines. */
+  sipConfig: (signal?: AbortSignal) =>
+    api.get<SipConfig>('/admin/telephony/sip', { signal }),
+
+  /** `PUT /api/v1/admin/telephony/sip` — set the gateway (password write-only). */
+  putSipGateway: (body: SipGatewayInput) => api.put<SipConfig>('/admin/telephony/sip', body),
+
+  /** `PUT /api/v1/admin/telephony/sip/lines/{id}` — add or update a line. */
+  putSipLine: (id: string, body: { asterisk_endpoint: string | null; label: string; enabled: boolean }) =>
+    api.put<SipLine>(`/admin/telephony/sip/lines/${encodeURIComponent(id)}`, body),
+
+  /** `DELETE /api/v1/admin/telephony/sip/lines/{id}`. */
+  deleteSipLine: (id: string) =>
+    api.del<void>(`/admin/telephony/sip/lines/${encodeURIComponent(id)}`),
+
+  /** `POST /api/v1/admin/telephony/sip/test` — probe the stored gateway. */
+  testSipConnection: () => api.post<SipProbeResult>('/admin/telephony/sip/test'),
 };
