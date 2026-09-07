@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { mount } from '@vue/test-utils';
 import { createI18n } from 'vue-i18n';
 import de from '@/i18n/de.json';
+import { datetimeFormats } from '@/i18n';
 import ReactivateDialog from '@/components/events/ReactivateDialog.vue';
 import * as ev from '@/lib/events';
 
@@ -13,7 +14,7 @@ beforeEach(() => {
 });
 
 function factory(props: { open: boolean; eventId: string }) {
-  const i18n = createI18n({ legacy: false, locale: 'de', messages: { de } });
+  const i18n = createI18n({ legacy: false, locale: 'de', messages: { de }, datetimeFormats });
   return mount(ReactivateDialog, { props, global: { plugins: [i18n] } });
 }
 

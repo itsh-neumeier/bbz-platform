@@ -2,10 +2,11 @@ import { describe, expect, it } from 'vitest';
 import { flushPromises, mount } from '@vue/test-utils';
 import { createI18n } from 'vue-i18n';
 import de from '@/i18n/de.json';
+import { datetimeFormats } from '@/i18n';
 import WeatherEventDialog from '@/components/weather/WeatherEventDialog.vue';
 import type { WeatherAlert } from '@/lib/weather';
 
-const i18n = createI18n({ legacy: false, locale: 'de', messages: { de } });
+const i18n = createI18n({ legacy: false, locale: 'de', messages: { de }, datetimeFormats });
 
 const ALERT: WeatherAlert = {
   id: 'al-1',

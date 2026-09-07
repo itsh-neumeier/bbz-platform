@@ -4,6 +4,7 @@ import { createPinia, setActivePinia } from 'pinia';
 import { createI18n } from 'vue-i18n';
 import { createRouter, createMemoryHistory } from 'vue-router';
 import de from '@/i18n/de.json';
+import { datetimeFormats } from '@/i18n';
 import EventsPage from '@/pages/EventsPage.vue';
 import { useSessionStore } from '@/stores/session';
 import * as ev from '@/lib/events';
@@ -58,7 +59,7 @@ async function factory(query: Record<string, string> = {}) {
   const pinia = createPinia();
   setActivePinia(pinia);
   useSessionStore().user = { id: 'u1', display_name: 'Ops', status: 'active' };
-  const i18n = createI18n({ legacy: false, locale: 'de', messages: { de } });
+  const i18n = createI18n({ legacy: false, locale: 'de', messages: { de }, datetimeFormats });
   const w = mount(EventsPage, { global: { plugins: [pinia, router, i18n] } });
   await flush();
   return w;

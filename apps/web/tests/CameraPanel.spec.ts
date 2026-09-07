@@ -5,11 +5,12 @@ import { createPinia, setActivePinia } from 'pinia';
 // instance to `mount` or `withPerms` and the component diverge.
 import { createI18n } from 'vue-i18n';
 import de from '@/i18n/de.json';
+import { datetimeFormats } from '@/i18n';
 import CameraPanel from '@/components/events/CameraPanel.vue';
 import { useSessionStore } from '@/stores/session';
 import * as cams from '@/lib/cameras';
 
-const i18n = createI18n({ legacy: false, locale: 'de', messages: { de } });
+const i18n = createI18n({ legacy: false, locale: 'de', messages: { de }, datetimeFormats });
 
 function withPerms(...perms: string[]) {
   const s = useSessionStore();

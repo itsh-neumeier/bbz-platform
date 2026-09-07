@@ -4,6 +4,7 @@ import { createI18n } from 'vue-i18n';
 import { createPinia, setActivePinia } from 'pinia';
 import { createMemoryHistory, createRouter } from 'vue-router';
 import de from '@/i18n/de.json';
+import { datetimeFormats } from '@/i18n';
 import WeatherPage from '@/pages/WeatherPage.vue';
 import { useSessionStore } from '@/stores/session';
 import * as weather from '@/lib/weather';
@@ -80,7 +81,7 @@ const router = createRouter({
 });
 
 async function factory() {
-  const i18n = createI18n({ legacy: false, locale: 'de', messages: { de } });
+  const i18n = createI18n({ legacy: false, locale: 'de', messages: { de }, datetimeFormats });
   await router.push('/wetterlage');
   const w = mount(WeatherPage, { global: { plugins: [router, i18n], stubs: { teleport: true } } });
   await flushPromises();

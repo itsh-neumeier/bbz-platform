@@ -3,6 +3,7 @@ import { mount } from '@vue/test-utils';
 import { createPinia, setActivePinia } from 'pinia';
 import { createI18n } from 'vue-i18n';
 import de from '@/i18n/de.json';
+import { datetimeFormats } from '@/i18n';
 import WorkflowAdminPage from '@/pages/WorkflowAdminPage.vue';
 import { useSessionStore } from '@/stores/session';
 import * as wf from '@/lib/workflows';
@@ -46,7 +47,7 @@ async function flush(w: { vm: { $nextTick: () => Promise<unknown> } }) {
 }
 
 async function factory(perms: string[]) {
-  const i18n = createI18n({ legacy: false, locale: 'de', messages: { de } });
+  const i18n = createI18n({ legacy: false, locale: 'de', messages: { de }, datetimeFormats });
   const pinia = createPinia();
   setActivePinia(pinia);
   useSessionStore().permissions = perms;

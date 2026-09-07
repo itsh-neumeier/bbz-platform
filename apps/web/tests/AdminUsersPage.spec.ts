@@ -3,6 +3,7 @@ import { mount, RouterLinkStub } from '@vue/test-utils';
 import { createI18n } from 'vue-i18n';
 import { createPinia, setActivePinia } from 'pinia';
 import de from '@/i18n/de.json';
+import { datetimeFormats } from '@/i18n';
 import AdminUsersPage from '@/pages/admin/AdminUsersPage.vue';
 import { useSessionStore } from '@/stores/session';
 import * as users from '@/lib/users';
@@ -42,7 +43,7 @@ async function factory(perms: string[]) {
   const s = useSessionStore();
   s.user = { id: 'me', display_name: 'Me', status: 'active' };
   s.permissions = perms;
-  const i18n = createI18n({ legacy: false, locale: 'de', messages: { de } });
+  const i18n = createI18n({ legacy: false, locale: 'de', messages: { de }, datetimeFormats });
   const w = mount(AdminUsersPage, {
     global: { plugins: [i18n], stubs: { RouterLink: RouterLinkStub } },
   });

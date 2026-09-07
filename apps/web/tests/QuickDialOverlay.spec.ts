@@ -2,10 +2,11 @@ import { describe, expect, it, vi } from 'vitest';
 import { flushPromises, mount } from '@vue/test-utils';
 import { createI18n } from 'vue-i18n';
 import de from '@/i18n/de.json';
+import { datetimeFormats } from '@/i18n';
 import * as contacts from '@/lib/contacts';
 import QuickDialOverlay from '@/components/telephony/QuickDialOverlay.vue';
 
-const i18n = createI18n({ legacy: false, locale: 'de', messages: { de } });
+const i18n = createI18n({ legacy: false, locale: 'de', messages: { de }, datetimeFormats });
 
 const GATEHOUSE: contacts.Contact = {
   id: 'c1',

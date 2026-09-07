@@ -3,6 +3,7 @@ import { mount } from '@vue/test-utils';
 import { createI18n } from 'vue-i18n';
 import { createPinia, setActivePinia } from 'pinia';
 import de from '@/i18n/de.json';
+import { datetimeFormats } from '@/i18n';
 import AdminTelephonyPage from '@/pages/admin/AdminTelephonyPage.vue';
 import * as adminLib from '@/lib/admin';
 
@@ -32,7 +33,7 @@ beforeEach(() => {
 });
 
 async function factory() {
-  const i18n = createI18n({ legacy: false, locale: 'de', messages: { de } });
+  const i18n = createI18n({ legacy: false, locale: 'de', messages: { de }, datetimeFormats });
   const w = mount(AdminTelephonyPage, { global: { plugins: [i18n] } });
   await new Promise((r) => setTimeout(r, 0));
   await w.vm.$nextTick();
