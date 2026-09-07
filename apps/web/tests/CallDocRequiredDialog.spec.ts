@@ -2,9 +2,10 @@ import { describe, expect, it } from 'vitest';
 import { mount } from '@vue/test-utils';
 import { createI18n } from 'vue-i18n';
 import de from '@/i18n/de.json';
+import { datetimeFormats } from '@/i18n';
 import CallDocRequiredDialog from '@/components/telephony/CallDocRequiredDialog.vue';
 
-const i18n = createI18n({ legacy: false, locale: 'de', messages: { de } });
+const i18n = createI18n({ legacy: false, locale: 'de', messages: { de }, datetimeFormats });
 
 function factory(open: boolean, busy = false) {
   return mount(CallDocRequiredDialog, {

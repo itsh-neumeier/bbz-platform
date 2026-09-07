@@ -2,10 +2,11 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { mount } from '@vue/test-utils';
 import { createI18n } from 'vue-i18n';
 import de from '@/i18n/de.json';
+import { datetimeFormats } from '@/i18n';
 import RadarTimeline from '@/components/weather/RadarTimeline.vue';
 import type { RadarFrame } from '@/lib/weather';
 
-const i18n = createI18n({ legacy: false, locale: 'de', messages: { de } });
+const i18n = createI18n({ legacy: false, locale: 'de', messages: { de }, datetimeFormats });
 
 const FRAMES: RadarFrame[] = [
   { frame_time: '2026-09-05T10:00:00Z', image_ref: 'https://dwd/radar?t=1' },

@@ -4,6 +4,7 @@ import { createPinia, setActivePinia } from 'pinia';
 import { createI18n } from 'vue-i18n';
 import { createRouter, createMemoryHistory } from 'vue-router';
 import de from '@/i18n/de.json';
+import { datetimeFormats } from '@/i18n';
 import LoginView from '@/features/auth/LoginView.vue';
 import { useSessionStore } from '@/stores/session';
 
@@ -16,7 +17,7 @@ function factory() {
       { path: '/', component: { template: '<div />' } },
     ],
   });
-  const i18n = createI18n({ legacy: false, locale: 'de', messages: { de } });
+  const i18n = createI18n({ legacy: false, locale: 'de', messages: { de }, datetimeFormats });
   const w = mount(LoginView, { global: { plugins: [createPinia(), router, i18n] } });
   return { w, router };
 }

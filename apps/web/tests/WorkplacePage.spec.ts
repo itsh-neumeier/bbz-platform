@@ -4,6 +4,7 @@ import { createPinia, setActivePinia } from 'pinia';
 import { createI18n } from 'vue-i18n';
 import { createRouter, createMemoryHistory } from 'vue-router';
 import de from '@/i18n/de.json';
+import { datetimeFormats } from '@/i18n';
 import WorkplacePage from '@/pages/WorkplacePage.vue';
 import { useSessionStore } from '@/stores/session';
 import * as ev from '@/lib/events';
@@ -58,7 +59,7 @@ async function factory() {
   await flush();
   return w;
 }
-const i18n = () => createI18n({ legacy: false, locale: 'de', messages: { de } });
+const i18n = () => createI18n({ legacy: false, locale: 'de', messages: { de }, datetimeFormats });
 const flush = async () => {
   await new Promise((r) => setTimeout(r, 0));
   await new Promise((r) => setTimeout(r, 0));

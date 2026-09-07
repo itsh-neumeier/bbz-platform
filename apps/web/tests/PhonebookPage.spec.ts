@@ -4,6 +4,7 @@ import { createI18n } from 'vue-i18n';
 import { createPinia, setActivePinia } from 'pinia';
 import { createRouter, createMemoryHistory } from 'vue-router';
 import de from '@/i18n/de.json';
+import { datetimeFormats } from '@/i18n';
 import PhonebookPage from '@/pages/PhonebookPage.vue';
 import { useSessionStore } from '@/stores/session';
 import * as contacts from '@/lib/contacts';
@@ -55,7 +56,7 @@ async function factory(query: Record<string, string> = {}) {
     routes: [{ path: '/telefonbuch', component: PhonebookPage }],
   });
   await router.push({ path: '/telefonbuch', query });
-  const i18n = createI18n({ legacy: false, locale: 'de', messages: { de } });
+  const i18n = createI18n({ legacy: false, locale: 'de', messages: { de }, datetimeFormats });
   const w = mount(PhonebookPage, { global: { plugins: [router, i18n] } });
   await new Promise((r) => setTimeout(r, 0));
   await w.vm.$nextTick();

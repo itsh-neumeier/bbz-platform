@@ -3,6 +3,7 @@ import { mount, RouterLinkStub } from '@vue/test-utils';
 import { createPinia, setActivePinia } from 'pinia';
 import { createI18n } from 'vue-i18n';
 import de from '@/i18n/de.json';
+import { datetimeFormats } from '@/i18n';
 import CommsSidebar from '@/app/components/CommsSidebar.vue';
 import { useSessionStore } from '@/stores/session';
 import * as tel from '@/lib/telephony';
@@ -55,7 +56,7 @@ function mockApis() {
 }
 
 async function factory(perms: string[]) {
-  const i18n = createI18n({ legacy: false, locale: 'de', messages: { de } });
+  const i18n = createI18n({ legacy: false, locale: 'de', messages: { de }, datetimeFormats });
   const pinia = createPinia();
   setActivePinia(pinia);
   useSessionStore().permissions = perms;

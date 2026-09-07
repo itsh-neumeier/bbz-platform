@@ -2,10 +2,11 @@ import { describe, expect, it } from 'vitest';
 import { mount } from '@vue/test-utils';
 import { createI18n } from 'vue-i18n';
 import de from '@/i18n/de.json';
+import { datetimeFormats } from '@/i18n';
 import ContactPriorityBadge from '@/components/telephony/ContactPriorityBadge.vue';
 import type { ContactPriority } from '@/lib/contacts';
 
-const i18n = createI18n({ legacy: false, locale: 'de', messages: { de } });
+const i18n = createI18n({ legacy: false, locale: 'de', messages: { de }, datetimeFormats });
 
 function mountBadge(priority: ContactPriority) {
   return mount(ContactPriorityBadge, { props: { priority }, global: { plugins: [i18n] } });

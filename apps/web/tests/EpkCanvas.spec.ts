@@ -2,10 +2,11 @@ import { describe, expect, it } from 'vitest';
 import { mount } from '@vue/test-utils';
 import { createI18n } from 'vue-i18n';
 import de from '@/i18n/de.json';
+import { datetimeFormats } from '@/i18n';
 import EpkCanvas from '@/components/workflow/EpkCanvas.vue';
 import { layoutRows, applyNodeDrag, GRID, type WfGraph } from '@/lib/workflows';
 
-const i18n = createI18n({ legacy: false, locale: 'de', messages: { de } });
+const i18n = createI18n({ legacy: false, locale: 'de', messages: { de }, datetimeFormats });
 
 /** event -> XOR connector -> function, the minimal shape covering all three
  *  EPK node types. */

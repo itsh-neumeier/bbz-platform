@@ -4,6 +4,7 @@ import { createPinia } from 'pinia';
 import { createRouter, createMemoryHistory } from 'vue-router';
 import { createI18n } from 'vue-i18n';
 import de from '@/i18n/de.json';
+import { datetimeFormats } from '@/i18n';
 import AppShell from '@/app/AppShell.vue';
 import { telephonyApi } from '@/lib/telephony';
 import { contactsApi } from '@/lib/contacts';
@@ -28,7 +29,7 @@ function factory() {
     history: createMemoryHistory(),
     routes: [{ path: '/', name: 'workplace', component: { template: '<div>home</div>' } }],
   });
-  const i18n = createI18n({ legacy: false, locale: 'de', messages: { de } });
+  const i18n = createI18n({ legacy: false, locale: 'de', messages: { de }, datetimeFormats });
   return mount(AppShell, { global: { plugins: [createPinia(), router, i18n] } });
 }
 
