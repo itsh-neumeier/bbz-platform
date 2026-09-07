@@ -28,8 +28,10 @@ test.beforeEach(async ({ request, baseURL, page }) => {
   await page.locator('.sidebar__nav').getByRole('link', { name: 'Administration' }).click();
   // the page's onMounted GET must land before the test types — otherwise its
   // response `fill()`s the form and wipes the typed host (flaky `.sip__ok`).
+  // Match the gateway GET exactly — the embedded trunk panel also GETs
+  // `.../sip/trunks`, which an `includes()` check would resolve on first.
   const loaded = page.waitForResponse(
-    (r) => r.url().includes('/api/v1/admin/telephony/sip') && r.request().method() === 'GET',
+    (r) => /\/api\/v1\/admin\/telephony\/sip(\?|$)/.test(r.url()) && r.request().method() === 'GET',
   );
   await page.locator('.admin__nav').getByRole('link', { name: 'Telefonie / SIP' }).click();
   await expect(page).toHaveURL(/\/admin\/telefonie$/);

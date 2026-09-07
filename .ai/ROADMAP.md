@@ -2593,6 +2593,18 @@ Trunks, alternative PBX, Lab/Test, Migration/Fallback. Quellen: MASTER_PROMPT
 - **Tests:** ebendiese Szenarien.
 - **Security-Auswirkung:** — · **HA-Auswirkung:** — · **Permissions:** — · **Audit Events:** —
 
+### E13-09 · SIP-Trunk-Anbindung (LEONET/Telekom) — generierte Asterisk-Config + Sync
+**Epic:** 13 · **Phase:** 5 · **Area:** integration, security, frontend · **Branch:** feature/<nr>-sip-trunk-config
+- **Ziel:** Öffentliche Rufnummern von LEONET / Telekom am Asterisk-Gateway, komplett aus dem Admin-UI konfiguriert — eingehende PSTN-Anrufe klingeln in BBZ.
+- **Fachlicher Hintergrund:** MASTER_PROMPT §8.17; ADR-0023/0033; Betreiber-Referenz `itsh-neumeier/itsh-neumeier-astm`. E13-02 hatte produktive Trunks ausgeklammert — **ADR-0034** holt das nach.
+- **Scope:** ADR-0034; Migration 0057 (`sip_trunks` + `sip_numbers`); reine Config-Generierung (`pjsip.conf` + Dialplan → `Stasis(bbz-sip, …)`); Export-Endpoint (`text/plain`, `no-store`); `sync-trunk-config.sh` + Lab-Asterisk-`#tryinclude`/Entrypoint; Admin-API `/admin/telephony/sip/trunks` + `.../numbers` + Trunk-Test; `/admin/telefonie`-UI mit Provider-Presets.
+- **Nicht im Scope:** Ausgehende Anrufe *über* den Trunk (Trunk-/CLI-Wahl im `dial`-Verb) — eigener Follow-up; langlebiger Maschinen-Token fürs Sync-Skript (ADR-0019).
+- **Abhängigkeiten:** E13-07.
+- **Acceptance Criteria:** Migration up/down/up; Trunk+Nummer im UI → Config-Export mit korrekten PJSIP-Sektionen + `from-<trunk>`; Trunk-Passwort nie in `GET`-Antworten/Logs/Audit; Sync-Skript lädt die Config, `pjsip reload` ohne Fehler; E2E.
+- **Tests:** `test_sip_trunk_config.py`, `test_sip_trunk_admin_api.py`, `SipTrunksPanel.spec.ts`, `admin-telephony-trunks.spec.ts`.
+- **Security-Auswirkung:** Trunk-Passwörter Fernet at rest (`BBZ_SIP_ENCRYPTION_KEY`), write-only API, gerenderte Config nie persistiert/geloggt/auditiert.
+- **HA-Auswirkung:** — · **Permissions:** `integrations.configure` · **Audit Events:** `SIP_TRUNK_CONFIGURED`, `SIP_TRUNK_REMOVED`, `SIP_NUMBER_CONFIGURED`, `SIP_NUMBER_REMOVED` (alle kritisch).
+
 ---
 
 # EPIC 14 · Contacts / Call Priorities
@@ -4011,6 +4023,7 @@ Checkliste. Quellen: MASTER_PROMPT §19/§20/§21, ADR-0014, `docs/runbooks/*`.
 | ADR-0021 | PostgreSQL-Replikationsmodus (sync/async) | E06-02 |
 | ADR-0022 | Electron: Web-Build laden vs. bündeln | E08-07 |
 | ADR-0023 | SIP/CTI-Gateway (Asterisk vs. FreeSWITCH) | E13-02 |
+| ADR-0034 | SIP-Trunk-(ITSP-)Config: BBZ generiert die Asterisk-Config, Sync-Skript verteilt sie | E13-09 |
 
 ## 6. Katalog-Ergänzung (Permissions)
 

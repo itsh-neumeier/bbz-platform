@@ -30,6 +30,8 @@ beforeEach(() => {
   setActivePinia(createPinia());
   vi.restoreAllMocks();
   vi.spyOn(adminLib.adminApi, 'sipConfig').mockResolvedValue(structuredClone(CONFIG));
+  // the embedded <SipTrunksPanel> loads on mount
+  vi.spyOn(adminLib.adminApi, 'sipTrunks').mockResolvedValue({ trunks: [], numbers: [] });
 });
 
 async function factory() {

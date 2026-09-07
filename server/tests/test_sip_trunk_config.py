@@ -218,3 +218,35 @@ async def test_render_skips_disabled_trunks(svc: SipTrunkConfigService) -> None:
     rendered = await svc.render_asterisk_config()
     assert "[leonet]" not in rendered.pjsip
     assert "BBZ — generated SIP trunk config" in rendered.pjsip  # header still there
+
+
+async def test_render_leonet_per_msn_no_trunk_level_auth(svc: SipTrunkConfigService) -> None:
+    """LEONET: the trunk itself does not register (no trunk auth); each public
+    number carries its own SIP user/password and registers separately."""
+    await svc.set_trunk(
+        "leonet",
+        **_trunk(registration=False, auth_username="", auth_password=None),  # type: ignore[arg-type]
+    )
+    await svc.set_number(
+        "+4995434448870",
+        trunk_id="leonet",
+        bbz_line_id="leonet-8870",
+        label="MSN 8870",
+        registration=True,
+        auth_username="4448870",
+        auth_password="msn-secret",
+        enabled=True,
+        actor_id=None,
+    )
+    pjsip = (await svc.render_asterisk_config()).pjsip
+    # no trunk-level auth/registration section
+    assert "[leonet-auth]" not in pjsip
+    assert "[leonet-reg]" not in pjsip
+    # inbound identify + a lean endpoint + the per-MSN registration
+    assert "[leonet-identify]" in pjsip and "match = 91.106.121.3/32" in pjsip
+    assert "[leonet]\ntype = endpoint" in pjsip
+    assert "outbound_auth = leonet-auth" not in pjsip
+    assert "[leonet-n-4995434448870-auth]" in pjsip
+    assert "[leonet-n-4995434448870-reg]" in pjsip
+    assert "outbound_auth = leonet-n-4995434448870-auth" in pjsip
+    assert "password = msn-secret" in pjsip

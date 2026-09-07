@@ -59,6 +59,10 @@ services:
       # like the bbz/bbz Postgres default. Never a production value.
       BBZ_SIP_ENCRYPTION_KEY: ${BBZ_SIP_ENCRYPTION_KEY:-_NTWUOPhB7SQsrLcADSY788rF3KL5qMTD-o9xQIPVnM=}
       BBZ_DOOR_DTMF_ENCRYPTION_KEY: ${BBZ_DOOR_DTMF_ENCRYPTION_KEY:-kldGggBMcNvTZUS8KLqoQl0rlXYMRYat7up293jCk_g=}
+      # which telephony adapter is live. Default `telephony_mock` (the E2E specs
+      # and a no-PBX dev stack need it); set `telephony_sip` in .env to point at
+      # a real / the lab Asterisk configured under /admin/telefonie (ADR-0033/0034).
+      BBZ_TELEPHONY_INTEGRATION_ID: ${BBZ_TELEPHONY_INTEGRATION_ID:-telephony_mock}
     ports: ["8000:8000"]
     # container hardening (E23-08). The image already runs as uid 10001; lock the
     # rest down. read_only works because the app only ever writes to stdout.
@@ -93,9 +97,17 @@ services:
   #   docker compose --profile sip up -d --build
   asterisk:
     build:
-      context: ./deploy/sip/asterisk
+      context: ./deploy/sip
+      dockerfile: asterisk/Dockerfile
     image: bbz-sip-lab:local
     profiles: ["sip"]
+    # set BBZ_API / BBZ_USER / BBZ_PASS to have the lab pull the generated trunk
+    # config on start (ADR-0034). Unset -> a plain lab PBX for the E13-08 tests.
+    environment:
+      BBZ_API: ${BBZ_LAB_API:-}
+      BBZ_USER: ${BBZ_LAB_USER:-}
+      BBZ_PASS: ${BBZ_LAB_PASS:-}
+      CURL_OPTS: ${BBZ_LAB_CURL_OPTS:---insecure}
     ports:
       - "8088:8088"        # ARI: REST + the event WebSocket
       - "5060:5060/udp"    # chan_pjsip (optional softphone / registration-loss test)
