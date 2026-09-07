@@ -31,7 +31,8 @@
       "workflows": "Handlungsanweisungen",
       "triggers": "Trigger-Regeln",
       "endpoints": "Technische Endpunkte",
-      "system": "System"
+      "system": "System",
+      "telephony": "Telefonie / SIP"
     },
     "source": {
       "database": "in der Datenbank gesetzt",
@@ -217,6 +218,43 @@
         "down": "gestört",
         "disabled": "deaktiviert"
       }
+    },
+    "sip": {
+      "actions": "Aktionen",
+      "addLine": "Leitung hinzufügen",
+      "appName": "Stasis-App",
+      "ariPassword": "ARI-Passwort",
+      "ariUser": "ARI-Benutzer",
+      "dtmfTransport": "DTMF-Übertragung",
+      "enabled": "Aktiv",
+      "endpoint": "Asterisk-Endpunkt",
+      "endpointPlaceholder": "z. B. PJSIP/1001 (Standard: PJSIP/Leitungs-ID)",
+      "gatewayTitle": "Asterisk-Gateway (ARI)",
+      "host": "Host",
+      "hostPlaceholder": "z. B. pbx.leitstelle.intern",
+      "label": "Bezeichnung",
+      "lineDeleteError": "Leitung konnte nicht gelöscht werden.",
+      "lineId": "BBZ-Leitung",
+      "lineIdRequired": "Eine BBZ-Leitungs-ID ist erforderlich.",
+      "lineSaveError": "Leitung konnte nicht gespeichert werden.",
+      "linesTitle": "SIP-Leitungen",
+      "loadError": "SIP-Konfiguration konnte nicht geladen werden.",
+      "noLines": "Noch keine Leitungen zugeordnet.",
+      "notActive": "Der aktive Telefonie-Provider ist nicht telephony_sip. Diese Konfiguration wird erst wirksam, wenn telephony_sip unter Integrationen ausgewählt ist.",
+      "off": "Aus",
+      "on": "An",
+      "passwordKeep": "Passwort gesetzt – leer lassen zum Beibehalten",
+      "passwordUnset": "noch kein Passwort gesetzt",
+      "port": "Port",
+      "reachable": "erreichbar",
+      "remove": "Entfernen",
+      "saveError": "SIP-Konfiguration konnte nicht gespeichert werden.",
+      "saved": "Gespeichert",
+      "test": "Verbindung testen",
+      "testError": "Verbindungstest fehlgeschlagen.",
+      "testing": "teste …",
+      "tls": "TLS (HTTPS/WSS)",
+      "unreachable": "nicht erreichbar"
     }
   },
   "shell": {

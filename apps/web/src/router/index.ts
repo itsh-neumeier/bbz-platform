@@ -88,6 +88,12 @@ const routes: RouteRecordRaw[] = [
             meta: { perm: 'integrations.view' },
           },
           {
+            path: 'telefonie',
+            name: 'admin-telephony',
+            component: () => import('@/pages/admin/AdminTelephonyPage.vue'),
+            meta: { perm: 'integrations.configure' },
+          },
+          {
             path: 'handlungsanweisungen',
             name: 'workflow-admin',
             component: () => import('@/pages/WorkflowAdminPage.vue'),

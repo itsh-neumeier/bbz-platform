@@ -226,6 +226,9 @@ jobs:
         run: |
           alembic upgrade head
           python scripts/seed_e2e.py
+          # the SIP admin E2E stores an ARI password → needs a Fernet key. A
+          # throwaway one, generated per run; this DB is torn down afterwards.
+          python -c "from cryptography.fernet import Fernet; print('BBZ_SIP_ENCRYPTION_KEY=' + Fernet.generate_key().decode())" >> "$GITHUB_ENV"
       - name: Install web dependencies + Chromium
         working-directory: apps/web
         run: |
