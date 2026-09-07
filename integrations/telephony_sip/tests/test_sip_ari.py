@@ -58,12 +58,16 @@ async def test_control_verbs_map_to_channel_endpoints() -> None:
     await ari.answer("ch1")
     await ari.hangup("ch1")
     await ari.hold("ch1")
+    await ari.unhold("ch1")
     await ari.send_dtmf("ch1", "12#")
     await ari.redirect("ch1", "PJSIP/line2")
     await ari.aclose()
 
     assert "POST /ari/channels/ch1/answer?" in calls
-    assert "POST /ari/channels/ch1/hangup?" in calls
+    # hang up is DELETE /channels/{id}; remove-hold is DELETE /channels/{id}/hold
+    assert "DELETE /ari/channels/ch1?" in calls
+    assert "POST /ari/channels/ch1/hold?" in calls
+    assert "DELETE /ari/channels/ch1/hold?" in calls
     assert any("dtmf?dtmf=12" in c and "%23" in c for c in calls)
     assert any("redirect?endpoint=PJSIP" in c for c in calls)
 

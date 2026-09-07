@@ -66,6 +66,37 @@ always a failure** (split brain). CI: `.github/workflows/ha-nightly.yml`
 (scheduled, non-gating until shaken out on real hardware).
 
 
+## SIP telephony integration (E13-08)
+
+`deploy/sip/` is a throwaway Asterisk 20 lab PBX (`docker compose --profile sip
+up --build`). `integrations/telephony_sip/tests/test_sip_integration.py` drives
+the real ARI transport end to end — it is **skipped** unless
+`BBZ_TEST_ARI_HOST:BBZ_TEST_ARI_PORT` answers (default `127.0.0.1:8088`), so it
+is inert in the `backend` job and on a dev box without the profile up.
+
+Scenarios (§8.4 / §8.12 / §8.17):
+
+- **incoming** — a `Local` channel is originated into the `bbz-sip` Stasis
+  context; the pump surfaces `CALL_RINGING` with `direction: inbound` and a
+  stable `source_call_id`.
+- **answer / hold / resume / hangup** — each verb drives ARI and the matching
+  normalized event (`CALL_HELD` / `CALL_RESUMED` / `CALL_DISCONNECTED`) comes
+  back; the pump untracks the channel on disconnect.
+- **idempotency** — a replayed `command_id` returns the cached ack, the gateway
+  is hit once.
+- **DTMF** — `send_dtmf` is accepted and the code never appears in the ack
+  detail; a replay is not re-emitted (ADR-0004 / ADR-0025).
+- **outbound** — `dial` originates against the mapped endpoint and the new
+  channel is tracked + visible in `get_active_calls`.
+- **blind transfer** — `transfer` redirects the channel.
+- **registration / reachability loss** — a client pointed at a dead port
+  reports `health = unavailable`.
+
+CI: `.github/workflows/sip-nightly.yml` (scheduled + `workflow_dispatch`,
+`continue-on-error` until shaken out on real hardware — same policy as the HA
+harness). The `compose` job also config-checks the `sip` profile on every PR.
+
+
 ## DWD weather integration (E18-10)
 
 The `dwd` adapter (ADR-0026) is tested **only against recorded fixtures** — the

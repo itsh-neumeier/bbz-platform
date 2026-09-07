@@ -83,6 +83,27 @@ services:
     volumes: ["./deploy/reverse-proxy/Caddyfile:/etc/caddy/Caddyfile:ro"]
     depends_on: ["api", "web"]
 
+  # --- SIP lab PBX (E13-08). Opt-in; only the telephony_sip integration tests
+  #     use it. Never a production topology — see deploy/sip/README.md.
+  #   docker compose --profile sip up -d --build
+  asterisk:
+    build:
+      context: ./deploy/sip/asterisk
+    image: bbz-sip-lab:local
+    profiles: ["sip"]
+    ports:
+      - "8088:8088"        # ARI: REST + the event WebSocket
+      - "5060:5060/udp"    # chan_pjsip (optional softphone / registration-loss test)
+    # hardening parity with `api` (E23-08); asterisk writes its own runtime dirs
+    # so not read_only, but it needs no capabilities as a non-root process
+    cap_drop: ["ALL"]
+    security_opt: ["no-new-privileges:true"]
+    healthcheck:
+      test: ["CMD", "asterisk", "-rx", "core waitfullybooted"]
+      interval: 5s
+      timeout: 5s
+      retries: 24
+
   # --- optional local observability stack (E22-07). Opt-in, never on quorum. ---
   #   docker compose --profile core --profile monitoring up
   otel-collector:

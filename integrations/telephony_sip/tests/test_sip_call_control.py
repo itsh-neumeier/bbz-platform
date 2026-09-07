@@ -48,8 +48,9 @@ async def test_verbs_hit_the_right_ari_channel_endpoints() -> None:
 
     assert "POST /ari/channels/ari-ch-1/answer?" in calls
     assert "POST /ari/channels/ari-ch-1/hold?" in calls
-    assert "POST /ari/channels/ari-ch-1/unhold?" in calls
-    assert "POST /ari/channels/ari-ch-1/hangup?" in calls
+    # remove-hold is DELETE /channels/{id}/hold; hang up is DELETE /channels/{id}
+    assert "DELETE /ari/channels/ari-ch-1/hold?" in calls
+    assert "DELETE /ari/channels/ari-ch-1?" in calls
     await p.shutdown()
 
 
@@ -116,6 +117,8 @@ async def test_verbs_still_raise_without_a_gateway() -> None:
     p = SipTelephonyProvider()
     for call in (
         lambda: p.answer(call_id="x", command_id="c"),
+        lambda: p.hold(call_id="x", command_id="c"),
+        lambda: p.resume(call_id="x", command_id="c"),
         lambda: p.dial(line_id="l", destination="2", command_id="c"),
         lambda: p.transfer(call_id="x", destination="9", command_id="c"),
         lambda: p.conference(call_ids=["x", "y"], command_id="c"),
