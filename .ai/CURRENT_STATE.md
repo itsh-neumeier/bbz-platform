@@ -10,11 +10,12 @@ Weather) COMPLETE (10/10)** — E18-09 Wetterlage UI shipped (PR #768); **Epic 1
 (Weytec Monitor Routing) COMPLETE (10/10)** — E19-08 routing dialog shipped
 (PR #773). The remaining domain epics 15/17/20–22 are backend-complete
 (the E15-14 client-popup UI is the Epic-08 kiosk's job). **Epic 13 (SIP
-Telephony) is 7/8** — the `telephony_sip` ARI adapter is complete and
-integration-tested against a real lab Asterisk (ADR-0023/0033 Accepted;
-`sip-nightly.yml` green on GitHub runners). Only **E13-07** — the DB-backed
-`/admin/telefonie` gateway config (PRs #783/#784 in review + the Vue page) —
-remains. **Epic 07 (Web UI) is
+Telephony) COMPLETE (8/8)** — `telephony_sip` speaks Asterisk over ARI
+(ADR-0023) and a BBZ site points BBZ at their PBX entirely from
+`/admin/telefonie` (ADR-0033: host / TLS / ARI credentials / Stasis app / SIP
+lines / "test connection", the ARI password encrypted at rest), integration-
+tested against a real lab Asterisk (`sip-nightly.yml`, gated). PRs #777–#786.
+**Epic 07 (Web UI) is
 in progress** — the operator UI
 (auth · work queue · event detail · archive · reactivation · workflow view ·
 priority alerts · SSE · theme · i18n), the weather + monitor pages, the
@@ -29,9 +30,7 @@ board are merged; the V10-mockup parity, the Administration build-out, the
 node:22` is the toolchain, same as Epic 07 turned out (not actually blocked).
 E08-02/03 are doable; E08-04 needs the Go agent, E08-05/07 need code-signing
 certs. Still fully blocked until a Go / Cisco-vendor session: Epics 09,
-10, 12, and the E23/E24 issues that chain off them. Epic 13's SIP adapter is
-written against Asterisk ARI with `httpx.MockTransport` unit coverage; the lab
-Asterisk container (E13-08) is the next SIP task —
+10, 12, and the E23/E24 issues that chain off them.
 `docs/roadmap-status.md` is the per-issue register, and its "Completed issues
 still open" section has the list + one-liner to close the 88 merged-but-open
 backend issues. **Maintainer actions the agent cannot do: the branch-protection
@@ -1132,14 +1131,14 @@ All 20 issues are the separate Java `services/cucm-cti-gateway` and hinge on
 `jtapi.jar` + real CUCM §8.18 data — no Java toolchain here, no invented Cisco
 API. `integrations/telephony_cucm/` stays a placeholder README.
 
-### Epic 13 – SIP Telephony: **7/8 + ADR-0023/0033 Accepted (only the E13-07 config UI remains)**
-The `telephony_sip` ARI adapter is complete and integration-tested. E13-03..06
-(#273/#275/#277/#279) and E13-08 (#283) are **closed** — all 7 lab-Asterisk
-integration scenarios run green on GitHub's runners
-(`.github/workflows/sip-nightly.yml`, no longer `continue-on-error`). The last
-open issue is **E13-07 (#281)** — the DB-backed, UI-managed gateway config
-(ADR-0033): #783 (tables/secrets/`SipConfigService`) + #784 (admin API +
-provider wiring) in review, the `/admin/telefonie` page is the final piece.
+### Epic 13 – SIP Telephony: **COMPLETE (8/8) + ADR-0023/0033 Accepted**
+`telephony_sip` speaks Asterisk over ARI (ADR-0023). A BBZ site points BBZ at
+their PBX entirely from `/admin/telefonie` (ADR-0033) — host / TLS / ARI
+credentials / Stasis app / SIP lines, a "test connection" probe, the ARI
+password Fernet-encrypted at rest and never returned. All 8 issues are closed
+(#269/#271/#273/#275/#277/#279/#281/#283); the adapter is integration-tested
+against a real lab Asterisk (`sip-nightly.yml`, gated — not
+`continue-on-error`).
 - **#269 (E13-01) `telephony_sip` scaffold** — `integrations/telephony_sip/`:
   `manifest.json` (domain `telephony`, capabilities answer/dial/hangup/hold/
   resume/transfer/send_dtmf/monitoring, `mock:false`), `config_schema.json`,
@@ -1192,14 +1191,23 @@ provider wiring) in review, the `/admin/telefonie` page is the final piece.
   `unhold` is `DELETE /channels/{id}/hold`, `get_active_calls()` was missing
   required `CallSnapshot` fields, and `hold`/`resume` now synthesize
   `CALL_HELD`/`CALL_RESUMED` (an ARI-initiated hold emits no `ChannelHold`).
-- **E13-07 (#281) in progress** — **PR #783**: migration 0056 (`sip_gateway`
-  single seeded row + `sip_lines`), `bbz_core.infra.sip_secrets` (Fernet,
-  `BBZ_SIP_ENCRYPTION_KEY`, fail-closed), `SipConfigService` (password
-  write-only + `runtime_config()`), `SIP_GATEWAY_CONFIGURED`/`SIP_LINE_*` audit.
-  **PR #784**: `/api/v1/admin/telephony/sip` (GET/PUT + line CRUD + `POST /test`
-  connection probe, `integrations.configure`); `active_telephony_provider()`
-  builds `telephony_sip` from the DB config, `evict_telephony_provider()` on a
-  change. **Left:** the `/admin/telefonie` Vue page + its Playwright E2E.
+- **#281 (E13-07) DB-backed, UI-managed gateway config (PRs #783/#784/#786)** —
+  **#783**: migration **0056** (`sip_gateway` — one seeded `instance_id='sip'`
+  row, `enabled=false` — + `sip_lines`), `bbz_core.infra.sip_secrets` (Fernet,
+  `BBZ_SIP_ENCRYPTION_KEY`, fail-closed, joins `SECRET_FIELDS`),
+  `SipConfigService` (`get` never returns the password → `ari_password_configured`,
+  `set` encrypts immediately + audits a redacted diff, line CRUD,
+  `runtime_config()`), `SIP_GATEWAY_CONFIGURED`/`SIP_LINE_*` critical audit.
+  **#784**: `/api/v1/admin/telephony/sip` (GET/PUT + `PUT/DELETE .../lines/{id}`
+  + `POST .../test`, gated `integrations.configure`);
+  `active_telephony_provider()` builds `telephony_sip` from the DB config,
+  `evict_telephony_provider()` + `probe_telephony_sip()` in `integrations_host`
+  (the api layer never imports `integrations`). **#786**:
+  `AdminTelephonyPage.vue` at `/admin/telefonie` — new `admin-telephony` admin
+  section, the Asterisk form with a **write-only** password field, the SIP-line
+  table, "Verbindung testen"; `AdminTelephonyPage.spec.ts` +
+  `e2e/admin-telephony.spec.ts` (the `e2e` job generates a throwaway
+  `BBZ_SIP_ENCRYPTION_KEY` per run).
 
 ### Epic 14 – Contacts / Call Priorities: **COMPLETE (10/10)**
 - **#285 (E14-01) contacts schema** — migration 0027 + `contacts.py`:
