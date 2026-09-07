@@ -203,3 +203,18 @@ async def test_test_connection_without_a_body_probes_the_stored_config(env: tupl
 
     r = await client.post("/api/v1/admin/telephony/sip/test")
     assert r.status_code == 200 and r.json()["reachable"] is False
+
+
+async def test_saving_does_not_evict_a_non_sip_telephony_provider(env: tuple) -> None:
+    """`telephony_mock` (the default in tests) must survive a SIP config write —
+    `evict_telephony_provider` only touches `telephony_sip`."""
+    from bbz_core.integrations_host import providers
+
+    client, s = env
+    await _make_user(s, "cfg", ["integrations.configure"])
+    await _login(client, "cfg")
+
+    mock = await providers.active_telephony_provider()  # caches telephony_mock
+    r = await client.put("/api/v1/admin/telephony/sip", json=_body())
+    assert r.status_code == 200
+    assert await providers.active_telephony_provider() is mock  # same instance, not rebuilt
