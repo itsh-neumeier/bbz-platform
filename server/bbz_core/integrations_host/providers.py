@@ -158,6 +158,68 @@ async def probe_telephony_sip(config: dict[str, Any]) -> tuple[bool, str, str | 
     return reachable, report.summary, version if isinstance(version, str) else None
 
 
+async def probe_sip_trunk(trunk_id: str) -> tuple[str, str]:
+    """Ask the configured Asterisk (via ARI ``GET /endpoints``) whether the
+    generated ``PJSIP/<trunk_id>`` endpoint is loaded — the admin "test trunk"
+    button (ADR-0034). Returns ``(state, detail)`` with ``state`` in
+    ``online | loaded | not_loaded | unreachable``. Never raises.
+
+    ARI reports a PJSIP endpoint as ``online`` only when it has a reachable AOR
+    contact; an **inbound-only** trunk (identify-by-IP) and a trunk whose
+    REGISTER has not yet succeeded both show as ``offline`` there — which does
+    not mean misconfigured. So ARI ``offline`` / ``unknown`` is reported as
+    ``loaded`` (config is on the box) with a pointer at
+    ``pjsip show registrations`` for the real registration state, which ARI
+    cannot see."""
+    from bbz_core.infra.db import session_scope
+    from bbz_core.infra.repositories.sip_config import SipConfigService
+    from bbz_core.infra.sip_secrets import SipSecretsNotConfigured
+
+    try:
+        async with session_scope() as session:
+            config = await SipConfigService(session).runtime_config(for_probe=True)
+    except SipSecretsNotConfigured:
+        config = None
+    if config is None:
+        return "unreachable", "the SIP gateway (Asterisk/ARI) is not configured"
+
+    lm = _manifest_for("telephony", "telephony_sip")
+    provider = cast("TelephonyProvider", _load(lm.manifest.adapter, config))
+    try:
+        endpoints = await provider.gateway_endpoints()  # type: ignore[attr-defined]
+    except Exception:  # pragma: no cover - defensive
+        return "unreachable", "Asterisk ARI is not reachable"
+    finally:
+        shutdown = getattr(provider, "shutdown", None)
+        if callable(shutdown):
+            await shutdown()
+
+    return _trunk_probe_state(endpoints, trunk_id)
+
+
+def _trunk_probe_state(endpoints: list[Any], trunk_id: str) -> tuple[str, str]:
+    """Map an ARI ``GET /endpoints`` list to ``(state, detail)`` for one trunk.
+    Pure — the network part is in :func:`probe_sip_trunk`."""
+    for ep in endpoints:
+        if not isinstance(ep, dict):
+            continue
+        if str(ep.get("technology", "")).lower() == "pjsip" and ep.get("resource") == trunk_id:
+            ari_state = str(ep.get("state") or "unknown")
+            channels = len(ep.get("channel_ids") or [])
+            if ari_state == "online":
+                return "online", f"PJSIP/{trunk_id} is online ({channels} active channel(s))"
+            return "loaded", (
+                f"PJSIP/{trunk_id} is loaded (ARI: {ari_state}). A registering trunk "
+                "shows 'online' only after a successful REGISTER — check "
+                "'pjsip show registrations' on the Asterisk box for the trunk / "
+                "per-number registration state."
+            )
+    return (
+        "not_loaded",
+        f"PJSIP/{trunk_id} is not loaded — run the sync script and 'pjsip reload'",
+    )
+
+
 def loaded_providers() -> dict[str, Provider]:
     """The providers already initialised in this process, keyed
     ``"<domain>:<integration_id>"``. Read-only view for the metrics scrape

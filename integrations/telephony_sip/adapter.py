@@ -186,6 +186,17 @@ class SipTelephonyProvider:
     async def get_line_state(self, line_id: str) -> LineInfo:
         return self._lines.get(line_id, LineInfo(line_id=line_id, state=LineState.UNKNOWN))
 
+    async def gateway_endpoints(self) -> list[dict[str, Any]]:
+        """Raw ARI ``GET /endpoints`` — the admin "test trunk" check reads the
+        state of a generated ``PJSIP/<trunk>`` endpoint (ADR-0034). ``[]`` when
+        there is no gateway or it is unreachable (never raises)."""
+        if self._ari is None:
+            return []
+        try:
+            return await self._ari.list_endpoints()
+        except AriError:
+            return []
+
     async def get_active_calls(self) -> list[CallSnapshot]:
         """Live channels in the Stasis app, as :class:`CallSnapshot`s — the
         reconnect resync source (a missed hangup during a WS drop is caught by

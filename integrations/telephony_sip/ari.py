@@ -111,6 +111,13 @@ class AriClient:
         result = await self._get("/channels")
         return list(result) if isinstance(result, list) else []
 
+    async def list_endpoints(self) -> list[dict[str, Any]]:
+        """``GET /ari/endpoints`` — technology / resource / state / channel_ids
+        per endpoint. Used by the admin "test trunk" check to see whether a
+        generated ``PJSIP/<trunk>`` endpoint is loaded and its contact reachable."""
+        result = await self._get("/endpoints")
+        return list(result) if isinstance(result, list) else []
+
     async def answer(self, channel_id: str) -> None:
         await self._post(f"/channels/{channel_id}/answer")
 

@@ -1,10 +1,15 @@
-"""Encryption at rest for the SIP gateway's ARI password (roadmap E13-07).
+"""Encryption at rest for the SIP telephony secrets (roadmap E13-07, E13-09).
 
 ADR-0033: the `telephony_sip` gateway config is DB-backed and UI-managed, and
 the ARI password is a secret — it enters only in a ``PUT`` body over TLS, is
 encrypted immediately, and is never returned by ``GET``, logged, or written to
 an audit row. At connect time :func:`decrypt_ari_password` decrypts it in
 process only, to build the ARI client.
+
+ADR-0034 reuses the **same key** for the SIP trunk (ITSP) auth passwords —
+:func:`encrypt_trunk_password` / :func:`decrypt_trunk_password`. They are
+decrypted in-process only, at Asterisk-config render time, and the rendered
+config is never written to BBZ's disk, logged, or audited.
 
 Mirrors :mod:`bbz_core.infra.door_secrets` exactly — the concrete runtime
 secret store is ADR-0019 / Epic 23; until then the key comes from
@@ -43,3 +48,16 @@ def decrypt_ari_password(ciphertext: str) -> str:
         return _fernet().decrypt(ciphertext.encode()).decode()
     except InvalidToken as exc:  # pragma: no cover - key rotation / corruption
         raise SipSecretsNotConfigured("cannot decrypt the SIP ARI password") from exc
+
+
+def encrypt_trunk_password(password: str) -> str:
+    """A SIP trunk (ITSP) auth password, at rest (ADR-0034). Same key as the
+    ARI password — one key for every SIP telephony secret."""
+    return _fernet().encrypt(password.encode()).decode()
+
+
+def decrypt_trunk_password(ciphertext: str) -> str:
+    try:
+        return _fernet().decrypt(ciphertext.encode()).decode()
+    except InvalidToken as exc:  # pragma: no cover - key rotation / corruption
+        raise SipSecretsNotConfigured("cannot decrypt a SIP trunk password") from exc

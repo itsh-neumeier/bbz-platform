@@ -47,6 +47,18 @@ def test_falls_back_to_the_channel_id_when_no_sip_call_id_var() -> None:
     assert ev is not None and ev.source_call_id == "1700000000.1"
 
 
+def test_stasis_args_carry_the_bbz_line_id_from_the_trunk_dialplan() -> None:
+    # our trunk dialplan does Stasis(bbz-sip, <bbz_line_id>) (ADR-0034) —
+    # the arg wins over the raw ARI channel name for line_id.
+    raw = {"type": "StasisStart", "args": ["tor-1"], "channel": _channel()}
+    ev = map_ari_event(raw, **_GW)
+    assert ev is not None and ev.line_id == "tor-1"
+
+    # no args (e.g. a later ChannelStateChange) -> the channel name
+    ev2 = map_ari_event({"type": "StasisStart", "channel": _channel()}, **_GW)
+    assert ev2 is not None and ev2.line_id == "PJSIP/line1-00000001"
+
+
 def _sc(state: str) -> dict[str, Any]:
     return {"type": "ChannelStateChange", "channel": {"id": "c", "state": state}}
 
