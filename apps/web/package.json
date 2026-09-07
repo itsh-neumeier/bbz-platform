@@ -18,10 +18,10 @@
   "dependencies": {
     "@db-ux/core-foundations": "5.3.0",
     "@db-ux/db-theme": "6.2.0",
-    "@primevue/themes": "4.5.4",
+    "@primeuix/themes": "^3.0.0",
     "pinia": "^4.0.0",
-    "primeicons": "^7.0.0",
-    "primevue": "4.5.4",
+    "primeicons": "^8.0.0",
+    "primevue": "^5.0.0",
     "vue": "^3.5.0",
     "vue-i18n": "^11.0.0",
     "vue-router": "^5.0.0"
