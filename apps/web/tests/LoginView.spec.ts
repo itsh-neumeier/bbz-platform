@@ -32,6 +32,42 @@ describe('LoginView', () => {
     expect(w.find('input[name="totp"]').exists()).toBe(false);
   });
 
+  it('shows the DB InfraGO brand mark above the instance title', () => {
+    const { w } = factory();
+    const brand = w.find('.login__brand');
+    expect(brand.exists()).toBe(true);
+    expect(brand.text()).toContain('DB InfraGO AG');
+    expect(brand.text()).toContain('Personenbahnhöfe');
+    // the card order: brand, then the instance-name <h1>
+    expect(w.find('.login__card > .login__brand + .login__title').exists()).toBe(true);
+  });
+
+  it('renders the BBZ-OS version footer from /meta', async () => {
+    const { w } = factory();
+    useSessionStore().meta = {
+      service: 'bbz',
+      version: '1.4.2',
+      api_version: 'v1',
+      environment: 'production',
+      node_id: 'BBZ-NBG-01',
+      instance_name: 'BBZ / 3-S-Zentrale',
+      instance_short_name: 'BBZ',
+      capabilities: [],
+      known_integrations: [],
+    };
+    await w.vm.$nextTick();
+    const foot = w.find('.login__foot');
+    expect(foot.text()).toContain('BBZ-OS');
+    expect(foot.text()).toContain('1.4.2');
+    expect(foot.text()).toContain('Produktionsumgebung');
+    expect(foot.text()).toContain('BBZ-NBG-01');
+  });
+
+  it('the footer degrades when /meta is unavailable', () => {
+    const { w } = factory();
+    expect(w.find('.login__foot').text()).toContain('nicht verfügbar');
+  });
+
   it('switches to the TOTP step when the server asks for it', async () => {
     const { w } = factory();
     vi.spyOn(useSessionStore(), 'login').mockResolvedValue({ kind: 'totp' });

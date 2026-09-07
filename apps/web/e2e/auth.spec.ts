@@ -40,6 +40,17 @@ test('wrong credentials show a German error and stay on /login', async ({ page }
   await expect(page).toHaveURL(/\/login/);
 });
 
+test('the login page shows the DB InfraGO brand mark and the BBZ-OS version footer', async ({
+  page,
+}) => {
+  await page.goto('/login');
+  await expect(page.locator('.login__brand')).toContainText('DB InfraGO AG');
+  await expect(page.locator('.login__brand')).toContainText('Personenbahnhöfe');
+  // footer resolves from the public /meta (no auth) — BBZ-OS + environment + node
+  await expect(page.locator('.login__foot')).toContainText('BBZ-OS');
+  await expect(page.locator('.login__foot')).toContainText(/umgebung/);
+});
+
 test('logout returns to /login and the session no longer restores', async ({ page }) => {
   await page.goto('/login');
   await page.getByLabel('Benutzername').fill(USER);

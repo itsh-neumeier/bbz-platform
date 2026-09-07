@@ -16,6 +16,15 @@ const router = useRouter();
 const route = useRoute();
 const session = useSessionStore();
 
+// Licensed brand assets — runtime paths, `.gitignore`d, graceful fallback (the
+// same mechanism as LogoCell / public/brand/README.md).
+const logoUrl = '/brand/db-logo.svg';
+const logoOk = ref(true);
+const bgUrl = '/brand/login-bg.jpg';
+const bgOk = ref(true);
+
+const meta = computed(() => session.meta);
+
 const username = ref('');
 const password = ref('');
 const totp = ref('');
@@ -125,11 +134,42 @@ function restart(): void {
 
 <template>
   <main class="login">
+    <img
+      v-if="bgOk"
+      class="login__bg"
+      :src="bgUrl"
+      alt=""
+      aria-hidden="true"
+      @error="bgOk = false"
+    >
+    <div class="login__scrim" />
+
     <form
       class="login__card"
       aria-labelledby="login-title"
       @submit.prevent="submit"
     >
+      <header class="login__brand">
+        <img
+          v-if="logoOk"
+          class="login__logo"
+          :src="logoUrl"
+          alt="Deutsche Bahn"
+          width="52"
+          height="37"
+          @error="logoOk = false"
+        >
+        <span
+          v-else
+          class="login__logo-fallback"
+          aria-hidden="true"
+        >DB</span>
+        <span class="login__brand-copy">
+          <strong>DB InfraGO AG</strong>
+          <small>Personenbahnhöfe</small>
+        </span>
+      </header>
+
       <h1
         id="login-title"
         class="login__title"
@@ -268,18 +308,62 @@ function restart(): void {
               : t('login.submit')
         }}
       </button>
+
+      <footer class="login__foot">
+        <template v-if="meta">
+          <span>BBZ-OS · {{ t('versionbar.version', { v: meta.version || '—' }) }}</span>
+          <span aria-hidden="true">·</span>
+          <span>{{ t('versionbar.env.' + meta.environment, meta.environment) }}</span>
+          <span aria-hidden="true">·</span>
+          <span>{{ t('versionbar.node', { node: meta.node_id }) }}</span>
+        </template>
+        <span v-else>{{ t('versionbar.offline') }}</span>
+      </footer>
     </form>
   </main>
 </template>
 
+
 <style scoped>
 .login {
+  position: relative;
   display: grid;
   place-items: center;
   min-height: 100vh;
-  background: var(--bbz-bg);
+  padding: 1.5rem;
+  overflow: hidden;
+  /* brand fallback when /brand/login-bg.jpg is absent: rails receding into
+     DB-red distance — quiet, never a blank screen */
+  background:
+    radial-gradient(
+      120% 80% at 50% 0%,
+      color-mix(in srgb, var(--bbz-db-red, #ec0016) 22%, var(--bbz-bg)) 0%,
+      var(--bbz-bg) 60%
+    ),
+    var(--bbz-bg);
+}
+.login__bg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  z-index: 0;
+}
+.login__scrim {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--bbz-bg) 55%, transparent) 0%,
+    color-mix(in srgb, var(--bbz-bg) 78%, transparent) 100%
+  );
+  backdrop-filter: blur(1.5px);
 }
 .login__card {
+  position: relative;
+  z-index: 2;
   display: flex;
   flex-direction: column;
   gap: 0.9rem;
@@ -288,6 +372,49 @@ function restart(): void {
   background: var(--bbz-surface);
   border: 1px solid var(--bbz-border);
   border-radius: var(--bbz-radius);
+  box-shadow: 0 12px 32px -12px rgb(0 0 0 / 35%);
+}
+.login__brand {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  padding-bottom: 0.9rem;
+  border-bottom: 1px solid var(--bbz-border);
+}
+.login__logo {
+  display: block;
+  height: 2.3rem;
+  width: auto;
+  flex: none;
+}
+.login__logo-fallback {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 2.6rem;
+  height: 1.8rem;
+  background: var(--bbz-db-red, #ec0016);
+  color: #fff;
+  font-family: var(--bbz-font-head);
+  font-weight: var(--bbz-weight-bold);
+  font-size: 1.1rem;
+  letter-spacing: 0.03em;
+  border-radius: var(--bbz-radius-sm);
+}
+.login__brand-copy {
+  min-width: 0;
+  line-height: 1.2;
+}
+.login__brand-copy strong {
+  display: block;
+  font-family: var(--bbz-font-head);
+  font-size: 0.95rem;
+}
+.login__brand-copy small {
+  display: block;
+  color: var(--bbz-text-muted);
+  font-size: 0.72rem;
+  margin-top: 1px;
 }
 .login__title {
   margin: 0 0 0.25rem;
@@ -349,5 +476,19 @@ function restart(): void {
   margin: 0;
   font-size: 0.85rem;
   color: var(--bbz-danger-text);
+}
+.login__foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem 0.6rem;
+  margin-top: 0.3rem;
+  padding-top: 0.9rem;
+  border-top: 1px solid var(--bbz-border);
+  color: var(--bbz-text-muted);
+  font-size: 0.72rem;
+  letter-spacing: 0.01em;
+  text-align: center;
 }
 </style>
