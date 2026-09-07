@@ -35,6 +35,7 @@ _Last swept: 2026-09-03 (4th pass — the operator-UI build-out: PRs #702/#704/#
 | 20 Archive / Postprocessing | **backend-done** |
 | 21 Enterprise Authentication | **backend-done** (E21-01..08) — OIDC/LDAP/MFA/WebAuthn/RBAC/linking; real IdP/dir params are an open dependency |
 | 22 Monitoring / Observability | **done** (7/7) — tracing, metrics, log pipeline, health, integration-health, alerts, collector+dashboards |
+| 13 SIP Telephony | **done** (8/8) — `telephony_sip` over Asterisk ARI (ADR-0023); DB-backed, UI-managed gateway config at `/admin/telefonie` (ADR-0033, ARI password encrypted at rest); lab Asterisk + integration suite (`sip-nightly.yml`, gated). PRs #777–#786 |
 
 ---
 
@@ -50,9 +51,7 @@ the operator UI is the only missing piece and every UI issue is an Epic-07 row.
 | 15 Technical Trigger Engine | E15-14 (client-popup UI) open |
 | 16 Coda Video | E16-12 (camera view) open; alarm/camera transport is `mock: true` pending Coda docs (blocked/vendor) |
 
-(Epic 13 SIP is 7/8 — the ARI adapter is built + integration-tested
-(E13-03..06 + E13-08, PRs #777–#782); only the E13-07 config UI remains. See
-its section below.)
+(Epic 13 SIP is **done (8/8)** — see the Complete table above.)
 
 ---
 
@@ -138,7 +137,7 @@ All 20 issues are the separate Java `services/cucm-cti-gateway`. Needs
 (§8.18). `E12-01` (the gateway image) is the dependency for **E24-01** (complete
 `release.yml`) and transitively **E23-12**, **E24-02**, **E24-04**.
 
-## Epic 13 · SIP Provider — **7/8 + ADR-0023/0033 (`Accepted`)**
+## Epic 13 · SIP Provider — **done (8/8) + ADR-0023/0033 (`Accepted`)**
 
 - **E13-01 done**: `integrations/telephony_sip/` scaffold — manifest,
   `config_schema.json`, and a `SipTelephonyProvider` that satisfies the whole
@@ -161,13 +160,18 @@ All 20 issues are the separate Java `services/cucm-cti-gateway`. Needs
   / hangup / DTMF / dial / transfer / health) green on GitHub's runners
   (`sip-nightly.yml`). Found + fixed the ARI `hangup`/`unhold` route bugs and
   the `get_active_calls` `CallSnapshot` gap the mock hid.
-- **E13-07 in progress** (#281): **PR #783** — migration 0056
-  (`sip_gateway`/`sip_lines`), `bbz_core.infra.sip_secrets`, `SipConfigService`.
-  **PR #784** — `/api/v1/admin/telephony/sip` (GET/PUT + line CRUD + "test
-  connection", `integrations.configure`); `active_telephony_provider()` builds
-  `telephony_sip` from the DB config. **Left:** the `/admin/telefonie` Vue page
-  + Playwright E2E. E13-06 (the real `send_dtmf` transport) also unblocks Epic
-  17's real door opening.
+- **E13-07 done + closed** (#281, PRs #783/#784/#786): the DB-backed,
+  UI-managed gateway config (ADR-0033). #783 — migration 0056
+  (`sip_gateway` single seeded row + `sip_lines`), `bbz_core.infra.sip_secrets`
+  (Fernet, `BBZ_SIP_ENCRYPTION_KEY`, fail-closed), `SipConfigService` (password
+  write-only, `runtime_config()`). #784 — `/api/v1/admin/telephony/sip` (GET/PUT
+  + line CRUD + `POST /test`, `integrations.configure`);
+  `active_telephony_provider()` builds `telephony_sip` from the DB,
+  `evict_telephony_provider()` on a change. #786 — `AdminTelephonyPage.vue` at
+  `/admin/telefonie` (write-only password field, line table, "Verbindung
+  testen"). E13-06 (the real `send_dtmf` transport) also unblocks Epic 17's real
+  door opening.
+- **All 8 E13 issues closed** (#269/#271/#273/#275/#277/#279/#281/#283).
 
 ---
 
@@ -246,6 +250,6 @@ That is **88 issues**: Epic 04 (#59), 06 (#92), 09-scaffold (#145),
 
 **Keep open**: every E07 issue (#97–#129), E08 (#131–#143), E09-02..10
 (#147–#163), E10-03..13/15/16 (#169–#195), E11-15/16 (#225/#227), E12 (all,
-#229–#267), E13-02 (#271) + **E13-07 (#281)**, E14-09/10 (#301/#303), E15-14 (#331),
+#229–#267), E14-09/10 (#301/#303), E15-14 (#331),
 E16-12 (#357), E23 (#462/#464/#478/#480/#482), E24 (#484/#486/#490/#496/#498),
-plus #14 and #18.
+plus #14 and #18. (Epic 13 is fully closed.)

@@ -49,7 +49,7 @@ When user presses `Öffnen`:
 
 The raw DTMF code must not be included in ordinary audit/event payloads.
 
-Implemented by `DoorOpenService` + `POST /api/v1/doors/{endpoint_id}/open` (E17-05), idempotent on `X-Command-Id`, with a `door_open_commands` state machine. The real JTAPI/SIP `send_dtmf` transport is E12-05 / E13-06.
+Implemented by `DoorOpenService` + `POST /api/v1/doors/{endpoint_id}/open` (E17-05), idempotent on `X-Command-Id`, with a `door_open_commands` state machine. The **SIP** `send_dtmf` transport is done (E13-06, `telephony_sip` over Asterisk ARI), so a Siedle-over-SIP door open has a real path end to end; the Cisco JTAPI transport (E12-05) is still blocked on `jtapi.jar` + CUCM.
 
 ## Failure states
 
