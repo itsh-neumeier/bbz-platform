@@ -16,7 +16,8 @@ jobs:
   sip-integration:
     name: telephony_sip × lab Asterisk
     runs-on: ubuntu-latest
-    continue-on-error: true          # flip to false once green on real hardware
+    # green on GitHub's runners since 2026-09-07 (run 34069145662) — no longer
+    # allowed to fail silently.
     timeout-minutes: 20
     env:
       # the test defaults to 127.0.0.1:8088; only the host is ever overridden

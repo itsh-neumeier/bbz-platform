@@ -50,8 +50,9 @@ the operator UI is the only missing piece and every UI issue is an Epic-07 row.
 | 15 Technical Trigger Engine | E15-14 (client-popup UI) open |
 | 16 Coda Video | E16-12 (camera view) open; alarm/camera transport is `mock: true` pending Coda docs (blocked/vendor) |
 
-(Epic 13 SIP is 5/8 — the ARI adapter is built (E13-03..06, PRs #777–#780);
-E13-07 config UI + E13-08 lab-PBX tests remain. See its section below.)
+(Epic 13 SIP is 7/8 — the ARI adapter is built + integration-tested
+(E13-03..06 + E13-08, PRs #777–#782); only the E13-07 config UI remains. See
+its section below.)
 
 ---
 
@@ -137,7 +138,7 @@ All 20 issues are the separate Java `services/cucm-cti-gateway`. Needs
 (§8.18). `E12-01` (the gateway image) is the dependency for **E24-01** (complete
 `release.yml`) and transitively **E23-12**, **E24-02**, **E24-04**.
 
-## Epic 13 · SIP Provider — **5/8 + ADR-0023/0033 (`Accepted`)**
+## Epic 13 · SIP Provider — **7/8 + ADR-0023/0033 (`Accepted`)**
 
 - **E13-01 done**: `integrations/telephony_sip/` scaffold — manifest,
   `config_schema.json`, and a `SipTelephonyProvider` that satisfies the whole
@@ -150,20 +151,23 @@ All 20 issues are the separate Java `services/cucm-cti-gateway`. Needs
 - **ADR-0033 `Accepted`** (#273, PR #777): the SIP gateway config is DB-backed
   and UI-managed; the ARI password is Fernet-encrypted at rest (the
   `door_action_profiles` pattern). Scoped exception to ADR-0031.
-- **E13-03..06 — adapter code done, issues open pending E13-08** (PRs
-  #777–#780): the ARI transport (`ari.py` — REST + reconnecting event WS),
-  event mapping (`events.py`) + the `telephony-events` cluster singleton that
-  drains the pump (also closes the E11-05 real-provider gap), call control
-  (idempotent verbs over a `source_call_id → channel` map) and `send_dtmf`
-  (redaction-safe, idempotent). Covered by `httpx.MockTransport` unit tests;
-  #273/#275/#277/#279 stay open until E13-08's lab-Asterisk integration tests
-  exercise them (their AC: "Integration gegen Test-Gateway").
-- **E13-07 next**: the DB config tables + `bbz_core.infra.sip_secrets` + the
-  `/api/v1/admin/telephony/sip` API + the `/admin/telefonie` UI (ADR-0033), and
-  wiring `active_telephony_provider()` to build the ARI client from the DB.
-- **E13-08 next**: a `sip`-profile Asterisk container + `ari.conf`/dialplan +
-  integration scenarios, run nightly. E13-06 (the real `send_dtmf` transport)
-  is also the missing piece for Epic 17's real door opening.
+- **E13-03..06 done + closed** (PRs #777–#780): the ARI transport (`ari.py` —
+  REST + reconnecting event WS), event mapping (`events.py`) + the
+  `telephony-events` cluster singleton that drains the pump (also closes the
+  E11-05 real-provider gap), idempotent call control over a
+  `source_call_id → channel` map, and redaction-safe `send_dtmf`.
+- **E13-08 done + closed** (PR #782): `deploy/sip/` lab Asterisk +
+  `test_sip_integration.py` — all 7 scenarios (inbound / answer / hold / resume
+  / hangup / DTMF / dial / transfer / health) green on GitHub's runners
+  (`sip-nightly.yml`). Found + fixed the ARI `hangup`/`unhold` route bugs and
+  the `get_active_calls` `CallSnapshot` gap the mock hid.
+- **E13-07 in progress** (#281): **PR #783** — migration 0056
+  (`sip_gateway`/`sip_lines`), `bbz_core.infra.sip_secrets`, `SipConfigService`.
+  **PR #784** — `/api/v1/admin/telephony/sip` (GET/PUT + line CRUD + "test
+  connection", `integrations.configure`); `active_telephony_provider()` builds
+  `telephony_sip` from the DB config. **Left:** the `/admin/telefonie` Vue page
+  + Playwright E2E. E13-06 (the real `send_dtmf` transport) also unblocks Epic
+  17's real door opening.
 
 ---
 
@@ -242,6 +246,6 @@ That is **88 issues**: Epic 04 (#59), 06 (#92), 09-scaffold (#145),
 
 **Keep open**: every E07 issue (#97–#129), E08 (#131–#143), E09-02..10
 (#147–#163), E10-03..13/15/16 (#169–#195), E11-15/16 (#225/#227), E12 (all,
-#229–#267), E13-02..08 (#271–#283), E14-09/10 (#301/#303), E15-14 (#331),
+#229–#267), E13-02 (#271) + **E13-07 (#281)**, E14-09/10 (#301/#303), E15-14 (#331),
 E16-12 (#357), E23 (#462/#464/#478/#480/#482), E24 (#484/#486/#490/#496/#498),
 plus #14 and #18.
