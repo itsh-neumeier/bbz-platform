@@ -26,8 +26,14 @@ test.beforeEach(async ({ request, baseURL, page }) => {
 
   await login(page);
   await page.locator('.sidebar__nav').getByRole('link', { name: 'Administration' }).click();
+  // the page's onMounted GET must land before the test types — otherwise its
+  // response `fill()`s the form and wipes the typed host (flaky `.sip__ok`).
+  const loaded = page.waitForResponse(
+    (r) => r.url().includes('/api/v1/admin/telephony/sip') && r.request().method() === 'GET',
+  );
   await page.locator('.admin__nav').getByRole('link', { name: 'Telefonie / SIP' }).click();
   await expect(page).toHaveURL(/\/admin\/telefonie$/);
+  await loaded;
 });
 
 test.afterEach(async ({ page }) => {
@@ -62,7 +68,13 @@ test('configure the gateway, persist it, add a line, probe the connection (#281)
   await page.locator('#sip-user').fill('bbz');
   await page.locator('#sip-pass').fill('e2e-ari-secret');
   await page.locator('.sip__check', { hasText: 'Aktiv' }).locator('input').check();
+
+  const saved = page.waitForResponse(
+    (r) => r.url().includes('/api/v1/admin/telephony/sip') && r.request().method() === 'PUT',
+  );
   await form.getByRole('button', { name: 'Speichern' }).click();
+  expect((await saved).status()).toBe(200);
+  await expect(page.locator('.sip__error')).toHaveCount(0);
   await expect(page.locator('.sip__ok')).toBeVisible();
 
   // reload — the host round-trips, the password does not (write-only)
