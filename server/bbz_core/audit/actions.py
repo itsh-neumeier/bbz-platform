@@ -101,6 +101,11 @@ class AuditAction(enum.StrEnum):
     WEATHER_EVENT_CREATED = "WEATHER_EVENT_CREATED"
     MONITOR_ROUTE_CHANGED = "MONITOR_ROUTE_CHANGED"
     MONITOR_PROFILE_APPLIED = "MONITOR_PROFILE_APPLIED"
+    #: the SIP gateway connection config changed (E13-07 / ADR-0033) — a redacted
+    #: non-secret before/after diff; the ARI password is NEVER in the payload.
+    SIP_GATEWAY_CONFIGURED = "SIP_GATEWAY_CONFIGURED"
+    SIP_LINE_CONFIGURED = "SIP_LINE_CONFIGURED"
+    SIP_LINE_REMOVED = "SIP_LINE_REMOVED"
 
 
 #: Actions that MUST be emitted from a write path (MASTER_PROMPT §17). A missing
@@ -176,5 +181,8 @@ CRITICAL_ACTIONS: frozenset[AuditAction] = frozenset(
         AuditAction.WEATHER_EVENT_CREATED,
         AuditAction.MONITOR_ROUTE_CHANGED,
         AuditAction.MONITOR_PROFILE_APPLIED,
+        AuditAction.SIP_GATEWAY_CONFIGURED,
+        AuditAction.SIP_LINE_CONFIGURED,
+        AuditAction.SIP_LINE_REMOVED,
     }
 )

@@ -34,6 +34,7 @@ SECRET_FIELDS: tuple[str, ...] = (
     "jwt_secret",
     "totp_encryption_key",
     "door_dtmf_encryption_key",
+    "sip_encryption_key",
     "ldap_bind_password",
     "oidc_entra_client_secret",
 )
