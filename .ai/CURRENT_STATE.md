@@ -2306,9 +2306,11 @@ no DTMF plaintext reaches any sink).
   (`scan-policy` job — `pip-audit`/`trivy` jobs `needs:` it) — every entry needs
   a `reason` + a future `expires` (≤ 90 days); expired ⇒ CI fails ⇒ finding
   re-arms. Same script emits `--ignore-vuln` / writes `.trivyignore` so the list
-  can't drift from what runs. `npm audit` for `apps/web` added `continue-on-error`
-  (blocking after #14). `test_scan_exceptions.py` (8), `docs/security/
-  vulnerability-scanning.md`. No code/migration change.
+  can't drift from what runs. `npm audit` for `apps/web` is **blocking** since
+  #14 landed a clean tree (`--audit-level=high`, 0 findings; the `|| echo`
+  escape hatch removed, `docs/repo-settings.md` context list updated).
+  `test_scan_exceptions.py` (8), `docs/security/vulnerability-scanning.md`. No
+  code/migration change.
 - **#470 (E23-06) input-validation audit + payload limits** — `bbz_core.api.schema.
   StrictModel` (`extra="forbid"` base); the 14 write-body models that still
   accepted unknown fields migrated to it (rbac `RoleIn/RoleRename/RoleRef/GroupIn/

@@ -96,18 +96,17 @@ jobs:
             ""|root|0) echo "::error::api image runs as root"; exit 1 ;;
           esac
 
-  # apps/web npm advisories: informational only until #14 (the deliberate
-  # frontend major-upgrade pass) lands a clean tree. E23-07 makes it a gate then
-  # — drop the `|| true` and this comment.
+  # apps/web npm advisories (E23-07). Blocking since #14 (the frontend
+  # major-upgrade pass) landed a clean tree — `npm audit` reports 0 at high+.
   web-audit:
     name: npm audit (apps/web)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
-          node-version: "20"
+          node-version: "22"
       - working-directory: apps/web
         run: |
           npm install --package-lock-only
-          npm audit --audit-level=high || echo "::warning::npm audit findings — gated after #14"
+          npm audit --audit-level=high

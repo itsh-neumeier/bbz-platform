@@ -35,7 +35,7 @@ The exact check-run names as they appear on a commit. Keep this list and the
 | `pip-audit` | security | third-party Python deps, `--strict` |
 | `trivy fs` | security | filesystem vuln + secret + misconfig |
 | `non-root images` | security | every self-built image runs non-root (E23-08) |
-| `npm audit (apps/web)` | security | **not yet required** — advisory until #14 |
+| `npm audit (apps/web)` | security | JS advisories `--audit-level=high` (E23-07; blocking since #14) |
 
 ### `gh api` — apply the rule
 
@@ -57,7 +57,8 @@ gh api -X PUT "repos/$OWNER/$REPO/branches/main/protection" \
       "scan-exception policy",
       "pip-audit",
       "trivy fs",
-      "non-root images"
+      "non-root images",
+      "npm audit (apps/web)"
     ]
   },
   "enforce_admins": true,
@@ -75,7 +76,7 @@ gh api -X PUT "repos/$OWNER/$REPO/branches/main/protection" \
 JSON
 ```
 
-Add `"npm audit (apps/web)"` to `contexts` when #14 closes.
+(`"npm audit (apps/web)"` was added to `contexts` when #14 closed, 2026-09-07.)
 
 Read the current rule back with:
 
