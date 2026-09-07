@@ -44,7 +44,15 @@ when:
    Safe to call on a schedule — a no-op when nothing changed.
 
 Tracked: `jwt_secret`, `totp_encryption_key`, `door_dtmf_encryption_key`,
-`ldap_bind_password`, `oidc_entra_client_secret`.
+`sip_encryption_key`, `ldap_bind_password`, `oidc_entra_client_secret`.
+
+`sip_encryption_key` (`BBZ_SIP_ENCRYPTION_KEY`, a Fernet key) encrypts the
+`telephony_sip` gateway's ARI password at rest (**ADR-0033**) — the gateway
+config is DB-backed and UI-managed, but the password never lands in
+`app_settings`, a log, or an audit row. Required only when `telephony_sip` is
+the active telephony provider; unset, the SIP admin API returns 503 and the
+provider stays inert (fail-closed, exactly like `door_dtmf_encryption_key`).
+Rotating it means re-entering the ARI password in the admin UI.
 
 ## The Vault target (not yet)
 

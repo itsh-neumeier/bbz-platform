@@ -86,6 +86,7 @@ from bbz_core.infra.models.rbac import (
     UserRole,
 )
 from bbz_core.infra.models.session import Session
+from bbz_core.infra.models.sip_gateway import SipGateway, SipLine
 from bbz_core.infra.models.technical_endpoints import (
     TechnicalEndpoint,
     TechnicalEndpointNumber,
@@ -202,6 +203,8 @@ __all__ = [
     "RolePermission",
     "Scope",
     "Session",
+    "SipGateway",
+    "SipLine",
     "TechnicalEndpoint",
     "TechnicalEndpointNumber",
     "TechnicalEndpointType",

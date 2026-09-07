@@ -158,6 +158,12 @@ class Settings(BaseSettings):
     door_dtmf_encryption_key: str = ""
     totp_issuer: str = "BBZ / 3-S-Zentrale"
 
+    # --- SIP telephony gateway (E13-07, ADR-0033). Fernet key for the ARI
+    # password at rest — the `telephony_sip` gateway config is DB-backed and
+    # UI-managed. Empty in dev/CI disables the SIP admin API (fail-closed, like
+    # door_dtmf_encryption_key). Real secret store: ADR-0019.
+    sip_encryption_key: str = ""
+
     # --- MFA policy engine + step-up (E21-05). Whether a login needs MFA is
     # role-based (`mfa_policies`); scope-based grants are a possible future
     # extension. Step-up re-checks freshness for a small, explicit set of
