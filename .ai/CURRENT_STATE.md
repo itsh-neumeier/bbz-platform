@@ -2551,7 +2551,8 @@ Foundation skeleton only — **no domain logic, no productive vendor integration
   Trivy FS.
 - Frontend job runs `npm ci` + `lint` + `typecheck` + `unit` and is
   **blocking** (E01-06 / #699 — `continue-on-error` removed, lockfile committed).
-  The coordinated frontend dependency upgrade stays with issue #14.
+  The coordinated frontend major upgrade (issue #14) landed 2026-09-07
+  (PRs #788–#792) — see "Dependency maintenance".
 - Runtime is **Python 3.13** (`python:3.13-slim` image, CI + security workflows);
   ADR-0008 floor stays "3.12+". Bump to 3.14 deferred until `asyncpg`'s pin can
   move (no cp314 wheel below 0.31) — issue #13 / PR #15.
@@ -2563,8 +2564,15 @@ Foundation skeleton only — **no domain logic, no productive vendor integration
 ## Dependency maintenance (2026-08-28)
 Dependabot backlog cleared: GitHub Actions bumped (`checkout` v7, `setup-python`
 v7, `setup-node` v7), Python dev-tooling group (pytest 9, mypy 2, ruff 0.16,
-…). Deferred as dedicated tasks: coordinated `apps/web` major upgrades (PrimeVue
-5 / Pinia 4 / vue-router 5 / vue-i18n 11 / Vite 8 — issue #14).
+…). **The coordinated `apps/web` major upgrade (issue #14) is done** (2026-09-07,
+PRs #788–#792): eslint 10, typescript 5.9, vue-tsc 3, jsdom 30, vite 8 (Rolldown),
+vitest 5, pinia 4, vue-router 5, vue-i18n 11, primevue 5 (`@primevue/themes` →
+`@primeuix/themes`). Only two code changes: the PrimeVue preset (`borderRadius`
+moved to a `primitive` token in v5) and a shared `datetimeFormats` export for the
+component specs (vue-i18n 11 warns otherwise). **TypeScript stays on 5.x** —
+`typescript-eslint`'s peer caps at `<6.1.0` and the Go-native TS 7 needs Volar /
+vue-tsc catch-up. `npm audit` is now clean, so `web-audit` can become a blocking
+CI gate (E23-07 follow-up).
 
 ## Delivery roadmap (2026-08-28)
 `.ai/ROADMAP.md` is the full delivery plan: **24 Epics, 279 single-branch
@@ -2595,8 +2603,10 @@ store (etcd).
 **Still Proposed / decision pending:** none in the 0001–0018 range.
 
 **Open points recorded on accepted ADRs:**
-- ADR-0013: the coordinated `apps/web` major upgrade (PrimeVue 5 / Pinia 4 /
-  vue-router 5 / Vite 8) is evaluated in issue #14; baseline stays PrimeVue 4.
+- ADR-0013: the coordinated `apps/web` major upgrade (#14) landed 2026-09-07 —
+  PrimeVue **5** (`@primeuix/themes`), Pinia 4, vue-router 5, vue-i18n 11, Vite 8
+  (Rolldown), vitest 5, eslint 10. TypeScript held at 5.9 (typescript-eslint
+  peer `<6.1.0`; TS 7 is the Go-native rewrite, needs Volar catch-up).
 - ADR-0015: the concrete runtime secret-store product → **ADR-0019 Accepted**
   (E01-03 / #22): target HashiCorp Vault (Raft HA on the 3 nodes); ship the
   `bbz_core.secrets.SecretProvider` abstraction + `EnvFileSecretProvider` now,
