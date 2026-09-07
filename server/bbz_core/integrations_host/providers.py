@@ -12,6 +12,8 @@ domain layer never does.
 
 from __future__ import annotations
 
+import asyncio
+import contextlib
 import importlib
 from typing import Any, cast
 
@@ -26,6 +28,8 @@ from bbz_integration_sdk.providers import (
 )
 
 _CACHE: dict[str, Provider] = {}
+#: background provider-shutdown tasks kept referenced so the GC does not drop them
+_PENDING_SHUTDOWNS: set[asyncio.Task[None]] = set()
 
 
 class NoActiveProvider(RuntimeError):
@@ -77,15 +81,26 @@ async def active_telephony_provider() -> TelephonyProvider:
 
 
 async def evict_telephony_provider() -> None:
-    """Drop (and shut down) the cached telephony provider so the next
-    :func:`active_telephony_provider` rebuilds it — e.g. after the SIP gateway
-    config changed in the admin API (ADR-0033)."""
-    integration_id = get_settings().telephony_integration_id
-    provider = _CACHE.pop(f"telephony:{integration_id}", None)
-    if provider is not None:
-        shutdown = getattr(provider, "shutdown", None)
-        if callable(shutdown):
-            await shutdown()
+    """Drop the cached ``telephony_sip`` provider so the next
+    :func:`active_telephony_provider` rebuilds it from the new DB config (the SIP
+    admin API calls this after a write, ADR-0033).
+
+    A no-op unless ``telephony_sip`` is the *active* provider — a SIP config
+    change must not touch the mock or a CUCM session. The shutdown runs in the
+    background so a slow ARI teardown never blocks the admin request."""
+    if get_settings().telephony_integration_id != "telephony_sip":
+        return
+    provider = _CACHE.pop("telephony:telephony_sip", None)
+    shutdown = getattr(provider, "shutdown", None) if provider is not None else None
+    if callable(shutdown):
+        task = asyncio.create_task(_safe_shutdown(shutdown))
+        _PENDING_SHUTDOWNS.add(task)
+        task.add_done_callback(_PENDING_SHUTDOWNS.discard)
+
+
+async def _safe_shutdown(shutdown: object) -> None:
+    with contextlib.suppress(Exception):
+        await shutdown()  # type: ignore[operator]
 
 
 async def active_video_provider() -> VideoProvider:
