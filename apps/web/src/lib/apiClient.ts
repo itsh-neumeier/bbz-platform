@@ -156,4 +156,21 @@ export const api = {
   patch: <T>(path: string, body?: unknown, o?: RequestOptions) =>
     apiRequest<T>(path, { ...o, method: 'PATCH', body }),
   del: <T>(path: string, o?: RequestOptions) => apiRequest<T>(path, { ...o, method: 'DELETE' }),
+
+  /**
+   * GET a `text/plain` response as a string (the JSON helpers above `JSON.parse`
+   * every body). Used for the generated Asterisk config export (ADR-0034).
+   */
+  async getText(path: string, o?: RequestOptions): Promise<string> {
+    const doFetch = o?.fetchImpl ?? fetch;
+    const res = await doFetch(BASE + path, {
+      method: 'GET',
+      headers: { Accept: 'text/plain' },
+      credentials: 'include',
+      signal: o?.signal,
+    });
+    const text = await res.text();
+    if (res.ok) return text;
+    throw new ApiError(res.status, { code: 'http_error', message: `HTTP ${res.status}` });
+  },
 };
