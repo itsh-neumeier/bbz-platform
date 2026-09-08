@@ -21,5 +21,19 @@ Sources for the licensed file:
   `node_modules/@db-ux/db-theme/build/images/light/db_logo.svg`.
 - or the DB Marketingportal logo download.
 
-If the file is absent, `SidebarLeft.vue` falls back to the "DB" wordmark on DB
-red — never a reconstructed logo.
+If the file is absent, `SidebarLeft.vue` / `LogoCell.vue` fall back to the "DB"
+wordmark on DB red — never a reconstructed logo.
+
+## Login background photo (optional)
+
+`LoginView.vue` shows a full-bleed photo behind the sign-in card. Drop a
+DB-owned image (a station, track infrastructure, …) here:
+
+```
+apps/web/public/brand/login-bg.jpg
+```
+
+It is `.gitignore`d for the same reason as the logo. Without it the login page
+uses a plain DB-red-tinted gradient — never a blank screen. A scrim over the
+image keeps the card and the footer readable in both themes; pick a photo that
+still reads well under it (avoid busy foregrounds behind the card).
