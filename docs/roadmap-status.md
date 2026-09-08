@@ -185,15 +185,18 @@ All 20 issues are the separate Java `services/cucm-cti-gateway`. Needs
 - **E13-10 (#812) — done** (PR #814): the `dial` verb routes
   `PJSIP/<dest>@<trunk>` with the number's caller-id instead of ringing the
   trunk endpoint. Verified with a real LEONET call.
-- **E13-11 (#816) — foundation landed, ADR-0035, migration 0058**:
+- **E13-11 (#816) — backend done, ADR-0035, migration 0058**. **PR-A**:
   `sip_webrtc_endpoints` (one WebRTC SIP endpoint per operator, password Fernet
   at rest), `SipWebrtcConfigService` (CRUD + `[transport-wss]` + per-operator
   `type=endpoint`/`auth`/`aor`, folded into `asterisk-config?part=pjsip`),
   `GET /api/v1/telephony/webrtc-credentials` (session-gated, discloses the SIP
   password only to the operator's own session), admin CRUD under
-  `/admin/telephony/sip/webrtc`, `SIP_WEBRTC_ENDPOINT_*` critical audit. Open on
-  #816: ARI bridge-on-answer + the browser JsSIP client (mic/speaker) + sidebar
-  mic UI.
+  `/admin/telephony/sip/webrtc`, `SIP_WEBRTC_ENDPOINT_*` critical audit.
+  **PR-B**: `answer`/`dial` gained an optional `operator_key`; `telephony_sip`
+  bridges `PJSIP/<operator>` with the trunk channel over ARI (mixing bridge,
+  join on StasisStart, operator leg hidden from the call stream, bridge torn
+  down with the call). Open on #816: the browser JsSIP client (mic/speaker) +
+  the Asterisk lab WSS transport/cert.
 
 ---
 

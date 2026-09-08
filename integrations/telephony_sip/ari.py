@@ -174,6 +174,11 @@ class AriClient:
     async def add_to_bridge(self, bridge_id: str, channel_id: str) -> None:
         await self._post(f"/bridges/{bridge_id}/addChannel", params={"channel": channel_id})
 
+    async def destroy_bridge(self, bridge_id: str) -> None:
+        # DELETE /bridges/{id} — shut the bridge down when its call ends (a
+        # mixing bridge is not auto-reaped when it empties).
+        await self._delete(f"/bridges/{bridge_id}")
+
     # --- event stream --------------------------------------------
 
     def _ws_uri(self) -> str:

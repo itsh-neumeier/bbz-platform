@@ -161,7 +161,14 @@ class MockTelephonyProvider:
             yield await self._events.get()
 
     # --- commands (idempotent on command_id) ----------------------------
-    async def dial(self, *, line_id: str, destination: str, command_id: str) -> CommandAccepted:
+    async def dial(
+        self,
+        *,
+        line_id: str,
+        destination: str,
+        command_id: str,
+        operator_key: str | None = None,  # mock has no operator media endpoint
+    ) -> CommandAccepted:
         if command_id in self._seen:
             return self._seen[command_id]
         call = _Call(
@@ -179,7 +186,13 @@ class MockTelephonyProvider:
             )
         return self._ack(command_id, call.call_id)
 
-    async def answer(self, *, call_id: str, command_id: str) -> CommandAccepted:
+    async def answer(
+        self,
+        *,
+        call_id: str,
+        command_id: str,
+        operator_key: str | None = None,  # mock has no operator media endpoint
+    ) -> CommandAccepted:
         if command_id in self._seen:
             return self._seen[command_id]
         call = self._require(call_id)

@@ -62,9 +62,26 @@ class TelephonyProvider(Provider, Protocol):
 
     def subscribe_call_events(self) -> AsyncIterator[CallEvent]: ...
 
-    async def dial(self, *, line_id: str, destination: str, command_id: str) -> CommandAccepted: ...
+    async def dial(
+        self,
+        *,
+        line_id: str,
+        destination: str,
+        command_id: str,
+        operator_key: str | None = None,
+    ) -> CommandAccepted:
+        """Place an outbound call on ``line_id``. ``operator_key`` — when the
+        provider supports an operator media endpoint (a WebRTC softphone,
+        ADR-0035) — is that operator's endpoint id; the provider bridges it to
+        the call once the far end answers. Providers without operator media
+        ignore it."""
 
-    async def answer(self, *, call_id: str, command_id: str) -> CommandAccepted: ...
+    async def answer(
+        self, *, call_id: str, command_id: str, operator_key: str | None = None
+    ) -> CommandAccepted:
+        """Answer a ringing call. ``operator_key`` — see :meth:`dial` — is the
+        answering operator's media endpoint id; the provider bridges it into the
+        call. Ignored by providers without operator media."""
 
     async def hangup(self, *, call_id: str, command_id: str) -> CommandAccepted: ...
 

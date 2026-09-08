@@ -210,6 +210,43 @@ async def test_dial_starts_an_outbound_call(env: tuple) -> None:
     assert await _audit_count(s) == 1
 
 
+async def test_answer_and_dial_still_work_when_the_operator_has_a_webrtc_endpoint(
+    env: tuple,
+) -> None:
+    """The route resolves the operator's WebRTC softphone key and passes it to
+    the provider (ADR-0035 / #816). ``telephony_mock`` ignores it — this proves
+    the wiring does not break the mock path (and CI runs the mock)."""
+    import os
+
+    from cryptography.fernet import Fernet
+
+    import bbz_core.settings as settings_mod
+    from bbz_core.infra.repositories.sip_webrtc_config import SipWebrtcConfigService
+
+    os.environ["BBZ_SIP_ENCRYPTION_KEY"] = Fernet.generate_key().decode()
+    settings_mod.get_settings.cache_clear()
+    try:
+        client, s = env
+        op = await _make_user(s, "wrtc-op", _ALL)
+        await s.rollback()
+        await SipWebrtcConfigService(s).set_endpoint(
+            op, enabled=True, rotate_password=False, actor_id=op
+        )
+        await _login(client, "wrtc-op")
+
+        call_id = await _ringing_call(s)
+        r = await client.post(f"/api/v1/calls/{call_id}/answer", headers=_cmd())
+        assert r.status_code == 200 and r.json()["accepted"] is True
+
+        d = await client.post(
+            "/api/v1/calls/dial", json={"line_id": "1001", "destination": "110"}, headers=_cmd()
+        )
+        assert d.status_code == 200 and d.json()["accepted"] is True
+    finally:
+        os.environ.pop("BBZ_SIP_ENCRYPTION_KEY", None)
+        settings_mod.get_settings.cache_clear()
+
+
 async def test_control_requires_the_matching_permission(env: tuple) -> None:
     client, s = env
     await _make_user(s, "weak", ["calls.view", "calls.hangup"])  # no calls.answer
