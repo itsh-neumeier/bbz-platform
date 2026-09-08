@@ -117,6 +117,9 @@ class AuditAction(enum.StrEnum):
     #: redacted non-secret diff; the SIP password is NEVER in the payload.
     SIP_WEBRTC_ENDPOINT_CONFIGURED = "SIP_WEBRTC_ENDPOINT_CONFIGURED"
     SIP_WEBRTC_ENDPOINT_REMOVED = "SIP_WEBRTC_ENDPOINT_REMOVED"
+    #: a SIP music-on-hold file was uploaded / removed (E13-12 / #817)
+    SIP_MOH_UPLOADED = "SIP_MOH_UPLOADED"
+    SIP_MOH_REMOVED = "SIP_MOH_REMOVED"
 
 
 #: Actions that MUST be emitted from a write path (MASTER_PROMPT §17). A missing
@@ -201,5 +204,7 @@ CRITICAL_ACTIONS: frozenset[AuditAction] = frozenset(
         AuditAction.SIP_NUMBER_REMOVED,
         AuditAction.SIP_WEBRTC_ENDPOINT_CONFIGURED,
         AuditAction.SIP_WEBRTC_ENDPOINT_REMOVED,
+        AuditAction.SIP_MOH_UPLOADED,
+        AuditAction.SIP_MOH_REMOVED,
     }
 )

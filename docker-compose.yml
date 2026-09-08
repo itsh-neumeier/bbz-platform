@@ -63,11 +63,16 @@ services:
       # and a no-PBX dev stack need it); set `telephony_sip` in .env to point at
       # a real / the lab Asterisk configured under /admin/telefonie (ADR-0033/0034).
       BBZ_TELEPHONY_INTEGRATION_ID: ${BBZ_TELEPHONY_INTEGRATION_ID:-telephony_mock}
+      # SIP music-on-hold upload store (E13-12). A named volume — the rootfs is
+      # read_only. The sync script rsyncs this onto the Asterisk box at MOH_DIR.
+      BBZ_MOH_DIR: /data/moh
     ports: ["8000:8000"]
     # container hardening (E23-08). The image already runs as uid 10001; lock the
-    # rest down. read_only works because the app only ever writes to stdout.
+    # rest down. read_only works because the app only ever writes to stdout
+    # (+ the MoH volume below).
     read_only: true
     tmpfs: ["/tmp"]
+    volumes: ["bbz_moh:/data/moh"]
     cap_drop: ["ALL"]
     security_opt: ["no-new-privileges:true"]
     depends_on:
@@ -158,3 +163,4 @@ services:
 
 volumes:
   bbz_pg:
+  bbz_moh:

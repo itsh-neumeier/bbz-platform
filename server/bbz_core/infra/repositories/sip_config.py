@@ -65,6 +65,10 @@ class SipLineView:
     asterisk_endpoint: str
     label: str
     enabled: bool
+    #: MoH file ids (E13-12 / #817) — ``ring`` plays until an operator answers,
+    #: ``hold`` while an established call is on hold
+    ring_moh_file_id: uuid.UUID | None = None
+    hold_moh_file_id: uuid.UUID | None = None
 
 
 _DEFAULT = SipGatewayView(
@@ -108,6 +112,8 @@ def _line_view(line: SipLine) -> SipLineView:
         asterisk_endpoint=line.asterisk_endpoint,
         label=line.label,
         enabled=line.enabled,
+        ring_moh_file_id=line.ring_moh_file_id,
+        hold_moh_file_id=line.hold_moh_file_id,
     )
 
 
@@ -200,11 +206,15 @@ class SipConfigService:
         label: str,
         enabled: bool,
         actor_id: uuid.UUID | None,
+        ring_moh_file_id: str | None = None,
+        hold_moh_file_id: str | None = None,
     ) -> SipLineView:
         line_id = bbz_line_id.strip()
         if not line_id:
             raise SipConfigError("bbz_line_id must not be empty")
         endpoint = (asterisk_endpoint or "").strip() or f"PJSIP/{line_id}"
+        ring_moh = await self._moh_id(ring_moh_file_id)
+        hold_moh = await self._moh_id(hold_moh_file_id)
 
         await self._s.rollback()
         await self._ensure_gateway()  # the FK target must exist
@@ -219,13 +229,23 @@ class SipConfigService:
                 "asterisk_endpoint": line.asterisk_endpoint,
                 "label": line.label,
                 "enabled": line.enabled,
+                "ring_moh_file_id": str(line.ring_moh_file_id) if line.ring_moh_file_id else None,
+                "hold_moh_file_id": str(line.hold_moh_file_id) if line.hold_moh_file_id else None,
             }
         line.asterisk_endpoint = endpoint
         line.label = label.strip()
         line.enabled = enabled
+        line.ring_moh_file_id = ring_moh
+        line.hold_moh_file_id = hold_moh
 
         await self._s.flush()
-        after = {"asterisk_endpoint": endpoint, "label": line.label, "enabled": enabled}
+        after = {
+            "asterisk_endpoint": endpoint,
+            "label": line.label,
+            "enabled": enabled,
+            "ring_moh_file_id": str(ring_moh) if ring_moh else None,
+            "hold_moh_file_id": str(hold_moh) if hold_moh else None,
+        }
         await AuditService(self._s).write(
             AuditAction.SIP_LINE_CONFIGURED,
             actor_user_id=actor_id,
@@ -236,6 +256,20 @@ class SipConfigService:
         )
         await self._s.commit()
         return _line_view(line)
+
+    async def _moh_id(self, raw: str | None) -> uuid.UUID | None:
+        """Parse + verify a MoH file id, or ``None`` for "no music"."""
+        if not raw:
+            return None
+        from bbz_core.infra.models.sip_gateway import SipMohFile
+
+        try:
+            fid = uuid.UUID(raw)
+        except ValueError as exc:
+            raise SipConfigError(f"invalid MoH file id {raw!r}") from exc
+        if await self._s.get(SipMohFile, fid) is None:
+            raise SipConfigError(f"MoH file {fid} not found")
+        return fid
 
     async def delete_line(self, bbz_line_id: str, *, actor_id: uuid.UUID | None) -> None:
         await self._s.rollback()
@@ -269,6 +303,17 @@ class SipConfigService:
         creds: dict[str, str] = {"username": g.ari_username}
         if g.ari_password_ciphertext:
             creds["password"] = decrypt_ari_password(g.ari_password_ciphertext)
+        line_moh: dict[str, dict[str, str]] = {}
+        for line in lines:
+            if not line.enabled:
+                continue
+            entry: dict[str, str] = {}
+            if line.ring_moh_file_id is not None:
+                entry["ring"] = f"bbz-moh-{line.ring_moh_file_id}"
+            if line.hold_moh_file_id is not None:
+                entry["hold"] = f"bbz-moh-{line.hold_moh_file_id}"
+            if entry:
+                line_moh[line.bbz_line_id] = entry
         return {
             "gateway": {"kind": g.kind, "host": g.host, "port": g.port, "tls": g.tls},
             "app_name": g.app_name,
@@ -278,6 +323,7 @@ class SipConfigService:
             "line_endpoints": {
                 line.bbz_line_id: line.asterisk_endpoint for line in lines if line.enabled
             },
+            "line_moh": line_moh,
         }
 
     # --- internals ------------------------------------------------

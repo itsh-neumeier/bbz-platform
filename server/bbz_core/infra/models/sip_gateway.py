@@ -13,9 +13,19 @@ maps BBZ line ids to Asterisk endpoints for that gateway.
 
 from __future__ import annotations
 
+import datetime as _dt
 import uuid
 
-from sqlalchemy import Boolean, ForeignKey, Integer, String, Text, UniqueConstraint, text
+from sqlalchemy import (
+    Boolean,
+    DateTime,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+    text,
+)
 from sqlalchemy.orm import Mapped, mapped_column
 
 from bbz_core.infra.models.base import Base, TimestampMixin
@@ -77,6 +87,14 @@ class SipLine(Base, TimestampMixin):
     asterisk_endpoint: Mapped[str] = mapped_column(String(255))
     label: Mapped[str] = mapped_column(String(120), server_default=text("''"))
     enabled: Mapped[bool] = mapped_column(Boolean, server_default=text("true"))
+    #: music while a call on this line waits for an operator (E13-12 / #817)
+    ring_moh_file_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("sip_moh_files.id", ondelete="SET NULL")
+    )
+    #: music while an established call on this line is on hold
+    hold_moh_file_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("sip_moh_files.id", ondelete="SET NULL")
+    )
 
 
 class SipTrunk(Base, TimestampMixin):
@@ -168,4 +186,27 @@ class SipWebrtcEndpoint(Base, TimestampMixin):
     enabled: Mapped[bool] = mapped_column(Boolean, server_default=text("true"))
     updated_by: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("users.id", ondelete="SET NULL")
+    )
+
+
+class SipMohFile(Base):
+    """An uploaded music-on-hold / queue-music file (E13-12 / #817). The bytes
+    live on disk in ``$BBZ_MOH_DIR`` keyed by ``id`` — this row is metadata
+    only. A ``sip_lines.ring_moh_file_id`` / ``hold_moh_file_id`` points here;
+    deleting is blocked while any line references the file."""
+
+    __tablename__ = "sip_moh_files"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    #: operator-facing name
+    name: Mapped[str] = mapped_column(String(120))
+    original_filename: Mapped[str] = mapped_column(String(255), server_default=text("''"))
+    mime: Mapped[str] = mapped_column(String(64), server_default=text("''"))
+    size_bytes: Mapped[int] = mapped_column(Integer, server_default=text("0"))
+    sha256: Mapped[str] = mapped_column(String(64), server_default=text("''"))
+    uploaded_by: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL")
+    )
+    uploaded_at: Mapped[_dt.datetime] = mapped_column(
+        DateTime(timezone=True), server_default=text("now()")
     )

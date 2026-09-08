@@ -179,6 +179,14 @@ class Settings(BaseSettings):
     sip_webrtc_cert_file: str = "/etc/asterisk/keys/asterisk.crt"
     sip_webrtc_priv_key_file: str = "/etc/asterisk/keys/asterisk.key"
 
+    # --- SIP music-on-hold (E13-12 / #817). Where uploaded queue / hold WAVs
+    # are stored on the BBZ node — metadata is in `sip_moh_files`, the bytes
+    # here, one dir per file id. The sync script rsyncs this tree onto the
+    # Asterisk box; `moh_asterisk_dir` is where it lands there and what the
+    # generated `musiconhold.conf` classes point at.
+    moh_dir: str = "/var/lib/bbz/moh"
+    moh_asterisk_dir: str = "/var/lib/asterisk/moh/bbz"
+
     # --- MFA policy engine + step-up (E21-05). Whether a login needs MFA is
     # role-based (`mfa_policies`); scope-based grants are a possible future
     # extension. Step-up re-checks freshness for a small, explicit set of
