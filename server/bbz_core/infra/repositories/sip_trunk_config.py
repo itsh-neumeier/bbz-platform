@@ -395,6 +395,31 @@ class SipTrunkConfigService:
         await self._s.execute(delete(SipNumber).where(SipNumber.e164 == e164.strip()))
         await self._s.commit()
 
+    # --- runtime ------------------------------------------------
+
+    async def outbound_line_map(self) -> dict[str, dict[str, str]]:
+        """For each enabled public number that targets a BBZ line: the outbound
+        dial template + caller-id so the ``dial`` verb routes **through** the
+        trunk (``PJSIP/<dest>@<trunk>``) instead of calling the trunk endpoint.
+
+        ``{bbz_line_id: {"endpoint": "PJSIP/{dest}@<trunk>", "caller_id": "<e164>"}}``
+        — the ITSP rejects an INVITE whose From is not one of its numbers, so the
+        caller-id is the trunk default (``caller_id_e164``) or the number itself.
+        """
+        trunks = {t.trunk_id: t for t in (await self._s.execute(select(SipTrunk))).scalars().all()}
+        out: dict[str, dict[str, str]] = {}
+        for n in (await self._s.execute(select(SipNumber))).scalars().all():
+            if not (n.enabled and n.bbz_line_id):
+                continue
+            t = trunks.get(n.trunk_id)
+            if t is None or not t.enabled:
+                continue
+            out[n.bbz_line_id] = {
+                "endpoint": f"PJSIP/{{dest}}@{t.trunk_id}",
+                "caller_id": t.caller_id_e164 or n.e164,
+            }
+        return out
+
     # --- config generation (ADR-0034) ----------------------------
 
     async def render_asterisk_config(self) -> RenderedTrunkConfig:

@@ -48,7 +48,13 @@
       "type": "object",
       "additionalProperties": { "type": "string" },
       "default": {},
-      "description": "Explicit BBZ line id -> Asterisk endpoint map (overrides the PJSIP/<line> default). Production fills this from the DB (ADR-0033)."
+      "description": "Explicit BBZ line id -> Asterisk endpoint map (overrides the PJSIP/<line> default). Production fills this from the DB (ADR-0033). A value containing '{dest}' is a trunk dial-through template (PJSIP/{dest}@<trunk>, E13-10) — dial() substitutes the number and originates straight into Stasis."
+    },
+    "line_caller_ids": {
+      "type": "object",
+      "additionalProperties": { "type": "string" },
+      "default": {},
+      "description": "BBZ line id -> outbound caller-id (E.164) for a trunk-backed line (E13-10). The ITSP rejects an INVITE whose From is not one of its numbers."
     },
     "dtmf_transport": {
       "enum": ["rfc2833", "sip_info"],

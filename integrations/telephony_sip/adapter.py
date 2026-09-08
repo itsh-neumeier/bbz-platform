@@ -69,10 +69,14 @@ class SipTelephonyProvider:
         instance_id: str = "sip",
         lines: list[str] | None = None,
         line_endpoints: dict[str, str] | None = None,
+        line_caller_ids: dict[str, str] | None = None,
         ari: AriClient | None = None,
     ) -> None:
         self._instance_id = instance_id
         self._line_endpoints = dict(line_endpoints or {})
+        #: bbz line id -> outbound caller-id (E.164) for a trunk-backed line; a
+        #: trunk / ITSP rejects an INVITE whose From is not a number it owns
+        self._line_caller_ids = dict(line_caller_ids or {})
         lids = list(lines or self._line_endpoints)
         self._lines = {lid: LineInfo(line_id=lid, state=LineState.UNKNOWN) for lid in lids}
         self._initialized = False
@@ -329,12 +333,25 @@ class SipTelephonyProvider:
             return self._seen[command_id]
         if self._ari is None:
             raise SipNotConfiguredError("dial")
+        endpoint = self._endpoint(line_id)
         try:
-            channel = await self._ari.originate(
-                endpoint=self._endpoint(line_id),
-                extension=destination,
-                context=self._ari.app_name,
-            )
+            if "{dest}" in endpoint:
+                # trunk outbound: dial the number THROUGH the trunk endpoint
+                # (PJSIP/<dest>@<trunk>), with a caller-id the trunk owns, and
+                # hand the answered call straight to Stasis for BBZ to track.
+                channel = await self._ari.originate(
+                    endpoint=endpoint.replace("{dest}", destination),
+                    app=self._ari.app_name,
+                    caller_id=self._line_caller_ids.get(line_id, "BBZ"),
+                )
+            else:
+                # ring a registered peer, then bridge it to `destination` in the
+                # dialplan (the original behaviour — a desk phone / extension)
+                channel = await self._ari.originate(
+                    endpoint=endpoint,
+                    extension=destination,
+                    context=self._ari.app_name,
+                )
         except AriError as exc:
             return self._ack(command_id, None, accepted=False, detail=str(exc))
         ch_id = channel.get("id") if isinstance(channel, dict) else None
@@ -446,10 +463,14 @@ def build(config: dict[str, Any] | None = None) -> SipTelephonyProvider:
             )
         )
     endpoints = cfg.get("line_endpoints")
+    caller_ids = cfg.get("line_caller_ids")
     return SipTelephonyProvider(
         lines=list(cfg.get("lines", [])),
         line_endpoints={str(k): str(v) for k, v in endpoints.items()}
         if isinstance(endpoints, dict)
+        else None,
+        line_caller_ids={str(k): str(v) for k, v in caller_ids.items()}
+        if isinstance(caller_ids, dict)
         else None,
         ari=ari,
     )
