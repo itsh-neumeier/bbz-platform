@@ -6,6 +6,7 @@ import de from '@/i18n/de.json';
 import { datetimeFormats } from '@/i18n';
 import CommsSidebar from '@/app/components/CommsSidebar.vue';
 import { useSessionStore } from '@/stores/session';
+import { useSoftphoneStore } from '@/stores/softphone';
 import * as tel from '@/lib/telephony';
 import * as ct from '@/lib/contacts';
 
@@ -142,6 +143,27 @@ describe('CommsSidebar', () => {
     const w = await factory(['calls.view']);
     expect(w.find('.tp__pad').exists()).toBe(false);
     expect(w.find('.tp__quickdial').exists()).toBe(false);
+  });
+
+  it('hides the softphone row when there is no softphone, shows it + a mute toggle on a call (#816)', async () => {
+    const w = await factory(['calls.view']);
+    expect(w.find('.comms__sp').exists()).toBe(false); // state 'off'
+
+    const sp = useSoftphoneStore();
+    sp.$patch({ state: 'registered' });
+    await w.vm.$nextTick();
+    const row = w.get('.comms__sp');
+    expect(row.classes()).toContain('comms__sp--registered');
+    expect(row.get('.comms__sp-state').text()).toBe('Softphone bereit');
+    expect(row.find('.comms__sp-mute').exists()).toBe(false); // not on a call
+
+    sp.$patch({ onCall: true });
+    await w.vm.$nextTick();
+    expect(w.get('.comms__sp-mute').text()).toBe('Stummschalten');
+
+    sp.$patch({ micDenied: true });
+    await w.vm.$nextTick();
+    expect(w.get('.comms__sp').classes()).toContain('comms__sp--micDenied');
   });
 
   it('opens the quick-dial overlay and dials the chosen contact (#225)', async () => {

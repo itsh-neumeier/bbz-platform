@@ -574,6 +574,16 @@
     "dir": {
       "inbound": "eingehend",
       "outbound": "ausgehend"
+    },
+    "softphone": {
+      "connecting": "Softphone verbindet …",
+      "registered": "Softphone bereit",
+      "reconnecting": "Softphone – Neuverbindung …",
+      "failed": "Softphone nicht verbunden",
+      "unsupported": "Softphone in diesem Browser nicht möglich",
+      "micDenied": "Mikrofon-Zugriff verweigert – bitte im Browser erlauben",
+      "mute": "Stummschalten",
+      "unmute": "Stummschaltung aufheben"
     }
   },
   "phonebook": {

@@ -16,6 +16,7 @@ import { RouterLink } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { useSessionStore } from '@/stores/session';
 import { useCallsStore } from '@/stores/calls';
+import { useSoftphoneStore } from '@/stores/softphone';
 import { useReducedMotion } from '@/composables/useReducedMotion';
 import { CALL_CATEGORIES, otherParty, type CallCategory } from '@/lib/telephony';
 import { contactsApi, type Contact } from '@/lib/contacts';
@@ -26,6 +27,7 @@ import ContactPriorityBadge from '@/components/telephony/ContactPriorityBadge.vu
 const { t } = useI18n();
 const session = useSessionStore();
 const calls = useCallsStore();
+const softphone = useSoftphoneStore();
 const { reduced } = useReducedMotion();
 
 const TABS = ['phone', 'call', 'phonebook', 'history'] as const;
@@ -578,6 +580,31 @@ onBeforeUnmount(() => clearInterval(poll));
       >{{ l.label ?? l.external_id }}</span>
     </div>
 
+    <!-- WebRTC softphone status (E13-11 / #816) — only when the operator has one -->
+    <div
+      v-if="softphone.active"
+      class="comms__sp"
+      :class="`comms__sp--${softphone.statusKey}`"
+    >
+      <span
+        class="comms__sp-dot"
+        aria-hidden="true"
+      />
+      <span
+        class="comms__sp-state"
+        role="status"
+      >{{ t('comms.softphone.' + softphone.statusKey) }}</span>
+      <button
+        v-if="softphone.onCall"
+        type="button"
+        class="comms__sp-mute"
+        :aria-pressed="softphone.muted"
+        @click="softphone.toggleMute()"
+      >
+        {{ softphone.muted ? t('comms.softphone.unmute') : t('comms.softphone.mute') }}
+      </button>
+    </div>
+
     <CallDocRequiredDialog
       :open="showDocGate"
       :busy="calls.busy"
@@ -706,6 +733,59 @@ onBeforeUnmount(() => clearInterval(poll));
 .comms__line--down {
   color: var(--bbz-danger-text);
   text-decoration: line-through;
+}
+
+/* WebRTC softphone status (E13-11) */
+.comms__sp {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.25rem 0.4rem;
+  border-radius: var(--bbz-radius-sm);
+  background: var(--bbz-surface-alt);
+  font-size: 0.72rem;
+  color: var(--bbz-text-muted);
+}
+.comms__sp-dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 999px;
+  background: var(--bbz-text-muted);
+  flex: none;
+}
+.comms__sp--registered .comms__sp-dot {
+  background: var(--bbz-success-text, #1a7f37);
+}
+.comms__sp--connecting .comms__sp-dot,
+.comms__sp--reconnecting .comms__sp-dot {
+  background: var(--bbz-warn-text, #9a6700);
+}
+.comms__sp--failed .comms__sp-dot,
+.comms__sp--micDenied .comms__sp-dot,
+.comms__sp--unsupported .comms__sp-dot {
+  background: var(--bbz-danger-text);
+}
+.comms__sp--failed,
+.comms__sp--micDenied {
+  color: var(--bbz-danger-text);
+}
+.comms__sp-state {
+  flex: 1;
+  min-width: 0;
+}
+.comms__sp-mute {
+  padding: 0.1rem 0.5rem;
+  border: 1px solid var(--bbz-border);
+  border-radius: var(--bbz-radius-sm);
+  background: var(--bbz-surface);
+  color: var(--bbz-text);
+  cursor: pointer;
+  font-size: 0.72rem;
+}
+.comms__sp-mute[aria-pressed='true'] {
+  background: var(--bbz-prio-high);
+  color: #fff;
+  border-color: var(--bbz-prio-high);
 }
 
 /* dial pad */
