@@ -11,7 +11,13 @@
 import { computed, onMounted, reactive, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { ApiError } from '@/lib/apiClient';
-import { adminApi, type SipConfig, type SipLine, type SipProbeResult } from '@/lib/admin';
+import {
+  adminApi,
+  type SipConfig,
+  type SipLine,
+  type SipMohFile,
+  type SipProbeResult,
+} from '@/lib/admin';
 import SipTrunksPanel from '@/components/telephony/SipTrunksPanel.vue';
 
 const { t } = useI18n();
@@ -119,6 +125,29 @@ async function toggleLine(line: SipLine): Promise<void> {
       asterisk_endpoint: line.asterisk_endpoint,
       label: line.label,
       enabled: !line.enabled,
+      ring_moh_file_id: line.ring_moh_file_id,
+      hold_moh_file_id: line.hold_moh_file_id,
+    });
+    await load();
+  } catch (e) {
+    lineError.value = e instanceof ApiError ? e.message : t('admin.sip.lineSaveError');
+  }
+}
+
+async function setLineMoh(
+  line: SipLine,
+  slot: 'ring_moh_file_id' | 'hold_moh_file_id',
+  value: string,
+): Promise<void> {
+  lineError.value = '';
+  try {
+    await adminApi.putSipLine(line.bbz_line_id, {
+      asterisk_endpoint: line.asterisk_endpoint,
+      label: line.label,
+      enabled: line.enabled,
+      ring_moh_file_id: line.ring_moh_file_id,
+      hold_moh_file_id: line.hold_moh_file_id,
+      [slot]: value || null,
     });
     await load();
   } catch (e) {
@@ -135,7 +164,53 @@ async function removeLine(line: SipLine): Promise<void> {
   }
 }
 
-onMounted(load);
+// --- music on hold (#817) ------------------------------------------------
+
+const mohFiles = ref<SipMohFile[]>([]);
+const mohError = ref('');
+const mohBusy = ref(false);
+const mohName = ref('');
+const mohInput = ref<HTMLInputElement | null>(null);
+
+async function loadMoh(): Promise<void> {
+  try {
+    mohFiles.value = (await adminApi.sipMohFiles()).files;
+  } catch {
+    /* the section renders empty */
+  }
+}
+
+async function uploadMoh(): Promise<void> {
+  mohError.value = '';
+  const file = mohInput.value?.files?.[0];
+  if (!file) return;
+  mohBusy.value = true;
+  try {
+    await adminApi.uploadSipMoh(mohName.value.trim() || file.name, file);
+    mohName.value = '';
+    if (mohInput.value) mohInput.value.value = '';
+    await loadMoh();
+  } catch (e) {
+    mohError.value = e instanceof ApiError ? e.message : t('admin.sip.moh.uploadError');
+  } finally {
+    mohBusy.value = false;
+  }
+}
+
+async function removeMoh(f: SipMohFile): Promise<void> {
+  mohError.value = '';
+  try {
+    await adminApi.deleteSipMoh(f.id);
+    await loadMoh();
+  } catch (e) {
+    mohError.value = e instanceof ApiError ? e.message : t('admin.sip.moh.deleteError');
+  }
+}
+
+onMounted(() => {
+  void load();
+  void loadMoh();
+});
 </script>
 
 <template>
@@ -304,6 +379,8 @@ onMounted(load);
               <th>{{ t('admin.sip.lineId') }}</th>
               <th>{{ t('admin.sip.endpoint') }}</th>
               <th>{{ t('admin.sip.label') }}</th>
+              <th>{{ t('admin.sip.moh.ring') }}</th>
+              <th>{{ t('admin.sip.moh.hold') }}</th>
               <th>{{ t('admin.sip.enabled') }}</th>
               <th><span class="visually-hidden">{{ t('admin.sip.actions') }}</span></th>
             </tr>
@@ -316,6 +393,42 @@ onMounted(load);
               <td>{{ line.bbz_line_id }}</td>
               <td><code>{{ line.asterisk_endpoint }}</code></td>
               <td>{{ line.label || '—' }}</td>
+              <td>
+                <select
+                  :value="line.ring_moh_file_id ?? ''"
+                  :aria-label="t('admin.sip.moh.ringFor', { line: line.bbz_line_id })"
+                  @change="setLineMoh(line, 'ring_moh_file_id', ($event.target as HTMLSelectElement).value)"
+                >
+                  <option value="">
+                    {{ t('admin.sip.moh.none') }}
+                  </option>
+                  <option
+                    v-for="f in mohFiles"
+                    :key="f.id"
+                    :value="f.id"
+                  >
+                    {{ f.name }}
+                  </option>
+                </select>
+              </td>
+              <td>
+                <select
+                  :value="line.hold_moh_file_id ?? ''"
+                  :aria-label="t('admin.sip.moh.holdFor', { line: line.bbz_line_id })"
+                  @change="setLineMoh(line, 'hold_moh_file_id', ($event.target as HTMLSelectElement).value)"
+                >
+                  <option value="">
+                    {{ t('admin.sip.moh.none') }}
+                  </option>
+                  <option
+                    v-for="f in mohFiles"
+                    :key="f.id"
+                    :value="f.id"
+                  >
+                    {{ f.name }}
+                  </option>
+                </select>
+              </td>
               <td>
                 <button
                   type="button"
@@ -377,6 +490,82 @@ onMounted(load);
       </div>
     </div>
 
+    <div class="card">
+      <div class="card-head">
+        <div class="card-title">
+          {{ t('admin.sip.moh.title') }}
+        </div>
+      </div>
+      <div class="card-body sip__lines">
+        <p class="muted">
+          {{ t('admin.sip.moh.hint') }}
+        </p>
+        <p
+          v-if="mohError"
+          role="alert"
+          class="sip__error"
+        >
+          {{ mohError }}
+        </p>
+        <ul
+          v-if="mohFiles.length"
+          class="sip__moh-list"
+        >
+          <li
+            v-for="f in mohFiles"
+            :key="f.id"
+          >
+            <span class="sip__moh-name">{{ f.name }}</span>
+            <span class="muted">{{ Math.round(f.size_bytes / 1024) }} KB</span>
+            <span
+              v-if="f.used_by.length"
+              class="tag gray"
+            >{{ t('admin.sip.moh.usedBy', { lines: f.used_by.join(', ') }) }}</span>
+            <button
+              type="button"
+              class="btn btn--sm"
+              :disabled="f.used_by.length > 0"
+              :title="f.used_by.length ? t('admin.sip.moh.inUse') : ''"
+              @click="removeMoh(f)"
+            >
+              {{ t('admin.sip.remove') }}
+            </button>
+          </li>
+        </ul>
+        <p
+          v-else
+          class="muted"
+        >
+          {{ t('admin.sip.moh.empty') }}
+        </p>
+
+        <form
+          class="sip__add"
+          @submit.prevent="uploadMoh"
+        >
+          <input
+            v-model="mohName"
+            class="input"
+            :aria-label="t('admin.sip.moh.name')"
+            :placeholder="t('admin.sip.moh.name')"
+          >
+          <input
+            ref="mohInput"
+            type="file"
+            accept="audio/wav,.wav"
+            :aria-label="t('admin.sip.moh.file')"
+          >
+          <button
+            type="submit"
+            class="btn"
+            :disabled="mohBusy"
+          >
+            {{ mohBusy ? t('admin.sip.moh.uploading') : t('admin.sip.moh.upload') }}
+          </button>
+        </form>
+      </div>
+    </div>
+
     <SipTrunksPanel :sip-active="config?.active ?? false" />
   </section>
 </template>
@@ -389,6 +578,22 @@ onMounted(load);
 }
 .sip__error {
   color: var(--bbz-danger-text);
+}
+.sip__moh-list {
+  list-style: none;
+  margin: 0.4rem 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+.sip__moh-list li {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+.sip__moh-name {
+  font-weight: var(--bbz-weight-semibold);
 }
 .sip__form {
   display: grid;
