@@ -22,7 +22,16 @@ const CONFIG: adminLib.SipConfig = {
     created_at: null,
     updated_at: null,
   },
-  lines: [{ bbz_line_id: '1001', asterisk_endpoint: 'PJSIP/1001', label: 'Tor 1', enabled: true }],
+  lines: [
+    {
+      bbz_line_id: '1001',
+      asterisk_endpoint: 'PJSIP/1001',
+      label: 'Tor 1',
+      enabled: true,
+      ring_moh_file_id: null,
+      hold_moh_file_id: null,
+    },
+  ],
   active: false,
 };
 
@@ -32,6 +41,7 @@ beforeEach(() => {
   vi.spyOn(adminLib.adminApi, 'sipConfig').mockResolvedValue(structuredClone(CONFIG));
   // the embedded <SipTrunksPanel> loads on mount
   vi.spyOn(adminLib.adminApi, 'sipTrunks').mockResolvedValue({ trunks: [], numbers: [] });
+  vi.spyOn(adminLib.adminApi, 'sipMohFiles').mockResolvedValue({ files: [] });
 });
 
 async function factory() {
@@ -92,5 +102,45 @@ describe('AdminTelephonyPage', () => {
     await w.vm.$nextTick();
     expect(w.text()).toContain('nicht erreichbar');
     expect(w.text()).toContain('unreachable: refused');
+  });
+
+  it('uploads a MoH file and assigns it as a line’s hold music (#817)', async () => {
+    const moh: adminLib.SipMohFile = {
+      id: 'moh-1',
+      name: 'Bahnhofsmusik',
+      original_filename: 'b.wav',
+      mime: 'audio/wav',
+      size_bytes: 2048,
+      sha256: 'abc',
+      uploaded_at: '2026-09-08T10:00:00Z',
+      used_by: [],
+    };
+    vi.mocked(adminLib.adminApi.sipMohFiles)
+      .mockResolvedValueOnce({ files: [] })
+      .mockResolvedValue({ files: [moh] });
+    const upload = vi.spyOn(adminLib.adminApi, 'uploadSipMoh').mockResolvedValue(moh);
+    const putLine = vi
+      .spyOn(adminLib.adminApi, 'putSipLine')
+      .mockResolvedValue({ ...CONFIG.lines[0], hold_moh_file_id: 'moh-1' });
+    const w = await factory();
+
+    const file = new File([new Uint8Array([1, 2, 3])], 'b.wav', { type: 'audio/wav' });
+    const input = w.get('input[type="file"]').element as HTMLInputElement;
+    Object.defineProperty(input, 'files', { value: [file] });
+    await w.get('input[type="file"]').trigger('change');
+    await w.findAll('form.sip__add').at(-1)!.trigger('submit');
+    await new Promise((r) => setTimeout(r, 0));
+    await w.vm.$nextTick();
+
+    expect(upload).toHaveBeenCalledWith('b.wav', file);
+    expect(w.text()).toContain('Bahnhofsmusik');
+
+    // assign it as the line's hold music via the dropdown
+    const holdSelect = w.findAll('.sip__table select')[1];
+    await holdSelect.setValue('moh-1');
+    expect(putLine).toHaveBeenCalledWith(
+      '1001',
+      expect.objectContaining({ hold_moh_file_id: 'moh-1' }),
+    );
   });
 });

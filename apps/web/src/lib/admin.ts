@@ -96,6 +96,22 @@ export interface SipLine {
   asterisk_endpoint: string;
   label: string;
   enabled: boolean;
+  /** MoH file ids (#817); null = no music */
+  ring_moh_file_id: string | null;
+  hold_moh_file_id: string | null;
+}
+
+/** an uploaded music-on-hold WAV (#817) */
+export interface SipMohFile {
+  id: string;
+  name: string;
+  original_filename: string;
+  mime: string;
+  size_bytes: number;
+  sha256: string;
+  uploaded_at: string;
+  /** bbz_line_ids that use this file — non-empty ⇒ not deletable */
+  used_by: string[];
 }
 
 export interface SipConfig {
@@ -201,12 +217,37 @@ export const adminApi = {
   putSipGateway: (body: SipGatewayInput) => api.put<SipConfig>('/admin/telephony/sip', body),
 
   /** `PUT /api/v1/admin/telephony/sip/lines/{id}` — add or update a line. */
-  putSipLine: (id: string, body: { asterisk_endpoint: string | null; label: string; enabled: boolean }) =>
-    api.put<SipLine>(`/admin/telephony/sip/lines/${encodeURIComponent(id)}`, body),
+  putSipLine: (
+    id: string,
+    body: {
+      asterisk_endpoint: string | null;
+      label: string;
+      enabled: boolean;
+      ring_moh_file_id?: string | null;
+      hold_moh_file_id?: string | null;
+    },
+  ) => api.put<SipLine>(`/admin/telephony/sip/lines/${encodeURIComponent(id)}`, body),
 
   /** `DELETE /api/v1/admin/telephony/sip/lines/{id}`. */
   deleteSipLine: (id: string) =>
     api.del<void>(`/admin/telephony/sip/lines/${encodeURIComponent(id)}`),
+
+  // --- music on hold (#817) ---------------------------------------------
+
+  /** `GET /api/v1/admin/telephony/moh` — every uploaded MoH file. */
+  sipMohFiles: (signal?: AbortSignal) =>
+    api.get<{ files: SipMohFile[] }>('/admin/telephony/moh', { signal }),
+
+  /** `POST /api/v1/admin/telephony/moh` — raw `audio/wav` body + `?name=`. */
+  uploadSipMoh: (name: string, file: File) =>
+    api.postBlob<SipMohFile>(
+      `/admin/telephony/moh?name=${encodeURIComponent(name)}&filename=${encodeURIComponent(file.name)}`,
+      file,
+    ),
+
+  /** `DELETE /api/v1/admin/telephony/moh/{id}` — 409 while a line uses it. */
+  deleteSipMoh: (id: string) =>
+    api.del<void>(`/admin/telephony/moh/${encodeURIComponent(id)}`),
 
   /** `POST /api/v1/admin/telephony/sip/test` — probe the stored gateway. */
   testSipConnection: () => api.post<SipProbeResult>('/admin/telephony/sip/test'),

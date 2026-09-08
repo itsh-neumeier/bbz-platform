@@ -158,6 +158,39 @@ export const api = {
   del: <T>(path: string, o?: RequestOptions) => apiRequest<T>(path, { ...o, method: 'DELETE' }),
 
   /**
+   * POST a raw binary body (a `Blob`/`File`) — not JSON. Carries the command
+   * envelope + CSRF like any write. Used for the MoH WAV upload (#817), which
+   * BBZ takes as a raw `audio/wav` body (no multipart parser server-side).
+   */
+  async postBlob<T>(path: string, blob: Blob, o?: RequestOptions): Promise<T> {
+    const doFetch = o?.fetchImpl ?? fetch;
+    const headers: Record<string, string> = {
+      Accept: 'application/json',
+      'Content-Type': blob.type || 'application/octet-stream',
+      'X-Command-Id': o?.commandId ?? newCommandId(),
+    };
+    const csrf = readCookie('bbz_csrf');
+    if (csrf) headers['X-CSRF-Token'] = csrf;
+    const res = await doFetch(BASE + path, {
+      method: 'POST',
+      headers,
+      credentials: 'include',
+      signal: o?.signal,
+      body: blob,
+    });
+    const text = await res.text();
+    const payload: unknown = text ? JSON.parse(text) : null;
+    if (res.ok) return payload as T;
+    const body: ApiErrorBody =
+      payload && typeof payload === 'object' && 'error' in payload
+        ? (payload as { error: ApiErrorBody }).error
+        : { code: 'http_error', message: `HTTP ${res.status}` };
+    if (res.status === 409) throw new ConflictError(res.status, body);
+    if (res.status === 401 && hadSessionCookie) throw new AuthExpiredError(res.status, body);
+    throw new ApiError(res.status, body);
+  },
+
+  /**
    * GET a `text/plain` response as a string (the JSON helpers above `JSON.parse`
    * every body). Used for the generated Asterisk config export (ADR-0034).
    */
