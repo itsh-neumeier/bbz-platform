@@ -1158,6 +1158,20 @@ integration-tested against a real lab Asterisk (`sip-nightly.yml`, gated — not
   `/admin/telephony/sip/webrtc`, `SIP_WEBRTC_ENDPOINT_*` critical audit. Still
   to come on #816: the ARI bridge-on-answer and the browser JsSIP client + mic
   UI.
+- **E13-12 (#817) SIP music-on-hold — backend landed (migration 0059)** —
+  `sip_moh_files` (metadata; WAV bytes in `$BBZ_MOH_DIR`, never the DB),
+  `moh_store` (RIFF/WAVE + ≤10 MiB validation), `SipMohConfigService`
+  (upload/list/delete-if-unused/`render_musiconhold`/`line_moh_map`/manifest);
+  two nullable FKs on `sip_lines` — `ring_moh_file_id` (plays until an operator
+  answers) + `hold_moh_file_id` (plays on hold), settable via
+  `PUT /admin/telephony/sip/lines/{id}`. `POST/GET/DELETE
+  /api/v1/admin/telephony/moh` (raw-body WAV upload — no `python-multipart`
+  dep) + `.../moh/{id}/download` + `.../moh/manifest` for the sync script;
+  `?part=musiconhold` on the config export. `SIP_MOH_UPLOADED`/`_REMOVED`
+  critical audit; delete blocked (409) while a line references it. Sync script
+  distributes the classes + WAVs; lab `musiconhold.conf` `#tryinclude`s them.
+  Still to come on #817: the `/admin/telefonie` upload + per-line dropdown UI.
+  The adapter actually *playing* the class is E13-13 (#819).
 - **#269 (E13-01) `telephony_sip` scaffold** — `integrations/telephony_sip/`:
   `manifest.json` (domain `telephony`, capabilities answer/dial/hangup/hold/
   resume/transfer/send_dtmf/monitoring, `mock:false`), `config_schema.json`,

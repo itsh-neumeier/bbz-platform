@@ -61,6 +61,17 @@ admin screen instead.
 For the lab, set `BBZ_LAB_API` / `BBZ_LAB_USER` / `BBZ_LAB_PASS` in `.env` and
 the `asterisk` service pulls on start.
 
+## Music on hold — E13-12, #817
+
+Upload WAVs (`POST /api/v1/admin/telephony/moh`, raw body, `?name=`), then
+assign per line via `PUT /admin/telephony/sip/lines/{id}` —
+`ring_moh_file_id` plays while a caller waits for an operator,
+`hold_moh_file_id` while an established call is on hold. `sync-trunk-config.sh`
+fetches `?part=musiconhold` into `musiconhold_bbz.conf` and pulls each
+referenced WAV (via `GET .../moh/manifest` + `GET .../moh/{id}/download`) into
+`$MOH_DIR/<id>/moh.wav`, then `moh reload`. Deleting a file still used by a line
+is a 409. The bytes live in `$BBZ_MOH_DIR` on the BBZ node, never the DB.
+
 ## The credential
 
 `ari.conf` / `pjsip.conf` carry a **well-known throwaway** password

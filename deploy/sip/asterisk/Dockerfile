@@ -21,9 +21,11 @@ RUN set -eux; \
     apt-get purge -y --auto-remove; \
     rm -rf /var/lib/apt/lists/*; \
     # the package creates the `asterisk` user/group; make sure its runtime dirs
-    # are writable by it (the container runs as that user, not root)
+    # are writable by it (the container runs as that user, not root). The MoH
+    # tree (E13-12) is where sync-trunk-config.sh drops uploaded hold music.
     install -d -o asterisk -g asterisk \
-        /var/run/asterisk /var/lib/asterisk /var/log/asterisk /var/spool/asterisk
+        /var/run/asterisk /var/lib/asterisk /var/log/asterisk /var/spool/asterisk \
+        /var/lib/asterisk/moh/bbz
 
 # Overlay just the files the lab overrides; the packaged defaults (asterisk.conf
 # with the correct paths, etc.) stay in place.

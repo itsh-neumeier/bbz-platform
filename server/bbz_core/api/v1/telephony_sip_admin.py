@@ -113,6 +113,9 @@ class LineIn(BaseModel):
     asterisk_endpoint: str | None = Field(default=None, max_length=255)
     label: str = Field(default="", max_length=120)
     enabled: bool = True
+    #: MoH file ids (E13-12 / #817); null = no music. Full-replace (PUT).
+    ring_moh_file_id: str | None = Field(default=None, max_length=64)
+    hold_moh_file_id: str | None = Field(default=None, max_length=64)
 
 
 class LineOut(BaseModel):
@@ -120,6 +123,8 @@ class LineOut(BaseModel):
     asterisk_endpoint: str
     label: str
     enabled: bool
+    ring_moh_file_id: str | None = None
+    hold_moh_file_id: str | None = None
 
 
 class SipConfigOut(BaseModel):
@@ -169,6 +174,8 @@ def _line_out(v: SipLineView) -> LineOut:
         asterisk_endpoint=v.asterisk_endpoint,
         label=v.label,
         enabled=v.enabled,
+        ring_moh_file_id=str(v.ring_moh_file_id) if v.ring_moh_file_id else None,
+        hold_moh_file_id=str(v.hold_moh_file_id) if v.hold_moh_file_id else None,
     )
 
 
@@ -233,6 +240,8 @@ async def put_sip_line(
             asterisk_endpoint=body.asterisk_endpoint,
             label=body.label,
             enabled=body.enabled,
+            ring_moh_file_id=body.ring_moh_file_id,
+            hold_moh_file_id=body.hold_moh_file_id,
             actor_id=ctx.user_id,
         )
     await evict_telephony_provider()
@@ -458,18 +467,21 @@ async def delete_sip_number(
 
 @router.get("/asterisk-config")
 async def get_asterisk_config(
-    part: str = Query(default="all", pattern="^(all|pjsip|extensions)$"),
+    part: str = Query(default="all", pattern="^(all|pjsip|extensions|musiconhold)$"),
     _: AuthContext = Depends(require("integrations.configure")),
     svc: SipTrunkConfigService = Depends(_trunk_svc),
     session: AsyncSession = Depends(db_session),
 ) -> Response:
-    """The generated PJSIP + dialplan text for the sync script / a copy-paste
-    (ADR-0034 trunks + ADR-0035 WebRTC operator endpoints). **Contains the
-    trunk + WebRTC auth passwords in cleartext** — the response is ``no-store``
-    and BBZ never writes this to disk, logs it, or audits it."""
+    """The generated PJSIP + dialplan + musiconhold text for the sync script /
+    a copy-paste (ADR-0034 trunks + ADR-0035 WebRTC + E13-12 MoH). **Contains
+    the trunk + WebRTC auth passwords in cleartext** — the response is
+    ``no-store`` and BBZ never writes this to disk, logs it, or audits it."""
+    from bbz_core.infra.repositories.sip_moh_config import SipMohConfigService
+
     with _translate():
         rendered = await svc.render_asterisk_config()
         webrtc_pjsip = await SipWebrtcConfigService(session).render_pjsip()
+        musiconhold = await SipMohConfigService(session).render_musiconhold()
     pjsip = rendered.pjsip
     if webrtc_pjsip:
         pjsip = pjsip.rstrip() + "\n\n" + webrtc_pjsip
@@ -477,8 +489,17 @@ async def get_asterisk_config(
         body = pjsip
     elif part == "extensions":
         body = rendered.extensions
+    elif part == "musiconhold":
+        body = musiconhold
     else:
-        body = "; == pjsip.conf ==\n" + pjsip + "\n; == extensions.conf ==\n" + rendered.extensions
+        body = (
+            "; == pjsip.conf ==\n"
+            + pjsip
+            + "\n; == extensions.conf ==\n"
+            + rendered.extensions
+            + "\n; == musiconhold.conf ==\n"
+            + musiconhold
+        )
     return Response(
         content=body,
         media_type="text/plain; charset=utf-8",
