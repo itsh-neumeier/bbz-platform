@@ -137,12 +137,13 @@ class CallQueryRepository:
         return CallHistoryPage(items=await self._build_items(calls), next_cursor=nxt)
 
     async def ringing_queue(self) -> list[CallHistoryItem]:
-        """The waiting-call queue (E11-12): ``offered`` / ``ringing`` calls,
-        highest caller priority first, then longest-waiting first. Unpaginated —
-        the queue is a handful of calls."""
+        """The waiting-call queue (E11-12): **inbound** ``offered`` / ``ringing``
+        calls, highest caller priority first, then longest-waiting first.
+        Unpaginated — the queue is a handful of calls. An outbound call that is
+        still ringing is the operator's *own* active call, not a queue entry."""
         stmt = (
             select(Call)
-            .where(Call.state.in_(_WAITING_STATES))
+            .where(Call.state.in_(_WAITING_STATES), Call.direction == "inbound")
             .order_by(
                 _PRIORITY_RANK.asc(),
                 func.coalesce(Call.started_at, Call.created_at).asc(),

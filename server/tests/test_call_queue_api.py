@@ -167,6 +167,39 @@ async def test_answered_and_ended_calls_leave_the_queue(env: tuple) -> None:
     assert await _queue(client) == []
 
 
+async def test_an_outbound_call_that_is_still_ringing_is_not_in_the_queue(env: tuple) -> None:
+    """An outbound call the operator dialled is *their own* active call the
+    moment it rings — never a waiting-queue entry (E11 / #818)."""
+    client, s = env
+    await _contact(s, "Hoch", "+49911100001", "high")
+    await _ring(client, "c-in", "+49911100001")  # inbound → belongs in the queue
+
+    r = await client.post(
+        "/api/v1/telephony/events",
+        json=_ev(
+            source_call_id="c-out",
+            event_type="CALL_RINGING",
+            calling_number="110",
+            called_number="+49911222333",
+            metadata={"direction": "outbound"},
+        ),
+    )
+    assert r.status_code == 200, r.text
+
+    q = await _queue(client)
+    assert len(q) == 1
+    assert q[0]["direction"] == "inbound"
+    assert q[0]["state"] == "ringing"
+
+    # the outbound leg is a real call in `ringing`, just not a queue entry
+    from sqlalchemy import select
+
+    from bbz_core.infra.models.telephony import Call
+
+    out = (await s.execute(select(Call).where(Call.source_call_id == "c-out"))).scalar_one()
+    assert (out.direction, out.state) == ("outbound", "ringing")
+
+
 async def test_queue_items_carry_the_caller_resolution(env: tuple) -> None:
     client, s = env
     cid = await _contact(s, "EVU Leitstelle", "+49911100001", "high")

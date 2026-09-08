@@ -21,6 +21,12 @@ interface State {
 }
 
 const LIVE_STATES = new Set(['connected', 'held', 'transferring', 'ended_pending_documentation']);
+/** the operator's own active call: any call that's connected / held / etc., plus
+ *  an outbound call they just placed that is still ringing — it belongs in the
+ *  Gespräch panel right away, not in limbo until it connects (E11 #818). */
+const isOperatorActive = (c: Call): boolean =>
+  LIVE_STATES.has(c.state) ||
+  (c.direction === 'outbound' && (c.state === 'offered' || c.state === 'ringing'));
 
 /** priority (high→low, unknown last), then longest wait first. */
 function ringingSort(a: Call, b: Call): number {
@@ -63,7 +69,9 @@ export const useCallsStore = defineStore('calls', {
         this.history = history.items;
         this.lines = lines.lines;
         this.pendingDocCount = pending.calls.length;
-        const live = history.items.find((c) => LIVE_STATES.has(c.state));
+        // a connected/held call, or an outbound call still ringing (the operator
+        // placed it — show it in the call panel right away, E11 #818)
+        const live = history.items.find(isOperatorActive);
         await this.setActive(live ?? null);
         this.error = null;
       } catch (e) {

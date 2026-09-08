@@ -519,6 +519,7 @@
     "line": "Leitung",
     "number": "Rufnummer",
     "dial": "Wählen",
+    "dialing": "Verbindung wird aufgebaut",
     "waiting": "Wartende Anrufe",
     "answer": "Annehmen",
     "noWaiting": "Keine wartenden Anrufe.",

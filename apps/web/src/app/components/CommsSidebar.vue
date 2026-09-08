@@ -96,17 +96,43 @@ function press(k: string) {
 function backspace() {
   dialInput.value = dialInput.value.slice(0, -1);
 }
+/** true from a dial until its call shows up (or ~8 s pass) — drives the
+ *  "Verbindung wird aufgebaut" placeholder so the Gespräch panel is never
+ *  blank right after a dial (E11 #818). */
+const dialing = ref(false);
+let dialingTimer: ReturnType<typeof setTimeout> | undefined;
+
 async function doDial() {
   // the provider keys lines by `external_id` (the SIP/CUCM line id), NOT the
   // `lines` table UUID — a real provider 500s on `PJSIP/<uuid>`
   const line = selectedLine.value || serviceableLines.value[0]?.external_id;
   if (!line || !dialInput.value.trim()) return;
-  await calls.dial(line, dialInput.value.trim());
+  const number = dialInput.value.trim();
   dialInput.value = '';
-  if (calls.active) tab.value = 'call';
+  dialing.value = true;
+  clearTimeout(dialingTimer);
+  dialingTimer = setTimeout(() => (dialing.value = false), 8000);
+  tab.value = 'call'; // switch now — the panel shows the placeholder until the call lands
+  await calls.dial(line, number);
+  if (calls.error) dialing.value = false; // a rejected dial: show the error, not the placeholder
 }
+watch(
+  () => calls.active,
+  (c) => {
+    if (c) {
+      dialing.value = false;
+      clearTimeout(dialingTimer);
+    }
+  },
+);
+onBeforeUnmount(() => clearTimeout(dialingTimer));
 
 async function answer(id: string) {
+  // switch AFTER the round-trip: `control` runs its own refresh, so by the time
+  // the Gespräch panel appears `calls.active` + `calls.doc` are settled — moving
+  // the switch earlier races a still-in-flight refresh whose `syncDocForm` then
+  // clobbers a just-picked documentation category (E2E #227). The outbound case
+  // (`doDial`) is where switching early matters and it has its own placeholder.
   await calls.control('answer', id);
   tab.value = 'call';
 }
@@ -375,13 +401,19 @@ onBeforeUnmount(() => clearInterval(poll));
       class="comms__panel"
     >
       <div v-if="calls.active">
-        <div class="ac">
+        <div
+          class="ac"
+          :class="`ac--${calls.active.state}`"
+        >
           <span class="ac__who">{{ otherParty(calls.active) }}</span>
           <span
             v-if="duration"
             class="ac__duration"
           >{{ duration }}</span>
-          <span class="ac__state">{{ t('comms.state.' + calls.active.state) }}</span>
+          <span
+            class="ac__state"
+            role="status"
+          >{{ t('comms.state.' + calls.active.state) }}</span>
         </div>
 
         <p
@@ -474,6 +506,13 @@ onBeforeUnmount(() => clearInterval(poll));
           </button>
         </form>
       </div>
+      <p
+        v-else-if="dialing"
+        class="ac__dialing"
+        role="status"
+      >
+        {{ t('comms.dialing') }}
+      </p>
       <p
         v-else
         class="comms__muted"
@@ -941,6 +980,22 @@ onBeforeUnmount(() => clearInterval(poll));
   display: flex;
   align-items: baseline;
   gap: 0.5rem;
+  padding: 0.35rem 0.55rem;
+  border-radius: var(--bbz-radius);
+  border-left: 3px solid var(--bbz-border-strong);
+  background: var(--bbz-surface-alt);
+}
+.ac--ringing,
+.ac--offered {
+  border-left-color: var(--bbz-accent);
+}
+.ac--connected {
+  border-left-color: var(--bbz-success-text, #1a7f37);
+  background: color-mix(in srgb, var(--bbz-success-text, #1a7f37) 10%, var(--bbz-surface));
+}
+.ac--held {
+  border-left-color: var(--bbz-warn-text, #9a6700);
+  background: color-mix(in srgb, var(--bbz-warn-text, #9a6700) 12%, var(--bbz-surface));
 }
 .ac__who {
   flex: 1;
@@ -955,7 +1010,27 @@ onBeforeUnmount(() => clearInterval(poll));
 }
 .ac__state {
   font-size: 0.8rem;
-  color: var(--bbz-text-muted);
+  font-weight: var(--bbz-weight-semibold);
+  text-transform: lowercase;
+}
+.ac--connected .ac__state {
+  color: var(--bbz-success-text, #1a7f37);
+}
+.ac--ringing .ac__state,
+.ac--offered .ac__state {
+  color: var(--bbz-accent);
+}
+.ac__dialing {
+  margin: 0.4rem 0;
+  padding: 0.35rem 0.55rem;
+  border-radius: var(--bbz-radius);
+  border-left: 3px solid var(--bbz-accent);
+  background: var(--bbz-surface-alt);
+  color: var(--bbz-accent);
+  font-weight: var(--bbz-weight-semibold);
+}
+.ac__dialing::after {
+  content: ' …';
 }
 .ac__docreq {
   margin: 0.5rem 0;
