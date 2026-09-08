@@ -1149,20 +1149,37 @@ integration-tested against a real lab Asterisk (`sip-nightly.yml`, gated — not
 - **E13-10 (#812) outbound via trunk — DONE (PR #814)** — `dial` routes
   `PJSIP/<dest>@<trunk>` with the number's caller-id; verified with a real
   LEONET call (`INVITE → 407 → 100 → 183`).
-- **E13-11 (#816) WebRTC operator softphone — backend done (ADR-0035,
-  migration 0058)** — **PR-A**: `sip_webrtc_endpoints` (one per operator, SIP
+- **E13-11 (#816) WebRTC operator softphone — DONE (ADR-0035, migration 0058;
+  PRs #821/#826/#827)** — `sip_webrtc_endpoints` (one per operator, SIP
   password Fernet at rest), `SipWebrtcConfigService` (CRUD + `[transport-wss]`
   + per-op `type=endpoint`/`auth`/`aor` PJSIP, folded into
   `asterisk-config?part=pjsip`), `GET /api/v1/telephony/webrtc-credentials`
   (session-gated, discloses the SIP password to the operator's own session
   only), admin CRUD under `/admin/telephony/sip/webrtc`, `SIP_WEBRTC_ENDPOINT_*`
-  critical audit. **PR-B (ARI bridge)**: `answer` / `dial` take an optional
+  critical audit. **ARI bridge**: `answer` / `dial` take an optional
   `operator_key` (protocol + mock + sip); `telephony_sip` creates a mixing
   bridge with the trunk channel + originates `PJSIP/<operator>` into Stasis,
   joins it on its `StasisStart`, hides the operator leg from the call stream,
   tears the bridge down with the call; `calls.py` resolves the caller's
-  `operator_endpoint_map()` key. Still to come on #816: the browser JsSIP
-  client (mic/speaker) + the Asterisk lab WSS transport/cert.
+  `operator_endpoint_map()` key. **Frontend**: `jssip` (lazy), `lib/softphone.ts`
+  (JsSIP UA behind a `SoftphoneEngine` seam), `stores/softphone.ts` state
+  machine, `AppShell` registers on mount (silent `off` without an endpoint),
+  comms-sidebar status row + mute; lab Asterisk `http.conf` TLS `:8089` +
+  self-signed cert.
+- **E13-12 (#817) SIP music-on-hold — backend landed (migration 0059)** —
+  `sip_moh_files` (metadata; WAV bytes in `$BBZ_MOH_DIR`, never the DB),
+  `moh_store` (RIFF/WAVE + ≤10 MiB validation), `SipMohConfigService`
+  (upload/list/delete-if-unused/`render_musiconhold`/`line_moh_map`/manifest);
+  two nullable FKs on `sip_lines` — `ring_moh_file_id` (plays until an operator
+  answers) + `hold_moh_file_id` (plays on hold), settable via
+  `PUT /admin/telephony/sip/lines/{id}`. `POST/GET/DELETE
+  /api/v1/admin/telephony/moh` (raw-body WAV upload — no `python-multipart`
+  dep) + `.../moh/{id}/download` + `.../moh/manifest` for the sync script;
+  `?part=musiconhold` on the config export. `SIP_MOH_UPLOADED`/`_REMOVED`
+  critical audit; delete blocked (409) while a line references it. Sync script
+  distributes the classes + WAVs; lab `musiconhold.conf` `#tryinclude`s them.
+  The `/admin/telefonie` upload + per-line dropdown UI is #825; the adapter
+  actually *playing* the class is E13-13 (#819).
 - **#269 (E13-01) `telephony_sip` scaffold** — `integrations/telephony_sip/`:
   `manifest.json` (domain `telephony`, capabilities answer/dial/hangup/hold/
   resume/transfer/send_dtmf/monitoring, `mock:false`), `config_schema.json`,

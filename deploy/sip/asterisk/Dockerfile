@@ -21,9 +21,11 @@ RUN set -eux; \
     apt-get purge -y --auto-remove; \
     rm -rf /var/lib/apt/lists/*; \
     # the package creates the `asterisk` user/group; make sure its runtime dirs
-    # are writable by it (the container runs as that user, not root)
+    # are writable by it (the container runs as that user, not root). The MoH
+    # tree (E13-12) is where sync-trunk-config.sh drops uploaded hold music.
     install -d -o asterisk -g asterisk \
-        /var/run/asterisk /var/lib/asterisk /var/log/asterisk /var/spool/asterisk; \
+        /var/run/asterisk /var/lib/asterisk /var/log/asterisk /var/spool/asterisk \
+        /var/lib/asterisk/moh/bbz; \
     # a self-signed cert for the WSS transport (E13-11 / ADR-0035). LAB ONLY —
     # a real site drops a real cert at these paths. Clients must accept it
     # (the web app is served over the same self-signed TLS in dev).
