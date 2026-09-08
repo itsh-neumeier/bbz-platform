@@ -114,6 +114,30 @@ describe('CommsSidebar', () => {
     expect(answer).toHaveBeenCalledWith('call-1');
   });
 
+  it('switches to the call tab and shows "Verbindung wird aufgebaut" right after a dial (#818)', async () => {
+    vi.spyOn(tel.telephonyApi, 'dial').mockResolvedValue({ accepted: true, detail: null });
+    const w = await factory(['calls.view', 'calls.dial']);
+    await w.findAll('.tp__key')[0].trigger('click'); // 1
+    await w.get('.tp__call').trigger('click');
+    await w.vm.$nextTick();
+    const panel = w.findAll('[role="tabpanel"]')[1]; // GESPRÄCH
+    expect(panel.get('.ac__dialing').text()).toContain('Verbindung wird aufgebaut');
+  });
+
+  it('an outbound call that is still ringing is the active call (not a queue entry) (#818)', async () => {
+    vi.mocked(tel.telephonyApi.ringing).mockResolvedValue({ items: [], next_cursor: null });
+    vi.mocked(tel.telephonyApi.history).mockResolvedValue({
+      items: [{ ...ringing, id: 'out-1', direction: 'outbound', state: 'ringing', caller_priority: null }],
+      next_cursor: null,
+    });
+    const w = await factory(['calls.view', 'calls.dial']);
+    const panel = w.findAll('[role="tabpanel"]')[1];
+    expect(panel.get('.ac').classes()).toContain('ac--ringing');
+    expect(panel.get('.ac__state').text()).toBe('klingelt');
+    // and NOT shown as a waiting inbound call
+    expect(w.find('.wq__item').exists()).toBe(false);
+  });
+
   it('builds a number on the keypad and dials it via the line external_id', async () => {
     const dial = vi.spyOn(tel.telephonyApi, 'dial').mockResolvedValue({ accepted: true, detail: null });
     const w = await factory(['calls.view', 'calls.dial']);

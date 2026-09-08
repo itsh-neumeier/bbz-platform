@@ -548,9 +548,11 @@ async def ringing_queue(
     _: AuthContext = Depends(require("calls.view")),
     session: AsyncSession = Depends(db_session),
 ) -> CallHistoryOut:
-    """Die Warteschlange wartender Anrufe (§13.8/§13.9, E11-12): Anrufe im
-    Zustand ``offered`` / ``ringing``, sortiert nach Anrufer-Priorität
+    """Die Warteschlange wartender Anrufe (§13.8/§13.9, E11-12): **eingehende**
+    Anrufe im Zustand ``offered`` / ``ringing``, sortiert nach Anrufer-Priorität
     (hoch→niedrig, unbekannt zuletzt), dann Wartezeit (längste zuerst).
+    Ein noch klingelnder *ausgehender* Anruf ist der eigene aktive Anruf der
+    bedienenden Person, kein Warteschlangen-Eintrag (E11 / #818).
     Unpaginiert — die Queue ist eine Handvoll Anrufe. Ein Client holt sie neu,
     sobald ein ``CALL_*``-Frame über ``GET /api/v1/events/stream`` ankommt.
     Read-only, kein Audit-Event."""
