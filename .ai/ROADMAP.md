@@ -2605,6 +2605,40 @@ Trunks, alternative PBX, Lab/Test, Migration/Fallback. Quellen: MASTER_PROMPT
 - **Security-Auswirkung:** Trunk-Passwörter Fernet at rest (`BBZ_SIP_ENCRYPTION_KEY`), write-only API, gerenderte Config nie persistiert/geloggt/auditiert.
 - **HA-Auswirkung:** — · **Permissions:** `integrations.configure` · **Audit Events:** `SIP_TRUNK_CONFIGURED`, `SIP_TRUNK_REMOVED`, `SIP_NUMBER_CONFIGURED`, `SIP_NUMBER_REMOVED` (alle kritisch).
 
+### E13-10 · Ausgehende Anrufe über den SIP-Trunk (#812) — *Follow-up aus dem LEONET-Live-Test*
+**Epic:** 13 · **Phase:** 5 · **Area:** integration · **Branch:** feature/<nr>-sip-trunk-outbound
+- **Ziel:** Der `dial`-Verb wählt eine Nummer **durch** den Trunk (`PJSIP/<dest>@<trunk>`) statt den Trunk-Endpoint zu klingeln, mit der korrekten ausgehenden Rufnummer (CLI).
+- **Fachlicher Hintergrund:** E13-09 hatte „ausgehend über den Trunk" ausgeklammert; der Live-Test brauchte es sofort.
+- **Scope:** `outbound_line_map()` (Nummer mit `bbz_line_id` → `{endpoint, caller_id}`); `_merge_trunk_outbound()` faltet das in `line_endpoints`/`line_caller_ids`; `dial()` ersetzt `{dest}` und setzt `callerId`.
+- **Abhängigkeiten:** E13-09. · **Status:** **done** (PR #814) — mit echtem LEONET-Anruf verifiziert (`INVITE → 407 → 100 → 183`).
+- **Permissions:** `calls.dial` · **Audit Events:** unverändert.
+
+### E13-11 · WebRTC-Softphone im Web-Client (#816) — *Follow-up aus dem LEONET-Live-Test*
+**Epic:** 13 · **Phase:** 5 · **Area:** integration, frontend · **Branch:** feature/<nr>-webrtc-softphone
+- **Ziel:** Der Browser wird als WebRTC-SIP-Endpoint zum zweiten Gesprächs-Leg — Mikrofon + Lautsprecher für den Operator (auch mobil, fürs Debugging).
+- **Fachlicher Hintergrund:** Nach dem „Answer" über ARI ist der Trunk-Kanal oben, aber niemand auf der BBZ-Seite — Stille. **ADR-0035**.
+- **Scope:** Migration 0058 (`sip_webrtc_endpoints`, ein Endpoint pro Operator, Passwort Fernet at rest); `SipWebrtcConfigService` (CRUD + `[transport-wss]` + `type=endpoint`/`auth`/`aor` je Operator, gefaltet in `asterisk-config?part=pjsip`); `GET /api/v1/telephony/webrtc-credentials` (session-gated, gibt das SIP-Passwort **nur** an die eigene Session); Admin-CRUD `/admin/telephony/sip/webrtc`; ARI-Bridge-on-Answer (Operator-WebRTC-Kanal ↔ Trunk-Kanal); Frontend `jssip` + `getUserMedia` + Mikrofon-Status/Mute in der Comms-Sidebar.
+- **Nicht im Scope:** Konferenz > 2, Aufnahme, Codec-Auswahl-UI, Produktions-Zertifikatsverteilung (dokumentiert, nicht automatisiert).
+- **Abhängigkeiten:** E13-05, E13-07. · **Status:** Foundation (Model/Service/Config-Gen/Credentials-API) gelandet; ARI-Bridge + JsSIP-Client offen.
+- **Acceptance Criteria:** Operator meldet sich an → Browser registriert per WSS (`pjsip show contacts`); eingehender Anruf → „Annehmen" → hörbar verbunden (beide Richtungen); Mikrofon-Permission verweigert → klare Meldung, kein toter Zustand.
+- **Tests:** `test_sip_webrtc_config.py`, `test_sip_webrtc_admin_api.py`, Softphone-Client-Specs, E2E.
+- **Security-Auswirkung:** SIP-Passwörter Fernet at rest, Offenlegung nur über TLS an die eigene Session, nie geloggt/auditiert; Rotate/Disable-Kontrollen im Admin.
+- **Permissions:** `calls.answer` / `calls.dial` (Credentials), `integrations.configure` (Admin) · **Audit Events:** `SIP_WEBRTC_ENDPOINT_CONFIGURED`, `SIP_WEBRTC_ENDPOINT_REMOVED` (kritisch).
+
+### E13-12 · Warteschleifen-Musik pro SIP-Leitung (#817) — *Follow-up aus dem LEONET-Live-Test*
+**Epic:** 13 · **Phase:** 5 · **Area:** integration, frontend · **Branch:** feature/<nr>-sip-hold-music
+- **Ziel:** Pro SIP-Leitung eine hochladbare Warteschleifen-Musik (eigener Filespace), die beim Halten des Anrufs abgespielt wird; Auswahl per Dropdown nach dem Upload.
+- **Scope:** `sip_moh_files` (Metadaten; Bytes im `$BBZ_MOH_DIR`, nicht in der DB), `POST/GET/DELETE /api/v1/admin/telephony/moh` (multipart, WAV, ≤ 10 MB), `sip_lines.moh_file_id`, `musiconhold.conf`-Klassen-Generierung, Sync-Skript verteilt die WAVs, Dropdown je Leitung im UI.
+- **Abhängigkeiten:** E13-07. · **Status:** offen.
+- **Permissions:** `integrations.configure` · **Audit Events:** `SIP_MOH_FILE_ADDED`, `SIP_MOH_FILE_REMOVED` (kritisch).
+
+### E13-13 · Halten & Weiterleiten über den Trunk (#819) — *Follow-up aus dem LEONET-Live-Test*
+**Epic:** 13 · **Phase:** 5 · **Area:** integration · **Branch:** feature/<nr>-sip-hold-transfer
+- **Ziel:** `hold`/`resume` und `transfer` funktionieren für einen Anruf **über** den Trunk (bisher nur der direkte Leitungsfall).
+- **Scope:** `transfer()` nutzt `PJSIP/<dest>@<trunk>` (dieselbe `{dest}`-Logik wie `dial`); `hold` parkt den Operator-Leg aus der Bridge und spielt MoH (E13-12) zum Trunk-Leg; `resume` fügt ihn wieder ein.
+- **Abhängigkeiten:** E13-11 (Bridge), E13-12 (MoH-Klasse). · **Status:** offen.
+- **Permissions:** `calls.hold` / `calls.transfer` · **Audit Events:** unverändert.
+
 ---
 
 # EPIC 14 · Contacts / Call Priorities
@@ -4024,6 +4058,7 @@ Checkliste. Quellen: MASTER_PROMPT §19/§20/§21, ADR-0014, `docs/runbooks/*`.
 | ADR-0022 | Electron: Web-Build laden vs. bündeln | E08-07 |
 | ADR-0023 | SIP/CTI-Gateway (Asterisk vs. FreeSWITCH) | E13-02 |
 | ADR-0034 | SIP-Trunk-(ITSP-)Config: BBZ generiert die Asterisk-Config, Sync-Skript verteilt sie | E13-09 |
+| ADR-0035 | WebRTC-Operator-Softphone: Browser ist SIP-Endpoint, BBZ bridged über ARI | E13-11 |
 
 ## 6. Katalog-Ergänzung (Permissions)
 

@@ -1131,14 +1131,33 @@ All 20 issues are the separate Java `services/cucm-cti-gateway` and hinge on
 `jtapi.jar` + real CUCM §8.18 data — no Java toolchain here, no invented Cisco
 API. `integrations/telephony_cucm/` stays a placeholder README.
 
-### Epic 13 – SIP Telephony: **COMPLETE (8/8) + ADR-0023/0033 Accepted**
+### Epic 13 – SIP Telephony: **core COMPLETE (8/8); trunk/WebRTC follow-ups in flight — ADR-0023/0033/0034/0035**
 `telephony_sip` speaks Asterisk over ARI (ADR-0023). A BBZ site points BBZ at
 their PBX entirely from `/admin/telefonie` (ADR-0033) — host / TLS / ARI
 credentials / Stasis app / SIP lines, a "test connection" probe, the ARI
-password Fernet-encrypted at rest and never returned. All 8 issues are closed
-(#269/#271/#273/#275/#277/#279/#281/#283); the adapter is integration-tested
-against a real lab Asterisk (`sip-nightly.yml`, gated — not
+password Fernet-encrypted at rest and never returned. The original 8 issues are
+closed (#269/#271/#273/#275/#277/#279/#281/#283); the adapter is
+integration-tested against a real lab Asterisk (`sip-nightly.yml`, gated — not
 `continue-on-error`).
+
+**Follow-ups from the LEONET live test (#803 ff.):**
+- **E13-09 (#803) SIP trunk (ITSP) config — DONE (ADR-0034, migration 0057, PRs
+  #804/#811)** — `sip_trunks` + `sip_numbers`, a pure generator renders
+  `pjsip.conf` + a `from-<trunk>` dialplan (LEONET per-MSN + Telekom
+  trunk-level registration), `deploy/sip/sync-trunk-config.sh` delivers it,
+  `/admin/telefonie` UI with provider presets. Trunk passwords Fernet at rest.
+- **E13-10 (#812) outbound via trunk — DONE (PR #814)** — `dial` routes
+  `PJSIP/<dest>@<trunk>` with the number's caller-id; verified with a real
+  LEONET call (`INVITE → 407 → 100 → 183`).
+- **E13-11 (#816) WebRTC operator softphone — foundation landed (ADR-0035,
+  migration 0058)** — `sip_webrtc_endpoints` (one per operator, SIP password
+  Fernet at rest), `SipWebrtcConfigService` (CRUD + `[transport-wss]` + per-op
+  `type=endpoint`/`auth`/`aor` PJSIP, folded into `asterisk-config?part=pjsip`),
+  `GET /api/v1/telephony/webrtc-credentials` (session-gated, discloses the SIP
+  password to the operator's own session only), admin CRUD under
+  `/admin/telephony/sip/webrtc`, `SIP_WEBRTC_ENDPOINT_*` critical audit. Still
+  to come on #816: the ARI bridge-on-answer and the browser JsSIP client + mic
+  UI.
 - **#269 (E13-01) `telephony_sip` scaffold** — `integrations/telephony_sip/`:
   `manifest.json` (domain `telephony`, capabilities answer/dial/hangup/hold/
   resume/transfer/send_dtmf/monitoring, `mock:false`), `config_schema.json`,

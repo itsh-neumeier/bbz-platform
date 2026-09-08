@@ -113,6 +113,10 @@ class AuditAction(enum.StrEnum):
     SIP_TRUNK_REMOVED = "SIP_TRUNK_REMOVED"
     SIP_NUMBER_CONFIGURED = "SIP_NUMBER_CONFIGURED"
     SIP_NUMBER_REMOVED = "SIP_NUMBER_REMOVED"
+    #: a per-operator WebRTC SIP endpoint changed (E13-11 / ADR-0035) — a
+    #: redacted non-secret diff; the SIP password is NEVER in the payload.
+    SIP_WEBRTC_ENDPOINT_CONFIGURED = "SIP_WEBRTC_ENDPOINT_CONFIGURED"
+    SIP_WEBRTC_ENDPOINT_REMOVED = "SIP_WEBRTC_ENDPOINT_REMOVED"
 
 
 #: Actions that MUST be emitted from a write path (MASTER_PROMPT §17). A missing
@@ -195,5 +199,7 @@ CRITICAL_ACTIONS: frozenset[AuditAction] = frozenset(
         AuditAction.SIP_TRUNK_REMOVED,
         AuditAction.SIP_NUMBER_CONFIGURED,
         AuditAction.SIP_NUMBER_REMOVED,
+        AuditAction.SIP_WEBRTC_ENDPOINT_CONFIGURED,
+        AuditAction.SIP_WEBRTC_ENDPOINT_REMOVED,
     }
 )

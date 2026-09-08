@@ -27,10 +27,21 @@ from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from bbz_core.api.authz import require
-from bbz_core.api.deps import AuthContext, db_session
-from bbz_core.api.errors import NotFoundError, ValidationError
+from bbz_core.api.deps import AuthContext, current_auth, db_session
+from bbz_core.api.errors import (
+    ForbiddenError,
+    NotFoundError,
+    ServiceUnavailableError,
+    ValidationError,
+)
 from bbz_core.api.rate_limit import rate_limit_by_ip
+from bbz_core.authorization import PermissionService
 from bbz_core.infra.event_stream import notify_event_appended
+from bbz_core.infra.repositories.authorization import SqlAlchemyGrantStore
+from bbz_core.infra.repositories.sip_webrtc_config import (
+    SipWebrtcConfigService,
+    SipWebrtcNotConfigured,
+)
 from bbz_core.infra.telephony_ingest import (
     TelephonyEventRejected,
     ingest_telephony_event,
@@ -114,3 +125,47 @@ async def simulate_incoming_call(
             raise ValidationError(f"invalid simulated telephony event: {exc}") from exc
     await notify_event_appended()
     return SimulateIncomingOut(source_call_id=source_call_id)
+
+
+class WebrtcCredentialsOut(BaseModel):
+    #: the Asterisk `transport-wss` URL, e.g. `wss://sip.example:8089/ws`
+    ws_url: str
+    sip_uri: str
+    auth_user: str
+    #: cleartext SIP password — the operator's own credential, TLS only
+    auth_password: str
+    #: RTCIceServer-shaped entries for the browser (`[{"urls": "stun:…"}]`)
+    ice_servers: list[dict[str, str]]
+
+
+@router.get("/webrtc-credentials", response_model=WebrtcCredentialsOut)
+async def webrtc_credentials(
+    ctx: AuthContext = Depends(current_auth),
+    session: AsyncSession = Depends(db_session),
+) -> WebrtcCredentialsOut:
+    """The calling operator's WebRTC softphone credentials (E13-11 / ADR-0035).
+
+    Session-gated and disclosed **only to the operator's own session, only over
+    TLS**; the SIP password is never logged or audited. ``404`` if the operator
+    has no (enabled) softphone endpoint, ``503`` if one exists but no WSS URL is
+    deployed — the frontend shows "kein Softphone eingerichtet", not a hang.
+    """
+    svc = PermissionService(SqlAlchemyGrantStore(session))
+    if not (
+        await svc.authorize(ctx.user_id, "calls.answer")
+        or await svc.authorize(ctx.user_id, "calls.dial")
+    ):
+        raise ForbiddenError("missing permission: calls.answer or calls.dial")
+    try:
+        creds = await SipWebrtcConfigService(session).credentials_for(ctx.user_id)
+    except SipWebrtcNotConfigured as exc:
+        raise ServiceUnavailableError(str(exc)) from exc
+    if creds is None:
+        raise NotFoundError("no WebRTC softphone endpoint is configured for you")
+    return WebrtcCredentialsOut(
+        ws_url=creds.ws_url,
+        sip_uri=creds.sip_uri,
+        auth_user=creds.auth_user,
+        auth_password=creds.auth_password,
+        ice_servers=creds.ice_servers,
+    )
