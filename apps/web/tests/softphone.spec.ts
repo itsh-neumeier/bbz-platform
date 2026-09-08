@@ -77,6 +77,35 @@ describe('softphone store', () => {
     expect(store.state).toBe('registered');
   });
 
+  it('a drop while still connecting is a failure (we were never up)', async () => {
+    vi.spyOn(tel.telephonyApi, 'webrtcCredentials').mockResolvedValue(CREDS);
+    const { engine, fire } = fakeEngine();
+    const store = useSoftphoneStore();
+    await store.start(() => engine);
+    expect(store.state).toBe('connecting');
+
+    fire({ type: 'disconnected' });
+    expect(store.state).toBe('failed');
+    expect(store.error).toContain('Verbindung');
+  });
+
+  it('a connect that never registers or fails times out to failed', async () => {
+    vi.useFakeTimers();
+    try {
+      vi.spyOn(tel.telephonyApi, 'webrtcCredentials').mockResolvedValue(CREDS);
+      const { engine } = fakeEngine();
+      const store = useSoftphoneStore();
+      await store.start(() => engine);
+      expect(store.state).toBe('connecting');
+
+      vi.advanceTimersByTime(12_000);
+      expect(store.state).toBe('failed');
+      expect(store.error).toContain('TLS-Zertifikat');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('surfaces a registration failure with its cause', async () => {
     vi.spyOn(tel.telephonyApi, 'webrtcCredentials').mockResolvedValue(CREDS);
     const { engine, fire } = fakeEngine();
