@@ -2635,8 +2635,8 @@ Trunks, alternative PBX, Lab/Test, Migration/Fallback. Quellen: MASTER_PROMPT
 ### E13-13 · Halten & Weiterleiten über den Trunk (#819) — *Follow-up aus dem LEONET-Live-Test*
 **Epic:** 13 · **Phase:** 5 · **Area:** integration · **Branch:** feature/<nr>-sip-hold-transfer
 - **Ziel:** `hold`/`resume` und `transfer` funktionieren für einen Anruf **über** den Trunk (bisher nur der direkte Leitungsfall).
-- **Scope:** `transfer()` nutzt `PJSIP/<dest>@<trunk>` (dieselbe `{dest}`-Logik wie `dial`); `hold` parkt den Operator-Leg aus der Bridge und spielt MoH (E13-12) zum Trunk-Leg; `resume` fügt ihn wieder ein.
-- **Abhängigkeiten:** E13-11 (Bridge), E13-12 (MoH-Klasse). · **Status:** offen.
+- **Scope:** `transfer()` nutzt `PJSIP/<dest>@<trunk>` (dieselbe `{dest}`-Logik wie `dial`, via `_call_lines` call→line-Map aus dem Pump); `hold` auf einem gebridgten Anruf streamt die `hold`-MoH-Klasse der Leitung an den Trunk-Kanal (ARI `channels/{id}/moh?mohClass=`) statt eines nackten SIP-Hold; `resume` stoppt sie. Zusätzlich: `ring`-MoH — ein wartender Anrufer hört die `ring`-Klasse, BBZ nimmt den Kanal dafür an, der resultierende `CALL_ANSWERED` wird bis zur echten Annahme geschluckt.
+- **Abhängigkeiten:** E13-11 (Bridge), E13-12 (`line_moh`-Config). · **Status:** DONE (`ari.start_moh`/`stop_moh`, `line_moh` im config_schema + `build()`, `test_sip_hold_transfer.py`).
 - **Permissions:** `calls.hold` / `calls.transfer` · **Audit Events:** unverändert.
 
 ---

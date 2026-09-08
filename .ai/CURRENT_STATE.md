@@ -1178,8 +1178,18 @@ integration-tested against a real lab Asterisk (`sip-nightly.yml`, gated — not
   `?part=musiconhold` on the config export. `SIP_MOH_UPLOADED`/`_REMOVED`
   critical audit; delete blocked (409) while a line references it. Sync script
   distributes the classes + WAVs; lab `musiconhold.conf` `#tryinclude`s them.
-  The `/admin/telefonie` upload + per-line dropdown UI is #825; the adapter
-  actually *playing* the class is E13-13 (#819).
+  The `/admin/telefonie` upload + per-line dropdown UI is #825.
+- **E13-13 (#819) hold / transfer over the trunk — DONE** — `transfer()` routes
+  `PJSIP/<dest>@<trunk>` for a trunk-backed line (the pump tracks call→line in
+  `_call_lines`), plain `PJSIP/<dest>` otherwise. `hold` on a bridged call
+  (an operator answered, E13-11) with a `hold` MoH class streams it to the
+  caller's trunk leg via ARI `channels/{id}/moh?mohClass=`; `resume` stops it;
+  a non-bridged / no-class call keeps the plain SIP hold. `ring` MoH: an inbound
+  caller waiting for an operator hears the line's `ring` class — BBZ answers the
+  channel to stream it, so that `CALL_ANSWERED` is swallowed until a real
+  pickup (`answer()` stops the MoH + synthesizes the real `CALL_ANSWERED`).
+  `ari.start_moh`/`stop_moh`; `line_moh` in `config_schema.json` + `build()`
+  (fed from `runtime_config()`'s `line_moh`, E13-12).
 - **#269 (E13-01) `telephony_sip` scaffold** — `integrations/telephony_sip/`:
   `manifest.json` (domain `telephony`, capabilities answer/dial/hangup/hold/
   resume/transfer/send_dtmf/monitoring, `mock:false`), `config_schema.json`,

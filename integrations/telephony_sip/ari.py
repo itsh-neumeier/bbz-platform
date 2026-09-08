@@ -133,6 +133,17 @@ class AriClient:
         # remove-hold is DELETE /channels/{id}/hold, not POST .../unhold.
         await self._delete(f"/channels/{channel_id}/hold")
 
+    async def start_moh(self, channel_id: str, moh_class: str = "") -> None:
+        """Play music-on-hold to a channel (E13-12 / #817). Distinct from
+        :meth:`hold` — that flags the SIP dialog on-hold; this streams a
+        ``musiconhold.conf`` class as media (the waiting caller actually hears
+        it). ``mohClass`` empty → Asterisk's ``default`` class."""
+        params = {"mohClass": moh_class} if moh_class else None
+        await self._post(f"/channels/{channel_id}/moh", params=params)
+
+    async def stop_moh(self, channel_id: str) -> None:
+        await self._delete(f"/channels/{channel_id}/moh")
+
     async def send_dtmf(self, channel_id: str, digits: str) -> None:
         await self._post(f"/channels/{channel_id}/dtmf", params={"dtmf": digits})
 

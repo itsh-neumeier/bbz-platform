@@ -70,6 +70,7 @@ class SipTelephonyProvider:
         lines: list[str] | None = None,
         line_endpoints: dict[str, str] | None = None,
         line_caller_ids: dict[str, str] | None = None,
+        line_moh: dict[str, dict[str, str]] | None = None,
         ari: AriClient | None = None,
     ) -> None:
         self._instance_id = instance_id
@@ -77,6 +78,10 @@ class SipTelephonyProvider:
         #: bbz line id -> outbound caller-id (E.164) for a trunk-backed line; a
         #: trunk / ITSP rejects an INVITE whose From is not a number it owns
         self._line_caller_ids = dict(line_caller_ids or {})
+        #: bbz line id -> {"ring": <moh class>, "hold": <moh class>} (E13-12) —
+        #: ``ring`` plays while a caller waits for an operator, ``hold`` while an
+        #: established call is on hold
+        self._line_moh = {k: dict(v) for k, v in (line_moh or {}).items()}
         lids = list(lines or self._line_endpoints)
         self._lines = {lid: LineInfo(line_id=lid, state=LineState.UNKNOWN) for lid in lids}
         self._initialized = False
@@ -103,6 +108,14 @@ class SipTelephonyProvider:
         #: source_call_id -> operator_key, for an outbound call that should bridge
         #: its operator once the far end answers
         self._dial_operator: dict[str, str] = {}
+        # --- hold / transfer over the trunk + queue music (E13-13 / #819) ---
+        #: source_call_id -> bbz line id (from the Stasis arg / channel name)
+        self._call_lines: dict[str, str] = {}
+        #: source_call_ids currently held by playing MoH (vs a plain SIP hold)
+        self._held_via_moh: set[str] = set()
+        #: inbound source_call_ids where BBZ started ring MoH before an operator
+        #: answered — the resulting auto-answer must NOT surface as CALL_ANSWERED
+        self._ring_moh: set[str] = set()
 
     # --- lifecycle ------------------------------------------------------
 
@@ -135,24 +148,47 @@ class SipTelephonyProvider:
             mapped = map_ari_event(raw, provider="telephony_sip", gateway_node=self._instance_id)
             if mapped is None:
                 continue
+            scid = mapped.source_call_id
             channel_id = mapped.metadata.get("channel_id")
-            if mapped.source_call_id and isinstance(channel_id, str):
+            if scid and isinstance(channel_id, str):
                 if mapped.event_type is _E.CALL_DISCONNECTED:
-                    self._channels.pop(mapped.source_call_id, None)
-                    self._call_dir.pop(mapped.source_call_id, None)
-                    await self._teardown_bridge(mapped.source_call_id)
+                    self._channels.pop(scid, None)
+                    self._call_dir.pop(scid, None)
+                    self._call_lines.pop(scid, None)
+                    self._held_via_moh.discard(scid)
+                    self._ring_moh.discard(scid)
+                    await self._teardown_bridge(scid)
                 else:
-                    self._channels[mapped.source_call_id] = channel_id
+                    self._channels[scid] = channel_id
+                    if mapped.line_id:
+                        self._call_lines.setdefault(scid, mapped.line_id)
                     if mapped.metadata.get("direction") == "inbound":
-                        self._call_dir.setdefault(mapped.source_call_id, CallDirection.INBOUND)
+                        self._call_dir.setdefault(scid, CallDirection.INBOUND)
+
+            # queue music: a caller waiting for an operator hears the line's
+            # `ring` MoH class. BBZ answers the channel to stream it, so the
+            # resulting CALL_ANSWERED is swallowed until an operator really
+            # answers (E13-13 / #819).
+            if (
+                mapped.event_type is _E.CALL_RINGING
+                and mapped.metadata.get("direction") == "inbound"
+                and scid
+                and isinstance(channel_id, str)
+                and scid not in self._ring_moh
+            ):
+                ring_class = self._line_moh.get(mapped.line_id or "", {}).get("ring")
+                if ring_class:
+                    self._ring_moh.add(scid)
+                    with contextlib.suppress(AriError):
+                        await self._ari.start_moh(channel_id, ring_class)
+            if mapped.event_type is _E.CALL_ANSWERED and scid in self._ring_moh:
+                continue  # the ring-MoH auto-answer, not a real pickup
+
             # an outbound call we placed for an operator: bridge their WebRTC leg
             # once the far end picks up (E13-11 / #816)
-            if (
-                mapped.event_type is _E.CALL_ANSWERED
-                and mapped.source_call_id in self._dial_operator
-            ):
-                op_key = self._dial_operator.pop(mapped.source_call_id)
-                await self._bridge_operator(mapped.source_call_id, op_key)
+            if mapped.event_type is _E.CALL_ANSWERED and scid in self._dial_operator:
+                op_key = self._dial_operator.pop(scid)
+                await self._bridge_operator(scid, op_key)
             self._buffer.put_nowait(mapped)
 
     async def _handle_operator_leg(self, kind: str, channel_id: str) -> None:
@@ -461,7 +497,18 @@ class SipTelephonyProvider:
     ) -> CommandAccepted:
         if command_id in self._seen:
             return self._seen[command_id]
+        # an operator picked up a call that was hearing queue music — stop it and
+        # synthesize the CALL_ANSWERED the pump swallowed (E13-13 / #819)
+        was_ringing_moh = call_id in self._ring_moh
+        if was_ringing_moh and self._ari is not None:
+            self._ring_moh.discard(call_id)
+            ch = self._channels.get(call_id)
+            if ch is not None:
+                with contextlib.suppress(AriError):
+                    await self._ari.stop_moh(ch)
         ack = await self._on_channel(command_id, call_id, "answer", "answer")
+        if ack.accepted and was_ringing_moh:
+            self._buffer.put_nowait(self._synthetic(call_id, _E.CALL_ANSWERED))
         if ack.accepted and operator_key and self._ari is not None:
             err = await self._bridge_operator(call_id, operator_key)
             if err is not None:
@@ -475,21 +522,60 @@ class SipTelephonyProvider:
     async def hangup(self, *, call_id: str, command_id: str) -> CommandAccepted:
         return await self._on_channel(command_id, call_id, "hangup", "hangup")
 
+    def _hold_moh_class(self, call_id: str) -> str | None:
+        return self._line_moh.get(self._call_lines.get(call_id, ""), {}).get("hold")
+
     async def hold(self, *, call_id: str, command_id: str) -> CommandAccepted:
         if command_id in self._seen:
             return self._seen[command_id]
-        ack = await self._on_channel(command_id, call_id, "hold", "hold")
-        if ack.accepted:
-            self._buffer.put_nowait(self._synthetic(call_id, _E.CALL_HELD))
-        return ack
+        if self._ari is None:
+            raise SipNotConfiguredError("hold")
+        channel_id = self._channels.get(call_id)
+        if channel_id is None:
+            return self._ack(command_id, call_id, accepted=False, detail="call not tracked")
+        # a bridged call (an operator is on it, E13-11) with a hold-MoH class:
+        # stream the music to the caller's trunk leg rather than a bare SIP hold
+        # that the other party may not render (E13-13 / #819)
+        moh_class = self._hold_moh_class(call_id)
+        try:
+            if moh_class and call_id in self._call_bridges:
+                await self._ari.start_moh(channel_id, moh_class)
+                self._held_via_moh.add(call_id)
+            else:
+                await self._ari.hold(channel_id)
+        except AriError as exc:
+            return self._ack(command_id, call_id, accepted=False, detail=str(exc))
+        self._buffer.put_nowait(self._synthetic(call_id, _E.CALL_HELD))
+        return self._ack(command_id, call_id, detail="hold")
 
     async def resume(self, *, call_id: str, command_id: str) -> CommandAccepted:
         if command_id in self._seen:
             return self._seen[command_id]
-        ack = await self._on_channel(command_id, call_id, "resume", "unhold")
-        if ack.accepted:
-            self._buffer.put_nowait(self._synthetic(call_id, _E.CALL_RESUMED))
-        return ack
+        if self._ari is None:
+            raise SipNotConfiguredError("resume")
+        channel_id = self._channels.get(call_id)
+        if channel_id is None:
+            return self._ack(command_id, call_id, accepted=False, detail="call not tracked")
+        try:
+            if call_id in self._held_via_moh:
+                await self._ari.stop_moh(channel_id)
+                self._held_via_moh.discard(call_id)
+            else:
+                await self._ari.unhold(channel_id)
+        except AriError as exc:
+            return self._ack(command_id, call_id, accepted=False, detail=str(exc))
+        self._buffer.put_nowait(self._synthetic(call_id, _E.CALL_RESUMED))
+        return self._ack(command_id, call_id, detail="resume")
+
+    def _transfer_target(self, call_id: str, destination: str) -> str:
+        """Where a blind transfer sends the call. If it came in on a trunk-backed
+        line (``{dest}`` template), dial the target THROUGH that trunk
+        (``PJSIP/<dest>@<trunk>``) — ``PJSIP/<number>`` is not an endpoint that
+        exists (E13-13 / #819, same fix `dial` needed in E13-10)."""
+        endpoint = self._line_endpoints.get(self._call_lines.get(call_id, ""), "")
+        if "{dest}" in endpoint:
+            return endpoint.replace("{dest}", destination)
+        return self._endpoint(destination)
 
     async def transfer(self, *, call_id: str, destination: str, command_id: str) -> CommandAccepted:
         if command_id in self._seen:
@@ -500,7 +586,7 @@ class SipTelephonyProvider:
         if channel_id is None:
             return self._ack(command_id, call_id, accepted=False, detail="call not tracked")
         try:
-            await self._ari.redirect(channel_id, self._endpoint(destination))
+            await self._ari.redirect(channel_id, self._transfer_target(call_id, destination))
         except AriError as exc:
             return self._ack(command_id, call_id, accepted=False, detail=str(exc))
         return self._ack(command_id, call_id, detail="blind transfer")
@@ -571,6 +657,7 @@ def build(config: dict[str, Any] | None = None) -> SipTelephonyProvider:
         )
     endpoints = cfg.get("line_endpoints")
     caller_ids = cfg.get("line_caller_ids")
+    moh = cfg.get("line_moh")
     return SipTelephonyProvider(
         lines=list(cfg.get("lines", [])),
         line_endpoints={str(k): str(v) for k, v in endpoints.items()}
@@ -578,6 +665,13 @@ def build(config: dict[str, Any] | None = None) -> SipTelephonyProvider:
         else None,
         line_caller_ids={str(k): str(v) for k, v in caller_ids.items()}
         if isinstance(caller_ids, dict)
+        else None,
+        line_moh={
+            str(k): {str(kk): str(vv) for kk, vv in v.items()}
+            for k, v in moh.items()
+            if isinstance(v, dict)
+        }
+        if isinstance(moh, dict)
         else None,
         ari=ari,
     )

@@ -56,6 +56,19 @@
       "default": {},
       "description": "BBZ line id -> outbound caller-id (E.164) for a trunk-backed line (E13-10). The ITSP rejects an INVITE whose From is not one of its numbers."
     },
+    "line_moh": {
+      "type": "object",
+      "default": {},
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": { "type": "string" },
+        "properties": {
+          "ring": { "type": "string" },
+          "hold": { "type": "string" }
+        }
+      },
+      "description": "BBZ line id -> music-on-hold classes (E13-12 / #817). 'ring' plays to a caller waiting for an operator; 'hold' plays while an established, bridged call is on hold. Production fills this from the DB (sip_lines.ring/hold_moh_file_id)."
+    },
     "dtmf_transport": {
       "enum": ["rfc2833", "sip_info"],
       "default": "rfc2833",
