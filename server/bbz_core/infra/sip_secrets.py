@@ -11,6 +11,11 @@ ADR-0034 reuses the **same key** for the SIP trunk (ITSP) auth passwords —
 decrypted in-process only, at Asterisk-config render time, and the rendered
 config is never written to BBZ's disk, logged, or audited.
 
+ADR-0035 reuses it once more for the per-operator WebRTC SIP endpoint passwords
+— :func:`encrypt_webrtc_password` / :func:`decrypt_webrtc_password`. Disclosed
+once, over TLS, to the operator's own session by
+``GET /api/v1/telephony/webrtc-credentials``; never logged or audited.
+
 Mirrors :mod:`bbz_core.infra.door_secrets` exactly — the concrete runtime
 secret store is ADR-0019 / Epic 23; until then the key comes from
 ``BBZ_SIP_ENCRYPTION_KEY``.
@@ -61,3 +66,16 @@ def decrypt_trunk_password(ciphertext: str) -> str:
         return _fernet().decrypt(ciphertext.encode()).decode()
     except InvalidToken as exc:  # pragma: no cover - key rotation / corruption
         raise SipSecretsNotConfigured("cannot decrypt a SIP trunk password") from exc
+
+
+def encrypt_webrtc_password(password: str) -> str:
+    """A per-operator WebRTC SIP endpoint password, at rest (ADR-0035). Same key
+    as the ARI / trunk passwords — one key for every SIP telephony secret."""
+    return _fernet().encrypt(password.encode()).decode()
+
+
+def decrypt_webrtc_password(ciphertext: str) -> str:
+    try:
+        return _fernet().decrypt(ciphertext.encode()).decode()
+    except InvalidToken as exc:  # pragma: no cover - key rotation / corruption
+        raise SipSecretsNotConfigured("cannot decrypt a SIP WebRTC password") from exc

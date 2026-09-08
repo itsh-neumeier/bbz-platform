@@ -164,6 +164,21 @@ class Settings(BaseSettings):
     # door_dtmf_encryption_key). Real secret store: ADR-0019.
     sip_encryption_key: str = ""
 
+    # --- WebRTC operator softphone (E13-11, ADR-0035). The public WSS URL the
+    # browser's JsSIP client connects to (Asterisk `transport-wss`, typically
+    # `wss://<sip-host>:8089/ws`) and an optional comma list of ICE server URLs
+    # (`stun:host:port` / `turn:host:port`). Handed to the operator's browser by
+    # `GET /api/v1/telephony/webrtc-credentials`. Empty `ws_url` → the softphone
+    # is not offered. An admin-editable runtime setting (ADR-0031) is a follow-up.
+    sip_webrtc_ws_url: str = ""
+    sip_webrtc_ice_servers: str = ""
+    #: the generated `[transport-wss]` bind + cert paths on the Asterisk box
+    #: (`GET .../asterisk-config?part=pjsip`). Lab defaults; prod overrides with
+    #: the real cert path.
+    sip_webrtc_wss_bind: str = "0.0.0.0:8089"
+    sip_webrtc_cert_file: str = "/etc/asterisk/keys/asterisk.crt"
+    sip_webrtc_priv_key_file: str = "/etc/asterisk/keys/asterisk.key"
+
     # --- MFA policy engine + step-up (E21-05). Whether a login needs MFA is
     # role-based (`mfa_policies`); scope-based grants are a possible future
     # extension. Step-up re-checks freshness for a small, explicit set of

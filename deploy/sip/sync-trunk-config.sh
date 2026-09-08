@@ -1,14 +1,17 @@
 #!/bin/sh
 # ============================================================================
-# BBZ — SIP trunk config sync (roadmap E13-09, ADR-0034).
+# BBZ — SIP trunk + WebRTC config sync (roadmap E13-09 / E13-11, ADR-0034 / 0035).
 #
 # Fetches the BBZ-rendered PJSIP + dialplan fragments and drops them into the
 # Asterisk config dir, then reloads. Run it from cron / a systemd timer on the
 # Asterisk box, or once by hand. An operator who prefers not to give the box
 # API access can instead copy the same text out of /admin/telefonie.
 #
-# The fetched config CONTAINS the trunk auth passwords in cleartext (PJSIP
-# type=auth needs them) — it is written 0600 and never printed here.
+# The PJSIP fragment carries the trunk AND the per-operator WebRTC endpoint
+# passwords in cleartext (PJSIP type=auth needs them) — it is written 0600 and
+# never printed here. If any WebRTC operator endpoint is configured the fragment
+# also emits `[transport-wss]`; that needs a TLS cert on the box at the paths in
+# BBZ_SIP_WEBRTC_CERT_FILE / _PRIV_KEY_FILE (lab: self-signed in the image).
 #
 # Required env:
 #   BBZ_API    base URL, e.g. https://bbz.example:8443   (no trailing slash)

@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import contextlib
 import datetime as _dt
+import uuid
 from collections.abc import Iterator
 from typing import Any
 
@@ -41,6 +42,12 @@ from bbz_core.infra.repositories.sip_trunk_config import (
     SipTrunkNotFoundError,
     SipTrunkView,
 )
+from bbz_core.infra.repositories.sip_webrtc_config import (
+    SipWebrtcConfigService,
+    SipWebrtcEndpointView,
+    SipWebrtcError,
+    SipWebrtcNotFoundError,
+)
 from bbz_core.infra.sip_secrets import SipSecretsNotConfigured
 from bbz_core.integrations_host.providers import (
     NoActiveProvider,
@@ -58,9 +65,14 @@ _DTMF_TRANSPORTS = ("rfc2833", "sip_info")
 def _translate() -> Iterator[None]:
     try:
         yield
-    except (SipLineNotFoundError, SipTrunkNotFoundError, SipNumberNotFoundError) as exc:
+    except (
+        SipLineNotFoundError,
+        SipTrunkNotFoundError,
+        SipNumberNotFoundError,
+        SipWebrtcNotFoundError,
+    ) as exc:
         raise NotFoundError(str(exc) or "not found") from exc
-    except (SipConfigError, SipTrunkError) as exc:
+    except (SipConfigError, SipTrunkError, SipWebrtcError) as exc:
         raise ValidationError(str(exc)) from exc
     except SipSecretsNotConfigured as exc:
         raise ServiceUnavailableError(
@@ -449,29 +461,104 @@ async def get_asterisk_config(
     part: str = Query(default="all", pattern="^(all|pjsip|extensions)$"),
     _: AuthContext = Depends(require("integrations.configure")),
     svc: SipTrunkConfigService = Depends(_trunk_svc),
+    session: AsyncSession = Depends(db_session),
 ) -> Response:
     """The generated PJSIP + dialplan text for the sync script / a copy-paste
-    (ADR-0034). **Contains the trunk auth passwords in cleartext** — the
-    response is ``no-store`` and BBZ never writes this to disk, logs it, or
-    audits it."""
+    (ADR-0034 trunks + ADR-0035 WebRTC operator endpoints). **Contains the
+    trunk + WebRTC auth passwords in cleartext** — the response is ``no-store``
+    and BBZ never writes this to disk, logs it, or audits it."""
     with _translate():
         rendered = await svc.render_asterisk_config()
+        webrtc_pjsip = await SipWebrtcConfigService(session).render_pjsip()
+    pjsip = rendered.pjsip
+    if webrtc_pjsip:
+        pjsip = pjsip.rstrip() + "\n\n" + webrtc_pjsip
     if part == "pjsip":
-        body = rendered.pjsip
+        body = pjsip
     elif part == "extensions":
         body = rendered.extensions
     else:
-        body = (
-            "; == pjsip.conf ==\n"
-            + rendered.pjsip
-            + "\n; == extensions.conf ==\n"
-            + rendered.extensions
-        )
+        body = "; == pjsip.conf ==\n" + pjsip + "\n; == extensions.conf ==\n" + rendered.extensions
     return Response(
         content=body,
         media_type="text/plain; charset=utf-8",
         headers={"Cache-Control": "no-store"},
     )
+
+
+# ======================================================================
+# WebRTC operator softphone endpoints — ADR-0035 (E13-11)
+# ======================================================================
+
+
+class WebrtcEndpointIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    enabled: bool = True
+    #: rotate (regenerate) the SIP password on this write — always true on create
+    rotate_password: bool = False
+
+
+class WebrtcEndpointOut(BaseModel):
+    user_id: uuid.UUID
+    auth_username: str
+    auth_password_configured: bool
+    enabled: bool
+
+
+class WebrtcEndpointsOut(BaseModel):
+    endpoints: list[WebrtcEndpointOut]
+
+
+def _webrtc_out(v: SipWebrtcEndpointView) -> WebrtcEndpointOut:
+    return WebrtcEndpointOut(
+        user_id=v.user_id,
+        auth_username=v.auth_username,
+        auth_password_configured=v.auth_password_configured,
+        enabled=v.enabled,
+    )
+
+
+def _webrtc_svc(session: AsyncSession = Depends(db_session)) -> SipWebrtcConfigService:
+    return SipWebrtcConfigService(session)
+
+
+@router.get("/webrtc", response_model=WebrtcEndpointsOut)
+async def list_webrtc_endpoints(
+    _: AuthContext = Depends(require("integrations.configure")),
+    svc: SipWebrtcConfigService = Depends(_webrtc_svc),
+) -> WebrtcEndpointsOut:
+    return WebrtcEndpointsOut(endpoints=[_webrtc_out(v) for v in await svc.list_endpoints()])
+
+
+@router.put("/webrtc/{user_id}", response_model=WebrtcEndpointOut)
+async def put_webrtc_endpoint(
+    user_id: uuid.UUID,
+    body: WebrtcEndpointIn,
+    ctx: AuthContext = Depends(require("integrations.configure")),
+    svc: SipWebrtcConfigService = Depends(_webrtc_svc),
+) -> WebrtcEndpointOut:
+    """Create the operator's softphone endpoint (minting a SIP user + password),
+    or toggle ``enabled`` / rotate the password on an existing one. The password
+    is never returned here — the operator fetches it from
+    ``GET /api/v1/telephony/webrtc-credentials``."""
+    with _translate():
+        ep = await svc.set_endpoint(
+            user_id,
+            enabled=body.enabled,
+            rotate_password=body.rotate_password,
+            actor_id=ctx.user_id,
+        )
+    return _webrtc_out(ep)
+
+
+@router.delete("/webrtc/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_webrtc_endpoint(
+    user_id: uuid.UUID,
+    ctx: AuthContext = Depends(require("integrations.configure")),
+    svc: SipWebrtcConfigService = Depends(_webrtc_svc),
+) -> None:
+    with _translate():
+        await svc.delete_endpoint(user_id, actor_id=ctx.user_id)
 
 
 @router.post("/trunks/{trunk_id}/test", response_model=TrunkProbeOut)

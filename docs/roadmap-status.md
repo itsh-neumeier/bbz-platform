@@ -35,7 +35,7 @@ _Last swept: 2026-09-03 (4th pass — the operator-UI build-out: PRs #702/#704/#
 | 20 Archive / Postprocessing | **backend-done** |
 | 21 Enterprise Authentication | **backend-done** (E21-01..08) — OIDC/LDAP/MFA/WebAuthn/RBAC/linking; real IdP/dir params are an open dependency |
 | 22 Monitoring / Observability | **done** (7/7) — tracing, metrics, log pipeline, health, integration-health, alerts, collector+dashboards |
-| 13 SIP Telephony | **done** (8/8) — `telephony_sip` over Asterisk ARI (ADR-0023); DB-backed, UI-managed gateway config at `/admin/telefonie` (ADR-0033, ARI password encrypted at rest); lab Asterisk + integration suite (`sip-nightly.yml`, gated). PRs #777–#786 |
+| 13 SIP Telephony | **core done** (8/8) — `telephony_sip` over Asterisk ARI (ADR-0023); DB-backed gateway config at `/admin/telefonie` (ADR-0033). PRs #777–#786. **+ live-test follow-ups**: E13-09 ITSP trunk config (ADR-0034, #804/#811), E13-10 outbound-via-trunk (#814); E13-11 WebRTC softphone in flight (ADR-0035) |
 
 ---
 
@@ -51,7 +51,8 @@ the operator UI is the only missing piece and every UI issue is an Epic-07 row.
 | 15 Technical Trigger Engine | E15-14 (client-popup UI) open |
 | 16 Coda Video | E16-12 (camera view) open; alarm/camera transport is `mock: true` pending Coda docs (blocked/vendor) |
 
-(Epic 13 SIP is **done (8/8)** — see the Complete table above.)
+(Epic 13 SIP core is **done (8/8)**; the LEONET live-test follow-ups
+E13-09/10 shipped and E13-11 (WebRTC) is in flight — see the Complete table above.)
 
 ---
 
@@ -137,7 +138,7 @@ All 20 issues are the separate Java `services/cucm-cti-gateway`. Needs
 (§8.18). `E12-01` (the gateway image) is the dependency for **E24-01** (complete
 `release.yml`) and transitively **E23-12**, **E24-02**, **E24-04**.
 
-## Epic 13 · SIP Provider — **done (8/8) + ADR-0023/0033 (`Accepted`)**
+## Epic 13 · SIP Provider — **core done (8/8); trunk/WebRTC follow-ups in flight — ADR-0023/0033/0034/0035**
 
 - **E13-01 done**: `integrations/telephony_sip/` scaffold — manifest,
   `config_schema.json`, and a `SipTelephonyProvider` that satisfies the whole
@@ -171,7 +172,28 @@ All 20 issues are the separate Java `services/cucm-cti-gateway`. Needs
   `/admin/telefonie` (write-only password field, line table, "Verbindung
   testen"). E13-06 (the real `send_dtmf` transport) also unblocks Epic 17's real
   door opening.
-- **All 8 E13 issues closed** (#269/#271/#273/#275/#277/#279/#281/#283).
+- **All 8 original E13 issues closed** (#269/#271/#273/#275/#277/#279/#281/#283).
+
+### Follow-ups from the LEONET live test (#803 ff.)
+
+- **E13-09 (#803) — done, ADR-0034, migration 0057** (PRs #804 backend / #811
+  UI): `sip_trunks` + `sip_numbers`; a pure generator renders `pjsip.conf` +
+  the `from-<trunk>` dialplan (LEONET per-MSN *and* Telekom trunk-level
+  registration); `deploy/sip/sync-trunk-config.sh` delivers it; `/admin/telefonie`
+  UI with LEONET/Telekom presets. Trunk auth passwords Fernet at rest, never
+  returned/logged/audited.
+- **E13-10 (#812) — done** (PR #814): the `dial` verb routes
+  `PJSIP/<dest>@<trunk>` with the number's caller-id instead of ringing the
+  trunk endpoint. Verified with a real LEONET call.
+- **E13-11 (#816) — foundation landed, ADR-0035, migration 0058**:
+  `sip_webrtc_endpoints` (one WebRTC SIP endpoint per operator, password Fernet
+  at rest), `SipWebrtcConfigService` (CRUD + `[transport-wss]` + per-operator
+  `type=endpoint`/`auth`/`aor`, folded into `asterisk-config?part=pjsip`),
+  `GET /api/v1/telephony/webrtc-credentials` (session-gated, discloses the SIP
+  password only to the operator's own session), admin CRUD under
+  `/admin/telephony/sip/webrtc`, `SIP_WEBRTC_ENDPOINT_*` critical audit. Open on
+  #816: ARI bridge-on-answer + the browser JsSIP client (mic/speaker) + sidebar
+  mic UI.
 
 ---
 
