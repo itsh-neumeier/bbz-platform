@@ -67,6 +67,11 @@ def map_ari_event(raw: dict[str, object], *, provider: str, gateway_node: str) -
     kind = str(raw.get("type") or "")
     channel = raw.get("channel")
     channel = channel if isinstance(channel, dict) else {}
+    # the Stasis app args — our trunk dialplan passes the BBZ line id here
+    # (ADR-0034: `Stasis(bbz-sip, <bbz_line_id>)`); the base lab context passes
+    # the dialled extension. Prefer it over the raw ARI channel name.
+    args = raw.get("args")
+    stasis_line = str(args[0]) if isinstance(args, list) and args and str(args[0]) else None
 
     def _ev(
         event_type: _E, *, device_id: str | None = None, meta_extra: dict[str, object] | None = None
@@ -82,7 +87,7 @@ def map_ari_event(raw: dict[str, object], *, provider: str, gateway_node: str) -
             event_type=event_type,
             raw_event_type=kind or "unknown",
             source_call_id=_call_id(channel),
-            line_id=str(channel.get("name")) if channel.get("name") else None,
+            line_id=stasis_line or (str(channel.get("name")) if channel.get("name") else None),
             device_id=device_id,
             calling_number=_party(channel, "caller"),
             called_number=_dialplan_exten(channel) or _party(channel, "connected"),

@@ -106,6 +106,13 @@ class AuditAction(enum.StrEnum):
     SIP_GATEWAY_CONFIGURED = "SIP_GATEWAY_CONFIGURED"
     SIP_LINE_CONFIGURED = "SIP_LINE_CONFIGURED"
     SIP_LINE_REMOVED = "SIP_LINE_REMOVED"
+    #: a SIP trunk (ITSP) or one of its public numbers changed (E13-09 / ADR-0034)
+    #: — a redacted non-secret before/after diff; the trunk auth password is
+    #: NEVER in the payload.
+    SIP_TRUNK_CONFIGURED = "SIP_TRUNK_CONFIGURED"
+    SIP_TRUNK_REMOVED = "SIP_TRUNK_REMOVED"
+    SIP_NUMBER_CONFIGURED = "SIP_NUMBER_CONFIGURED"
+    SIP_NUMBER_REMOVED = "SIP_NUMBER_REMOVED"
 
 
 #: Actions that MUST be emitted from a write path (MASTER_PROMPT §17). A missing
@@ -184,5 +191,9 @@ CRITICAL_ACTIONS: frozenset[AuditAction] = frozenset(
         AuditAction.SIP_GATEWAY_CONFIGURED,
         AuditAction.SIP_LINE_CONFIGURED,
         AuditAction.SIP_LINE_REMOVED,
+        AuditAction.SIP_TRUNK_CONFIGURED,
+        AuditAction.SIP_TRUNK_REMOVED,
+        AuditAction.SIP_NUMBER_CONFIGURED,
+        AuditAction.SIP_NUMBER_REMOVED,
     }
 )
