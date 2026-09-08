@@ -90,6 +90,19 @@ class SipTelephonyProvider:
         self._call_dir: dict[str, CallDirection] = {}
         #: command_id -> the ack it produced (idempotency, mirrors the mock)
         self._seen: dict[str, CommandAccepted] = {}
+        # --- operator media bridge (WebRTC softphone, ADR-0035) ---
+        #: source_call_id -> the mixing bridge holding the trunk + operator legs
+        self._call_bridges: dict[str, str] = {}
+        #: source_call_id -> the operator's WebRTC ARI channel id for this call
+        self._call_operator_ch: dict[str, str] = {}
+        #: ARI channel ids of operator WebRTC legs — the pump must NOT surface
+        #: these as inbound calls
+        self._operator_channels: set[str] = set()
+        #: operator channel id -> bridge to drop it into on its StasisStart
+        self._pending_operator_bridge: dict[str, str] = {}
+        #: source_call_id -> operator_key, for an outbound call that should bridge
+        #: its operator once the far end answers
+        self._dial_operator: dict[str, str] = {}
 
     # --- lifecycle ------------------------------------------------------
 
@@ -111,6 +124,14 @@ class SipTelephonyProvider:
         surface. Reconnects are handled inside ``AriClient.events``."""
         assert self._ari is not None
         async for raw in self._ari.events():
+            # an operator's WebRTC leg (ADR-0035) is BBZ's own channel, not a
+            # call — bridge it on StasisStart, drop it on end, never surface it
+            raw_ch = raw.get("channel") if isinstance(raw.get("channel"), dict) else {}
+            ch_id = raw_ch.get("id") if isinstance(raw_ch, dict) else None
+            if isinstance(ch_id, str) and ch_id in self._operator_channels:
+                await self._handle_operator_leg(str(raw.get("type") or ""), ch_id)
+                continue
+
             mapped = map_ari_event(raw, provider="telephony_sip", gateway_node=self._instance_id)
             if mapped is None:
                 continue
@@ -119,11 +140,73 @@ class SipTelephonyProvider:
                 if mapped.event_type is _E.CALL_DISCONNECTED:
                     self._channels.pop(mapped.source_call_id, None)
                     self._call_dir.pop(mapped.source_call_id, None)
+                    await self._teardown_bridge(mapped.source_call_id)
                 else:
                     self._channels[mapped.source_call_id] = channel_id
                     if mapped.metadata.get("direction") == "inbound":
                         self._call_dir.setdefault(mapped.source_call_id, CallDirection.INBOUND)
+            # an outbound call we placed for an operator: bridge their WebRTC leg
+            # once the far end picks up (E13-11 / #816)
+            if (
+                mapped.event_type is _E.CALL_ANSWERED
+                and mapped.source_call_id in self._dial_operator
+            ):
+                op_key = self._dial_operator.pop(mapped.source_call_id)
+                await self._bridge_operator(mapped.source_call_id, op_key)
             self._buffer.put_nowait(mapped)
+
+    async def _handle_operator_leg(self, kind: str, channel_id: str) -> None:
+        """The operator's WebRTC channel entered / left Stasis. On start, drop it
+        into the call's bridge; on end, forget it. Never buffered as an event."""
+        assert self._ari is not None
+        if kind == "StasisStart":
+            bridge_id = self._pending_operator_bridge.pop(channel_id, None)
+            if bridge_id is not None:
+                with contextlib.suppress(AriError):
+                    await self._ari.add_to_bridge(bridge_id, channel_id)
+        elif kind in ("StasisEnd", "ChannelDestroyed", "ChannelHangupRequest"):
+            self._operator_channels.discard(channel_id)
+            self._pending_operator_bridge.pop(channel_id, None)
+
+    async def _bridge_operator(self, call_id: str, operator_key: str) -> str | None:
+        """Put the operator's WebRTC endpoint into the call: a mixing bridge with
+        the trunk channel + a fresh channel to ``PJSIP/<operator_key>``. The
+        operator leg joins the bridge on its StasisStart (see the pump). Returns
+        an error string on failure, ``None`` on success."""
+        assert self._ari is not None
+        trunk_ch = self._channels.get(call_id)
+        if trunk_ch is None:
+            return "call not tracked"
+        if call_id in self._call_bridges:
+            return None  # already bridged (idempotent)
+        try:
+            bridge_id = await self._ari.create_bridge()
+            await self._ari.add_to_bridge(bridge_id, trunk_ch)
+            op_ch = await self._ari.originate(
+                endpoint=f"PJSIP/{operator_key}", app=self._ari.app_name, caller_id="BBZ"
+            )
+        except AriError as exc:
+            return str(exc)
+        op_ch_id = op_ch.get("id") if isinstance(op_ch, dict) else None
+        if not isinstance(op_ch_id, str):
+            return "no operator channel id"
+        self._operator_channels.add(op_ch_id)
+        self._pending_operator_bridge[op_ch_id] = bridge_id
+        self._call_bridges[call_id] = bridge_id
+        self._call_operator_ch[call_id] = op_ch_id
+        return None
+
+    async def _teardown_bridge(self, call_id: str) -> None:
+        assert self._ari is not None
+        self._dial_operator.pop(call_id, None)
+        op_ch = self._call_operator_ch.pop(call_id, None)
+        if op_ch is not None:
+            self._operator_channels.discard(op_ch)
+            self._pending_operator_bridge.pop(op_ch, None)
+        bridge_id = self._call_bridges.pop(call_id, None)
+        if bridge_id is not None:
+            with contextlib.suppress(AriError):
+                await self._ari.destroy_bridge(bridge_id)
 
     async def drain_events(self, limit: int = 100) -> list[CallEvent]:
         """Pop up to ``limit`` buffered events. The ``telephony-events`` cluster
@@ -328,7 +411,14 @@ class SipTelephonyProvider:
             return self._ack(command_id, call_id, accepted=False, detail=str(exc))
         return self._ack(command_id, call_id, detail=verb)
 
-    async def dial(self, *, line_id: str, destination: str, command_id: str) -> CommandAccepted:
+    async def dial(
+        self,
+        *,
+        line_id: str,
+        destination: str,
+        command_id: str,
+        operator_key: str | None = None,
+    ) -> CommandAccepted:
         if command_id in self._seen:
             return self._seen[command_id]
         if self._ari is None:
@@ -360,10 +450,27 @@ class SipTelephonyProvider:
         if isinstance(call_id, str) and isinstance(ch_id, str):
             self._channels[call_id] = ch_id
             self._call_dir[call_id] = CallDirection.OUTBOUND
+            # bridge the operator's WebRTC leg once the far end answers (the pump
+            # watches for CALL_ANSWERED on this call), ADR-0035
+            if operator_key:
+                self._dial_operator[call_id] = operator_key
         return self._ack(command_id, call_id if isinstance(call_id, str) else None, detail="dial")
 
-    async def answer(self, *, call_id: str, command_id: str) -> CommandAccepted:
-        return await self._on_channel(command_id, call_id, "answer", "answer")
+    async def answer(
+        self, *, call_id: str, command_id: str, operator_key: str | None = None
+    ) -> CommandAccepted:
+        if command_id in self._seen:
+            return self._seen[command_id]
+        ack = await self._on_channel(command_id, call_id, "answer", "answer")
+        if ack.accepted and operator_key and self._ari is not None:
+            err = await self._bridge_operator(call_id, operator_key)
+            if err is not None:
+                # the trunk call is answered; the operator's audio leg is not —
+                # surface it so the UI can show the call is up but silent
+                ack = self._ack(
+                    command_id, call_id, detail=f"answered; operator bridge failed: {err}"
+                )
+        return ack
 
     async def hangup(self, *, call_id: str, command_id: str) -> CommandAccepted:
         return await self._on_channel(command_id, call_id, "hangup", "hangup")
