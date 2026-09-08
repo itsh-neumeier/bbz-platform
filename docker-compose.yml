@@ -110,6 +110,7 @@ services:
       CURL_OPTS: ${BBZ_LAB_CURL_OPTS:---insecure}
     ports:
       - "8088:8088"        # ARI: REST + the event WebSocket
+      - "8089:8089"        # wss:// for the operator softphone (E13-11 / ADR-0035)
       - "5060:5060/udp"    # chan_pjsip (optional softphone / registration-loss test)
     # hardening parity with `api` (E23-08); asterisk writes its own runtime dirs
     # so not read_only, but it needs no capabilities as a non-root process

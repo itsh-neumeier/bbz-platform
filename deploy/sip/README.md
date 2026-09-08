@@ -1,4 +1,4 @@
-# `deploy/sip/` — Asterisk lab PBX (E13-08) + trunk config sync (E13-09)
+# `deploy/sip/` — Asterisk lab PBX (E13-08) + trunk config sync (E13-09/11)
 
 A throwaway Asterisk 20 container for the `telephony_sip` provider's integration
 tests (roadmap **E13-08**, ADR-0023). It is **not** part of any production
@@ -30,10 +30,11 @@ curl -s -u bbz-lab:bbz-lab-not-a-secret http://127.0.0.1:8088/ari/asterisk/info 
 |---|---|
 | `asterisk/Dockerfile` | `ubuntu:24.04` + `apt-get install asterisk curl`, runs as the non-root `asterisk` user. Build context is `deploy/sip/` |
 | `asterisk/entrypoint.sh` | if `BBZ_API` is set, runs `sync-trunk-config.sh` once ~8 s after boot; then `exec asterisk -f` |
-| `asterisk/etc/http.conf` | the built-in HTTP server (ARI transport) on `:8088` |
+| `asterisk/etc/http.conf` | the built-in HTTP server: ARI on `:8088` (plain) + `wss://` on `:8089` (TLS, self-signed cert generated in the image) for the operator softphone |
 | `asterisk/etc/ari.conf` | ARI enabled, user `bbz-lab` |
 | `asterisk/etc/extensions.conf` | `[bbz-sip]` hands calls to `Stasis(bbz-sip)`; `[bbz-lab]` parks a leg; `#tryinclude extensions_bbz_trunks.conf` |
-| `asterisk/etc/pjsip.conf` | UDP + TCP transports, one real endpoint (`bbz-lab-phone`); `#tryinclude pjsip_bbz_trunks.conf` |
+| `asterisk/etc/pjsip.conf` | UDP + TCP transports, one real endpoint (`bbz-lab-phone`); `#tryinclude pjsip_bbz_trunks.conf` (trunk `[transport-wss]` + operator endpoints come from there) |
+| `/etc/asterisk/keys/asterisk.{crt,key}` | self-signed cert for `wss://`, **lab only** — a real site drops a real cert at these paths |
 | `asterisk/etc/modules.conf` | `autoload=yes` minus CDR/`chan_sip` noise |
 | `sync-trunk-config.sh` | fetch BBZ's generated trunk config, write it `0600`, `pjsip`/`dialplan reload` |
 
@@ -60,6 +61,25 @@ admin screen instead.
 
 For the lab, set `BBZ_LAB_API` / `BBZ_LAB_USER` / `BBZ_LAB_PASS` in `.env` and
 the `asterisk` service pulls on start.
+
+## WebRTC operator softphone — E13-11, ADR-0035
+
+An operator's browser registers to Asterisk over `wss://` and BBZ bridges their
+audio leg into the call over ARI. Setup:
+
+1. Admin creates the operator's endpoint:
+   `PUT /api/v1/admin/telephony/sip/webrtc/{user_id}` `{"enabled": true}`.
+2. Set `BBZ_SIP_WEBRTC_WS_URL` on the `api` service, e.g.
+   `wss://127.0.0.1:8089/ws` for the lab (optionally
+   `BBZ_SIP_WEBRTC_ICE_SERVERS=stun:stun.l.google.com:19302`).
+3. Run `sync-trunk-config.sh` — the generated `pjsip_bbz_trunks.conf` now also
+   carries `[transport-wss]` + a `type=endpoint`/`auth`/`aor` per operator.
+4. The web client fetches `GET /api/v1/telephony/webrtc-credentials` on login and
+   registers automatically; the comms sidebar shows the softphone status.
+
+The lab's `wss://` uses a **self-signed** cert — the browser must have accepted
+it (visit `https://127.0.0.1:8089/` once, or serve the web app over the same
+cert in dev). `pjsip show contacts` shows the registered softphone.
 
 ## The credential
 
