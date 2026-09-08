@@ -12,6 +12,7 @@ import { computed, onMounted, reactive, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { ApiError } from '@/lib/apiClient';
 import { adminApi, type SipConfig, type SipLine, type SipProbeResult } from '@/lib/admin';
+import SipTrunksPanel from '@/components/telephony/SipTrunksPanel.vue';
 
 const { t } = useI18n();
 
@@ -375,6 +376,8 @@ onMounted(load);
         </form>
       </div>
     </div>
+
+    <SipTrunksPanel :sip-active="config?.active ?? false" />
   </section>
 </template>
 

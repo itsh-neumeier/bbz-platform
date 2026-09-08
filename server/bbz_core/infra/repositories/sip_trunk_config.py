@@ -453,47 +453,36 @@ def _render_pjsip(trunks: list[SipTrunk], by_trunk: dict[str, list[SipNumber]]) 
     out: list[str] = [_PJSIP_HEADER]
     for t in trunks:
         tref = _transport_ref(t.transport)
+        dom = t.from_domain or t.sip_server
+        has_trunk_auth = bool(t.auth_username)
         out.append(f"; ---- trunk: {t.trunk_id} ({t.display_name or t.provider}) ----")
-        out += [
-            f"[{t.trunk_id}-auth]",
-            "type = auth",
-            "auth_type = userpass",
-            f"username = {t.auth_username}",
-            f"password = {decrypt_trunk_password(t.auth_password_ciphertext)}"
-            if t.auth_password_ciphertext
-            else "password = ",
-            "",
-            f"[{t.trunk_id}-aor]",
-            "type = aor",
-            f"contact = {_contact_uri(t)}",
-            "qualify_frequency = 60",
-            "",
-        ]
-        if t.registration:
+
+        if has_trunk_auth:
+            pw = decrypt_trunk_password(t.auth_password_ciphertext)
             out += [
-                f"[{t.trunk_id}-reg]",
-                "type = registration",
-                f"transport = {tref}",
-                f"outbound_auth = {t.trunk_id}-auth",
-                f"server_uri = {_contact_uri(t)}",
-                f"client_uri = sip:{t.auth_username}@{t.from_domain or t.sip_server}",
-                f"contact_user = {t.auth_username}",
-                "retry_interval = 60",
-                "forbidden_retry_interval = 300",
-                "expiration = 300",
-                "line = yes",
-                f"endpoint = {t.trunk_id}",
+                f"[{t.trunk_id}-auth]",
+                "type = auth",
+                "auth_type = userpass",
+                f"username = {t.auth_username}",
+                f"password = {pw}",
+                "",
+                f"[{t.trunk_id}-aor]",
+                "type = aor",
+                f"contact = {_contact_uri(t)}",
+                "qualify_frequency = 60",
+                "",
             ]
-            if t.outbound_proxy:
-                out.append(f"outbound_proxy = {t.outbound_proxy}")
-            out.append("")
+        if t.registration and has_trunk_auth:
+            out += _registration_block(
+                f"{t.trunk_id}-reg", t.auth_username, t.trunk_id, t, tref, dom
+            )
+
         hosts = [h for h in t.match_hosts.split(",") if h]
         if hosts:
-            out.append(f"[{t.trunk_id}-identify]")
-            out.append("type = identify")
-            out.append(f"endpoint = {t.trunk_id}")
+            out += [f"[{t.trunk_id}-identify]", "type = identify", f"endpoint = {t.trunk_id}"]
             out += [f"match = {h}" for h in hosts]
             out.append("")
+
         out += [
             f"[{t.trunk_id}]",
             "type = endpoint",
@@ -501,10 +490,15 @@ def _render_pjsip(trunks: list[SipTrunk], by_trunk: dict[str, list[SipNumber]]) 
             f"context = from-{t.trunk_id}",
             "disallow = all",
             f"allow = {t.codecs}",
-            f"outbound_auth = {t.trunk_id}-auth",
-            f"aors = {t.trunk_id}-aor",
-            f"from_user = {t.auth_username}",
-            f"from_domain = {t.from_domain or t.sip_server}",
+        ]
+        if has_trunk_auth:
+            out += [
+                f"outbound_auth = {t.trunk_id}-auth",
+                f"aors = {t.trunk_id}-aor",
+                f"from_user = {t.auth_username}",
+            ]
+        out += [
+            f"from_domain = {dom}",
             f"dtmf_mode = {t.dtmf_mode}",
             "direct_media = no",
             "rtp_symmetric = yes",
@@ -515,37 +509,49 @@ def _render_pjsip(trunks: list[SipTrunk], by_trunk: dict[str, list[SipNumber]]) 
         if t.outbound_proxy:
             out.append(f"outbound_proxy = {t.outbound_proxy}")
         out.append("")
+
+        # per-number (per-MSN) registration — the LEONET model: each public
+        # number has its own SIP user/password and registers separately.
         for n in by_trunk.get(t.trunk_id, []):
             if not (n.registration and n.auth_username and n.auth_password_ciphertext):
                 continue
+            label = f" ({n.label})" if n.label else ""
+            out.append(f"; number {n.e164}{label} — per-MSN registration")
+            npw = decrypt_trunk_password(n.auth_password_ciphertext)
             base = f"{t.trunk_id}-n-{_digits(n.e164)}"
             out += [
-                f"; number {n.e164}"
-                + (f" ({n.label})" if n.label else "")
-                + " — per-MSN registration",
                 f"[{base}-auth]",
                 "type = auth",
                 "auth_type = userpass",
                 f"username = {n.auth_username}",
-                f"password = {decrypt_trunk_password(n.auth_password_ciphertext)}",
+                f"password = {npw}",
                 "",
-                f"[{base}-reg]",
-                "type = registration",
-                f"transport = {tref}",
-                f"outbound_auth = {base}-auth",
-                f"server_uri = {_contact_uri(t)}",
-                f"client_uri = sip:{n.auth_username}@{t.from_domain or t.sip_server}",
-                f"contact_user = {n.auth_username}",
-                "retry_interval = 60",
-                "forbidden_retry_interval = 300",
-                "expiration = 300",
-                "line = yes",
-                f"endpoint = {t.trunk_id}",
             ]
-            if t.outbound_proxy:
-                out.append(f"outbound_proxy = {t.outbound_proxy}")
-            out.append("")
+            out += _registration_block(f"{base}-reg", n.auth_username, t.trunk_id, t, tref, dom)
     return "\n".join(out).rstrip() + "\n"
+
+
+def _registration_block(
+    section: str, user: str, endpoint: str, trunk: SipTrunk, tref: str, dom: str
+) -> list[str]:
+    lines = [
+        f"[{section}]",
+        "type = registration",
+        f"transport = {tref}",
+        f"outbound_auth = {section.rsplit('-', 1)[0]}-auth",
+        f"server_uri = {_contact_uri(trunk)}",
+        f"client_uri = sip:{user}@{dom}",
+        f"contact_user = {user}",
+        "retry_interval = 60",
+        "forbidden_retry_interval = 300",
+        "expiration = 300",
+        "line = yes",
+        f"endpoint = {endpoint}",
+    ]
+    if trunk.outbound_proxy:
+        lines.append(f"outbound_proxy = {trunk.outbound_proxy}")
+    lines.append("")
+    return lines
 
 
 def _stasis_arg(n: SipNumber) -> str:

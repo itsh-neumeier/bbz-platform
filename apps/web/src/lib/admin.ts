@@ -123,6 +123,63 @@ export interface SipProbeResult {
   asterisk_version: string | null;
 }
 
+// --- SIP trunks (ITSP) — ADR-0034 -----------------------------------------
+
+export type SipTrunkProvider = 'leonet' | 'telekom' | 'generic';
+export type SipTrunkTransport = 'udp' | 'tcp' | 'tls';
+export type SipTrunkDtmfMode = 'rfc4733' | 'inband' | 'info' | 'auto';
+
+export interface SipTrunk {
+  trunk_id: string;
+  provider: SipTrunkProvider;
+  display_name: string;
+  enabled: boolean;
+  sip_server: string;
+  sip_port: number;
+  transport: SipTrunkTransport;
+  outbound_proxy: string;
+  from_domain: string;
+  registration: boolean;
+  auth_username: string;
+  auth_password_configured: boolean;
+  match_hosts: string;
+  codecs: string;
+  dtmf_mode: SipTrunkDtmfMode;
+  caller_id_e164: string;
+}
+
+export interface SipNumber {
+  e164: string;
+  trunk_id: string;
+  bbz_line_id: string;
+  label: string;
+  registration: boolean;
+  auth_username: string;
+  auth_password_configured: boolean;
+  enabled: boolean;
+}
+
+export interface SipTrunksResponse {
+  trunks: SipTrunk[];
+  numbers: SipNumber[];
+}
+
+/** `PUT .../trunks/{id}` body — `auth_password` write-only (omit to keep). */
+export type SipTrunkInput = Omit<SipTrunk, 'trunk_id' | 'auth_password_configured'> & {
+  auth_password?: string;
+};
+
+/** `PUT .../numbers/{e164}` body — `auth_password` write-only (omit to keep). */
+export type SipNumberInput = Omit<SipNumber, 'e164' | 'auth_password_configured'> & {
+  auth_password?: string;
+};
+
+export interface SipTrunkProbeResult {
+  /** online | loaded | not_loaded | unreachable */
+  state: string;
+  detail: string;
+}
+
 export const adminApi = {
   /** `GET /api/v1/admin/settings` — every overridable key, grouped. */
   settings: (signal?: AbortSignal) =>
@@ -153,4 +210,34 @@ export const adminApi = {
 
   /** `POST /api/v1/admin/telephony/sip/test` — probe the stored gateway. */
   testSipConnection: () => api.post<SipProbeResult>('/admin/telephony/sip/test'),
+
+  // --- SIP trunks (ITSP) — ADR-0034 ---------------------------------------
+
+  /** `GET .../sip/trunks` — every trunk + every public number. */
+  sipTrunks: (signal?: AbortSignal) =>
+    api.get<SipTrunksResponse>('/admin/telephony/sip/trunks', { signal }),
+
+  /** `PUT .../sip/trunks/{id}` — add or update a trunk (password write-only). */
+  putSipTrunk: (id: string, body: SipTrunkInput) =>
+    api.put<SipTrunk>(`/admin/telephony/sip/trunks/${encodeURIComponent(id)}`, body),
+
+  /** `DELETE .../sip/trunks/{id}` — also cascades its numbers. */
+  deleteSipTrunk: (id: string) =>
+    api.del<void>(`/admin/telephony/sip/trunks/${encodeURIComponent(id)}`),
+
+  /** `PUT .../sip/numbers/{e164}` — add or update a public number. */
+  putSipNumber: (e164: string, body: SipNumberInput) =>
+    api.put<SipNumber>(`/admin/telephony/sip/numbers/${encodeURIComponent(e164)}`, body),
+
+  /** `DELETE .../sip/numbers/{e164}`. */
+  deleteSipNumber: (e164: string) =>
+    api.del<void>(`/admin/telephony/sip/numbers/${encodeURIComponent(e164)}`),
+
+  /** `GET .../sip/asterisk-config` — the generated PJSIP + dialplan text. */
+  sipAsteriskConfig: (part: 'all' | 'pjsip' | 'extensions' = 'all') =>
+    api.getText(`/admin/telephony/sip/asterisk-config?part=${part}`),
+
+  /** `POST .../sip/trunks/{id}/test` — is the endpoint loaded in Asterisk? */
+  testSipTrunk: (id: string) =>
+    api.post<SipTrunkProbeResult>(`/admin/telephony/sip/trunks/${encodeURIComponent(id)}/test`),
 };

@@ -1,10 +1,14 @@
-# `deploy/sip/` — Asterisk lab PBX (E13-08)
+# `deploy/sip/` — Asterisk lab PBX (E13-08) + trunk config sync (E13-09)
 
 A throwaway Asterisk 20 container for the `telephony_sip` provider's integration
 tests (roadmap **E13-08**, ADR-0023). It is **not** part of any production
 topology and is never deployed — a real BBZ site points `telephony_sip` at
 *their* Asterisk from the admin UI, with the ARI password encrypted at rest
 (**ADR-0033**).
+
+`sync-trunk-config.sh` (E13-09, **ADR-0034**) is the one piece meant to run on a
+real Asterisk box too: it pulls the SIP-trunk config BBZ generates from
+`/admin/telefonie` and reloads Asterisk.
 
 ## Run it
 
@@ -24,14 +28,38 @@ curl -s -u bbz-lab:bbz-lab-not-a-secret http://127.0.0.1:8088/ari/asterisk/info 
 
 | File | Purpose |
 |---|---|
-| `asterisk/Dockerfile` | `debian:bookworm-slim` + `apt-get install asterisk`, runs as the non-root `asterisk` user |
+| `asterisk/Dockerfile` | `ubuntu:24.04` + `apt-get install asterisk curl`, runs as the non-root `asterisk` user. Build context is `deploy/sip/` |
+| `asterisk/entrypoint.sh` | if `BBZ_API` is set, runs `sync-trunk-config.sh` once ~8 s after boot; then `exec asterisk -f` |
 | `asterisk/etc/http.conf` | the built-in HTTP server (ARI transport) on `:8088` |
 | `asterisk/etc/ari.conf` | ARI enabled, user `bbz-lab` |
-| `asterisk/etc/extensions.conf` | `[bbz-sip]` hands calls to `Stasis(bbz-sip)`; `[bbz-lab]` parks a leg so ARI can drive the other |
-| `asterisk/etc/pjsip.conf` | one real UDP endpoint (`bbz-lab-phone`) for the registration-loss scenario |
+| `asterisk/etc/extensions.conf` | `[bbz-sip]` hands calls to `Stasis(bbz-sip)`; `[bbz-lab]` parks a leg; `#tryinclude extensions_bbz_trunks.conf` |
+| `asterisk/etc/pjsip.conf` | UDP + TCP transports, one real endpoint (`bbz-lab-phone`); `#tryinclude pjsip_bbz_trunks.conf` |
 | `asterisk/etc/modules.conf` | `autoload=yes` minus CDR/`chan_sip` noise |
+| `sync-trunk-config.sh` | fetch BBZ's generated trunk config, write it `0600`, `pjsip`/`dialplan reload` |
 
-Everything else is the Debian package default.
+Everything else is the Ubuntu package default.
+
+## SIP trunks (LEONET / Telekom) — E13-09, ADR-0034
+
+BBZ stores the trunk + the public numbers (`/admin/telefonie` → "SIP-Trunks")
+and generates two Asterisk fragments; `sync-trunk-config.sh` delivers them:
+
+```sh
+BBZ_API=https://bbz.example:8443 \
+BBZ_USER=sip-sync BBZ_PASS=… \
+CURL_OPTS='--cacert /etc/ssl/bbz-ca.pem' \
+  ./sync-trunk-config.sh
+```
+
+It writes `pjsip_bbz_trunks.conf` + `extensions_bbz_trunks.conf` into
+`$ASTERISK_ETC` (`#tryinclude`d by the base config) and reloads. The fetched
+files **contain the trunk auth passwords in cleartext** (PJSIP `type=auth` needs
+them) — they land `0600` and BBZ never writes/logs/audits the rendered text. An
+operator who won't give the box API access can paste the same text from the
+admin screen instead.
+
+For the lab, set `BBZ_LAB_API` / `BBZ_LAB_USER` / `BBZ_LAB_PASS` in `.env` and
+the `asterisk` service pulls on start.
 
 ## The credential
 
