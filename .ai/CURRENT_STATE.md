@@ -1149,15 +1149,20 @@ integration-tested against a real lab Asterisk (`sip-nightly.yml`, gated — not
 - **E13-10 (#812) outbound via trunk — DONE (PR #814)** — `dial` routes
   `PJSIP/<dest>@<trunk>` with the number's caller-id; verified with a real
   LEONET call (`INVITE → 407 → 100 → 183`).
-- **E13-11 (#816) WebRTC operator softphone — foundation landed (ADR-0035,
-  migration 0058)** — `sip_webrtc_endpoints` (one per operator, SIP password
-  Fernet at rest), `SipWebrtcConfigService` (CRUD + `[transport-wss]` + per-op
-  `type=endpoint`/`auth`/`aor` PJSIP, folded into `asterisk-config?part=pjsip`),
-  `GET /api/v1/telephony/webrtc-credentials` (session-gated, discloses the SIP
-  password to the operator's own session only), admin CRUD under
-  `/admin/telephony/sip/webrtc`, `SIP_WEBRTC_ENDPOINT_*` critical audit. Still
-  to come on #816: the ARI bridge-on-answer and the browser JsSIP client + mic
-  UI.
+- **E13-11 (#816) WebRTC operator softphone — backend done (ADR-0035,
+  migration 0058)** — **PR-A**: `sip_webrtc_endpoints` (one per operator, SIP
+  password Fernet at rest), `SipWebrtcConfigService` (CRUD + `[transport-wss]`
+  + per-op `type=endpoint`/`auth`/`aor` PJSIP, folded into
+  `asterisk-config?part=pjsip`), `GET /api/v1/telephony/webrtc-credentials`
+  (session-gated, discloses the SIP password to the operator's own session
+  only), admin CRUD under `/admin/telephony/sip/webrtc`, `SIP_WEBRTC_ENDPOINT_*`
+  critical audit. **PR-B (ARI bridge)**: `answer` / `dial` take an optional
+  `operator_key` (protocol + mock + sip); `telephony_sip` creates a mixing
+  bridge with the trunk channel + originates `PJSIP/<operator>` into Stasis,
+  joins it on its `StasisStart`, hides the operator leg from the call stream,
+  tears the bridge down with the call; `calls.py` resolves the caller's
+  `operator_endpoint_map()` key. Still to come on #816: the browser JsSIP
+  client (mic/speaker) + the Asterisk lab WSS transport/cert.
 - **#269 (E13-01) `telephony_sip` scaffold** — `integrations/telephony_sip/`:
   `manifest.json` (domain `telephony`, capabilities answer/dial/hangup/hold/
   resume/transfer/send_dtmf/monitoring, `mock:false`), `config_schema.json`,

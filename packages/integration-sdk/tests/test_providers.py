@@ -48,10 +48,14 @@ class _MiniTelephony:
         if False:  # pragma: no cover - empty async generator
             yield None
 
-    async def dial(self, *, line_id: str, destination: str, command_id: str) -> object:
+    async def dial(
+        self, *, line_id: str, destination: str, command_id: str, operator_key: str | None = None
+    ) -> object:
         return {"call_id": "c1"}
 
-    async def answer(self, *, call_id: str, command_id: str) -> object:
+    async def answer(
+        self, *, call_id: str, command_id: str, operator_key: str | None = None
+    ) -> object:
         return {"call_id": call_id, "state": "answered"}
 
     async def hangup(self, *, call_id: str, command_id: str) -> object:

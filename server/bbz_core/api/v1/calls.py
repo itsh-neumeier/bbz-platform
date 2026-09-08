@@ -39,12 +39,23 @@ from bbz_core.infra.models.telephony import (
     CallState,
 )
 from bbz_core.infra.repositories.call_queries import CallHistoryItem, CallQueryRepository
+from bbz_core.infra.repositories.sip_webrtc_config import SipWebrtcConfigService
 from bbz_core.infra.telephony_ingest import ingest_telephony_event
 from bbz_core.integrations_host.providers import NoActiveProvider, active_telephony_provider
 
 router = APIRouter(prefix="/calls", tags=["calls"])
 
 _ProviderCall = Callable[[object, str, str], Awaitable[object]]
+
+
+async def _operator_media_key(session: AsyncSession, user_id: uuid.UUID | None) -> str | None:
+    """The answering / dialing operator's WebRTC softphone endpoint id, if they
+    have an enabled one (ADR-0035). The ``telephony_sip`` provider bridges that
+    endpoint into the call so the operator has an audio path; every other
+    provider ignores it. ``None`` when the operator has no softphone."""
+    if user_id is None:
+        return None
+    return (await SipWebrtcConfigService(session).operator_endpoint_map()).get(str(user_id))
 
 
 class DialIn(BaseModel):
@@ -195,10 +206,13 @@ async def answer_call(
     env: CommandEnvelope = Depends(command_envelope),
     session: AsyncSession = Depends(db_session),
 ) -> ControlOut:
+    op_key = await _operator_media_key(session, ctx.user_id)
     return await _control(
         call_id=call_id,
         action="answer",
-        invoke=lambda p, scid, cid: p.answer(call_id=scid, command_id=cid),  # type: ignore[attr-defined]
+        invoke=lambda p, scid, cid: p.answer(  # type: ignore[attr-defined]
+            call_id=scid, command_id=cid, operator_key=op_key
+        ),
         ctx=ctx,
         env=env,
         session=session,
@@ -316,9 +330,13 @@ async def dial(
         if slot.replay is not None:
             return DialOut.model_validate(slot.replay.body)
 
+        op_key = await _operator_media_key(session, ctx.user_id)
         provider = await _provider()
         ack = await provider.dial(  # type: ignore[attr-defined]
-            line_id=body.line_id, destination=body.destination, command_id=str(env.command_id)
+            line_id=body.line_id,
+            destination=body.destination,
+            command_id=str(env.command_id),
+            operator_key=op_key,
         )
         accepted, detail, _ = _ack_fields(ack)
         await session.rollback()
