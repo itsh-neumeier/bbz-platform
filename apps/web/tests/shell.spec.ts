@@ -10,6 +10,7 @@ import { telephonyApi } from '@/lib/telephony';
 import { contactsApi } from '@/lib/contacts';
 import { eventsApi } from '@/lib/events';
 import { weatherApi } from '@/lib/weather';
+import { ApiError } from '@/lib/apiClient';
 
 beforeEach(() => {
   vi.restoreAllMocks();
@@ -18,6 +19,10 @@ beforeEach(() => {
   vi.spyOn(telephonyApi, 'history').mockResolvedValue({ items: [], next_cursor: null });
   vi.spyOn(telephonyApi, 'lines').mockResolvedValue({ lines: [] });
   vi.spyOn(telephonyApi, 'pendingDocs').mockResolvedValue({ calls: [] });
+  // no softphone in these tests (the shell registers one on mount, E13-11)
+  vi.spyOn(telephonyApi, 'webrtcCredentials').mockRejectedValue(
+    new ApiError(404, { code: 'not_found', message: 'no softphone' }),
+  );
   vi.spyOn(contactsApi, 'search').mockResolvedValue({ items: [], next_cursor: null });
   vi.spyOn(eventsApi, 'workQueue').mockResolvedValue({ items: [], next_cursor: null });
   vi.spyOn(eventsApi, 'logbook').mockResolvedValue({ items: [] });

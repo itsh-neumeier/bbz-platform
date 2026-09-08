@@ -9,7 +9,7 @@
  * The shell owns one SSE connection so the priority-alert banner + sync
  * indicator stay live on every page; pages open their own for row-level updates.
  */
-import { onMounted, watch } from 'vue';
+import { onBeforeUnmount, onMounted, watch } from 'vue';
 import LogoCell from './components/LogoCell.vue';
 import SidebarLeft from './components/SidebarLeft.vue';
 import TopBar from './components/TopBar.vue';
@@ -22,10 +22,12 @@ import { useEventStream } from '@/composables/useEventStream';
 import { useEventsStore } from '@/stores/events';
 import { useCallsStore } from '@/stores/calls';
 import { useSessionStore } from '@/stores/session';
+import { useSoftphoneStore } from '@/stores/softphone';
 
 const events = useEventsStore();
 const calls = useCallsStore();
 const session = useSessionStore();
+const softphone = useSoftphoneStore();
 const { status: sync, lastSeq } = useEventStream((f) => {
   events.onStreamFrame(f.type, f.data.aggregate_id as string | undefined);
   calls.onStreamFrame(f.type);
@@ -33,7 +35,13 @@ const { status: sync, lastSeq } = useEventStream((f) => {
 watch([sync, lastSeq], ([s, seq]) => events.setSync(s, seq), { immediate: true });
 
 // the shell keeps the priority alert live on every page (§13.7)
-onMounted(() => void events.loadAlert());
+onMounted(() => {
+  void events.loadAlert();
+  // register the WebRTC softphone if this operator has one (E13-11) — silent
+  // no-op otherwise
+  void softphone.start();
+});
+onBeforeUnmount(() => softphone.stop());
 </script>
 
 <template>

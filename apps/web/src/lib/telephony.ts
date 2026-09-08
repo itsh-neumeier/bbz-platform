@@ -85,6 +85,16 @@ export interface Line {
   updated_at: string;
 }
 
+/** the calling operator's WebRTC softphone credentials (E13-11 / ADR-0035) —
+ *  `auth_password` is the operator's own SIP credential, TLS-only. */
+export interface WebrtcCredentials {
+  ws_url: string;
+  sip_uri: string;
+  auth_user: string;
+  auth_password: string;
+  ice_servers: { urls: string }[];
+}
+
 export const PRIORITY_RANK: Record<string, number> = { high: 0, medium: 1, low: 2, unknown: 3 };
 
 /** the "other party" on a call, for display (caller on inbound, callee on outbound). */
@@ -110,6 +120,10 @@ export const telephonyApi = {
   },
 
   lines: (signal?: AbortSignal) => api.get<{ lines: Line[] }>('/lines', { signal }),
+
+  /** the calling operator's softphone credentials; 404 = no softphone set up. */
+  webrtcCredentials: (signal?: AbortSignal) =>
+    api.get<WebrtcCredentials>('/telephony/webrtc-credentials', { signal }),
 
   dial: (line_id: string, destination: string) =>
     api.post<{ accepted: boolean; detail: string | null }>('/calls/dial', { line_id, destination }),
