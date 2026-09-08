@@ -95,7 +95,9 @@ function backspace() {
   dialInput.value = dialInput.value.slice(0, -1);
 }
 async function doDial() {
-  const line = selectedLine.value || serviceableLines.value[0]?.id;
+  // the provider keys lines by `external_id` (the SIP/CUCM line id), NOT the
+  // `lines` table UUID — a real provider 500s on `PJSIP/<uuid>`
+  const line = selectedLine.value || serviceableLines.value[0]?.external_id;
   if (!line || !dialInput.value.trim()) return;
   await calls.dial(line, dialInput.value.trim());
   dialInput.value = '';
@@ -272,7 +274,7 @@ onBeforeUnmount(() => clearInterval(poll));
           <option
             v-for="l in serviceableLines"
             :key="l.id"
-            :value="l.id"
+            :value="l.external_id"
           >
             {{ l.label ?? l.external_id }}
           </option>

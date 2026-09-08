@@ -114,14 +114,28 @@ describe('CommsSidebar', () => {
     expect(answer).toHaveBeenCalledWith('call-1');
   });
 
-  it('builds a number on the keypad and dials it', async () => {
+  it('builds a number on the keypad and dials it via the line external_id', async () => {
     const dial = vi.spyOn(tel.telephonyApi, 'dial').mockResolvedValue({ accepted: true, detail: null });
     const w = await factory(['calls.view', 'calls.dial']);
     const keys = w.findAll('.tp__key');
     await keys[0].trigger('click'); // 1
     await keys[1].trigger('click'); // 2
     await w.get('.tp__call').trigger('click');
-    expect(dial).toHaveBeenCalledWith('l1', '12');
+    // the provider keys lines by external_id, not the `lines` table UUID
+    expect(dial).toHaveBeenCalledWith('LINE-1', '12');
+  });
+
+  it('a rejected dial keeps its error visible (not cleared by the follow-up refresh)', async () => {
+    vi.spyOn(tel.telephonyApi, 'dial').mockResolvedValue({
+      accepted: false,
+      detail: 'ARI POST /channels: HTTPStatusError',
+    });
+    const w = await factory(['calls.view', 'calls.dial']);
+    await w.findAll('.tp__key')[0].trigger('click');
+    await w.get('.tp__call').trigger('click');
+    await new Promise((r) => setTimeout(r, 0));
+    await w.vm.$nextTick();
+    expect(w.get('.comms__error').text()).toContain('ARI POST /channels');
   });
 
   it('hides the keypad without calls.dial', async () => {
@@ -155,7 +169,7 @@ describe('CommsSidebar', () => {
     expect(item.text()).toContain('Pförtner Haupttor');
     await item.trigger('click');
 
-    expect(dial).toHaveBeenCalledWith('l1', '+498955501');
+    expect(dial).toHaveBeenCalledWith('LINE-1', '+498955501');
   });
 
   it('flags mandatory documentation on a pending-doc call', async () => {
