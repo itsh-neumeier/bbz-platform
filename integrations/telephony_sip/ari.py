@@ -146,11 +146,15 @@ class AriClient:
         extension: str = "",
         context: str = "",
         app: str = "",
+        caller_id: str = "BBZ",
     ) -> dict[str, Any]:
         """Create an outbound channel. ``app`` sends it straight into a Stasis
-        application (used by the integration harness); otherwise it lands at
-        ``extension@context`` in the dialplan (the ``dial`` verb's path)."""
-        params: dict[str, Any] = {"endpoint": endpoint, "callerId": "BBZ"}
+        application (a trunk outbound — ``endpoint`` already includes the dialled
+        number, ``PJSIP/<num>@<trunk>``); otherwise it lands at
+        ``extension@context`` in the dialplan (ring a registered peer, then
+        bridge). ``caller_id`` must be a number the trunk owns or the ITSP
+        rejects the call."""
+        params: dict[str, Any] = {"endpoint": endpoint, "callerId": caller_id or "BBZ"}
         if app:
             params["app"] = app
         if extension:

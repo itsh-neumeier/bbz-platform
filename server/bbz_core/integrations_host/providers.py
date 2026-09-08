@@ -60,13 +60,37 @@ async def _telephony_sip_config(integration_id: str) -> dict[str, Any] | None:
         return None
     from bbz_core.infra.db import session_scope
     from bbz_core.infra.repositories.sip_config import SipConfigService
+    from bbz_core.infra.repositories.sip_trunk_config import SipTrunkConfigService
     from bbz_core.infra.sip_secrets import SipSecretsNotConfigured
 
     try:
         async with session_scope() as session:
-            return await SipConfigService(session).runtime_config()
+            config = await SipConfigService(session).runtime_config()
+            if config is not None:
+                _merge_trunk_outbound(
+                    config, await SipTrunkConfigService(session).outbound_line_map()
+                )
+            return config
     except SipSecretsNotConfigured:
         return None
+
+
+def _merge_trunk_outbound(config: dict[str, Any], trunk_lines: dict[str, dict[str, str]]) -> None:
+    """Fold the trunk-backed outbound line templates (ADR-0034 / E13-10) into the
+    ``config_schema.json`` shape so ``dial`` can route through a trunk."""
+    if not trunk_lines:
+        return
+    endpoints = dict(config.get("line_endpoints") or {})
+    caller_ids = dict(config.get("line_caller_ids") or {})
+    lines = list(config.get("lines") or [])
+    for line_id, info in trunk_lines.items():
+        endpoints[line_id] = info["endpoint"]
+        caller_ids[line_id] = info["caller_id"]
+        if line_id not in lines:
+            lines.append(line_id)
+    config["line_endpoints"] = endpoints
+    config["line_caller_ids"] = caller_ids
+    config["lines"] = lines
 
 
 async def active_telephony_provider() -> TelephonyProvider:

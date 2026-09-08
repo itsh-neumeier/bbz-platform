@@ -85,6 +85,34 @@ async def test_dial_originates_and_starts_tracking_the_new_call() -> None:
     await p.shutdown()
 
 
+async def test_dial_through_a_trunk_routes_the_number_and_sets_the_caller_id() -> None:
+    """A trunk-backed line (endpoint template with `{dest}`) dials
+    PJSIP/<dest>@<trunk> straight into Stasis with the number's caller-id —
+    calling the trunk endpoint directly (the old behaviour) just rings the
+    trunk and the ITSP rejects it."""
+    calls: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(f"{request.method} {request.url.path}?{request.url.query.decode()}")
+        if request.url.path == "/ari/channels" and request.method == "POST":
+            return httpx.Response(200, json={"id": "ch-t", "channelvars": {"SIPCALLID": "t@pbx"}})
+        return httpx.Response(204)
+
+    p = SipTelephonyProvider(
+        ari=_client(handler),
+        line_endpoints={"leonet-8870": "PJSIP/{dest}@leonet-01"},
+        line_caller_ids={"leonet-8870": "+4995434448870"},
+    )
+    ack = await p.dial(line_id="leonet-8870", destination="017012345678", command_id="d9")
+    assert ack.accepted
+    orig = next(c for c in calls if "/ari/channels?" in c)
+    assert "endpoint=PJSIP%2F017012345678%40leonet-01" in orig
+    assert "callerId=%2B4995434448870" in orig
+    assert "app=bbz-sip" in orig
+    assert "extension=" not in orig  # straight into Stasis, no dialplan bridge
+    await p.shutdown()
+
+
 async def test_blind_transfer_redirects_the_channel() -> None:
     calls: list[str] = []
     p = await _tracked_provider(calls)

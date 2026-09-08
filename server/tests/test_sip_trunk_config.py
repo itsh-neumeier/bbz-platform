@@ -250,3 +250,44 @@ async def test_render_leonet_per_msn_no_trunk_level_auth(svc: SipTrunkConfigServ
     assert "[leonet-n-4995434448870-reg]" in pjsip
     assert "outbound_auth = leonet-n-4995434448870-auth" in pjsip
     assert "password = msn-secret" in pjsip
+
+
+async def test_outbound_line_map_routes_a_numbered_line_through_its_trunk(
+    svc: SipTrunkConfigService,
+) -> None:
+    """E13-10: a public number with a bbz_line_id -> an outbound dial template
+    `PJSIP/{dest}@<trunk>` + the trunk caller-id (or the number itself)."""
+    await svc.set_trunk("leonet", **_trunk(caller_id_e164=""))  # type: ignore[arg-type]
+    await svc.set_number(
+        "+4991150099",
+        trunk_id="leonet",
+        bbz_line_id="tor-1",
+        label="Tor 1",
+        registration=True,
+        auth_username="leo4991150099",
+        auth_password="pw",
+        enabled=True,
+        actor_id=None,
+    )
+    # a number without a line, and a disabled one, don't appear
+    await svc.set_number(
+        "+4991150098",
+        trunk_id="leonet",
+        bbz_line_id="",
+        label="",
+        registration=False,
+        auth_username="",
+        auth_password=None,
+        enabled=True,
+        actor_id=None,
+    )
+    m = await svc.outbound_line_map()
+    assert m == {"tor-1": {"endpoint": "PJSIP/{dest}@leonet", "caller_id": "+4991150099"}}
+
+    # trunk caller_id_e164 wins when set
+    await svc.set_trunk("leonet", **_trunk(caller_id_e164="+4991150000"))  # type: ignore[arg-type]
+    assert (await svc.outbound_line_map())["tor-1"]["caller_id"] == "+4991150000"
+
+    # a disabled trunk drops its lines
+    await svc.set_trunk("leonet", **_trunk(enabled=False))  # type: ignore[arg-type]
+    assert await svc.outbound_line_map() == {}
