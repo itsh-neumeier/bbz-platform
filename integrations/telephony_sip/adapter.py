@@ -91,6 +91,13 @@ class SipTelephonyProvider:
 
     async def initialize(self) -> None:
         self._initialized = True
+        # announce the configured lines as in-service so they reach the `lines`
+        # table (LineStatusService) and the operator's "available lines" readout
+        # — the ARI stream only carries call/device events, never a line roster.
+        # Idempotent: LineStatusService skips an unchanged state.
+        for line_id in list(self._lines):
+            self._lines[line_id] = LineInfo(line_id=line_id, state=LineState.IN_SERVICE)
+            self._buffer.put_nowait(self._line_event(line_id, _E.LINE_IN_SERVICE))
         if self._ari is not None and self._pump_task is None:
             self._pump_task = asyncio.create_task(self._pump())
 
@@ -278,6 +285,23 @@ class SipTelephonyProvider:
             event_type=event_type,
             raw_event_type=f"ari-command:{event_type.value}",
             source_call_id=call_id,
+            occurred_at=now,
+            received_at=now,
+            gateway_node=self._instance_id,
+            metadata={"synthetic": True},
+        )
+
+    def _line_event(self, line_id: str, event_type: _E) -> CallEvent:
+        """A normalized ``LINE_*`` event for a configured line — carries
+        ``line_id`` (not ``source_call_id``); ``LineStatusService`` upserts the
+        ``lines`` row from it."""
+        now = _dt.datetime.now(_dt.UTC)
+        return CallEvent(
+            telephony_event_id=f"sip-{uuid.uuid4()}",
+            provider="telephony_sip",
+            event_type=event_type,
+            raw_event_type=f"bbz:{event_type.value}",
+            line_id=line_id,
             occurred_at=now,
             received_at=now,
             gateway_node=self._instance_id,

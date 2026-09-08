@@ -148,9 +148,28 @@ async def test_pump_buffers_mapped_events_and_drain_pops_them() -> None:
     assert ari.closed is True
 
 
-async def test_build_without_a_gateway_has_no_pump_and_drains_nothing() -> None:
+async def test_build_without_a_gateway_has_no_pump_but_announces_its_lines() -> None:
+    p = build({"lines": ["2001", "2002"]})
+    await p.initialize()
+    assert p._pump_task is None  # no gateway -> no ARI event stream
+
+    # the configured lines are still announced in-service so they reach the
+    # `lines` table (the ARI stream never carries a line roster)
+    drained = await p.drain_events()
+    assert [(e.event_type.value, e.line_id) for e in drained] == [
+        ("LINE_IN_SERVICE", "2001"),
+        ("LINE_IN_SERVICE", "2002"),
+    ]
+    assert all(e.source_call_id is None for e in drained)
+    assert await p.drain_events() == []
+    await p.shutdown()
+
+
+async def test_initialize_is_idempotent_for_the_line_roster() -> None:
     p = build({"lines": ["2001"]})
     await p.initialize()
-    assert p._pump_task is None
-    assert await p.drain_events() == []
+    await p.drain_events()  # consume the first announce
+    await p.initialize()  # a re-init (provider rebuild) re-announces
+    drained = await p.drain_events()
+    assert [e.event_type.value for e in drained] == ["LINE_IN_SERVICE"]
     await p.shutdown()
