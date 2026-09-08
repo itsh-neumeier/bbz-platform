@@ -96,8 +96,10 @@ export const useCallsStore = defineStore('calls', {
       this.error = null;
       try {
         const r = await telephonyApi[action](id);
-        if (!r.accepted && r.detail) this.error = r.detail;
         await this.refresh();
+        // set the error AFTER refresh — refresh() clears `error` on success, so
+        // a rejected command reported before it would vanish in a blink
+        if (!r.accepted && r.detail) this.error = r.detail;
       } catch (e) {
         this.error = e instanceof Error ? e.message : String(e);
       } finally {
@@ -107,10 +109,11 @@ export const useCallsStore = defineStore('calls', {
 
     async transfer(id: string, destination: string): Promise<void> {
       this.busy = true;
+      this.error = null;
       try {
         const r = await telephonyApi.transfer(id, destination);
-        if (!r.accepted && r.detail) this.error = r.detail;
         await this.refresh();
+        if (!r.accepted && r.detail) this.error = r.detail;
       } catch (e) {
         this.error = e instanceof Error ? e.message : String(e);
       } finally {
@@ -123,8 +126,8 @@ export const useCallsStore = defineStore('calls', {
       this.error = null;
       try {
         const r = await telephonyApi.dial(lineId, destination);
-        if (!r.accepted && r.detail) this.error = r.detail;
         await this.refresh();
+        if (!r.accepted && r.detail) this.error = r.detail; // after refresh (clears error)
       } catch (e) {
         this.error = e instanceof Error ? e.message : String(e);
       } finally {
