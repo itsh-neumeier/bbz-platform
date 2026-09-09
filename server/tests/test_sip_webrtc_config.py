@@ -116,6 +116,34 @@ async def test_credentials_for_returns_the_jssip_shape(
     assert creds.ice_servers == [{"urls": "stun:stun.bbz.example:3478"}]
 
 
+async def test_credentials_for_includes_a_credentialed_turn_server(
+    svc: SipWebrtcConfigService, db: AsyncSession
+) -> None:
+    import bbz_core.settings as settings_mod
+
+    os.environ["BBZ_SIP_WEBRTC_TURN_URL"] = "turn:turn.bbz.example:3478"
+    os.environ["BBZ_SIP_WEBRTC_TURN_USERNAME"] = "bbzturn"
+    os.environ["BBZ_SIP_WEBRTC_TURN_PASSWORD"] = "s3cret"
+    settings_mod.get_settings.cache_clear()
+    try:
+        uid = await _user(db, "Op")
+        await svc.set_endpoint(uid, enabled=True, rotate_password=False, actor_id=uid)
+        creds = await svc.credentials_for(uid)
+        assert creds is not None
+        assert creds.ice_servers == [
+            {"urls": "stun:stun.bbz.example:3478"},
+            {"urls": "turn:turn.bbz.example:3478", "username": "bbzturn", "credential": "s3cret"},
+        ]
+    finally:
+        for k in (
+            "BBZ_SIP_WEBRTC_TURN_URL",
+            "BBZ_SIP_WEBRTC_TURN_USERNAME",
+            "BBZ_SIP_WEBRTC_TURN_PASSWORD",
+        ):
+            os.environ.pop(k, None)
+        settings_mod.get_settings.cache_clear()
+
+
 async def test_credentials_for_is_none_without_an_enabled_endpoint(
     svc: SipWebrtcConfigService, db: AsyncSession
 ) -> None:

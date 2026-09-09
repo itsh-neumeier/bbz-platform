@@ -172,6 +172,14 @@ class Settings(BaseSettings):
     # is not offered. An admin-editable runtime setting (ADR-0031) is a follow-up.
     sip_webrtc_ws_url: str = ""
     sip_webrtc_ice_servers: str = ""
+    #: an optional TURN server for the softphone (needed when the browser and
+    #: Asterisk can't reach each other directly — e.g. Asterisk behind NAT or in
+    #: a Docker VM). `turn_url` like `turn:<host>:3478`; the long-term credential
+    #: is disclosed to the operator's browser alongside the WSS URL. Asterisk
+    #: uses the same TURN server via its own `rtp.conf` (deploy/sip).
+    sip_webrtc_turn_url: str = ""
+    sip_webrtc_turn_username: str = ""
+    sip_webrtc_turn_password: str = ""
     #: the generated `[transport-wss]` bind + cert paths on the Asterisk box
     #: (`GET .../asterisk-config?part=pjsip`). Lab defaults; prod overrides with
     #: the real cert path.

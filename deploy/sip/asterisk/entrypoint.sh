@@ -15,13 +15,33 @@ set -eu
 #                    own, so the loopback fallback only works in narrow cases.
 # LAB ONLY (a real site's Asterisk has a routable address). Harmless if rtp.conf
 # already carries the section.
-if ! grep -q '^\[ice_host_candidates\]' /etc/asterisk/rtp.conf 2>/dev/null; then
-  _myip="$(getent hosts "$(hostname)" 2>/dev/null | awk '{print $1; exit}' || true)"
-  _adv="${BBZ_ICE_HOST_IP:-127.0.0.1}"
-  if [ -n "${_myip:-}" ]; then
-    printf '\n[ice_host_candidates]\n%s => %s\n' "$_myip" "$_adv" >> /etc/asterisk/rtp.conf
-    echo "bbz: ICE host candidate ${_myip} => ${_adv}"
-  fi
+# rtp.conf is rewritten from a clean copy every boot, then the dynamic bits are
+# appended in order (order matters: `turnaddr` etc. must stay in `[general]`,
+# `[ice_host_candidates]` opens its own section and must come last). Rebuilding
+# each time keeps `docker compose restart` idempotent.
+_RTP=/etc/asterisk/rtp.conf
+[ -f "${_RTP}.orig" ] || cp "$_RTP" "${_RTP}.orig"
+cp "${_RTP}.orig" "$_RTP"
+
+# TURN (#834): if a `coturn` service is on the network, relay Asterisk's media
+# through it too — the browser can't reach Asterisk's container directly on
+# Docker Desktop, so a direct ICE pair never forms. Same shared lab credential
+# as docker-compose.yml. LAB ONLY.
+_turn="$(getent hosts coturn 2>/dev/null | awk '{print $1; exit}' || true)"
+if [ -n "${_turn:-}" ]; then
+  printf 'turnaddr=%s\nturnport=3478\nturnusername=bbzturn\nturnpassword=bbzturn\n' \
+    "$_turn" >> "$_RTP"
+  echo "bbz: TURN relay via ${_turn}:3478"
+fi
+
+# rewrite Asterisk's ICE host candidate to an address the browser accepts + can
+# reach (Chrome drops a 127.0.0.1 remote candidate; the container IP is not
+# routable from the Docker host). LAB ONLY. `[ice_host_candidates]` LAST.
+_myip="$(getent hosts "$(hostname)" 2>/dev/null | awk '{print $1; exit}' || true)"
+_adv="${BBZ_ICE_HOST_IP:-127.0.0.1}"
+if [ -n "${_myip:-}" ]; then
+  printf '\n[ice_host_candidates]\n%s => %s\n' "$_myip" "$_adv" >> "$_RTP"
+  echo "bbz: ICE host candidate ${_myip} => ${_adv}"
 fi
 
 if [ -n "${BBZ_API:-}" ]; then

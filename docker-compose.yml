@@ -106,6 +106,7 @@ services:
       dockerfile: asterisk/Dockerfile
     image: bbz-sip-lab:local
     profiles: ["sip"]
+    depends_on: ["coturn"]   # entrypoint.sh resolves `coturn` for the TURN relay (#834)
     # set BBZ_API / BBZ_USER / BBZ_PASS to have the lab pull the generated trunk
     # config on start (ADR-0034). Unset -> a plain lab PBX for the E13-08 tests.
     environment:
@@ -120,7 +121,7 @@ services:
       - "8088:8088"        # ARI: REST + the event WebSocket
       - "8089:8089"        # wss:// for the operator softphone (E13-11 / ADR-0035)
       - "5060:5060/udp"    # chan_pjsip (optional softphone / registration-loss test)
-      - "20000-20007:20000-20007/udp"   # RTP for the softphone (matches rtp.conf; ICE-mapped to the host LAN IP)
+      - "20000-20003:20000-20003/udp"   # RTP for the softphone (matches rtp.conf; ICE-mapped to the host LAN IP)
     # hardening parity with `api` (E23-08); asterisk writes its own runtime dirs
     # so not read_only, but it needs no capabilities as a non-root process
     cap_drop: ["ALL"]
@@ -130,6 +131,37 @@ services:
       interval: 5s
       timeout: 5s
       retries: 24
+
+  # TURN server for the WebRTC softphone (E13-11 / #834). Needed when the browser
+  # and Asterisk can't reach each other's media directly — e.g. Asterisk in a
+  # Docker Desktop VM. Both sides relay through it: the browser via
+  # `turn:<host>:3478` (set BBZ_SIP_WEBRTC_TURN_* for the api), Asterisk via its
+  # own rtp.conf (deploy/sip/asterisk/entrypoint.sh resolves `coturn`). LAB ONLY.
+  coturn:
+    image: coturn/coturn:4.6
+    profiles: ["sip"]
+    command:
+      - -n
+      - --lt-cred-mech
+      - --fingerprint
+      - --no-cli
+      - --no-tls
+      - --no-dtls
+      - --no-software-attribute
+      - --realm=bbz.lab
+      - --user=bbzturn:bbzturn
+      - --listening-port=3478
+      - --min-port=20008
+      - --max-port=20015
+      - --external-ip=${BBZ_ICE_HOST_IP:-127.0.0.1}
+      - --log-file=stdout
+      - --simple-log
+    ports:
+      - "3478:3478/udp"
+      - "3478:3478/tcp"
+      - "20008-20015:20008-20015/udp"   # TURN relay range
+    # (no cap_drop/no-new-privileges here — coturn's entrypoint drops privileges
+    # itself and needs to; this is a lab-only container anyway)
 
   # --- optional local observability stack (E22-07). Opt-in, never on quorum. ---
   #   docker compose --profile core --profile monitoring up

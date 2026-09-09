@@ -81,6 +81,25 @@ The lab's `wss://` uses a **self-signed** cert — the browser must have accepte
 it (visit `https://127.0.0.1:8089/` once, or serve the web app over the same
 cert in dev). `pjsip show contacts` shows the registered softphone.
 
+### Media path on Docker Desktop (#834)
+
+Signalling works out of the box, but on Docker Desktop (Windows/macOS) Asterisk
+runs in a VM whose IP the host browser can't reach, so a **direct ICE pair
+never forms** and calls have no audio. The `sip` profile ships a **`coturn`**
+service both sides relay through:
+
+- `entrypoint.sh` writes `turnaddr`/`turnusername`/`turnpassword` into `rtp.conf`
+  (resolving the `coturn` service) so Asterisk relays too — and rewrites its ICE
+  host candidate to **`BBZ_ICE_HOST_IP`** (set the host's LAN IP in `.env`).
+- Point the browser at it: on the `api` service set
+  `BBZ_SIP_WEBRTC_TURN_URL=turn:127.0.0.1:3478`,
+  `BBZ_SIP_WEBRTC_TURN_USERNAME=bbzturn`, `BBZ_SIP_WEBRTC_TURN_PASSWORD=bbzturn`
+  (matches coturn's `--user`).
+
+A real deployment (Asterisk on a routable host) needs none of this — drop the
+`coturn` service and leave the `BBZ_SIP_WEBRTC_TURN_*` / `BBZ_ICE_HOST_IP` vars
+unset.
+
 ## Music on hold — E13-12, #817
 
 Upload WAVs (`POST /api/v1/admin/telephony/moh`, raw body, `?name=`), then
