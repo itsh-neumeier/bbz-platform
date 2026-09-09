@@ -55,7 +55,6 @@ interface JsSipUA {
 }
 interface JsSipSession {
   direction: 'incoming' | 'outgoing';
-  connection: RTCPeerConnection;
   on(event: string, cb: (data: unknown) => void): void;
   answer(opts: Record<string, unknown>): void;
   terminate(): void;
@@ -94,9 +93,16 @@ export function createJsSipEngine(): SoftphoneEngine {
       onEvent({ type: 'callEnded' });
     });
     s.on('confirmed', () => onEvent({ type: 'callStarted' }));
-    s.connection?.addEventListener('track', (ev) => {
-      const [stream] = (ev as RTCTrackEvent).streams;
-      if (stream) remoteAudio().srcObject = stream;
+    // the RTCPeerConnection is built by answer(), so it does not exist yet —
+    // wire the remote audio track off the 'peerconnection' event, NOT off
+    // s.connection (which is still null here, so the listener never fired and
+    // the operator heard nothing).
+    s.on('peerconnection', (e) => {
+      const pc = (e as { peerconnection: RTCPeerConnection }).peerconnection;
+      pc.addEventListener('track', (ev) => {
+        const [stream] = (ev as RTCTrackEvent).streams;
+        if (stream) remoteAudio().srcObject = stream;
+      });
     });
 
     let stream: MediaStream;
@@ -108,11 +114,7 @@ export function createJsSipEngine(): SoftphoneEngine {
       session = null;
       return;
     }
-    s.answer({
-      mediaStream: stream,
-      pcConfig: { iceServers: creds.ice_servers },
-      mediaConstraints: { audio: true, video: false },
-    });
+    s.answer({ mediaStream: stream, pcConfig: { iceServers: creds.ice_servers } });
   }
 
   return {
@@ -125,6 +127,10 @@ export function createJsSipEngine(): SoftphoneEngine {
         uri: creds.sip_uri,
         password: creds.auth_password,
         register: true,
+        // a browser WSS can go half-open silently (proxy / NAT); a shorter
+        // registration means a dead socket surfaces within ~a minute instead of
+        // ten, and JsSIP's connection recovery reconnects.
+        register_expires: 120,
         session_timers: false,
         user_agent: 'BBZ-Softphone',
       });

@@ -113,10 +113,14 @@ services:
       BBZ_USER: ${BBZ_LAB_USER:-}
       BBZ_PASS: ${BBZ_LAB_PASS:-}
       CURL_OPTS: ${BBZ_LAB_CURL_OPTS:---insecure}
+      # host LAN IP for the WebRTC softphone's ICE (see entrypoint.sh) — set it
+      # in .env when testing the softphone from a browser on the Docker host
+      BBZ_ICE_HOST_IP: ${BBZ_ICE_HOST_IP:-}
     ports:
       - "8088:8088"        # ARI: REST + the event WebSocket
       - "8089:8089"        # wss:// for the operator softphone (E13-11 / ADR-0035)
       - "5060:5060/udp"    # chan_pjsip (optional softphone / registration-loss test)
+      - "20000-20007:20000-20007/udp"   # RTP for the softphone (matches rtp.conf; ICE-mapped to the host LAN IP)
     # hardening parity with `api` (E23-08); asterisk writes its own runtime dirs
     # so not read_only, but it needs no capabilities as a non-root process
     cap_drop: ["ALL"]

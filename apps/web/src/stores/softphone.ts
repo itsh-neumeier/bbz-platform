@@ -42,6 +42,17 @@ interface State {
 // reactive state (a JsSIP UA is not serialisable and must not be proxied)
 let engine: SoftphoneEngine | null = null;
 
+// watchdog for a `connect()` that neither registers nor fails — same rationale
+// as `engine` for living at module scope (a timer handle must not be proxied)
+let connectTimer: number | null = null;
+
+function clearConnectTimer(): void {
+  if (connectTimer !== null) {
+    window.clearTimeout(connectTimer);
+    connectTimer = null;
+  }
+}
+
 export const useSoftphoneStore = defineStore('softphone', {
   state: (): State => ({
     state: 'off',
@@ -83,26 +94,47 @@ export const useSoftphoneStore = defineStore('softphone', {
       this.state = 'connecting';
       this.error = null;
       engine = makeEngine();
+      // if neither a 'registered' nor a failure event lands in this window the
+      // UA is wedged — almost always the browser silently refusing the wss://
+      // TLS (self-signed cert not accepted) or an unreachable WS host. Don't
+      // sit on "connecting" forever. Cleared the moment any real state arrives.
+      connectTimer = window.setTimeout(() => {
+        connectTimer = null;
+        if (this.state === 'connecting') {
+          this.state = 'failed';
+          this.error ??= 'keine Antwort vom Softphone-Server (TLS-Zertifikat akzeptiert?)';
+        }
+      }, 12_000);
       try {
         await engine.connect(creds, (ev) => this._onEvent(ev));
       } catch (e) {
+        clearConnectTimer();
         this.state = 'failed';
         this.error = e instanceof Error ? e.message : String(e);
         engine = null;
+        return;
       }
     },
 
     _onEvent(ev: SoftphoneEvent): void {
       switch (ev.type) {
         case 'registered':
+          clearConnectTimer();
           this.state = 'registered';
           this.error = null;
           break;
         case 'unregistered':
         case 'disconnected':
-          if (this.state === 'registered') this.state = 'reconnecting';
+          // a drop after we were up = transient, keep retrying; a drop while
+          // still `connecting` = the socket never really came up
+          clearConnectTimer();
+          this.state = this.state === 'registered' ? 'reconnecting' : 'failed';
+          if (this.state === 'failed') {
+            this.error ??= 'Verbindung zum Softphone-Server verloren';
+          }
           break;
         case 'registrationFailed':
+          clearConnectTimer();
           this.state = 'failed';
           this.error = ev.cause;
           break;
@@ -127,6 +159,7 @@ export const useSoftphoneStore = defineStore('softphone', {
     },
 
     stop(): void {
+      clearConnectTimer();
       engine?.disconnect();
       engine = null;
       this.$reset();

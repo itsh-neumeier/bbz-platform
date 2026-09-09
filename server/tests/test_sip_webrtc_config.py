@@ -165,7 +165,15 @@ async def test_render_pjsip_shapes_the_transport_and_endpoint(
     assert "[transport-wss]" in pjsip and "protocol = wss" in pjsip
     assert f"[{u}]\ntype = endpoint" in pjsip
     assert "webrtc = yes" in pjsip
-    assert f"[{u}-auth]" in pjsip and f"[{u}-aor]" in pjsip
+    # a WebRTC client's Contact is a `*.invalid` URI + BBZ always bridges —
+    # without these the softphone registers but never rings
+    assert "rewrite_contact = yes" in pjsip
+    assert "direct_media = no" in pjsip
+    # endpoint / auth / aor all share the name `<u>` — the AOR MUST match the
+    # REGISTER To-URI user (a `-aor` suffix breaks registration)
+    assert f"[{u}]\ntype = auth" in pjsip
+    assert f"[{u}]\ntype = aor" in pjsip
+    assert f"aors = {u}\n" in pjsip and f"auth = {u}\n" in pjsip
     assert "max_contacts = 1" in pjsip and "remove_existing = yes" in pjsip
 
     creds = await svc.credentials_for(uid)

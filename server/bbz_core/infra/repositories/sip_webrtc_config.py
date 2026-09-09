@@ -267,6 +267,11 @@ def _render_pjsip(
     for e in endpoints:
         pw = decrypt_webrtc_password(e.auth_password_ciphertext)
         u = e.auth_username
+        # endpoint, auth AND aor all share the name `<u>` — a WebRTC client
+        # REGISTERs as `sip:<u>@<domain>` and `res_pjsip_registrar` looks the
+        # AOR up by that To-URI user, so the AOR MUST be named `<u>` (a
+        # `<u>-aor` suffix -> "AOR '' not found", registration fails). Same
+        # section name, different `type =` is the standard pjsip pattern.
         out += [
             f"; ---- operator softphone: {u} ----",
             f"[{u}]",
@@ -275,16 +280,26 @@ def _render_pjsip(
             "disallow = all",
             f"allow = {_WEBRTC_CODECS}",
             "webrtc = yes",
-            f"auth = {u}-auth",
-            f"aors = {u}-aor",
+            # the browser's REGISTER Contact is a throwaway `<random>.invalid`
+            # URI — `rewrite_contact` makes Asterisk route BBZ's INVITE back down
+            # the live WSS connection instead of at that dead host (without it
+            # the softphone registers but never rings, no media INVITE arrives).
+            "rewrite_contact = yes",
+            # BBZ always mixes the call in an ARI bridge, so the WebRTC leg is
+            # never a direct-media candidate (a browser can't do plain RTP).
+            "direct_media = no",
+            "rtp_symmetric = yes",
+            "force_rport = yes",
+            f"auth = {u}",
+            f"aors = {u}",
             "",
-            f"[{u}-auth]",
+            f"[{u}]",
             "type = auth",
             "auth_type = userpass",
             f"username = {u}",
             f"password = {pw}",
             "",
-            f"[{u}-aor]",
+            f"[{u}]",
             "type = aor",
             "max_contacts = 1",
             "remove_existing = yes",
