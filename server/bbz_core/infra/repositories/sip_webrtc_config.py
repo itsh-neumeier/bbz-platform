@@ -97,8 +97,22 @@ def _audit_after(
     }
 
 
-def _ice_servers(raw: str) -> list[dict[str, str]]:
-    return [{"urls": u.strip()} for u in raw.split(",") if u.strip()]
+def _ice_servers(
+    raw: str, turn_url: str = "", turn_username: str = "", turn_password: str = ""
+) -> list[dict[str, str]]:
+    """RTCIceServer-shaped dicts for the browser: the plain `stun:` / `turn:`
+    list first, then the credentialed TURN server if one is configured (a
+    `turn:` URL needs `username` + `credential` or Chrome rejects it)."""
+    out = [{"urls": u.strip()} for u in raw.split(",") if u.strip()]
+    if turn_url.strip():
+        out.append(
+            {
+                "urls": turn_url.strip(),
+                "username": turn_username,
+                "credential": turn_password,
+            }
+        )
+    return out
 
 
 class SipWebrtcConfigService:
@@ -192,7 +206,12 @@ class SipWebrtcConfigService:
             sip_uri=f"sip:{e.auth_username}@{domain}",
             auth_user=e.auth_username,
             auth_password=decrypt_webrtc_password(e.auth_password_ciphertext),
-            ice_servers=_ice_servers(s.sip_webrtc_ice_servers),
+            ice_servers=_ice_servers(
+                s.sip_webrtc_ice_servers,
+                s.sip_webrtc_turn_url,
+                s.sip_webrtc_turn_username,
+                s.sip_webrtc_turn_password,
+            ),
         )
 
     async def operator_endpoint_map(self) -> dict[str, str]:
